@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en">
+<head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="Velora Marketplace - Discover more. Shop better. Everything you need from stores you can trust." name="description"/>
+<title>Velora Marketplace | Discover More. Shop Better.</title>
+<link href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;✨&lt;/text&gt;&lt;/svg&gt;" rel="icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+
+&lt;!-- STYLE BLOCK EXTRACTED: velora-marketplace-foundation --&gt;
+
+<link href="styles/velora.css" rel="stylesheet"/></head>
+<body>
+<!-- ============================================
+     LOADING SCREEN
+     ============================================ -->
+<div class="loading-screen" id="loadingScreen">
+<div class="loading-content">
+<div class="loading-logo">✨</div>
+<div class="loading-text">Velora</div>
+<div class="loading-spinner"></div>
+</div>
+</div>
+<!-- ============================================
+     HEADER
+     ============================================ -->
+<header class="header">
+<div class="header-inner">
+<a class="logo" href="#" onclick="navigateTo('home'); return false;">
+<span class="logo-icon">✨</span>
+<span class="logo-text">Velora</span>
+</a>
+<nav class="main-nav">
+<ul>
+<li><a class="active" data-page="home" href="#" onclick="navigateTo('home'); return false;">🏠 Home</a></li>
+<li><a data-page="shop" href="#" onclick="openMarketplaceCategory('all'); return false;">🗂️ Categories</a></li>
+<li><a data-page="shops" href="#" onclick="navigateTo('shops'); return false;">🏪 Shops</a></li>
+<li><a data-page="deals" href="#" onclick="navigateTo('deals'); return false;">🔥 Deals</a></li>
+<li><a href="#" onclick="openSellerRegistration(); return false;">🚀 Sell on Velora</a></li>
+</ul>
+</nav>
+<div class="header-actions">
+<button class="icon-btn" onclick="openSearch()" title="Search">🔍</button>
+<button class="icon-btn" onclick="navigateTo('favorites')" title="Wishlist">
+                ❤️
+                <span class="badge" id="favBadge" style="display:none;">0</span>
+</button>
+<button class="icon-btn" onclick="openCart()" title="Cart">
+                🛒
+                <span class="badge" id="cartBadge" style="display:none;">0</span>
+</button>
+<button class="icon-btn" id="accountBtn" onclick="handleAccountClick()" title="Account">👤</button>
+<button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Theme">🌙</button>
+<select class="icon-btn" id="languageSelect" onchange="setVeloraLanguage(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem" title="Language"><option value="en">EN</option><option value="es">ES</option><option value="ar">AR</option><option value="fr">FR</option><option value="de">DE</option><option value="it">IT</option><option value="pt">PT</option><option value="tr">TR</option><option value="zh">ZH</option><option value="ja">JA</option><option value="ko">KO</option><option value="hi">HI</option></select>
+<select class="icon-btn" id="currencySelect" onchange="setVeloraCurrency(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem;max-width:88px" title="Currency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="EGP">EGP</option><option value="AED">AED</option><option value="SAR">SAR</option><option value="QAR">QAR</option><option value="KWD">KWD</option><option value="BHD">BHD</option><option value="OMR">OMR</option><option value="CAD">CAD</option><option value="AUD">AUD</option><option value="NZD">NZD</option><option value="CHF">CHF</option><option value="JPY">JPY</option><option value="CNY">CNY</option><option value="INR">INR</option><option value="TRY">TRY</option><option value="BRL">BRL</option><option value="MXN">MXN</option><option value="ZAR">ZAR</option><option value="SEK">SEK</option><option value="NOK">NOK</option><option value="DKK">DKK</option><option value="PLN">PLN</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="KRW">KRW</option><option value="THB">THB</option><option value="IDR">IDR</option><option value="MYR">MYR</option><option value="PHP">PHP</option><option value="PKR">PKR</option><option value="ILS">ILS</option></select>
+<button class="menu-btn" onclick="toggleMobileMenu()" title="Menu">☰</button>
+</div>
+</div>
+</header>
+<!-- ============================================
+     MOBILE MENU
+     ============================================ -->
+<nav class="mobile-menu" id="mobileMenu">
+<div class="mobile-menu-header">
+<div class="logo">
+<span class="logo-icon">✨</span>
+<span class="logo-text">Velora</span>
+</div>
+<button onclick="toggleMobileMenu()">✕</button>
+</div>
+<ul class="mobile-menu-list">
+<li><a href="#" onclick="navigateTo('home'); return false;">🏠 Home</a></li>
+<li><a href="#" onclick="openMarketplaceCategory('all'); return false;">🗂️ Categories</a></li>
+<li><a href="#" onclick="navigateTo('shops'); return false;">🏪 Shops</a></li>
+<li><a href="#" onclick="navigateTo('deals'); return false;">🔥 Deals</a></li>
+<li><a href="#" onclick="openSellerRegistration(); return false;">🚀 Sell on Velora</a></li>
+<li><a href="#" onclick="navigateTo('favorites'); return false;">❤️ Wishlist</a></li>
+<li><a href="#" onclick="navigateTo('orders'); return false;">📦 Orders</a></li>
+</ul>
+</nav>
+<div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileMenu()"></div>
+<!-- ============================================
+     MAIN CONTENT
+     ============================================ -->
+<main id="mainContent">
+<!-- ============ HOME PAGE ============ -->
+<section class="page active" id="page-home">
+<!-- HERO -->
+<div class="hero">
+<div class="hero-content">
+<span class="hero-badge">🛒 MULTI-SELLER MARKETPLACE</span>
+<h1 class="hero-title">Discover More.<br/>Shop Better.</h1>
+<p class="hero-desc">Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.</p>
+<div class="hero-buttons">
+<button class="btn btn-primary btn-lg" onclick="navigateTo('shop')">
+                        🛒 Start Shopping
+                    </button>
+<button class="btn btn-outline btn-lg" onclick="openSellerRegistration()">
+                        🏪 Become a Seller
+                    </button>
+</div>
+<div class="hero-stats">
+<div class="stat">
+<strong id="statProducts">50+</strong>
+<span>Products</span>
+</div>
+<div class="stat">
+<strong>Multi</strong>
+<span>Categories</span>
+</div>
+<div class="stat">
+<strong>Seller</strong>
+<span>Powered</span>
+</div>
+</div>
+</div>
+</div>
+<!-- MARKETPLACE CATEGORIES -->
+<div class="container">
+<div class="section-header">
+<span class="section-label">EXPLORE VELORA</span>
+<h2 class="section-title">Shop What You Love</h2>
+<p style="color:var(--text-muted); margin-top:.5rem;">Velora is built for every kind of store — not just one category.</p>
+</div>
+<div class="velora-market-cats">
+<button class="velora-cat" onclick="openMarketplaceCategory('all')"><span>🛍️</span><strong>All Products</strong><small>Explore everything</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('electronics')"><span>📱</span><strong>Electronics</strong><small>Phones &amp; tech</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('fashion')"><span>👗</span><strong>Fashion</strong><small>Style &amp; accessories</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('beauty')"><span>✨</span><strong>Beauty</strong><small>Skincare &amp; more</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('home')"><span>🏠</span><strong>Home &amp; Living</strong><small>For your space</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('sports')"><span>⚽</span><strong>Sports</strong><small>Move &amp; play</small></button>
+</div>
+</div>
+<!-- FEATURED PRODUCTS -->
+<div class="container">
+<div class="section-header">
+<span class="section-label">TRENDING NOW</span>
+<h2 class="section-title">Popular on Velora</h2>
+</div>
+<div class="products-grid" id="featuredProducts">
+<!-- Will be filled by JS -->
+</div>
+<div style="text-align: center; margin-top: 2rem;">
+<button class="btn btn-primary btn-lg" onclick="navigateTo('shop')">
+                    View All Products →
+                </button>
+</div>
+</div>
+<div class="container" style="padding-bottom:3rem;">
+<div class="velora-empty-store" style="border-style:solid;">
+<div style="font-size:3rem">🏪</div>
+<span class="section-label">SELL ON VELORA</span>
+<h2 style="margin:.6rem 0">Build your store. Reach more customers.</h2>
+<p>Velora brings products, sellers, discovery and shopping together in one growing marketplace.</p>
+<button class="btn btn-primary btn-lg" onclick="openSellerRegistration()">🚀 Open Your Store</button>
+</div>
+</div>
+</section>
+<!-- ============ SHOP PAGE ============ -->
+<section class="page" id="page-shop">
+<div class="page-hero">
+<h1>🛍️ Explore Velora</h1>
+<p>Discover products across multiple categories and growing stores.</p>
+</div>
+<div class="container">
+<!-- Search -->
+<div class="search-bar">
+<span class="search-icon">🔍</span>
+<input id="shopSearch" oninput="handleShopSearch(this.value)" placeholder="Search for a product..." type="text"/>
+<button class="clear-search" id="clearSearch" onclick="clearShopSearch()" style="display:none;">✕</button>
+</div>
+<!-- Filters -->
+<div class="filters-bar">
+<div class="filter-tabs" id="categoryFilters">
+<button class="filter-tab active" data-cat="all" onclick="filterShop('all', this)">🛍️ All</button>
+<button class="filter-tab" data-cat="electronics" onclick="filterShop('electronics', this)">📱 Electronics</button>
+<button class="filter-tab" data-cat="fashion" onclick="filterShop('fashion', this)">👗 Fashion</button>
+<button class="filter-tab" data-cat="beauty" onclick="filterShop('beauty', this)">✨ Beauty</button>
+<button class="filter-tab" data-cat="home" onclick="filterShop('home', this)">🏠 Home</button>
+<button class="filter-tab" data-cat="sports" onclick="filterShop('sports', this)">⚽ Sports</button>
+</div>
+<select class="sort-select" id="sortSelect" onchange="sortProducts(this.value)">
+<option value="featured">Featured</option>
+<option value="price-low">Price: Low to High</option>
+<option value="price-high">Price: High to Low</option>
+<option value="rating">Top Rated</option>
+<option value="name">Name (A-Z)</option>
+</select>
+</div>
+<div class="results-count">
+<span id="resultsCount">0</span> products
+            </div>
+<div class="products-grid" id="shopProducts">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ SHOPS PAGE ============ -->
+<section class="page" id="page-shops">
+<div class="page-hero">
+<span class="page-hero-badge">DISCOVER STORES</span>
+<h1>🏪 Shops on Velora</h1>
+<p>Discover independent sellers and growing brands in one marketplace.</p>
+</div>
+<div class="container">
+<div class="velora-stores-grid" id="marketplaceStores"></div>
+</div>
+</section>
+<!-- ============ DEALS PAGE ============ -->
+<section class="page" id="page-deals">
+<div class="page-hero">
+<span class="page-hero-badge">LIMITED-TIME OFFERS</span>
+<h1>🔥 Velora Deals</h1>
+<p>Explore popular products and marketplace offers from stores you can trust.</p>
+</div>
+<div class="container">
+<div class="products-grid" id="dealsProducts"></div>
+</div>
+</section>
+<!-- ============ GUIDE PAGE ============ -->
+<section class="page" id="page-guide">
+<div class="page-hero">
+<span class="page-hero-badge">LEARN</span>
+<h1>📚 Complete Guide</h1>
+<p>How to shop, sell, manage orders, and get the most from Velora.</p>
+</div>
+<div class="container">
+<div class="guide-grid" id="guideGrid">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ BLOG PAGE ============ -->
+<section class="page" id="page-blog">
+<div class="page-hero">
+<span class="page-hero-badge">ARTICLES</span>
+<h1>📝 Blog</h1>
+<p>Marketplace stories, shopping tips, and seller insights.</p>
+</div>
+<div class="container">
+<div class="blog-grid" id="blogGrid">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ COMPARE PAGE ============ -->
+<section class="page" id="page-compare">
+<div class="page-hero">
+<span class="page-hero-badge">COMPARE SMARTLY</span>
+<h1>⚖️ Smart Comparison</h1>
+<p>Choose any number of products and compare them in all details</p>
+</div>
+<div class="container">
+<div class="compare-search-wrap">
+<input class="compare-search-input" id="compareSearch" onfocus="handleCompareSearch(this.value)" oninput="handleCompareSearch(this.value)" placeholder="Search for a product to add to comparison..." type="text"/>
+<div class="compare-suggestions" id="compareSuggestions"></div>
+</div>
+<div class="compare-selected" id="compareSelected"></div>
+<div class="compare-empty" id="compareEmpty">
+<div class="empty-icon">⚖️</div>
+<h3>Start Comparison</h3>
+<p>Search for a product above and add it</p>
+<div class="quick-searches">
+<button onclick="quickCompareSearch('earbuds')">Serum</button>
+<button onclick="quickCompareSearch('sneakers')">Mascara</button>
+<button onclick="quickCompareSearch('desk lamp')">Shampoo</button>
+<button onclick="quickCompareSearch('yoga mat')">Perfume</button>
+</div>
+</div>
+<div class="compare-actions" id="compareActions" style="display:none;"></div>
+</div>
+</section>
+<!-- ============ REVIEWS PAGE ============ -->
+<section class="page" id="page-reviews">
+<div class="page-hero">
+<span class="page-hero-badge">REAL EXPERIENCES</span>
+<h1>💬 Real Reviews</h1>
+<p>Read real experiences and share yours</p>
+</div>
+<div class="container">
+<div id="reviewsContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ FAVORITES PAGE ============ -->
+<section class="page" id="page-favorites">
+<div class="page-hero">
+<h1>❤️ My Wishlist</h1>
+<p>Products you loved are saved here</p>
+</div>
+<div class="container">
+<div id="favoritesContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ CART PAGE ============ -->
+<section class="page" id="page-cart">
+<div class="page-hero">
+<h1>🛒 Shopping Cart</h1>
+<p>Review your items and proceed to checkout</p>
+</div>
+<div class="container">
+<div id="cartContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ CHECKOUT PAGE ============ -->
+<section class="page" id="page-checkout">
+<div class="page-hero">
+<h1>💳 Checkout</h1>
+<p>Complete your order</p>
+</div>
+<div class="container">
+<div class="checkout-grid">
+<div id="checkoutForm">
+<!-- Will be filled by JS -->
+</div>
+<div class="order-summary" id="checkoutSummary">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</div>
+</section>
+<!-- ============ ORDERS PAGE ============ -->
+<section class="page" id="page-orders">
+<div class="page-hero">
+<h1>📦 My Orders</h1>
+<p>Track your orders</p>
+</div>
+<div class="container">
+<div id="ordersContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+<!-- ============ ACCOUNT PAGE ============ -->
+<section class="page" id="page-account">
+<div class="page-hero">
+<h1>👤 My Account</h1>
+<p>Manage your profile and preferences</p>
+</div>
+<div class="container">
+<div id="accountContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</section>
+</main>
+<!-- ============================================
+     CART SIDEBAR
+     ============================================ -->
+<div class="cart-sidebar-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<aside class="cart-sidebar" id="cartSidebar">
+<div class="cart-header">
+<h3>🛒 Shopping Cart</h3>
+<button onclick="closeCart()">✕</button>
+</div>
+<div class="cart-body" id="cartSidebarBody">
+<!-- Will be filled by JS -->
+</div>
+<div class="cart-footer" id="cartSidebarFooter">
+<!-- Will be filled by JS -->
+</div>
+</aside>
+<!-- ============================================
+     SEARCH MODAL
+     ============================================ -->
+<div class="modal" id="searchModal">
+<div class="modal-content">
+<div class="modal-header">
+<h2>🔍 Search</h2>
+<button class="modal-close" onclick="closeModal('searchModal')">✕</button>
+</div>
+<input class="modal-search-input" id="modalSearchInput" oninput="handleModalSearch(this.value)" placeholder="Search for a product..." type="text"/>
+<div class="modal-search-results" id="modalSearchResults"></div>
+</div>
+</div>
+<!-- ============================================
+     AUTH MODAL (Login/Register)
+     ============================================ -->
+<div class="modal" id="authModal">
+<div class="modal-content">
+<div class="modal-header">
+<h2 id="authTitle">Login</h2>
+<button class="modal-close" onclick="closeModal('authModal')">✕</button>
+</div>
+<div id="authFormContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</div>
+<!-- ============================================
+     PRODUCT DETAIL MODAL
+     ============================================ -->
+<div class="modal" id="productModal">
+<div class="modal-content modal-wide">
+<button class="modal-close" onclick="closeModal('productModal')" style="position:absolute;top:1rem;right:1rem;z-index:10;">✕</button>
+<div id="productModalContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</div>
+<!-- ============================================
+     COMPARE MODAL
+     ============================================ -->
+<div class="modal" id="compareModal">
+<div class="modal-content modal-wide">
+<div class="modal-header">
+<h2>⚖️ Comparison Result</h2>
+<button class="modal-close" onclick="closeModal('compareModal')">✕</button>
+</div>
+<div id="compareModalContent">
+<!-- Will be filled by JS -->
+</div>
+</div>
+</div>
+<!-- ============================================
+     FOOTER
+     ============================================ -->
+<footer class="footer">
+<div class="footer-inner">
+<div class="footer-col">
+<div class="logo">
+<span class="logo-icon">✨</span>
+<span class="logo-text">Velora</span>
+</div>
+<p>A global multi-vendor marketplace connecting customers with independent stores and brands.</p>
+<div class="socials">
+<a href="#" title="Instagram">📷</a>
+<a href="#" title="TikTok">🎵</a>
+<a href="#" title="YouTube">▶️</a>
+<a href="#" title="Pinterest">📌</a>
+</div>
+</div>
+<div class="footer-col">
+<h4>Quick Links</h4>
+<ul>
+<li><a href="#" onclick="navigateTo('home'); return false;">Home</a></li>
+<li><a href="#" onclick="navigateTo('shop'); return false;">Shop</a></li>
+<li><a href="#" onclick="navigateTo('guide'); return false;">Guide</a></li>
+<li><a href="#" onclick="navigateTo('compare'); return false;">Compare</a></li>
+</ul>
+</div>
+<div class="footer-col">
+<h4>Customer Service</h4>
+<ul>
+<li><a href="#">Return Policy</a></li>
+<li><a href="#">Shipping Policy</a></li>
+<li><a href="#">FAQ</a></li>
+<li><a href="#">Contact Us</a></li>
+</ul>
+</div>
+<div class="footer-col">
+<h4>Newsletter</h4>
+<p>Subscribe for latest offers</p>
+<form class="newsletter-form" onsubmit="subscribeNewsletter(event)">
+<input placeholder="Your email" required="" type="email"/>
+<button type="submit">Subscribe</button>
+</form>
+</div>
+</div>
+<div class="footer-bottom">
+<p>© 2026 Velora ✨ All rights reserved.</p>
+</div>
+</footer>
+<!-- ============================================
+     FLOATING BUTTONS
+     ============================================ -->
+<div class="floating-buttons">
+<button class="floating-btn whatsapp" onclick="openWhatsApp()" title="WhatsApp">💬</button>
+<button class="floating-btn scroll-top" id="scrollTop" onclick="scrollToTop()" title="Top">⬆️</button>
+</div>
+<!-- ============================================
+     TOAST
+     ============================================ -->
+<div class="toast" id="toast"></div>
+<!-- ============================================
+     STAGE 2: Complete Stylesheet
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 1 --&gt;
+
+<!-- ============================================
+     STAGE 3: DATA - البيانات
+     ============================================ -->
+<!-- ============================================
+     STAGE 4: CORE LOGIC
+     ============================================ -->
+<!-- ============================================
+     STAGE 5: COMPARE + REVIEWS
+     ============================================ -->
+<!-- ============================================
+     STAGE 6: COUPONS + FLASH SALE + POLICIES + PWA
+     ============================================ -->
+<!-- ============================================
+     STAGE 6: COUPONS + FLASH SALE + FIRST ORDER + PWA
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 2 --&gt;
+
+<!-- ============================================
+     STAGE 7: FORCE ENGLISH + CLEANUP
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 3 --&gt;
+
+<!-- ============================================
+     STAGE 9: ROLES + AUTH SYSTEM
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 4 --&gt;
+
+<!-- ============================================
+     STAGE 10: SELLER DASHBOARD
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 5 --&gt;
+
+<!-- ============================================
+     STAGE 11: ADMIN PANEL
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 6 --&gt;
+
+<!-- ============================================
+     STAGE 12: MULTI-VENDOR CART + COMMISSION
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 7 --&gt;
+
+<!-- ============================================
+     STAGE 13: OWNER COMMAND CENTER
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 8 --&gt;
+
+<!-- ============================================
+     STAGE 14: NOTIFICATIONS + REVIEWS + DISPUTES + SUPPORT
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 9 --&gt;
+
+<!-- ============================================
+     STAGE 15: ANALYTICS + EVENTS + AUDIT LOGS + FINAL POLISH
+     ============================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 10 --&gt;
+
+<!-- ============================================
+     VELORA SELLER FOUNDATION — PHASE A
+     Dual-role compatibility + normalized data models
+     ============================================ -->
+<!-- FINAL SELLER DASHBOARD CLICK FIX -->
+<!-- VELORA V4 FINAL SELLER DATA + PRODUCTS + PLAN ENFORCEMENT -->
+<!-- FINAL SELLER DASHBOARD CLICK FIX -->
+<!-- VELORA STABILITY PATCH 2026-09-13 -->
+<!-- VELORA V4 FINAL SELLER DATA + PRODUCTS + PLAN ENFORCEMENT -->
+<!-- VELORA AUTHORITATIVE SELLER DASHBOARD FIX v2 -->
+<!-- VELORA AUTHORITATIVE SELLER DASHBOARD + BACK TO STORE FINAL FIX -->
+<!-- VELORA SELLER CENTER PRO ENHANCEMENT -->
+<!-- VELORA SELLER PROFILE RECOVERY HOTFIX -->
+<!-- VELORA CANONICAL SELLER / MODAL / PLAN / PRODUCT CONTROLLER -->
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 00-localization.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 11 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 01-seller.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 12 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 02-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 13 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 03-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 14 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 04-payments.js --&gt;
+
+<!-- VELORA_STAGE35_UI -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 15 --&gt;
+
+<section class="velora-stage35" id="velora-stage35">
+<h3>🎯 Recommendations &amp; Personalization Intelligence</h3>
+<div class="muted">Consent-aware recommendations, measurable feedback, and explainable personalization governance.</div>
+<div class="v35grid">
+<div class="v35card">Consent state<b id="v35Consent">—</b></div>
+<div class="v35card">Effective mode<b id="v35Mode">—</b></div>
+<div class="v35card">Recommendation events<b id="v35Events">—</b></div>
+<div class="v35card">CTR<b id="v35Ctr">—</b></div>
+</div>
+<div class="v35actions">
+<button class="v35btn" onclick="veloraStage35Refresh()">Refresh intelligence</button>
+<button class="v35btn" onclick="veloraStage35TestConsent()">Check personalization state</button>
+</div>
+<div class="muted" id="v35Status" style="margin-top:12px">Ready.</div>
+<table class="v35table"><thead><tr><th>Guardrail</th><th>Status</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Personalization consent</td><td><span class="v35pill">Required</span></td><td>No consent → contextual mode</td></tr>
+<tr><td>AI autonomy</td><td><span class="v35pill">Restricted</span></td><td>No autonomous sensitive account/payment actions</td></tr>
+<tr><td>Seller isolation</td><td><span class="v35pill">Enforced</span></td><td>Seller-scoped analytics and signals</td></tr>
+<tr><td>Recommendation feedback</td><td><span class="v35pill">Tracked</span></td><td>Impression/click/cart/purchase + negative feedback</td></tr>
+</tbody></table>
+</section>
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 05-auth.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 16 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 06-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 17 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 07-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 18 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 08-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 19 --&gt;
+
+<div id="veloraQa54Panel"><div class="velora-qa54-card"><div class="velora-qa54-head"><strong>Stage 54 — RC1 QA</strong><button class="velora-qa54-btn" id="qa54Close" style="margin:0">×</button></div><div class="velora-qa54-muted" style="margin:6px 0 10px">Static certification snapshot. External providers are not claimed as live.</div><div class="velora-qa54-row"><span>JavaScript syntax</span><span class="velora-qa54-pass">48/48 PASS</span></div><div class="velora-qa54-row"><span>Duplicate DOM IDs</span><span class="velora-qa54-pass">0 detected</span></div><div class="velora-qa54-row"><span>Referenced RPCs</span><span class="velora-qa54-pass">26/26 present</span></div><div class="velora-qa54-row"><span>Trust/Safety RPC gap fixed</span><span class="velora-qa54-pass">4/4 fixed</span></div><div class="velora-qa54-row"><span>Live payment</span><span class="velora-qa54-warn">BLOCKED</span></div><div class="velora-qa54-row"><span>Verified webhooks</span><span class="velora-qa54-warn">BLOCKED</span></div><div class="velora-qa54-row"><span>Real shipping provider</span><span class="velora-qa54-warn">BLOCKED</span></div><div class="velora-qa54-muted" style="margin-top:10px">RC2 candidate created after contract fixes. Runtime browser E2E still requires authenticated test sessions/provider configuration.</div></div></div>
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 09-admin.js --&gt;
+
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: velora-picker-hardening --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 10-localization.js --&gt;
+
+dy&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 21 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 11-admin.js --&gt;
+
+<script src="scripts/00-localization.js"></script><script src="scripts/01-seller.js"></script><script src="scripts/02-payments.js"></script><script src="scripts/03-payments.js"></script><script src="scripts/04-payments.js"></script><script src="scripts/05-auth.js"></script><script src="scripts/06-payments.js"></script><script src="scripts/07-payments.js"></script><script src="scripts/08-payments.js"></script><script src="scripts/09-admin.js"></script><script src="scripts/10-localization.js"></script><script src="scripts/11-admin.js"></script><script src="scripts/12-localization.js"></script><script src="scripts/13-payments.js"></script><script src="scripts/14-seller.js"></script><script src="scripts/15-payments.js"></script><script src="scripts/16-seller.js"></script><script src="scripts/17-payments.js"></script><script src="scripts/18-payments.js"></script><script src="scripts/19-seller.js"></script><script src="scripts/20-payments.js"></script><script src="scripts/21-payments.js"></script><script src="scripts/22-payments.js"></script><script src="scripts/23-payments.js"></script><script src="scripts/24-admin.js"></script><script src="scripts/25-admin.js"></script><script src="scripts/26-payments.js"></script><script src="scripts/27-payments.js"></script><script src="scripts/28-payments.js"></script><script src="scripts/29-payments.js"></script><script src="scripts/30-admin.js"></script><script src="scripts/31-seller.js"></script><script src="scripts/32-seller.js"></script><script src="scripts/33-payments.js"></script><script src="scripts/34-payments.js"></script><script src="scripts/35-seller.js"></script><script src="scripts/36-payments.js"></script><script src="scripts/37-payments.js"></script><script src="scripts/38-payments.js"></script><script src="scripts/39-payments.js"></script><script src="scripts/40-payments.js"></script><script src="scripts/41-seller.js"></script><script src="scripts/42-payments.js"></script><script src="scripts/43-admin.js"></script><script src="scripts/44-payments.js"></script><script src="scripts/45-seller.js"></script><script src="scripts/46-admin.js"></script><script src="scripts/47-seller.js"></script><script src="scripts/48-payments.js"></script><script src="scripts/49-payments.js"></script><script src="scripts/50-localization.js"></script><script src="scripts/51-localization.js"></script></body></html>
+
+&lt;!-- STYLE BLOCK EXTRACTED: 22 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 12-localization.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 23 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 13-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 24 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 14-seller.js --&gt;
+
+<!-- ============================================================
+     VELORA STAGE 11 — TRUST & SAFETY CONTROL PLANE
+     Disputes + Returns + Fraud Risk + Enforcement
+     Additive layer: preserves existing customer/seller/admin systems.
+     ============================================================ -->
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 15-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 25 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 16-seller.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 26 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 17-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 27 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 18-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 28 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 19-seller.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 29 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 20-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 30 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 21-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 31 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 22-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 32 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 23-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 33 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 24-admin.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 34 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 25-admin.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 35 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 26-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 36 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 27-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 37 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 28-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 38 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 29-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 39 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 30-admin.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 40 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 31-seller.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 41 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 32-seller.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 42 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 33-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 43 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 34-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 44 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 35-seller.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 45 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 36-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 46 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 37-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 47 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 38-payments.js --&gt;
+
+<!-- Stage 44 — Checkout UX & Customer Purchase Flow -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 48 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 39-payments.js --&gt;
+
+<!-- Stage 45 — Orders, Tracking & Post-Purchase Experience -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 49 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 40-payments.js --&gt;
+
+
+&lt;!-- STYLE BLOCK EXTRACTED: 50 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 41-seller.js --&gt;
+
+<!-- Stage 47 — Unified Support & Case Center -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 51 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 42-payments.js --&gt;
+
+<!-- Stage 48 — System Integration Audit & Consolidation -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 52 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 43-admin.js --&gt;
+
+<!-- Stage 49 — Production Data & Seed Environment Control Plane -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 53 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 44-payments.js --&gt;
+
+<!-- ============================================================
+     VELORA STAGE 51 — EXPERIENCE QA & STABILIZATION
+     ============================================================ -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: 54 --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 45-seller.js --&gt;
+
+<!-- VELORA_STAGE52 -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: velora-stage52-css --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 46-admin.js --&gt;
+
+<!-- VELORA_STAGE53 -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: velora-stage53-css --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 47-seller.js --&gt;
+
+<!-- VELORA_RC1_RELEASE_CANDIDATE -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: velora-rc1-css --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 48-payments.js --&gt;
+
+<div id="veloraRC1"></div>
+<!-- VELORA_STAGE57_PAYMOB_PAYMENT_ADAPTER -->
+
+&lt;!-- STYLE BLOCK EXTRACTED: velora-stage57-css --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 49-payments.js --&gt;
+
+<div id="veloraStage57"></div>  const CORE_OVERRIDES={"de":{"Discover More.":"Entdecke mehr.","Shop Better.":"Besser einkaufen.","Shopping Cart":"Warenkorb","Payment":"Zahlung"},"it":{"Discover More.":"Scopri di più.","Shop Better.":"Acquista meglio.","Shopping Cart":"Carrello","Payment":"Pagamento"},"pt":{"Discover More.":"Descubra mais.","Shop Better.":"Compre melhor.","Shopping Cart":"Carrinho de compras","Payment":"Pagamento"},"es":{"Payment":"Pago"},"fr":{"Discover More.":"Découvrez plus.","Shop Better.":"Achetez mieux.","Shopping Cart":"Panier","Payment":"Paiement"},"ar":{"Discover More.":"اكتشف المزيد.","Shop Better.":"تسوق بشكل أفضل.","Shopping Cart":"سلة التسوق","Payment":"الدفع"},"tr":{"Discover More.":"Daha fazlasını keşfet.","Shop Better.":"Daha iyi alışveriş yap.","Shopping Cart":"Alışveriş Sepeti","Payment":"Ödeme"},"zh":{"Discover More.":"发现更多。","Shop Better.":"更好地购物。","Shopping Cart":"购物车","Payment":"付款"},"ja":{"Discover More.":"もっと見る。","Shop Better.":"もっとスマートに買い物。","Shopping Cart":"ショッピングカート","Payment":"支払い"},"ko":{"Discover More.":"더 많이 발견하세요.","Shop Better.":"더 스마트하게 쇼핑하세요.","Shopping Cart":"쇼핑 카트","Payment":"결제"},"hi":{"Discover More.":"और खोजें।","Shop Better.":"बेहतर खरीदारी करें।","Shopping Cart":"शॉपिंग कार्ट","Payment":"भुगतान"}};
+  Object.keys(CORE_OVERRIDES).forEach(k=&gt;Object.assign(PACK[k],CORE_OVERRIDES[k]));
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 50-localization.js --&gt;
+
+
+&lt;!-- SCRIPT BLOCK EXTRACTED: 51-localization.js --&gt;
+

@@ -1,0 +1,314 @@
+[
+  {
+    "order": 0,
+    "file": "00-localization.js",
+    "id": "script-00",
+    "chars": 490043
+  },
+  {
+    "order": 1,
+    "file": "01-seller.js",
+    "id": "script-01",
+    "chars": 6170
+  },
+  {
+    "order": 2,
+    "file": "02-payments.js",
+    "id": "script-02",
+    "chars": 5613
+  },
+  {
+    "order": 3,
+    "file": "03-payments.js",
+    "id": "script-03",
+    "chars": 5567
+  },
+  {
+    "order": 4,
+    "file": "04-payments.js",
+    "id": "script-04",
+    "chars": 6144
+  },
+  {
+    "order": 5,
+    "file": "05-auth.js",
+    "id": "script-05",
+    "chars": 1299
+  },
+  {
+    "order": 6,
+    "file": "06-payments.js",
+    "id": "script-06",
+    "chars": 5385
+  },
+  {
+    "order": 7,
+    "file": "07-payments.js",
+    "id": "script-07",
+    "chars": 4478
+  },
+  {
+    "order": 8,
+    "file": "08-payments.js",
+    "id": "script-08",
+    "chars": 6341
+  },
+  {
+    "order": 9,
+    "file": "09-admin.js",
+    "id": "script-09",
+    "chars": 375
+  },
+  {
+    "order": 10,
+    "file": "10-localization.js",
+    "id": "script-10",
+    "chars": 8464
+  },
+  {
+    "order": 11,
+    "file": "11-admin.js",
+    "id": "script-11",
+    "chars": 6462
+  },
+  {
+    "order": 12,
+    "file": "12-localization.js",
+    "id": "script-12",
+    "chars": 44258
+  },
+  {
+    "order": 13,
+    "file": "13-payments.js",
+    "id": "script-13",
+    "chars": 11137
+  },
+  {
+    "order": 14,
+    "file": "14-seller.js",
+    "id": "script-14",
+    "chars": 14925
+  },
+  {
+    "order": 15,
+    "file": "15-payments.js",
+    "id": "script-15",
+    "chars": 14067
+  },
+  {
+    "order": 16,
+    "file": "16-seller.js",
+    "id": "script-16",
+    "chars": 9875
+  },
+  {
+    "order": 17,
+    "file": "17-payments.js",
+    "id": "script-17",
+    "chars": 5353
+  },
+  {
+    "order": 18,
+    "file": "18-payments.js",
+    "id": "script-18",
+    "chars": 7413
+  },
+  {
+    "order": 19,
+    "file": "19-seller.js",
+    "id": "script-19",
+    "chars": 6826
+  },
+  {
+    "order": 20,
+    "file": "20-payments.js",
+    "id": "script-20",
+    "chars": 6538
+  },
+  {
+    "order": 21,
+    "file": "21-payments.js",
+    "id": "script-21",
+    "chars": 6006
+  },
+  {
+    "order": 22,
+    "file": "22-payments.js",
+    "id": "script-22",
+    "chars": 5568
+  },
+  {
+    "order": 23,
+    "file": "23-payments.js",
+    "id": "script-23",
+    "chars": 4784
+  },
+  {
+    "order": 24,
+    "file": "24-admin.js",
+    "id": "script-24",
+    "chars": 4795
+  },
+  {
+    "order": 25,
+    "file": "25-admin.js",
+    "id": "script-25",
+    "chars": 5064
+  },
+  {
+    "order": 26,
+    "file": "26-payments.js",
+    "id": "script-26",
+    "chars": 7078
+  },
+  {
+    "order": 27,
+    "file": "27-payments.js",
+    "id": "script-27",
+    "chars": 4841
+  },
+  {
+    "order": 28,
+    "file": "28-payments.js",
+    "id": "script-28",
+    "chars": 5460
+  },
+  {
+    "order": 29,
+    "file": "29-payments.js",
+    "id": "script-29",
+    "chars": 5109
+  },
+  {
+    "order": 30,
+    "file": "30-admin.js",
+    "id": "script-30",
+    "chars": 5171
+  },
+  {
+    "order": 31,
+    "file": "31-seller.js",
+    "id": "script-31",
+    "chars": 5811
+  },
+  {
+    "order": 32,
+    "file": "32-seller.js",
+    "id": "script-32",
+    "chars": 6872
+  },
+  {
+    "order": 33,
+    "file": "33-payments.js",
+    "id": "script-33",
+    "chars": 6483
+  },
+  {
+    "order": 34,
+    "file": "34-payments.js",
+    "id": "script-34",
+    "chars": 6261
+  },
+  {
+    "order": 35,
+    "file": "35-seller.js",
+    "id": "script-35",
+    "chars": 3705
+  },
+  {
+    "order": 36,
+    "file": "36-payments.js",
+    "id": "script-36",
+    "chars": 2966
+  },
+  {
+    "order": 37,
+    "file": "37-payments.js",
+    "id": "script-37",
+    "chars": 5569
+  },
+  {
+    "order": 38,
+    "file": "38-payments.js",
+    "id": "script-38",
+    "chars": 4918
+  },
+  {
+    "order": 39,
+    "file": "39-payments.js",
+    "id": "script-39",
+    "chars": 6066
+  },
+  {
+    "order": 40,
+    "file": "40-payments.js",
+    "id": "script-40",
+    "chars": 6448
+  },
+  {
+    "order": 41,
+    "file": "41-seller.js",
+    "id": "script-41",
+    "chars": 5826
+  },
+  {
+    "order": 42,
+    "file": "42-payments.js",
+    "id": "script-42",
+    "chars": 6127
+  },
+  {
+    "order": 43,
+    "file": "43-admin.js",
+    "id": "script-43",
+    "chars": 4748
+  },
+  {
+    "order": 44,
+    "file": "44-payments.js",
+    "id": "script-44",
+    "chars": 5297
+  },
+  {
+    "order": 45,
+    "file": "45-seller.js",
+    "id": "script-45",
+    "chars": 5491
+  },
+  {
+    "order": 46,
+    "file": "46-admin.js",
+    "id": "velora-stage52-script",
+    "chars": 4312
+  },
+  {
+    "order": 47,
+    "file": "47-seller.js",
+    "id": "velora-stage53-script",
+    "chars": 5905
+  },
+  {
+    "order": 48,
+    "file": "48-payments.js",
+    "id": "velora-rc1-script",
+    "chars": 1250
+  },
+  {
+    "order": 49,
+    "file": "49-payments.js",
+    "id": "velora-stage57-script",
+    "chars": 3597
+  },
+  {
+    "order": 50,
+    "file": "50-localization.js",
+    "id": "script-50",
+    "chars": 9415
+  },
+  {
+    "order": 51,
+    "file": "51-localization.js",
+    "id": "script-51",
+    "chars": 18496
+  }
+]

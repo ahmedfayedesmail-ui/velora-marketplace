@@ -1,0 +1,10 @@
+{
+  "name": "velora-marketplace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Velora Global Marketplace source-of-truth rebuild from RC9",
+  "scripts": {
+    "serve": "python3 -m http.server 4173 -d src",
+    "check": "python3 tools/static_audit.py"
+  }
+}

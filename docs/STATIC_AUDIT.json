@@ -1,0 +1,15 @@
+{
+  "html_chars": 35668,
+  "html_lines": 919,
+  "css_chars": 167595,
+  "js_files": 52,
+  "js_chars": 846174,
+  "external_scripts": 53,
+  "inline_script_tags_remaining": 0,
+  "style_tags_remaining": 0,
+  "source_map_urls": 0,
+  "hardcoded_supabase_urls": 1,
+  "secret_like_assignments": 0,
+  "paymob_literals": 19,
+  "i18n_literals": 295
+}
