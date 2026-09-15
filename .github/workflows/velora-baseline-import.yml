@@ -1,0 +1,70 @@
+name: Velora Baseline Import
+
+on:
+  push:
+    branches:
+      - velora-baseline
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout baseline
+        uses: actions/checkout@v4
+        with:
+          ref: velora-baseline
+          fetch-depth: 0
+
+      - name: Restore and validate baseline
+        env:
+          WORKSPACE: ${{ github.workspace }}
+        run: |
+          python - <<'PY'
+          import base64, lzma, zipfile, pathlib, shutil, os
+          root = pathlib.Path(os.environ['WORKSPACE'])
+          payload_dir = root / 'tools' / '.baseline_payload'
+          parts = sorted(payload_dir.glob('part*'), key=lambda p: int(p.name[4:]))
+          if len(parts) != 5:
+              raise SystemExit(f'Expected 5 payload parts, found {len(parts)}')
+          payload = ''.join(p.read_text().strip() for p in parts)
+          archive = lzma.decompress(base64.b64decode(payload))
+          tmp = root / '.velora_import.zip'
+          tmp.write_bytes(archive)
+          extract = root / '.velora_extract'
+          if extract.exists(): shutil.rmtree(extract)
+          extract.mkdir()
+          with zipfile.ZipFile(tmp) as z:
+              bad = z.testzip()
+              if bad: raise SystemExit(f'Corrupt ZIP member: {bad}')
+              z.extractall(extract)
+          source = extract / 'Velora_REBUILD'
+          if not source.is_dir(): raise SystemExit('Missing Velora_REBUILD root in ZIP')
+          expected_files = []
+          for src in source.rglob('*'):
+              if src.is_file():
+                  rel = src.relative_to(source)
+                  expected_files.append(rel.as_posix())
+                  dst = root / rel
+                  dst.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(src, dst)
+          if len(expected_files) != 62:
+              raise SystemExit(f'Expected 62 ZIP files, found {len(expected_files)}')
+          shutil.rmtree(extract)
+          tmp.unlink()
+          shutil.rmtree(payload_dir)
+          wf = root / '.github/workflows/velora-baseline-import.yml'
+          if wf.exists(): wf.unlink()
+          print(f'Imported and validated {len(expected_files)} files.')
+          PY
+
+      - name: Commit imported baseline
+        run: |
+          git config user.name 'ahmedfayedesmail-ui'
+          git config user.email 'ahmedfayedesmail@gmail.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Import Velora working baseline'
+          git push origin velora-baseline
