@@ -1,0 +1,5 @@
+<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>Velora I18N Fixture</title><meta name="description" content="Velora i18n CI fixture"><style>body{font-family:sans-serif;padding:40px}input{padding:8px}</style></head><body><h1 id="heading">Velora I18N</h1><label><input id="probe" value="qa@example.com"></label><script>
+const rtl=new Set(['ar']);
+const lang=new URLSearchParams(location.search).get('lang')||'en';
+document.documentElement.lang=lang;document.documentElement.dir=rtl.has(lang)?'rtl':'ltr';
+</script></body></html>
