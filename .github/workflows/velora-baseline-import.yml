@@ -21,7 +21,7 @@ jobs:
         id: ready
         shell: bash
         run: |
-          if [ -f .velora-import/READY ]; then
+          if [ -f .velora-import/READY2 ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/velora-import
-          cat .velora-import/part-*.b64 | tr -cd 'A-Za-z0-9+/=\n' | base64 -d -i > /tmp/velora-import/Velora_REBUILD_v0.1.tar.gz
+          cat .velora-import/chunk-*.b64 | tr -cd 'A-Za-z0-9+/=\n' | base64 -d -i > /tmp/velora-import/Velora_REBUILD_v0.1.tar.gz
           test "$(stat -c%s /tmp/velora-import/Velora_REBUILD_v0.1.tar.gz)" -gt 100000
           mkdir -p /tmp/velora-import/extracted
           tar -xzf /tmp/velora-import/Velora_REBUILD_v0.1.tar.gz -C /tmp/velora-import/extracted
