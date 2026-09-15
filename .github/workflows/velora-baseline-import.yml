@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   import:
-    if: ${{ hashFiles('.velora-import/READY') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout baseline
@@ -18,7 +17,18 @@ jobs:
           fetch-depth: 0
           ref: velora-baseline
 
+      - name: Check ready marker
+        id: ready
+        shell: bash
+        run: |
+          if [ -f .velora-import/READY ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Rebuild and validate archive
+        if: steps.ready.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -30,9 +40,9 @@ jobs:
           test -d /tmp/velora-import/extracted/Velora_REBUILD
           COUNT=$(find /tmp/velora-import/extracted/Velora_REBUILD -type f | wc -l)
           test "$COUNT" -eq 62
-          find /tmp/velora-import/extracted/Velora_REBUILD -type f -print0 | xargs -0 -r grep -IL . >/dev/null || true
 
       - name: Replace branch contents with authoritative baseline
+        if: steps.ready.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
