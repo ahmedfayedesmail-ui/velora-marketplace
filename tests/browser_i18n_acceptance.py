@@ -11,19 +11,25 @@ try:
     with sync_playwright() as p:
         b=p.chromium.launch(headless=True)
         page=b.new_page(viewport={'width':1440,'height':1000})
-        for lang in LANGS:
-            page.goto(f'http://127.0.0.1:{PORT}/src/index.html?lang={lang}',wait_until='domcontentloaded',timeout=20000)
-            page.wait_for_timeout(500)
-            if page.locator('html').get_attribute('lang')!=lang: raise AssertionError(f'LANG_FAIL:{lang}')
-            expected='rtl' if lang=='ar' else 'ltr'
-            if page.locator('html').get_attribute('dir')!=expected: raise AssertionError(f'DIR_FAIL:{lang}')
-            if page.locator('title').count()==0: raise AssertionError(f'TITLE_MISSING:{lang}')
-            if page.locator('meta[name="description"]').count()==0: raise AssertionError(f'META_DESCRIPTION_MISSING:{lang}')
         page.goto(f'http://127.0.0.1:{PORT}/src/index.html?lang=en',wait_until='domcontentloaded',timeout=20000)
         page.wait_for_timeout(400)
+        selector=page.locator('#languageSelect')
+        if selector.count()==0: raise AssertionError('LANGUAGE_SELECTOR_MISSING')
+        for lang in LANGS:
+            try:
+                selector.select_option(lang)
+                page.wait_for_timeout(350)
+                if page.locator('html').get_attribute('lang')!=lang: raise AssertionError(f'LANG_FAIL:{lang}:{page.locator("html").get_attribute("lang")}')
+                expected='rtl' if lang=='ar' else 'ltr'
+                if page.locator('html').get_attribute('dir')!=expected: raise AssertionError(f'DIR_FAIL:{lang}')
+                if page.locator('title').count()==0: raise AssertionError(f'TITLE_MISSING:{lang}')
+                if page.locator('meta[name="description"]').count()==0: raise AssertionError(f'META_DESCRIPTION_MISSING:{lang}')
+            except Exception as exc:
+                page.screenshot(path=str(ROOT/'docs'/f'I18N_ACCEPTANCE_FAILURE_{lang}.png'),full_page=True)
+                raise
+        page.select_option('#languageSelect','en'); page.wait_for_timeout(250)
         page.screenshot(path=str(ROOT/'docs'/'I18N_ACCEPTANCE_LTR.png'),full_page=True)
-        page.goto(f'http://127.0.0.1:{PORT}/src/index.html?lang=ar',wait_until='domcontentloaded',timeout=20000)
-        page.wait_for_timeout(400)
+        page.select_option('#languageSelect','ar'); page.wait_for_timeout(250)
         page.screenshot(path=str(ROOT/'docs'/'I18N_ACCEPTANCE_RTL.png'),full_page=True)
         b.close()
     print('BROWSER_I18N_ACCEPTANCE_PASS languages=12 rtl=ar screenshots=2')
