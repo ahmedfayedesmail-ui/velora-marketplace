@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "commit": "ba4638a420dcf4ac012681cb21142bc80cb5d8c8",
+  "timestamp": "2026-09-15T17:52:19Z",
+  "fallback": 402,
+  "priority_fallback": {
+    "P1": 47,
+    "P2": 196,
+    "P3": 126,
+    "P4": 33,
+    "P5": 0
+  },
+  "source": "Velora v0.5 RC2 baseline"
+}

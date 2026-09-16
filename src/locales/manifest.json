@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "baseline": {
+    "commit": "ba4638a420dcf4ac012681cb21142bc80cb5d8c8",
+    "date": "2026-09-15T17:52:19Z",
+    "fallback_count": 402
+  },
+  "locales": ["ar", "en", "fr", "es", "de", "it", "pt", "tr", "zh", "ja", "ko", "hi"],
+  "namespaces": ["common", "navigation", "discovery", "commerce", "seller", "support"],
+  "priority_split": {
+    "P1": 47,
+    "P2": 196,
+    "P3": 126,
+    "P4": 33
+  },
+  "source_mode": "legacy-inline-js",
+  "note": "Registry metadata is established here; the current application still stores runtime localization in src/scripts. Structured namespace files are not yet the application source of truth."
+}
