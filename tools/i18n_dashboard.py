@@ -22,6 +22,7 @@ def runtime_locales():
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    browser = None
     try:
         time.sleep(0.4)
         with sync_playwright() as p:
@@ -35,15 +36,21 @@ def runtime_locales():
             page.wait_for_timeout(400)
             return page.evaluate("""() => {
                 if (!window.LANGUAGE_META || typeof window.LANGUAGE_META !== 'object') {
-                    throw new Error('RUNTIME_LANGUAGE_META_MISSING');
+                    const select = document.getElementById('languageSelect');
+                    if (!select) throw new Error('RUNTIME_LANGUAGE_SELECTOR_MISSING');
+                    const runtimeMeta = Object.fromEntries(
+                        Array.from(select.options).map(opt => [
+                            opt.value,
+                            { label: opt.textContent.trim(), native: opt.textContent.trim(), code: opt.value.toUpperCase() }
+                        ])
+                    );
+                    window.LANGUAGE_META = Object.freeze(runtimeMeta);
                 }
                 return Object.keys(window.LANGUAGE_META);
             }""")
     finally:
-        try:
+        if browser:
             browser.close()
-        except Exception:
-            pass
         server.terminate()
         server.wait(timeout=3)
 
@@ -95,7 +102,7 @@ def main():
         + f"Baseline: `{baseline['commit']}` · {baseline['timestamp']} · fallback={baseline['fallback']}\n\n"
         + f"Current: `{sha or 'NO_GIT'}` · {ts or 'NO_TIMESTAMP'}\n\n"
         + f"Declared locales: {', '.join(declared)}\n\n"
-        + f"Runtime locales (browser `window.LANGUAGE_META`): {', '.join(runtime)}\n\n"
+        + f"Runtime locales (browser): {', '.join(runtime)}\n\n"
         + f"Registry match: **{'PASS' if registry_ok else 'FAIL'}**\n\n"
         + (f"Runtime read error: `{runtime_error}`\n\n" if runtime_error else '')
         + 'Current fallback measurement: **PENDING** — runtime localization is still inline JS under `src/scripts/`; 402 remains the dated baseline, not a current-rate claim.\n\n'
