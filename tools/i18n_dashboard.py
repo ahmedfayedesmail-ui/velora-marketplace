@@ -22,41 +22,34 @@ def runtime_locales():
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    browser = None
     try:
         time.sleep(0.4)
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page = browser.new_page(viewport={'width': 1440, 'height': 1000})
-            page.goto(
-                f'http://127.0.0.1:{PORT}/src/index.html?lang=en',
-                wait_until='domcontentloaded',
-                timeout=20000,
-            )
-            page.wait_for_timeout(400)
-            return page.evaluate("""() => {
-                if (!window.LANGUAGE_META || typeof window.LANGUAGE_META !== 'object') {
-                    const select = document.getElementById('languageSelect');
-                    if (!select) throw new Error('RUNTIME_LANGUAGE_SELECTOR_MISSING');
-                    const runtimeMeta = Object.fromEntries(
-                        Array.from(select.options).map(opt => [
-                            opt.value,
-                            { label: opt.textContent.trim(), native: opt.textContent.trim(), code: opt.value.toUpperCase() }
-                        ])
-                    );
-                    window.LANGUAGE_META = Object.freeze(runtimeMeta);
-                }
-                return Object.keys(window.LANGUAGE_META);
-            }""")
+            try:
+                page = browser.new_page(viewport={'width': 1440, 'height': 1000})
+                page.goto(
+                    f'http://127.0.0.1:{PORT}/src/index.html?lang=en',
+                    wait_until='domcontentloaded',
+                    timeout=20000,
+                )
+                page.wait_for_function(
+                    """() => window.LANGUAGE_META &&
+                        typeof window.LANGUAGE_META === 'object' &&
+                        !Array.isArray(window.LANGUAGE_META) &&
+                        Object.keys(window.LANGUAGE_META).length === 12""",
+                    timeout=10000,
+                )
+                return page.evaluate("() => Object.keys(window.LANGUAGE_META)")
+            finally:
+                browser.close()
     finally:
-        if browser:
-            browser.close()
         server.terminate()
         server.wait(timeout=3)
 
 
 def main():
-    p = argparse.ArgumentParser(description='Velora i18n dashboard with Git provenance and browser runtime registry validation')
+    p = argparse.ArgumentParser(description='Velora i18n dashboard with Git provenance and authoritative browser runtime registry validation')
     p.add_argument('--json', action='store_true', help='Emit JSON summary')
     p.add_argument('--require-git', action='store_true', help='Exit 2 when Git metadata is unavailable')
     a = p.parse_args()
@@ -95,7 +88,7 @@ def main():
         'fallback_measurement_status': 'pending_structured_locale_source',
         'current_fallback': None,
         'forecast_status': 'pending_actual_7_day_measurement',
-        'source_mode': manifest.get('source_mode', 'unknown'),
+        'source_mode': manifest.get('source_mode', 'legacy-inline-js'),
     }
     md = (
         '# Velora I18N Completeness Dashboard\n\n'
