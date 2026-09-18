@@ -284,16 +284,19 @@
     if(!rows.length)return originalSellerSave(e,productId);
 
     if(!productId){
-      /* The canonical create handler owns translations and moderation. We let it create the parent first. */
+      /* The canonical create handler owns translations and moderation. Create the parent first, then attach staged variants to the freshly-created seller product. */
       var snapshot=JSON.stringify(rows);
-      window.__VELORA_S2A_STAGED_VARIANTS=snapshot;
+      var stagedName=(document.getElementById("vcName")?.value||"").trim();
+      var stagedSeller=window.VELORA_CANONICAL_SELLER;
       var result=await originalSellerSave(e,productId);
       try{
-        var seller=window.VELORA_CANONICAL_SELLER;if(seller){
-          var vr=await db.from("products").select("id,name,created_at").eq("seller_id",seller.id).eq("name",document.getElementById("vcName")?.value.trim()||"").order("created_at",{ascending:false}).limit(5);
+        if(stagedSeller&&stagedName){
+          var vr=await db.from("products").select("id,name,created_at").eq("seller_id",stagedSeller.id).eq("name",stagedName).order("created_at",{ascending:false}).limit(5);
           var target=(vr.data||[]).sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);})[0];
           if(target){
             await saveSellerVariants(target.id,JSON.parse(snapshot));
+          }else{
+            throw new Error("Freshly-created product could not be resolved for variant attachment.");
           }
         }
       }catch(err2){if(typeof toastErr==="function")toastErr(err2);else showToast("⚠️ Product created, but variants were not attached: "+(err2.message||err2),"warning");}
