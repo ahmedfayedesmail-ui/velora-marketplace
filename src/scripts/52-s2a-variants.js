@@ -32,9 +32,9 @@
       variantCache.set(productId,rows);
       return rows;
     }catch(e){
-      console.warn("S2-A variant read failed:",e);
-      variantCache.set(productId,[]);
-      return [];
+      console.error("S2-A variant read failed:",e);
+      variantCache.delete(productId);
+      throw e;
     }
   }
   function attrValue(v,key){
@@ -79,10 +79,24 @@
     selectionCache.set(productId,sel);
     return sel;
   }
+  function normalizeSelection(variants,selected){
+    var sel=Object.assign({},selected||{});
+    var exact=(variants||[]).find(function(v){return matches(v,sel);});
+    if(exact)return sel;
+    var candidate=(variants||[]).find(function(v){return Number(v.stock_quantity||0)>0&&matches(v,sel);});
+    if(candidate)return sel;
+    var fallback=(variants||[]).find(function(v){
+      return Number(v.stock_quantity||0)>0 && Object.keys(sel).every(function(k){return attrValue(v,k)===String(sel[k]);});
+    }) || (variants||[]).find(function(v){return Number(v.stock_quantity||0)>0;}) || (variants||[])[0];
+    if(!fallback)return sel;
+    groups(variants).forEach(function(g){var val=attrValue(fallback,g.key);if(val)sel[g.key]=val;});
+    return sel;
+  }
   function selectVariant(productId,key,value){
     productId=decode(productId);key=decode(key);value=decode(value);
     var variants=variantCache.get(productId)||[];if(!variants.length)return;
-    var sel=Object.assign({},selectionCache.get(productId)||{});sel[key]=value;selectionCache.set(productId,sel);
+    var sel=Object.assign({},selectionCache.get(productId)||{});sel[key]=value;
+    sel=normalizeSelection(variants,sel);selectionCache.set(productId,sel);
     var p=(window.MAHA_DATA&&Array.isArray(MAHA_DATA.PRODUCTS))?MAHA_DATA.PRODUCTS.find(function(x){return x.id===productId;}):null;
     if(p)renderProduct(p,variants,sel);
   }
@@ -96,7 +110,7 @@
       out+="<div class=\"velora-variant-group\"><div class=\"velora-variant-group-label\">"+esc(g.key==="__name"?"Variant":g.key)+" <span class=\"velora-variant-selected\">"+esc(current||"Select")+"</span></div>";
       if(g.values.length>8){
         out+="<select class=\"form-select velora-variant-select\" onchange=\"window.VELORA_SELECT_VARIANT_S2A('"+token(product.id)+"','"+token(g.key)+"',this.value)\"><option value=\"\">Select...</option>";
-        g.values.forEach(function(v){var ok=optionAvailable(variants,selected,g.key,v);out+="<option value=\""+esc(v)+"\" "+(v===current?"selected":"disabled")+" >"+esc(v)+(ok?"":" - Sold out")+"</option>";});
+        g.values.forEach(function(v){var ok=optionAvailable(variants,selected,g.key,v);out+="<option value=\""+esc(v)+"\" "+(v===current?"selected ":"")+(ok?"":"disabled ")+" >"+esc(v)+(ok?"":" - Sold out")+"</option>";});
         out+="</select>";
       }else{
         out+="<div class=\"velora-variant-options\">";
@@ -118,6 +132,14 @@
     var stock=v?Number(v.stock_quantity||0):Number(p.stock||0);
     var fav=Array.isArray(STATE.favorites)&&STATE.favorites.some(function(x){return x.id===p.id;});
     var variantMeta=v?"<div class=\"velora-variant-current\"><strong>"+esc(v.name)+"</strong>"+(attrsText(v.attributes)?"<span>"+attrsText(v.attributes)+"</span>":"")+"</div>":"";
+    var details="";
+    if(Array.isArray(p.ingredients)&&p.ingredients.length)details+="<section class=\"velora-detail-section\"><h4>🧪 Ingredients</h4><div class=\"velora-detail-chips\">"+p.ingredients.map(function(x){return "<span>"+esc(x)+"</span>";}).join("")+"</div></section>";
+    if(Array.isArray(p.pros)&&p.pros.length)details+="<section class=\"velora-detail-section\"><h4>✅ Pros</h4><ul>"+p.pros.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul></section>";
+    if(Array.isArray(p.cons)&&p.cons.length)details+="<section class=\"velora-detail-section\"><h4>⚠️ Cons</h4><ul class=\"velora-muted-list\">"+p.cons.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul></section>";
+    var use=p.usage||p.howToUse;
+    if(use)details+="<section class=\"velora-detail-section\"><h4>🧴 How to Use</h4><p>"+esc(use)+"</p></section>";
+    var best=p.bestFor||p.skinTypes||p.skinType;
+    if(Array.isArray(best)&&best.length)details+="<section class=\"velora-detail-section\"><h4>🎯 Best For</h4><div class=\"velora-detail-chips\">"+best.map(function(x){return "<span>"+esc(x)+"</span>";}).join("")+"</div></section>";
     content.innerHTML="<div class=\"velora-product-detail-grid\"><div class=\"velora-product-detail-media\">"+esc(p.emoji||"📦")+"</div><div><div class=\"velora-product-subcategory\">"+esc(p.subcategory||"")+"</div><h2>"+esc(p.name)+"</h2><div class=\"velora-product-brand\">"+esc(p.brand||"")+"</div><div class=\"velora-product-rating\">"+(typeof renderStars==="function"?renderStars(p.rating):"")+" <span>"+esc(p.rating)+" ("+esc(p.reviewsCount||0)+" reviews)</span></div>"+pickerHtml(p,variants,selected)+variantMeta+"<div class=\"velora-price-row\"><span class=\"velora-effective-price\">"+formatPrice(price)+"</span></div><div class=\"velora-variant-stock\">"+(variants.length?(stock>0?stock+" available":"Out of stock"):"")+"</div><p class=\"velora-product-description\">"+esc(p.description||"")+"</p><div class=\"velora-product-actions\"><button class=\"btn btn-primary btn-lg\" "+(variants.length&&(!v||stock<=0)?"disabled":"")+" onclick=\"window.addToCartS2A('"+token(p.id)+"',1,"+(v?"'"+token(v.id)+"'":"null")+");closeModal('productModal')\">🛒 Add to Cart</button><button class=\"btn btn-outline btn-lg\" onclick=\"toggleFavorite('"+token(p.id)+"',this)\">"+(fav?"❤️":"🤍")+"</button></div></div></div>";
     modal.classList.add("active");document.body.style.overflow="hidden";
   }
@@ -131,9 +153,14 @@
     if(!p)return;
     var modal=document.getElementById("productModal"),content=document.getElementById("productModalContent");
     if(modal&&content){modal.classList.add("active");document.body.style.overflow="hidden";content.innerHTML="<div class=\"velora-variant-loading\">Loading product options...</div>";}
-    var variants=await loadVariants(productId,true);
-    var selected=seedSelection(productId,variants);
-    renderProduct(p,variants,selected);
+    try{
+      var variants=await loadVariants(productId,true);
+      var selected=seedSelection(productId,variants);
+      renderProduct(p,variants,selected);
+    }catch(e){
+      if(content)content.innerHTML="<div class=\"velora-variant-loading\">Unable to load product options. Please try again.</div>";
+      if(typeof showToast==="function")showToast("❌ Unable to load product options","error");
+    }
   };
 
   function lineKey(id,variantId){return String(id)+"::"+String(variantId||"base");}
@@ -288,7 +315,10 @@
       var snapshot=JSON.stringify(rows);
       var stagedName=(document.getElementById("vcName")?.value||"").trim();
       var stagedSeller=window.VELORA_CANONICAL_SELLER;
-      var result=await originalSellerSave(e,productId);
+      var result;
+      try{ result=await originalSellerSave(e,productId); }catch(createErr){
+        throw createErr;
+      }
       try{
         if(stagedSeller&&stagedName){
           var vr=await db.from("products").select("id,name,created_at").eq("seller_id",stagedSeller.id).eq("name",stagedName).order("created_at",{ascending:false}).limit(5);
