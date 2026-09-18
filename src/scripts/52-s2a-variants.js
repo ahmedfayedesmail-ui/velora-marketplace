@@ -287,7 +287,7 @@
         if(rr.error)throw rr.error;
       }
     }
-    if(rows.length){
+    if(rows.length || existing.length){
       var totalStock=rows.reduce(function(n,x){return n+Number(x.stock_quantity||0);},0);
       var seller=window.VELORA_CANONICAL_SELLER;
       var ur=await db.from("products").update({stock:totalStock,updated_at:new Date().toISOString()}).eq("id",productId).eq("seller_id",seller.id);
@@ -300,7 +300,7 @@
     var old=modal.querySelector("#s2aVariantEditor");if(old)old.remove();
     var variants=productId?await loadVariants(productId,true):[];
     var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
-    host.innerHTML="<div class=\"velora-variant-editor-head\"><div><strong>Variants (optional)</strong><div class=\"velora-op-muted\">One row per purchasable combination. Attributes are free-form JSON such as {color:red, size:M}.</div></div><button type=\"button\" class=\"btn btn-outline\" id=\"s2aAddVariant\">+ Add Variant</button></div><div id=\"s2aVariantRows\">"+variants.map(sellerVariantRow).join("")+"</div><div class=\"velora-op-note\">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
+    host.innerHTML="<div class=\"velora-variant-editor-head\"><div><strong>Variants (optional)</strong><div class=\"velora-op-muted\">One row per purchasable combination. Attributes are free-form JSON such as {"color":"red","size":"M"}.</div></div><button type=\"button\" class=\"btn btn-outline\" id=\"s2aAddVariant\">+ Add Variant</button></div><div id=\"s2aVariantRows\">"+variants.map(sellerVariantRow).join("")+"</div><div class=\"velora-op-note\">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
     var loc=modal.querySelector(".velora-loc-editor");form.insertBefore(host,loc||form.lastElementChild);
     host.querySelector("#s2aAddVariant").onclick=function(){document.getElementById("s2aVariantRows").insertAdjacentHTML("beforeend",sellerVariantRow(null));};
     host.addEventListener("click",function(e){if(e.target.closest(".s2aRemoveVariant")){var row=e.target.closest(".velora-seller-variant-row");if(row)row.remove();}});
@@ -322,13 +322,14 @@
       var snapshot=JSON.stringify(rows);
       var stagedName=(document.getElementById("vcName")?.value||"").trim();
       var stagedSeller=window.VELORA_CANONICAL_SELLER;
+      var createStartedAt=new Date().toISOString();
       var result;
       try{ result=await originalSellerSave(e,productId); }catch(createErr){
         throw createErr;
       }
       try{
         if(stagedSeller&&stagedName){
-          var vr=await db.from("products").select("id,name,created_at").eq("seller_id",stagedSeller.id).eq("name",stagedName).order("created_at",{ascending:false}).limit(5);
+          var vr=await db.from("products").select("id,name,created_at").eq("seller_id",stagedSeller.id).eq("name",stagedName).gte("created_at",createStartedAt).order("created_at",{ascending:false}).limit(5);
           var target=(vr.data||[]).sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);})[0];
           if(target){
             await saveSellerVariants(target.id,JSON.parse(snapshot));
