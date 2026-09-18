@@ -90,17 +90,17 @@
 
   function pickerHtml(product,variants,selected){
     if(!variants.length)return "";
-    var out="<div class="velora-variant-picker"><div class="velora-variant-picker-title">Choose options</div>";
+    var out="<div class=\"velora-variant-picker\"><div class=\"velora-variant-picker-title\">Choose options</div>";
     groups(variants).forEach(function(g){
       var current=String(selected&&selected[g.key]||"");
-      out+="<div class="velora-variant-group"><div class="velora-variant-group-label">"+esc(g.key==="__name"?"Variant":g.key)+" <span class="velora-variant-selected">"+esc(current||"Select")+"</span></div>";
+      out+="<div class=\"velora-variant-group\"><div class=\"velora-variant-group-label\">"+esc(g.key==="__name"?"Variant":g.key)+" <span class=\"velora-variant-selected\">"+esc(current||"Select")+"</span></div>";
       if(g.values.length>8){
-        out+="<select class="form-select velora-variant-select" onchange="window.VELORA_SELECT_VARIANT_S2A('"+token(product.id)+"','"+token(g.key)+"',this.value)"><option value="">Select...</option>";
-        g.values.forEach(function(v){var ok=optionAvailable(variants,selected,g.key,v);out+="<option value=""+esc(v)+"" "+(v===current?"selected":"disabled")+" >"+esc(v)+(ok?"":" - Sold out")+"</option>";});
+        out+="<select class=\"form-select velora-variant-select\" onchange=\"window.VELORA_SELECT_VARIANT_S2A('"+token(product.id)+"','"+token(g.key)+"',this.value)\"><option value=\"\">Select...</option>";
+        g.values.forEach(function(v){var ok=optionAvailable(variants,selected,g.key,v);out+="<option value=\""+esc(v)+"\" "+(v===current?"selected":"disabled")+" >"+esc(v)+(ok?"":" - Sold out")+"</option>";});
         out+="</select>";
       }else{
-        out+="<div class="velora-variant-options">";
-        g.values.forEach(function(v){var ok=optionAvailable(variants,selected,g.key,v);out+="<button type="button" class="velora-variant-option "+(v===current?"selected":"")+"" "+(ok?"":"disabled ")+"onclick="window.VELORA_SELECT_VARIANT_S2A('"+token(product.id)+"','"+token(g.key)+"','"+token(v)+"')">"+esc(v)+(ok?"":"<span class="velora-variant-oos">Sold out</span>")+"</button>";});
+        out+="<div class=\"velora-variant-options\">";
+        g.values.forEach(function(v){var ok=optionAvailable(variants,selected,g.key,v);out+="<button type=\"button\" class=\"velora-variant-option "+(v===current?"selected":"")+"\" "+(ok?"":"disabled ")+"onclick=\"window.VELORA_SELECT_VARIANT_S2A('"+token(product.id)+"','"+token(g.key)+"','"+token(v)+"')\">"+esc(v)+(ok?"":"<span class=\"velora-variant-oos\">Sold out</span>")+"</button>";});
         out+="</div>";
       }
       out+="</div>";
@@ -117,8 +117,8 @@
     var price=v?(v.price==null?p.price:v.price):p.price;
     var stock=v?Number(v.stock_quantity||0):Number(p.stock||0);
     var fav=Array.isArray(STATE.favorites)&&STATE.favorites.some(function(x){return x.id===p.id;});
-    var variantMeta=v?"<div class="velora-variant-current"><strong>"+esc(v.name)+"</strong>"+(attrsText(v.attributes)?"<span>"+attrsText(v.attributes)+"</span>":"")+"</div>":"";
-    content.innerHTML="<div class="velora-product-detail-grid"><div class="velora-product-detail-media">"+esc(p.emoji||"📦")+"</div><div><div class="velora-product-subcategory">"+esc(p.subcategory||"")+"</div><h2>"+esc(p.name)+"</h2><div class="velora-product-brand">"+esc(p.brand||"")+"</div><div class="velora-product-rating">"+(typeof renderStars==="function"?renderStars(p.rating):"")+" <span>"+esc(p.rating)+" ("+esc(p.reviewsCount||0)+" reviews)</span></div>"+pickerHtml(p,variants,selected)+variantMeta+"<div class="velora-price-row"><span class="velora-effective-price">"+formatPrice(price)+"</span></div><div class="velora-variant-stock">"+(variants.length?(stock>0?stock+" available":"Out of stock"):"")+"</div><p class="velora-product-description">"+esc(p.description||"")+"</p><div class="velora-product-actions"><button class="btn btn-primary btn-lg" "+(variants.length&&(!v||stock<=0)?"disabled":"")+" onclick="window.addToCartS2A('"+token(p.id)+"',1,"+(v?"'"+token(v.id)+"'":"null")+");closeModal('productModal')">🛒 Add to Cart</button><button class="btn btn-outline btn-lg" onclick="toggleFavorite('"+token(p.id)+"',this)">"+(fav?"❤️":"🤍")+"</button></div></div></div>";
+    var variantMeta=v?"<div class=\"velora-variant-current\"><strong>"+esc(v.name)+"</strong>"+(attrsText(v.attributes)?"<span>"+attrsText(v.attributes)+"</span>":"")+"</div>":"";
+    content.innerHTML="<div class=\"velora-product-detail-grid\"><div class=\"velora-product-detail-media\">"+esc(p.emoji||"📦")+"</div><div><div class=\"velora-product-subcategory\">"+esc(p.subcategory||"")+"</div><h2>"+esc(p.name)+"</h2><div class=\"velora-product-brand\">"+esc(p.brand||"")+"</div><div class=\"velora-product-rating\">"+(typeof renderStars==="function"?renderStars(p.rating):"")+" <span>"+esc(p.rating)+" ("+esc(p.reviewsCount||0)+" reviews)</span></div>"+pickerHtml(p,variants,selected)+variantMeta+"<div class=\"velora-price-row\"><span class=\"velora-effective-price\">"+formatPrice(price)+"</span></div><div class=\"velora-variant-stock\">"+(variants.length?(stock>0?stock+" available":"Out of stock"):"")+"</div><p class=\"velora-product-description\">"+esc(p.description||"")+"</p><div class=\"velora-product-actions\"><button class=\"btn btn-primary btn-lg\" "+(variants.length&&(!v||stock<=0)?"disabled":"")+" onclick=\"window.addToCartS2A('"+token(p.id)+"',1,"+(v?"'"+token(v.id)+"'":"null")+");closeModal('productModal')\">🛒 Add to Cart</button><button class=\"btn btn-outline btn-lg\" onclick=\"toggleFavorite('"+token(p.id)+"',this)\">"+(fav?"❤️":"🤍")+"</button></div></div></div>";
     modal.classList.add("active");document.body.style.overflow="hidden";
   }
   window.__VELORA_S2A_RENDER_PRODUCT=renderProduct;
@@ -130,7 +130,7 @@
     if(!p&&typeof originalOpenProductDetail==="function")return originalOpenProductDetail(productId);
     if(!p)return;
     var modal=document.getElementById("productModal"),content=document.getElementById("productModalContent");
-    if(modal&&content){modal.classList.add("active");document.body.style.overflow="hidden";content.innerHTML="<div class="velora-variant-loading">Loading product options...</div>";}
+    if(modal&&content){modal.classList.add("active");document.body.style.overflow="hidden";content.innerHTML="<div class=\"velora-variant-loading\">Loading product options...</div>";}
     var variants=await loadVariants(productId,true);
     var selected=seedSelection(productId,variants);
     renderProduct(p,variants,selected);
@@ -191,7 +191,7 @@
   function cartVariantMeta(item){
     var a=attrsText(item.variantAttributes||{});
     if(!item.variantName&&!a&&!item.sku)return "";
-    return "<div class="velora-cart-variant">"+esc(item.variantName||"")+(a?" · "+a:"")+(item.sku?" · SKU "+esc(item.sku):"")+"</div>";
+    return "<div class=\"velora-cart-variant\">"+esc(item.variantName||"")+(a?" · "+a:"")+(item.sku?" · SKU "+esc(item.sku):"")+"</div>";
   }
   var originalSidebar=window.renderCartSidebar;
   window.renderCartSidebar=function(){
@@ -199,10 +199,10 @@
     if(!body||!footer)return originalSidebar&&originalSidebar();
     if(!STATE.cart.length)return originalSidebar&&originalSidebar();
     body.innerHTML=STATE.cart.map(function(item){
-      return "<div class="cart-item"><div class="cart-item-image">"+esc(item.emoji||"📦")+"</div><div class="cart-item-info"><div class="cart-item-name">"+esc(item.name)+"</div>"+cartVariantMeta(item)+"<div class="cart-item-price">"+formatPrice(Number(item.price||0)*Number(item.quantity||0))+"</div></div><div class="cart-item-controls"><div class="qty-control"><button class="qty-btn" onclick="updateQuantity('"+token(item.id)+"',-1,'"+token(item.variantId||"")+"')">−</button><span class="qty-value">"+item.quantity+"</span><button class="qty-btn" onclick="updateQuantity('"+token(item.id)+"',1,'"+token(item.variantId||"")+"')">+</button></div><button class="cart-remove" onclick="removeFromCart('"+token(item.id)+"','"+token(item.variantId||"")+"')">✕</button></div></div>";
+      return "<div class=\"cart-item\"><div class=\"cart-item-image\">"+esc(item.emoji||"📦")+"</div><div class=\"cart-item-info\"><div class=\"cart-item-name\">"+esc(item.name)+"</div>"+cartVariantMeta(item)+"<div class=\"cart-item-price\">"+formatPrice(Number(item.price||0)*Number(item.quantity||0))+"</div></div><div class=\"cart-item-controls\"><div class=\"qty-control\"><button class=\"qty-btn\" onclick=\"updateQuantity('"+token(item.id)+"',-1,'"+token(item.variantId||"")+"')\">−</button><span class=\"qty-value\">"+item.quantity+"</span><button class=\"qty-btn\" onclick=\"updateQuantity('"+token(item.id)+"',1,'"+token(item.variantId||"")+"')\">+</button></div><button class=\"cart-remove\" onclick=\"removeFromCart('"+token(item.id)+"','"+token(item.variantId||"")+"')\">✕</button></div></div>";
     }).join("");
     var subtotal=getCartTotal(),shipping=subtotal>=500?0:30,total=subtotal+shipping;
-    footer.innerHTML="<div class="cart-summary-row"><span>Subtotal</span><span>"+formatPrice(subtotal)+"</span></div><div class="cart-summary-row"><span>Shipping</span><span>"+(shipping===0?"🎉 Free":formatPrice(shipping))+"</span></div><div class="cart-summary-row total"><span>Total</span><span>"+formatPrice(total)+"</span></div><div class="cart-actions"><button class="btn btn-primary btn-block" onclick="closeCart();navigateTo('checkout')">💳 Checkout</button><button class="btn btn-outline btn-block" onclick="closeCart();navigateTo('cart')">View Cart</button></div>";
+    footer.innerHTML="<div class=\"cart-summary-row\"><span>Subtotal</span><span>"+formatPrice(subtotal)+"</span></div><div class=\"cart-summary-row\"><span>Shipping</span><span>"+(shipping===0?"🎉 Free":formatPrice(shipping))+"</span></div><div class=\"cart-summary-row total\"><span>Total</span><span>"+formatPrice(total)+"</span></div><div class=\"cart-actions\"><button class=\"btn btn-primary btn-block\" onclick=\"closeCart();navigateTo('checkout')\">💳 Checkout</button><button class=\"btn btn-outline btn-block\" onclick=\"closeCart();navigateTo('cart')\">View Cart</button></div>";
   };
 
   var originalCartPage=window.renderCartPage;
@@ -210,19 +210,19 @@
     var c=document.getElementById("cartContent");if(!c)return originalCartPage&&originalCartPage();
     if(!STATE.cart.length)return originalCartPage&&originalCartPage();
     var subtotal=getCartTotal(),shipping=subtotal>=500?0:30,total=subtotal+shipping;
-    c.innerHTML="<div style="display:grid;grid-template-columns:1fr 400px;gap:2rem;"><div class="form-section"><h3>🛒 Cart Items ("+getCartCount()+")</h3>"+STATE.cart.map(function(item){
-      return "<div class="cart-item" style="background:var(--bg);"><div class="cart-item-image">"+esc(item.emoji||"📦")+"</div><div class="cart-item-info"><div class="cart-item-name">"+esc(item.name)+"</div>"+cartVariantMeta(item)+"<div class="cart-item-price">"+formatPrice(Number(item.price||0)*Number(item.quantity||0))+"</div></div><div class="cart-item-controls"><div class="qty-control"><button class="qty-btn" onclick="updateQuantity('"+token(item.id)+"',-1,'"+token(item.variantId||"")+"')">−</button><span class="qty-value">"+item.quantity+"</span><button class="qty-btn" onclick="updateQuantity('"+token(item.id)+"',1,'"+token(item.variantId||"")+"')">+</button></div><button class="cart-remove" onclick="removeFromCart('"+token(item.id)+"','"+token(item.variantId||"")+"')">✕</button></div></div>";
-    }).join("")+"</div><div class="order-summary"><h3>Summary</h3><div class="order-total-row"><span>Subtotal</span><span>"+formatPrice(subtotal)+"</span></div><div class="order-total-row"><span>Shipping</span><span>"+(shipping===0?"Free":formatPrice(shipping))+"</span></div><div class="order-total-row grand"><span>Total</span><span>"+formatPrice(total)+"</span></div><button class="btn btn-primary btn-block btn-lg" style="margin-top:1.5rem;" onclick="navigateTo('checkout')">💳 Checkout</button></div></div>";
+    c.innerHTML="<div style=\"display:grid;grid-template-columns:1fr 400px;gap:2rem;\"><div class=\"form-section\"><h3>🛒 Cart Items ("+getCartCount()+")</h3>"+STATE.cart.map(function(item){
+      return "<div class=\"cart-item\" style=\"background:var(--bg);\"><div class=\"cart-item-image\">"+esc(item.emoji||"📦")+"</div><div class=\"cart-item-info\"><div class=\"cart-item-name\">"+esc(item.name)+"</div>"+cartVariantMeta(item)+"<div class=\"cart-item-price\">"+formatPrice(Number(item.price||0)*Number(item.quantity||0))+"</div></div><div class=\"cart-item-controls\"><div class=\"qty-control\"><button class=\"qty-btn\" onclick=\"updateQuantity('"+token(item.id)+"',-1,'"+token(item.variantId||"")+"')\">−</button><span class=\"qty-value\">"+item.quantity+"</span><button class=\"qty-btn\" onclick=\"updateQuantity('"+token(item.id)+"',1,'"+token(item.variantId||"")+"')\">+</button></div><button class=\"cart-remove\" onclick=\"removeFromCart('"+token(item.id)+"','"+token(item.variantId||"")+"')\">✕</button></div></div>";
+    }).join("")+"</div><div class=\"order-summary\"><h3>Summary</h3><div class=\"order-total-row\"><span>Subtotal</span><span>"+formatPrice(subtotal)+"</span></div><div class=\"order-total-row\"><span>Shipping</span><span>"+(shipping===0?"Free":formatPrice(shipping))+"</span></div><div class=\"order-total-row grand\"><span>Total</span><span>"+formatPrice(total)+"</span></div><button class=\"btn btn-primary btn-block btn-lg\" style=\"margin-top:1.5rem;\" onclick=\"navigateTo('checkout')\">💳 Checkout</button></div></div>";
   };
 
-  /* Seller variant CRUD: the existing canonical product modal is preserved; variants are rendered into it and saved through secure RPCs. */
+  /* Seller variant CRUD: preserve the canonical product modal and append a secure variant editor. */
   var originalOpenSeller=window.VELORA_OPEN_PRODUCT_MODAL;
   var originalEditSeller=window.VELORA_EDIT_PRODUCT;
   var originalSellerSave=window.VELORA_SAVE_PRODUCT;
 
   function sellerVariantRow(v){
     v=v||{};
-    return "<div class="velora-seller-variant-row" data-variant-id=""+esc(v.id||"")+""><input type="hidden" class="s2aVariantId" value=""+esc(v.id||"")+""><div class="form-group"><label>Name *</label><input class="form-input s2aVariantName" required value=""+esc(v.name||"")+""></div><div class="form-group"><label>SKU *</label><input class="form-input s2aVariantSku" required value=""+esc(v.sku||"")+""></div><div class="form-group"><label>Price</label><input class="form-input s2aVariantPrice" type="number" step="0.01" min="0" value=""+(v.price==null?"":esc(v.price))+""></div><div class="form-group"><label>Stock *</label><input class="form-input s2aVariantStock" type="number" step="1" min="0" value=""+Number(v.stock_quantity||0)+"" required></div><div class="form-group"><label>Attributes JSON</label><textarea class="form-textarea s2aVariantAttrs" rows="2">"+esc(JSON.stringify(v.attributes||{}))+"</textarea></div><button type="button" class="btn btn-outline s2aRemoveVariant">Retire</button></div>";
+    return "<div class=\"velora-seller-variant-row\" data-variant-id=\""+esc(v.id||"")+"\"><input type=\"hidden\" class=\"s2aVariantId\" value=\""+esc(v.id||"")+"\"><div class=\"form-group\"><label>Name *</label><input class=\"form-input s2aVariantName\" required value=\""+esc(v.name||"")+"\"></div><div class=\"form-group\"><label>SKU *</label><input class=\"form-input s2aVariantSku\" required value=\""+esc(v.sku||"")+"\"></div><div class=\"form-group\"><label>Price</label><input class=\"form-input s2aVariantPrice\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+(v.price==null?"":esc(v.price))+"\"></div><div class=\"form-group\"><label>Stock *</label><input class=\"form-input s2aVariantStock\" type=\"number\" step=\"1\" min=\"0\" value=\""+Number(v.stock_quantity||0)+"\" required></div><div class=\"form-group\"><label>Attributes JSON</label><textarea class=\"form-textarea s2aVariantAttrs\" rows=\"2\">"+esc(JSON.stringify(v.attributes||{}))+"</textarea></div><button type=\"button\" class=\"btn btn-outline s2aRemoveVariant\">Retire</button></div>";
   }
   function collectSellerRows(host){
     return Array.prototype.slice.call(host.querySelectorAll(".velora-seller-variant-row")).map(function(row){
@@ -266,30 +266,47 @@
     var old=modal.querySelector("#s2aVariantEditor");if(old)old.remove();
     var variants=productId?await loadVariants(productId,true):[];
     var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
-    host.innerHTML="<div class="velora-variant-editor-head"><div><strong>Variants (optional)</strong><div class="velora-op-muted">One row per purchasable combination. Attributes are free-form JSON such as {color:red, size:M}.</div></div><button type="button" class="btn btn-outline" id="s2aAddVariant">+ Add Variant</button></div><div id="s2aVariantRows">"+variants.map(sellerVariantRow).join("")+"</div><div class="velora-op-note">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
+    host.innerHTML="<div class=\"velora-variant-editor-head\"><div><strong>Variants (optional)</strong><div class=\"velora-op-muted\">One row per purchasable combination. Attributes are free-form JSON such as {color:red, size:M}.</div></div><button type=\"button\" class=\"btn btn-outline\" id=\"s2aAddVariant\">+ Add Variant</button></div><div id=\"s2aVariantRows\">"+variants.map(sellerVariantRow).join("")+"</div><div class=\"velora-op-note\">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
     var loc=modal.querySelector(".velora-loc-editor");form.insertBefore(host,loc||form.lastElementChild);
     host.querySelector("#s2aAddVariant").onclick=function(){document.getElementById("s2aVariantRows").insertAdjacentHTML("beforeend",sellerVariantRow(null));};
     host.addEventListener("click",function(e){if(e.target.closest(".s2aRemoveVariant")){var row=e.target.closest(".velora-seller-variant-row");if(row)row.remove();}});
     modal.dataset.s2aProductId=productId||"";
   }
+
   window.VELORA_OPEN_PRODUCT_MODAL=async function(){await originalOpenSeller();await enhanceSellerModal("");};
   window.VELORA_EDIT_PRODUCT=async function(id){await originalEditSeller(id);await enhanceSellerModal(id);};
 
   window.VELORA_SAVE_PRODUCT=async function(e,productId){
     var host=document.getElementById("s2aVariantEditor");
-    if(!host||!host.querySelector(".velora-seller-variant-row"))return originalSellerSave(e,productId);
+    if(!host)return originalSellerSave(e,productId);
+    var rows=[];
+    try{rows=collectSellerRows(host);}catch(err){if(e)e.preventDefault();showToast("❌ "+(err.message||"Invalid variant data"),"error");return;}
+    if(!rows.length)return originalSellerSave(e,productId);
+
     if(!productId){
-      /* Creation keeps the original canonical save path. Variants are attached in a second edit pass, avoiding ambiguous product identity. */
-      showToast("ℹ️ Product created. Open Edit Product once to add its variants.","info");
-      return originalSellerSave(e,productId);
+      /* The canonical create handler owns translations and moderation. We let it create the parent first. */
+      var snapshot=JSON.stringify(rows);
+      window.__VELORA_S2A_STAGED_VARIANTS=snapshot;
+      var result=await originalSellerSave(e,productId);
+      try{
+        var seller=window.VELORA_CANONICAL_SELLER;if(seller){
+          var vr=await db.from("products").select("id,name,created_at").eq("seller_id",seller.id).eq("name",document.getElementById("vcName")?.value.trim()||"").order("created_at",{ascending:false}).limit(5);
+          var target=(vr.data||[]).sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);})[0];
+          if(target){
+            await saveSellerVariants(target.id,JSON.parse(snapshot));
+          }
+        }
+      }catch(err2){if(typeof toastErr==="function")toastErr(err2);else showToast("⚠️ Product created, but variants were not attached: "+(err2.message||err2),"warning");}
+      return result;
     }
+
     if(e)e.preventDefault();
     try{
       await originalSellerSave({preventDefault:function(){},currentTarget:e.currentTarget},productId);
-      var rows=collectSellerRows(host);
+      /* The original handler closes the modal, but the row nodes remain readable after the call. */
       await saveSellerVariants(productId,rows);
-    }catch(err){
-      if(typeof toastErr==="function")toastErr(err);else showToast("❌ "+(err.message||err),"error");
+    }catch(err3){
+      if(typeof toastErr==="function")toastErr(err3);else showToast("❌ "+(err3.message||err3),"error");
     }
   };
 })();
