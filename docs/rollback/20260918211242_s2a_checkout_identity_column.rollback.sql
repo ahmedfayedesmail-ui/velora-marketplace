@@ -1,7 +1,7 @@
 -- Rollback S2-A hotfix 4.
--- Guarded: the current schema has orders.order_number GENERATED ALWAYS.
--- Reverting the function while that identity semantics remain would reintroduce a runtime failure,
--- so this artifact refuses to run until the schema is compatible.
+-- Scoped rollback: hotfixes 5 and 6 must not be active when rolling back hotfix 4.
+-- Guarded: the current schema has orders.order_number GENERATED ALWAYS, so this rollback
+-- refuses to run until the schema is compatible with the pre-fix function.
 DO $$
 DECLARE
   v_is_identity text;
@@ -19,10 +19,10 @@ BEGIN
     'public.velora_create_order(jsonb,text,numeric,text,text,text,text,text,text,text)'::regprocedure
   ) INTO v_def;
 
-  v_def := replace(v_def,
-    '  v_existing_currency text;
-',
-    '');
+  IF position('v_existing_currency text;' in v_def) > 0 THEN
+    RAISE EXCEPTION 'S2A_HOTFIX4_ROLLBACK_REQUIRES_HOTFIX5_6_ROLLED_BACK_FIRST';
+  END IF;
+
   v_def := replace(v_def,
     'begin
   if v_customer',
