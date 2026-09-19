@@ -334,5 +334,11 @@
     "file": "55-s2e-notifications.js",
     "id": "s2e-notifications",
     "chars": 9242
+  },
+  {
+    "order": 56,
+    "file": "56-s2d-admin.js",
+    "id": "s2d-admin",
+    "chars": 9863
   }
 ]
