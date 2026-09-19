@@ -7370,6 +7370,429 @@ function rejectProduct(sellerId, productId) {
     showAdminSection('products');
 }
 
+/* ============ ADMIN ORDER LIFECYCLE — SPRINT 2.5 ============ */
+const ADMIN_ORDER_TRANSITIONS = Object.freeze({
+    pending: Object.freeze(['confirmed', 'cancelled']),
+    confirmed: Object.freeze(['processing', 'cancelled']),
+    processing: Object.freeze(['shipped', 'cancelled']),
+    shipped: Object.freeze(['delivered', 'cancelled']),
+    delivered: Object.freeze(['refunded']),
+    cancelled: Object.freeze([]),
+    refunded: Object.freeze([])
+});
+
+function normalizeAdminOrderStatus(status) {
+    return String(status || 'pending').trim().toLowerCase();
+}
+
+function adminOrderStatusLabel(status) {
+    const value = normalizeAdminOrderStatus(status);
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function isAdminOrderUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+function adminOrderMoney(amount, currency) {
+    const value = Number(amount || 0);
+    const code = String(currency || window.VELORA_CURRENCY || 'EGP').toUpperCase();
+    return code + ' ' + (Number.isFinite(value) ? value.toFixed(2) : '0.00');
+}
+
+function adminOrderDisplayId(order) {
+    return order?.order_number ?? order?.orderNumber ?? order?.id ?? 'N/A';
+}
+
+function adminOrderRpcCode(error) {
+    const raw = String(error?.message || error?.details || error?.hint || '');
+    const codes = [
+        'INVALID_TRANSITION',
+        'FORBIDDEN',
+        'ORDER_NOT_FOUND',
+        'AUTH_REQUIRED',
+        'NOTE_TOO_LONG',
+        'ORDER_ID_REQUIRED',
+        'INVALID_STATUS'
+    ];
+    return codes.find(code => raw.includes(code)) || 'UNKNOWN';
+}
+
+function ensureAdminOrderLifecycleModals() {
+    if (document.getElementById('adminOrderDetailsModal')) return;
+
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="modal" id="adminOrderDetailsModal">
+            <div class="modal-content modal-wide" style="max-width: 900px;">
+                <div class="modal-header">
+                    <h2 id="adminOrderDetailsTitle">🛒 Order Details</h2>
+                    <button class="modal-close" onclick="closeModal('adminOrderDetailsModal')">✕</button>
+                </div>
+                <div id="adminOrderDetailsContent"></div>
+            </div>
+        </div>
+
+        <div class="modal" id="adminOrderConfirmModal">
+            <div class="modal-content" style="max-width: 520px;">
+                <div class="modal-header">
+                    <h2>Confirm Status Change</h2>
+                    <button class="modal-close" onclick="closeModal('adminOrderConfirmModal')">✕</button>
+                </div>
+                <div id="adminOrderConfirmContent"></div>
+            </div>
+        </div>
+    `);
+}
+
+async function loadAdminOrderDetails(orderRef) {
+    const orders = getOrders();
+    const localOrder = orders.find(order =>
+        String(order.id) === String(orderRef) ||
+        String(order.order_number ?? order.orderNumber ?? '') === String(orderRef)
+    ) || null;
+
+    const client = window.mahaSupabase;
+    let dbOrder = null;
+    let dbItems = [];
+    let dbPayment = null;
+
+    if (client) {
+        try {
+            let query = client
+                .from('orders')
+                .select('id,order_number,status,subtotal,discount,shipping,total,currency,payment_status,customer_id,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_notes,created_at,updated_at,checkout_reference')
+                .limit(1);
+
+            if (isAdminOrderUuid(localOrder?.id)) {
+                query = query.eq('id', localOrder.id);
+            } else if (isAdminOrderUuid(localOrder?.order_id)) {
+                query = query.eq('id', localOrder.order_id);
+            } else if (/^\d+$/.test(String(orderRef || ''))) {
+                query = query.eq('order_number', Number(orderRef));
+            } else if (localOrder?.order_number != null || localOrder?.orderNumber != null) {
+                query = query.eq('order_number', Number(localOrder.order_number ?? localOrder.orderNumber));
+            } else if (isAdminOrderUuid(orderRef)) {
+                query = query.eq('id', orderRef);
+            } else {
+                query = null;
+            }
+
+            if (query) {
+                const { data, error } = await query.maybeSingle();
+                if (!error && data) {
+                    dbOrder = data;
+
+                    const itemsResult = await client
+                        .from('order_items')
+                        .select('id,product_name,quantity,unit_price,subtotal,store_name,product_variant_name,sku,product_variant_attributes')
+                        .eq('order_id', data.id)
+                        .order('created_at', { ascending: true });
+
+                    if (!itemsResult.error && Array.isArray(itemsResult.data)) {
+                        dbItems = itemsResult.data;
+                    }
+
+                    const paymentResult = await client
+                        .from('payments')
+                        .select('id,method,provider,amount,currency,status')
+                        .eq('order_id', data.id)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (!paymentResult.error) dbPayment = paymentResult.data || null;
+                }
+            }
+        } catch (error) {
+            console.warn('Velora admin order details fetch:', error);
+        }
+    }
+
+    return dbOrder ? {
+        ...(localOrder || {}),
+        ...dbOrder,
+        items: dbItems.length ? dbItems : (localOrder?.items || []),
+        payment: dbPayment?.method || localOrder?.payment || localOrder?.paymentMethod || 'COD',
+        payment_record: dbPayment
+    } : localOrder;
+}
+
+function renderAdminOrderDetailsContent(order) {
+    if (!order) {
+        return `
+            <div class="admin-empty" style="padding: 2rem;">
+                <div class="empty-icon">❓</div>
+                <h4>Order not found</h4>
+            </div>
+        `;
+    }
+
+    const status = normalizeAdminOrderStatus(order.status);
+    const items = Array.isArray(order.items) ? order.items : [];
+    const customer = order.customer || {};
+    const customerName = order.customer_name || customer.name || 'N/A';
+    const customerPhone = order.customer_phone || customer.phone || 'N/A';
+    const customerEmail = order.customer_email || customer.email || 'N/A';
+    const customerCity = order.customer_city || customer.city || 'N/A';
+    const customerAddress = order.customer_address || customer.address || 'N/A';
+    const total = order.total ?? 0;
+    const currency = order.currency || window.VELORA_CURRENCY || 'EGP';
+    const transitions = ADMIN_ORDER_TRANSITIONS[status] || [];
+
+    const itemRows = items.length ? items.map(item => `
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:.75rem;align-items:center;padding:.75rem 0;border-bottom:1px solid var(--border);">
+            <div>
+                <div style="font-weight:800;">${escapeHtml(item.product_name || item.name || 'Product')}</div>
+                ${item.product_variant_name ? `<div style="font-size:.8rem;color:var(--text-muted);">Variant: ${escapeHtml(item.product_variant_name)}</div>` : ''}
+                ${item.sku ? `<div style="font-size:.75rem;color:var(--text-muted);">SKU: ${escapeHtml(item.sku)}</div>` : ''}
+            </div>
+            <div style="color:var(--text-muted);">× ${Number(item.quantity || 0)}</div>
+            <strong>${adminOrderMoney(item.subtotal ?? ((Number(item.unit_price || item.price || 0)) * Number(item.quantity || 0)), currency)}</strong>
+        </div>
+    `).join('') : '<div style="padding:1rem 0;color:var(--text-muted);">No items recorded.</div>';
+
+    const actionButtons = transitions.length ? transitions.map(nextStatus => {
+        const isCancel = nextStatus === 'cancelled';
+        const buttonClass = isCancel ? 'danger' : 'success';
+        return `
+            <button class="admin-action-btn ${buttonClass}" style="padding:.7rem 1rem;min-width:120px;" onclick="openAdminOrderStatusConfirmation('${String(order.id)}','${nextStatus}')">
+                ${isCancel ? '✕' : nextStatus === 'confirmed' ? '✅' : nextStatus === 'processing' ? '⚙️' : nextStatus === 'shipped' ? '🚚' : nextStatus === 'delivered' ? '📦' : '↩️'}
+                ${adminOrderStatusLabel(nextStatus)}
+            </button>
+        `;
+    }).join('') : '<div style="color:var(--text-muted);padding:.5rem 0;">No status changes are available from this state.</div>';
+
+    return `
+        <div style="display:grid;gap:1rem;">
+            <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);">
+                <div>
+                    <div style="font-size:.8rem;color:var(--text-muted);text-transform:uppercase;">Order</div>
+                    <div style="font-size:1.35rem;font-weight:900;color:var(--primary);">#${escapeHtml(String(adminOrderDisplayId(order)))}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:.8rem;color:var(--text-muted);">Status</div>
+                    <div style="font-weight:900;">${escapeHtml(adminOrderStatusLabel(status))}</div>
+                    <div style="font-size:.78rem;color:var(--text-muted);">Payment: ${escapeHtml(String(order.payment_status || order.paymentStatus || 'pending'))}</div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;">
+                <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;">
+                    <h4 style="margin:0 0 .75rem;">👤 Customer</h4>
+                    <div style="display:grid;gap:.35rem;font-size:.92rem;">
+                        <div><strong>Name:</strong> ${escapeHtml(customerName)}</div>
+                        <div><strong>Phone:</strong> ${escapeHtml(customerPhone)}</div>
+                        <div><strong>Email:</strong> ${escapeHtml(customerEmail)}</div>
+                        <div><strong>City:</strong> ${escapeHtml(customerCity)}</div>
+                        <div><strong>Address:</strong> ${escapeHtml(customerAddress)}</div>
+                    </div>
+                </div>
+
+                <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;">
+                    <h4 style="margin:0 0 .75rem;">💳 Payment</h4>
+                    <div style="display:grid;gap:.45rem;font-size:.92rem;">
+                        <div><strong>Method:</strong> ${escapeHtml(String(order.payment || 'COD'))}</div>
+                        <div><strong>Payment status:</strong> ${escapeHtml(String(order.payment_status || order.paymentStatus || 'pending'))}</div>
+                        <div><strong>Total:</strong> ${adminOrderMoney(total, currency)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;">
+                <h4 style="margin:0 0 .75rem;">🧾 Items (${items.length})</h4>
+                ${itemRows}
+            </div>
+
+            ${order.customer_notes || customer.notes ? `
+                <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;">
+                    <h4 style="margin:0 0 .5rem;">📝 Customer Notes</h4>
+                    <div style="white-space:pre-wrap;color:var(--text-muted);">${escapeHtml(order.customer_notes || customer.notes)}</div>
+                </div>
+            ` : ''}
+
+            <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;">
+                <h4 style="margin:0 0 .75rem;">🔄 Available Status Changes</h4>
+                <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+                    ${actionButtons}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function openAdminOrderDetails(orderRef) {
+    ensureAdminOrderLifecycleModals();
+
+    const modal = document.getElementById('adminOrderDetailsModal');
+    const content = document.getElementById('adminOrderDetailsContent');
+    if (!modal || !content) return;
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    content.innerHTML = '<div class="admin-empty" style="padding:2rem;"><div class="empty-icon">⏳</div><h4>Loading order details…</h4></div>';
+
+    const order = await loadAdminOrderDetails(orderRef);
+    if (!order) {
+        showToast('❌ ORDER_NOT_FOUND', 'error');
+        closeModal('adminOrderDetailsModal');
+        return;
+    }
+
+    window.__VELORA_ADMIN_ORDER_CONTEXT = { order, orderRef, dbId: order.id };
+    const title = document.getElementById('adminOrderDetailsTitle');
+    if (title) title.textContent = `🛒 Order #${adminOrderDisplayId(order)}`;
+    content.innerHTML = renderAdminOrderDetailsContent(order);
+}
+
+function openAdminOrderStatusConfirmation(orderRef, newStatus) {
+    ensureAdminOrderLifecycleModals();
+
+    const context = window.__VELORA_ADMIN_ORDER_CONTEXT;
+    const order = context?.order;
+    if (!order || String(context.dbId) !== String(orderRef)) {
+        showToast('Please reopen the order details and try again.', 'warning');
+        return;
+    }
+
+    const currentStatus = normalizeAdminOrderStatus(order.status);
+    const targetStatus = normalizeAdminOrderStatus(newStatus);
+
+    if (!(ADMIN_ORDER_TRANSITIONS[currentStatus] || []).includes(targetStatus)) {
+        showToast('❌ INVALID_TRANSITION', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('adminOrderConfirmModal');
+    const content = document.getElementById('adminOrderConfirmContent');
+    if (!modal || !content) return;
+
+    content.innerHTML = `
+        <div style="display:grid;gap:1rem;">
+            <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);">
+                <div style="font-weight:800;margin-bottom:.35rem;">Change order status?</div>
+                <div style="font-size:1rem;">
+                    From <strong>${escapeHtml(adminOrderStatusLabel(currentStatus))}</strong>
+                    to <strong style="color:var(--primary);">${escapeHtml(adminOrderStatusLabel(targetStatus))}</strong>
+                </div>
+            </div>
+
+            <div>
+                <label for="adminOrderStatusNote" style="display:block;font-weight:700;margin-bottom:.45rem;">Note (optional)</label>
+                <textarea id="adminOrderStatusNote" class="form-input" maxlength="500" rows="4" placeholder="Optional note (max 500 characters)"></textarea>
+                <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">Maximum 500 characters.</div>
+            </div>
+
+            <div style="display:flex;gap:.6rem;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="closeModal('adminOrderConfirmModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="executeAdminOrderStatusChange('${String(order.id)}','${targetStatus}')">Confirm</button>
+            </div>
+        </div>
+    `;
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('adminOrderStatusNote')?.focus(), 50);
+}
+
+async function executeAdminOrderStatusChange(orderUuid, newStatus) {
+    const client = window.mahaSupabase;
+    if (!client?.rpc) {
+        showToast('❌ Order status service unavailable', 'error');
+        return;
+    }
+
+    const context = window.__VELORA_ADMIN_ORDER_CONTEXT;
+    const note = document.getElementById('adminOrderStatusNote')?.value?.trim() || null;
+
+    if (!isAdminOrderUuid(orderUuid)) {
+        showToast('❌ ORDER_NOT_FOUND', 'error');
+        return;
+    }
+
+    const { data: sessionData } = await client.auth.getSession();
+    if (!sessionData?.session) {
+        closeModal('adminOrderConfirmModal');
+        closeModal('adminOrderDetailsModal');
+        showToast('Please login to continue.', 'warning');
+        if (typeof openAuthModal === 'function') setTimeout(() => openAuthModal('login'), 150);
+        return;
+    }
+
+    const confirmButton = document.querySelector('#adminOrderConfirmModal .btn-primary');
+    if (confirmButton) {
+        confirmButton.disabled = true;
+        confirmButton.textContent = 'Saving…';
+    }
+
+    const { data, error } = await client.rpc('velora_admin_update_order_status', {
+        p_order_id: orderUuid,
+        p_new_status: normalizeAdminOrderStatus(newStatus),
+        p_note: note
+    });
+
+    if (error) {
+        const code = adminOrderRpcCode(error);
+        closeModal('adminOrderConfirmModal');
+
+        if (code === 'AUTH_REQUIRED') {
+            closeModal('adminOrderDetailsModal');
+            showToast('Please login to continue.', 'warning');
+            if (typeof openAuthModal === 'function') setTimeout(() => openAuthModal('login'), 150);
+            return;
+        }
+        if (code === 'INVALID_TRANSITION') {
+            showToast('❌ INVALID_TRANSITION', 'error');
+            return;
+        }
+        if (code === 'FORBIDDEN') {
+            showToast('❌ FORBIDDEN', 'error');
+            return;
+        }
+        if (code === 'ORDER_NOT_FOUND') {
+            showToast('❌ ORDER_NOT_FOUND', 'error');
+            closeModal('adminOrderDetailsModal');
+            return;
+        }
+        if (code === 'NOTE_TOO_LONG') {
+            showToast('❌ NOTE_TOO_LONG', 'error');
+            return;
+        }
+        showToast('❌ Could not update order status.', 'error');
+        console.error('Velora admin order status RPC:', error);
+        return;
+    }
+
+    const result = data || {};
+    const newState = normalizeAdminOrderStatus(result.new_status || newStatus);
+
+    const orders = getOrders();
+    let cacheChanged = false;
+    const contextOrder = context?.order;
+    const canonicalId = String(orderUuid);
+
+    orders.forEach(order => {
+        const sameOrder =
+            String(order.id) === canonicalId ||
+            String(order.order_id || '') === canonicalId ||
+            String(order.order_number ?? order.orderNumber ?? '') === String(contextOrder?.order_number ?? contextOrder?.orderNumber ?? '');
+        if (sameOrder) {
+            order.status = newState;
+            order.order_id = order.order_id || order.id;
+            order.canonical_order_id = canonicalId;
+            cacheChanged = true;
+        }
+    });
+
+    if (cacheChanged) saveToStorage('maha_orders', orders);
+    if (context?.order) context.order.status = newState;
+
+    closeModal('adminOrderConfirmModal');
+    showToast(`✅ Order #${adminOrderDisplayId(context?.order || {})} → ${adminOrderStatusLabel(newState)}`, 'success');
+
+    if (typeof showAdminSection === 'function') showAdminSection('orders');
+    setTimeout(() => openAdminOrderDetails(orderUuid), 60);
+}
+
 /* ============ RENDER: ORDERS ============ */
 function renderAdminOrders() {
     const orders = getOrders();
@@ -7394,22 +7817,38 @@ function renderAdminOrders() {
                                 <th>Items</th>
                                 <th>Total</th>
                                 <th>Payment</th>
+                                <th>Status</th>
                                 <th>Date</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${orders.map(o => `
-                                <tr>
-                                    <td><strong style="color: var(--primary); font-family: monospace;">${o.id}</strong></td>
-                                    <td>${escapeHtml(o.customer?.name || 'N/A')}</td>
-                                    <td>${escapeHtml(o.customer?.phone || 'N/A')}</td>
-                                    <td>${escapeHtml(o.customer?.city || 'N/A')}</td>
-                                    <td>${o.items?.length || 0}</td>
-                                    <td><strong>${formatPrice(o.total)}</strong></td>
-                                    <td>${o.payment || 'COD'}</td>
-                                    <td>${new Date(o.date).toLocaleDateString('en-US')}</td>
-                                </tr>
-                            `).join('')}
+                            ${orders.map(o => {
+                                const status = normalizeAdminOrderStatus(o.status);
+                                return `
+                                    <tr
+                                        data-order-id="${escapeHtml(String(o.id))}"
+                                        role="button"
+                                        tabindex="0"
+                                        style="cursor:pointer;"
+                                        onclick="openAdminOrderDetails('${String(o.id)}')"
+                                        onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); openAdminOrderDetails('${String(o.id)}'); }"
+                                    >
+                                        <td><strong style="color: var(--primary); font-family: monospace;">#${escapeHtml(String(adminOrderDisplayId(o)))}</strong></td>
+                                        <td>${escapeHtml(o.customer?.name || o.customer_name || 'N/A')}</td>
+                                        <td>${escapeHtml(o.customer?.phone || o.customer_phone || 'N/A')}</td>
+                                        <td>${escapeHtml(o.customer?.city || o.customer_city || 'N/A')}</td>
+                                        <td>${o.items?.length || 0}</td>
+                                        <td><strong>${formatPrice(o.total)}</strong></td>
+                                        <td>${escapeHtml(String(o.payment || o.paymentMethod || 'COD'))}</td>
+                                        <td>
+                                            <span class="admin-badge" style="background: rgba(33,150,243,.12); color: var(--primary);">
+                                                ${escapeHtml(adminOrderStatusLabel(status))}
+                                            </span>
+                                        </td>
+                                        <td>${o.date ? new Date(o.date).toLocaleDateString('en-US') : (o.created_at ? new Date(o.created_at).toLocaleDateString('en-US') : 'N/A')}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
