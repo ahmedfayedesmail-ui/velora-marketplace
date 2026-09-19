@@ -1,0 +1,2 @@
+-- S2-B preflight marker. No-op by design.
+-- Migration 20260919054924 was applied empty before the canonical S2-B contract migration.
