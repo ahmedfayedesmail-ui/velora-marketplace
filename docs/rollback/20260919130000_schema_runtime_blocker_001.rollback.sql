@@ -1,0 +1,7 @@
+-- Rollback note for SCHEMA_RUNTIME_BLOCKER-001.
+-- The previous function definition attempted to write public.products.sku,
+-- but that column does not exist in the deployed schema. Do not restore that
+-- definition without first adding/approving a products.sku column.
+-- Controlled rollback therefore means removing this migration from the
+-- deployment plan and restoring the previously approved function definition
+-- from the Sprint 0 evidence bundle, only after schema compatibility is revalidated.
