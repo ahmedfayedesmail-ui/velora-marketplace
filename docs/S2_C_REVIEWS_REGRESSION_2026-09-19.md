@@ -7,6 +7,8 @@ Project ref: arlaxqmhtvjwjbjinjfw
 
 DB/RLS regression PASS.
 
+The gate includes the final review RLS-policy consolidation. Restore-Test review SELECT now has one policy for `anon` and one consolidated policy for `authenticated`, avoiding same-role duplicate permissive SELECT policies.
+
 Covered:
 - eligibility requires delivered purchase;
 - authenticated customer review submission;
