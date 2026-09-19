@@ -100,8 +100,19 @@ window.VELORA_TRANSLATE_ALL=()=>translateDom(document);
 function __veloraFixHeroCore(locale){
   const root=document.querySelector('#page-home'); if(!root)return;
   const h=root.querySelector('.hero-title');
-  if(h){const parts=[...h.childNodes].filter(n=>n.nodeType===3); if(parts[0])parts[0].nodeValue=(__VELORA_CORE_OVERRIDES[locale]?.['Discover More.']||'Discover More.')+' '; const p=parts[1]; if(p)p.nodeValue=__VELORA_CORE_OVERRIDES[locale]?.['Shop Better.']||'Shop Better.';}
-  root.querySelectorAll('.hero-badge').forEach(e=>{if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE'))e.lastChild&& (e.lastChild.nodeValue=' '+(__VELORA_CORE_OVERRIDES[locale]?.['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE'));});
+  if(h){
+    const parts=[...h.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
+    const pack=__VELORA_CORE_OVERRIDES[locale]||{};
+    if(parts[0]) parts[0].nodeValue=pack['Discover More.']||'Discover More.';
+    if(parts[1]) parts[1].nodeValue=pack['Shop Better.']||'Shop Better.';
+  }
+  root.querySelectorAll('.hero-badge').forEach(e=>{
+    if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE')){
+      const textNodes=[...e.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
+      const last=textNodes[textNodes.length-1];
+      if(last) last.nodeValue=' '+(__VELORA_CORE_OVERRIDES[locale]?.['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
+    }
+  });
 }
 
 window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(source,locale);
@@ -113,7 +124,9 @@ const observer=new MutationObserver(ms=>{
 });
 function boot(){
   try{observer.observe(document.body,{subtree:true,childList:true});}catch(_){}
-  const initial=state.locale||'en'; applyLocale(initial);
+  const initial=typeof getVeloraLanguage==='function' ? getVeloraLanguage() : (state.locale||'en');
+  state.locale=initial;
+  applyLocale(initial);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 
