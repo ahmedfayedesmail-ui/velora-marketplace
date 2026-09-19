@@ -312,7 +312,7 @@
     /* Do not gate the editor on a Supabase read. Mount first, hydrate existing variants in background. */
     var variants=[];
     var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
-    host.innerHTML="<div class=\"velora-variant-editor-head\"><div><strong>Variants (optional)</strong><div class=\"velora-op-muted\">One row per purchasable combination. Attributes are free-form JSON such as {"color":"red","size":"M"}.</div></div><button type=\"button\" class=\"btn btn-outline\" id=\"s2aAddVariant\">+ Add Variant</button></div><div id=\"s2aVariantRows\">"+variants.map(sellerVariantRow).join("")+"</div><div class=\"velora-op-note\">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
+    host.innerHTML='<div class="velora-variant-editor-head"><div><strong>Variants (optional)</strong><div class="velora-op-muted">One row per purchasable combination. Attributes are free-form JSON such as {"color":"red","size":"M"}.</div></div><button type="button" class="btn btn-outline" id="s2aAddVariant">+ Add Variant</button></div><div id="s2aVariantRows">'+variants.map(sellerVariantRow).join("")+'</div><div class="velora-op-note">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>';
     var loc=modal.querySelector(".velora-loc-editor");
     console.log("[S2-A DEBUG] before-mount", { modalId: modal.id, formId: form.id, productId: productId || "", hostId: host.id });
     form.insertBefore(host,loc||form.lastElementChild);
@@ -329,7 +329,7 @@
       }).catch(function(err){
         console.error("S2-A seller variant hydrate failed:",err);
         var rows=document.getElementById("s2aVariantRows");
-        if(rows)rows.innerHTML="<div class=\\"velora-op-muted\\">Existing variants could not be loaded. You can still add a new variant.</div>";
+        if(rows)rows.innerHTML='<div class="velora-op-muted">Existing variants could not be loaded. You can still add a new variant.</div>';
       });
     }
   }
