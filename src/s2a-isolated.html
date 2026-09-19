@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Velora S2-A Variant Lab</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#1b1630;background:#f7f3fb}
+    *{box-sizing:border-box}body{margin:0;padding:24px}
+    .wrap{max-width:1100px;margin:0 auto}
+    .card{background:#fff;border:1px solid #e7deef;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 6px 24px rgba(42,20,60,.05)}
+    h1,h2{margin:0 0 12px}.muted{color:#6c6375}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.input{width:100%;padding:10px 12px;border:1px solid #d7ccdf;border-radius:10px;font:inherit}
+    button{border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+    .primary{background:#6b3fb8;color:#fff}.secondary{background:#eee6f7;color:#2e2140}.danger{background:#f7e1e1;color:#8a2323}
+    .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.status{padding:10px 12px;border-radius:10px;background:#f3eef8;white-space:pre-wrap}
+    .ok{background:#e5f6ea;color:#17622b}.err{background:#fdeaea;color:#8a1f1f}
+    table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border-bottom:1px solid #eee6f2;padding:10px 8px;text-align:left;vertical-align:top}
+    .variant-row{display:grid;grid-template-columns:1.1fr 1.1fr .8fr .8fr 1.4fr auto;gap:8px;align-items:end;padding:12px 0;border-top:1px solid #eee6f2}
+    .hidden{display:none}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#efe8f7;font-size:12px;font-weight:700}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.variant-row{grid-template-columns:1fr 1fr}.variant-row .wide{grid-column:1/-1}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Velora — S2-A Variant Lab</h1>
+    <div class="muted">Isolated variant UI + Supabase RPC test. No Seller UI, no legacy globals, no localStorage.</div>
+  </div>
+
+  <div class="card">
+    <h2>1. Test Authentication</h2>
+    <div class="grid">
+      <div><label for="email">Seller email</label><input id="email" class="input" autocomplete="username"></div>
+      <div><label for="password">Password</label><input id="password" class="input" type="password" autocomplete="current-password"></div>
+    </div>
+    <div class="row-actions">
+      <button id="login" class="primary">Sign in</button>
+      <button id="logout" class="secondary hidden">Sign out</button>
+    </div>
+    <div id="authStatus" class="status">Not signed in.</div>
+  </div>
+
+  <div class="card">
+    <h2>2. Product</h2>
+    <div class="grid">
+      <div><label for="productId">Product UUID</label><input id="productId" class="input" value="21d977a0-111b-4bb4-9736-0f2994294d48"></div>
+      <div><label for="productName">Displayed product</label><input id="productName" class="input" value="E2E Variant Product" disabled></div>
+    </div>
+    <div class="row-actions">
+      <button id="loadProduct" class="secondary">Load product</button>
+      <button id="loadVariants" class="secondary">Load active variants</button>
+      <button id="smoke" class="primary">Run CRUD smoke test</button>
+    </div>
+    <div id="productStatus" class="status">Product not loaded.</div>
+  </div>
+
+  <div class="card">
+    <h2>3. Variant Editor</h2>
+    <div id="rows"></div>
+    <div class="row-actions">
+      <button id="add" class="primary">+ Add Variant</button>
+      <button id="save" class="secondary">Save all variants</button>
+    </div>
+    <div id="variantStatus" class="status">No variants loaded.</div>
+  </div>
+
+  <div class="card">
+    <h2>4. Verification log</h2>
+    <div id="log" class="status">Ready.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const SUPABASE_URL = 'https://arlaxqmhtvjwjbjinjfw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RDyqgvJyT37RiQ1PNxYuQ_ov_8eceA';
+  let accessToken = '';
+  let variants = [];
+
+  const $ = id => document.getElementById(id);
+  const log = (msg, ok) => {
+    const el = $('log');
+    el.textContent += '\n' + msg;
+    el.className = 'status ' + (ok===true ? 'ok' : ok===false ? 'err' : '');
+    el.scrollTop = el.scrollHeight;
+  };
+  const status = (id,msg,ok) => {
+    $(id).textContent = msg;
+    $(id).className = 'status ' + (ok===true ? 'ok' : ok===false ? 'err' : '');
+  };
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+
+  async function request(path, options={}){
+    const headers = Object.assign({
+      apikey: SUPABASE_KEY,
+      'Content-Type':'application/json'
+    }, options.headers||{});
+    if(accessToken) headers.Authorization = 'Bearer ' + accessToken;
+    const res = await fetch(SUPABASE_URL + path, Object.assign({}, options, {headers}));
+    const text = await res.text();
+    let data;
+    try{ data = text ? JSON.parse(text) : null; }catch(_){ data = text; }
+    if(!res.ok){
+      const message = data?.message || data?.error_description || data?.hint || (typeof data === 'string' ? data : JSON.stringify(data));
+      throw new Error(res.status + ' ' + message);
+    }
+    return data;
+  }
+
+  async function signIn(){
+    const email=$('email').value.trim(), password=$('password').value;
+    if(!email || !password) throw new Error('Enter seller credentials.');
+    const data=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});
+    accessToken=data.access_token;
+    $('logout').classList.remove('hidden');
+    status('authStatus','Signed in as ' + (data.user?.email||email),true);
+    log('AUTH PASS',true);
+  }
+  async function signOut(){
+    accessToken='';
+    $('logout').classList.add('hidden');
+    status('authStatus','Signed out.');
+    log('Signed out');
+  }
+
+  async function loadProduct(){
+    if(!accessToken) throw new Error('Sign in first.');
+    const id=$('productId').value.trim();
+    const rows=await request('/rest/v1/products?id=eq.'+encodeURIComponent(id)+'&select=id,name,status,price,stock,currency_code,seller_id,store_id');
+    if(!rows.length) throw new Error('Product not found.');
+    const p=rows[0];
+    $('productName').value = p.name + ' · ' + p.status + ' · ' + p.price + ' ' + (p.currency_code||'');
+    status('productStatus',JSON.stringify(p,null,2),true);
+    log('PRODUCT READ PASS · '+p.id,true);
+    return p;
+  }
+
+  async function loadActiveVariants(){
+    if(!accessToken) throw new Error('Sign in first.');
+    const id=$('productId').value.trim();
+    const data=await request('/rest/v1/rpc/velora_get_product_variants',{method:'POST',body:JSON.stringify({p_product_id:id})});
+    variants=Array.isArray(data)?data:[];
+    render();
+    status('variantStatus',variants.length+' active variant(s).',true);
+    log('VARIANT READ PASS · '+variants.length+' active',true);
+    return variants;
+  }
+
+  function render(){
+    $('rows').innerHTML='';
+    variants.forEach((v,i)=>{
+      const row=document.createElement('div');
+      row.className='variant-row';
+      row.dataset.id=v.id||'';
+      row.innerHTML=
+        '<div><label>Name *</label><input class="input name" value="'+esc(v.name||'')+'"></div>'+
+        '<div><label>SKU *</label><input class="input sku" value="'+esc(v.sku||'')+'"></div>'+
+        '<div><label>Price</label><input class="input price" type="number" min="0" step="0.01" value="'+esc(v.price??'')+'"></div>'+
+        '<div><label>Stock *</label><input class="input stock" type="number" min="0" step="1" value="'+esc(v.stock_quantity??0)+'"></div>'+
+        '<div class="wide"><label>Attributes JSON</label><textarea class="input attrs" rows="2">'+esc(JSON.stringify(v.attributes||{}))+'</textarea></div>'+
+        '<button type="button" class="danger remove">Retire</button>';
+      row.querySelector('.remove').addEventListener('click',()=>{row.remove();});
+      $('rows').appendChild(row);
+    });
+  }
+
+  function collect(){
+    return [...$('rows').querySelectorAll('.variant-row')].map(row=>({
+      id: row.dataset.id || null,
+      name: row.querySelector('.name').value.trim(),
+      sku: row.querySelector('.sku').value.trim(),
+      price: row.querySelector('.price').value.trim()==='' ? null : Number(row.querySelector('.price').value),
+      stock_quantity: Number(row.querySelector('.stock').value || 0),
+      attributes: JSON.parse(row.querySelector('.attrs').value || '{}')
+    }));
+  }
+
+  async function upsertVariant(v){
+    const id=$('productId').value.trim();
+    return request('/rest/v1/rpc/velora_upsert_product_variant',{method:'POST',body:JSON.stringify({
+      p_product_id:id,p_variant_id:v.id,p_name:v.name,p_sku:v.sku,p_price:v.price,p_stock_quantity:v.stock_quantity,p_attributes:v.attributes
+    })});
+  }
+
+  async function retireVariant(id){
+    return request('/rest/v1/rpc/velora_retire_product_variant',{method:'POST',body:JSON.stringify({p_variant_id:id})});
+  }
+
+  async function saveAll(){
+    if(!accessToken) throw new Error('Sign in first.');
+    const before=await loadActiveVariants();
+    const desired=collect();
+    const keep=new Set();
+    for(const v of desired){
+      if(!v.name || !v.sku) throw new Error('Each variant needs a name and SKU.');
+      if(!Number.isInteger(v.stock_quantity) || v.stock_quantity<0) throw new Error('Invalid stock.');
+      if(v.price!==null && (!Number.isFinite(v.price)||v.price<0)) throw new Error('Invalid price.');
+      const id=await upsertVariant(v);
+      keep.add(String(id));
+    }
+    for(const old of before){
+      if(!keep.has(String(old.id)) && !desired.some(x=>String(x.id)===String(old.id))){
+        await retireVariant(old.id);
+      }
+    }
+    await loadActiveVariants();
+    status('variantStatus','SAVE PASS · '+$('rows').querySelectorAll('.variant-row').length+' row(s) active.',true);
+    log('VARIANT WRITE PASS',true);
+  }
+
+  async function smoke(){
+    if(!accessToken) throw new Error('Sign in first.');
+    const productId=$('productId').value.trim();
+    const before=await loadActiveVariants();
+    const sku='E2E-S2A-'+Date.now().toString(36).toUpperCase();
+    let createdId=null;
+    try{
+      createdId=await upsertVariant({
+        id:null,name:'E2E Smoke Variant',sku,price:299,stock_quantity:7,attributes:{color:'red',size:'M'}
+      });
+      log('CREATE PASS · '+createdId,true);
+
+      const afterCreate=await request('/rest/v1/rpc/velora_get_product_variants',{method:'POST',body:JSON.stringify({p_product_id:productId})});
+      const created=afterCreate.find(v=>String(v.id)===String(createdId)&&v.sku===sku&&Number(v.stock_quantity)===7);
+      if(!created) throw new Error('Created variant not returned by read RPC.');
+      log('READ-AFTER-CREATE PASS',true);
+
+      const updatedId=await upsertVariant({
+        id:createdId,name:'E2E Smoke Variant Updated',sku,price:349,stock_quantity:9,attributes:{color:'blue',size:'L'}
+      });
+      if(String(updatedId)!==String(createdId)) throw new Error('Update returned a different id.');
+      log('UPDATE PASS',true);
+
+      const afterUpdate=await request('/rest/v1/rpc/velora_get_product_variants',{method:'POST',body:JSON.stringify({p_product_id:productId})});
+      const updated=afterUpdate.find(v=>String(v.id)===String(createdId)&&v.name==='E2E Smoke Variant Updated'&&Number(v.stock_quantity)===9&&v.attributes?.color==='blue');
+      if(!updated) throw new Error('Updated variant not returned by read RPC.');
+      log('READ-AFTER-UPDATE PASS',true);
+
+      await retireVariant(createdId);
+      log('RETIRE PASS',true);
+
+      const afterRetire=await request('/rest/v1/rpc/velora_get_product_variants',{method:'POST',body:JSON.stringify({p_product_id:productId})});
+      if(afterRetire.some(v=>String(v.id)===String(createdId))) throw new Error('Retired variant still active in read RPC.');
+      log('READ-AFTER-RETIRE PASS',true);
+
+      variants=afterRetire;
+      render();
+      status('variantStatus','CRUD SMOKE PASS · baseline '+before.length+' → final '+afterRetire.length,true);
+      log('S2-A ISOLATED CRUD = PASS',true);
+      return true;
+    }catch(e){
+      if(createdId){
+        try{ await retireVariant(createdId); log('CLEANUP RETIRE PASS',true); }catch(_){}
+      }
+      throw e;
+    }
+  }
+
+  $('login').addEventListener('click',()=>signIn().catch(e=>{status('authStatus',e.message,false);log('AUTH FAIL · '+e.message,false);}));
+  $('logout').addEventListener('click',()=>signOut());
+  $('loadProduct').addEventListener('click',()=>loadProduct().catch(e=>{status('productStatus',e.message,false);log('PRODUCT READ FAIL · '+e.message,false);}));
+  $('loadVariants').addEventListener('click',()=>loadActiveVariants().catch(e=>{status('variantStatus',e.message,false);log('VARIANT READ FAIL · '+e.message,false);}));
+  $('add').addEventListener('click',()=>{
+    variants.push({id:null,name:'',sku:'',price:null,stock_quantity:0,attributes:{}});
+    render();
+    log('UI ADD ROW PASS',true);
+  });
+  $('save').addEventListener('click',()=>saveAll().catch(e=>{status('variantStatus','SAVE FAIL · '+e.message,false);log('VARIANT WRITE FAIL · '+e.message,false);}));
+  $('smoke').addEventListener('click',()=>smoke().catch(e=>{status('variantStatus','CRUD SMOKE FAIL · '+e.message,false);log('S2-A ISOLATED CRUD = FAIL · '+e.message,false);}));
+
+  window.__VELORA_S2A_LAB__ = { signIn, signOut, loadProduct, loadActiveVariants, smoke, collect };
+})();
+</script>
+</body>
+</html>
