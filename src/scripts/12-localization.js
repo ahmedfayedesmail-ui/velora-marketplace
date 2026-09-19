@@ -159,7 +159,335 @@
   async function renderCanonicalAdminDashboard(){const c=document.getElementById('adminContent');const [users,sellers,products,orders,pendingSellers,pendingProducts]=await Promise.all([countTable('profiles'),countTable('sellers'),countTable('products'),countTable('orders'),countTable('sellers',q=>q.eq('status','pending')),countTable('products',q=>q.eq('status','pending'))]);const [ordRows]=await Promise.all([db.from('orders').select('id,order_number,total,currency,payment_status,status,created_at,customer_name').order('created_at',{ascending:false}).limit(8)]);if(ordRows.error)throw ordRows.error;const revenue=(ordRows.data||[]).reduce((n,o)=>n+Number(o.total||0),0);c.innerHTML=`<div class="velora-op-grid"><div class="velora-op-kpi"><div class="kpi-value">${users}</div><div class="kpi-label">Users</div></div><div class="velora-op-kpi"><div class="kpi-value">${sellers}</div><div class="kpi-label">Sellers</div></div><div class="velora-op-kpi"><div class="kpi-value">${products}</div><div class="kpi-label">Products</div></div><div class="velora-op-kpi"><div class="kpi-value">${orders}</div><div class="kpi-label">Orders</div></div><div class="velora-op-kpi"><div class="kpi-value">${pendingSellers}</div><div class="kpi-label">Pending Sellers</div></div><div class="velora-op-kpi"><div class="kpi-value">${pendingProducts}</div><div class="kpi-label">Pending Products</div></div></div><div class="admin-section-card"><h3>🕐 Recent Orders</h3><div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead><tbody>${(ordRows.data||[]).map(o=>`<tr><td>#${esc(o.order_number)}</td><td>${esc(o.customer_name||'Customer')}</td><td>${money(o.total,o.currency)}</td><td><span class="velora-op-status ${cls(o.payment_status)}">${esc(o.payment_status)}</span></td><td><span class="velora-op-status ${cls(o.status)}">${esc(o.status)}</span></td><td>${new Date(o.created_at).toLocaleDateString()}</td></tr>`).join('')||'<tr><td colspan="6" class="velora-op-muted" style="padding:2rem;text-align:center">No orders yet.</td></tr>'}</tbody></table></div></div><div class="admin-section-card"><h3>⚡ Quick Actions</h3><div class="velora-op-actions"><button onclick="window.VELORA_CANONICAL_ADMIN_SECTION('applications')">📝 Review Applications</button><button onclick="window.VELORA_CANONICAL_ADMIN_SECTION('sellers')">🏪 Manage Sellers</button><button onclick="window.VELORA_CANONICAL_ADMIN_SECTION('products')">📦 Moderate Products</button><button onclick="window.VELORA_CANONICAL_ADMIN_SECTION('audit')">🛡️ Audit Logs</button></div></div>`}
   async function renderCanonicalAdminSellers(){const c=document.getElementById('adminContent');const {data,error}=await db.from('sellers').select('id,user_id,store_name,store_slug,status,plan,rating,total_orders,total_products,total_sales,created_at,approved_at,rejection_reason').order('created_at',{ascending:false});if(error)throw error;c.innerHTML=`<div class="admin-section-card"><div class="velora-op-toolbar"><div><h3 style="margin:0">🏪 Sellers</h3><div class="velora-op-muted">Actions use protected RPCs; sellers cannot self-approve.</div></div><input class="velora-op-search op-search" placeholder="Search stores…" oninput="window.VELORA_FILTER_TABLE(this.value,'veloraSellersTable')"></div><div class="velora-op-table-wrap"><table class="velora-op-table" id="veloraSellersTable"><thead><tr><th>Store</th><th>Plan</th><th>Rating</th><th>Orders</th><th>Products</th><th>Status</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(s=>`<tr><td><strong>🏪 ${esc(s.store_name)}</strong><div class="velora-op-muted">/${esc(s.store_slug)}</div></td><td>${esc(s.plan||'free')}</td><td>${Number(s.rating||0).toFixed(1)}</td><td>${Number(s.total_orders||0)}</td><td>${Number(s.total_products||0)}</td><td><span class="velora-op-status ${cls(s.status)}">${esc(s.status)}</span></td><td><div class="velora-op-actions">${s.status==='pending'?`<button onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','approved')">✅ Approve</button><button class="velora-op-danger" onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','rejected')">❌ Reject</button>`:''}${s.status==='approved'?`<button class="velora-op-danger" onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','suspended')">🚫 Suspend</button>`:''}${s.status==='suspended'||s.status==='rejected'?`<button onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','approved')">♻️ Restore</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="7" class="velora-op-muted" style="padding:2rem;text-align:center">No sellers.</td></tr>'}</tbody></table></div></div>`}
   async function renderCanonicalAdminProducts(){const c=document.getElementById('adminContent');const {data,error}=await db.from('products').select('id,seller_id,store_id,name,brand,price,currency_code,stock,status,created_at,updated_at').order('created_at',{ascending:false}).limit(250);if(error)throw error;c.innerHTML=`<div class="admin-section-card"><div class="velora-op-toolbar"><div><h3 style="margin:0">📦 Product Moderation</h3><div class="velora-op-muted">Canonical products are seller-owned and status-controlled by Admin/Owner.</div></div><input class="velora-op-search op-search" placeholder="Search products…" oninput="window.VELORA_FILTER_TABLE(this.value,'veloraProductsTable')"></div><div class="velora-op-table-wrap"><table class="velora-op-table" id="veloraProductsTable"><thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(p=>`<tr><td><strong>${esc(p.name)}</strong><div class="velora-op-muted">${esc(p.brand||'')}</div></td><td>${money(p.price,p.currency_code||'USD')}</td><td>${Number(p.stock||0)}</td><td><span class="velora-op-status ${cls(p.status)}">${esc(p.status)}</span></td><td><div class="velora-op-actions">${p.status==='pending'?`<button onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','approved')">✅ Approve</button><button class="velora-op-danger" onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','rejected')">❌ Reject</button>`:''}${p.status==='approved'?`<button class="velora-op-danger" onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','inactive')">⏸️ Deactivate</button>`:''}${p.status==='inactive'||p.status==='rejected'?`<button onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','approved')">♻️ Restore</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="5" class="velora-op-muted" style="padding:2rem;text-align:center">No products.</td></tr>'}</tbody></table></div></div>`}
-  async function renderCanonicalAdminOrders(){const c=document.getElementById('adminContent');const {data,error}=await db.from('orders').select('id,order_number,customer_id,total,currency,status,payment_status,customer_name,customer_email,created_at').order('created_at',{ascending:false}).limit(250);if(error)throw error;c.innerHTML=`<div class="admin-section-card"><h3>🧾 Orders</h3><div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Order Status</th><th>Date</th></tr></thead><tbody>${(data||[]).map(o=>`<tr><td>#${esc(o.order_number)}</td><td>${esc(o.customer_name||o.customer_email||'Customer')}</td><td>${money(o.total,o.currency)}</td><td><span class="velora-op-status ${cls(o.payment_status)}">${esc(o.payment_status)}</span></td><td><span class="velora-op-status ${cls(o.status)}">${esc(o.status)}</span></td><td>${new Date(o.created_at).toLocaleDateString()}</td></tr>`).join('')||'<tr><td colspan="6" class="velora-op-muted" style="padding:2rem;text-align:center">No orders.</td></tr>'}</tbody></table></div></div>`}
+  const ADMIN_ORDER_TRANSITIONS = Object.freeze({
+    pending: Object.freeze(['confirmed','cancelled']),
+    confirmed: Object.freeze(['processing','cancelled']),
+    processing: Object.freeze(['shipped','cancelled']),
+    shipped: Object.freeze(['delivered','cancelled']),
+    delivered: Object.freeze(['refunded']),
+    cancelled: Object.freeze([]),
+    refunded: Object.freeze([])
+  });
+
+  function adminOrderStatusLabel(status){
+    const v=String(status||'pending').toLowerCase();
+    return v.charAt(0).toUpperCase()+v.slice(1);
+  }
+
+  function adminOrderTransitionIcon(status){
+    switch(String(status||'').toLowerCase()){
+      case 'confirmed': return '✅';
+      case 'processing': return '⚙️';
+      case 'shipped': return '🚚';
+      case 'delivered': return '📦';
+      case 'cancelled': return '✕';
+      case 'refunded': return '↩️';
+      default: return '•';
+    }
+  }
+
+  function adminOrderRpcCode(error){
+    const raw=String(error?.message||error?.details||error?.hint||'');
+    return ['INVALID_TRANSITION','FORBIDDEN','ORDER_NOT_FOUND','AUTH_REQUIRED','NOTE_TOO_LONG','ORDER_ID_REQUIRED','INVALID_STATUS']
+      .find(code=>raw.includes(code))||'UNKNOWN';
+  }
+
+  function ensureAdminOrderModals(){
+    if(document.getElementById('veloraAdminOrderDetailsModal')) return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <div class="modal" id="veloraAdminOrderDetailsModal">
+        <div class="modal-content modal-wide" style="max-width:900px;">
+          <div class="modal-header">
+            <h2 id="veloraAdminOrderDetailsTitle">🧾 Order Details</h2>
+            <button class="modal-close" onclick="closeModal('veloraAdminOrderDetailsModal')">✕</button>
+          </div>
+          <div id="veloraAdminOrderDetailsContent"></div>
+        </div>
+      </div>
+      <div class="modal" id="veloraAdminOrderConfirmModal">
+        <div class="modal-content" style="max-width:520px;">
+          <div class="modal-header">
+            <h2>Confirm Status Change</h2>
+            <button class="modal-close" onclick="closeModal('veloraAdminOrderConfirmModal')">✕</button>
+          </div>
+          <div id="veloraAdminOrderConfirmContent"></div>
+        </div>
+      </div>
+    `);
+  }
+
+  async function loadCanonicalAdminOrder(orderId){
+    const {data,error}=await db.from('orders')
+      .select('id,order_number,customer_id,total,currency,status,payment_status,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_notes,subtotal,discount,shipping,created_at,updated_at,checkout_reference')
+      .eq('id',orderId)
+      .maybeSingle();
+    if(error) throw error;
+    if(!data) throw new Error('ORDER_NOT_FOUND');
+
+    const [{data:items,error:itemsError},{data:payments,error:paymentsError}]=await Promise.all([
+      db.from('order_items')
+        .select('id,product_id,product_name,quantity,unit_price,subtotal,store_name,product_variant_name,sku,product_variant_attributes')
+        .eq('order_id',data.id)
+        .order('created_at',{ascending:true}),
+      db.from('payments')
+        .select('id,method,provider,amount,currency,status,paid_at,created_at')
+        .eq('order_id',data.id)
+        .order('created_at',{ascending:false})
+        .limit(1)
+    ]);
+    if(itemsError) throw itemsError;
+    if(paymentsError) throw paymentsError;
+
+    return {...data,items:items||[],payment_record:(payments||[])[0]||null};
+  }
+
+  function renderCanonicalAdminOrderDetails(order){
+    const status=String(order.status||'pending').toLowerCase();
+    const transitions=ADMIN_ORDER_TRANSITIONS[status]||[];
+    const currency=order.currency||window.VELORA_CURRENCY||'EGP';
+    const payment=order.payment_record;
+
+    const itemHtml=order.items.length
+      ? order.items.map(item=>`
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.8rem;align-items:center;padding:.75rem 0;border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-weight:800;">${esc(item.product_name||'Product')}</div>
+              ${item.product_variant_name?`<div class="velora-op-muted">Variant: ${esc(item.product_variant_name)}</div>`:''}
+              ${item.sku?`<div class="velora-op-muted">SKU: ${esc(item.sku)}</div>`:''}
+            </div>
+            <div class="velora-op-muted">× ${Number(item.quantity||0)}</div>
+            <strong>${money(item.subtotal??0,currency)}</strong>
+          </div>
+        `).join('')
+      : '<div class="velora-op-muted" style="padding:1rem 0;">No items recorded.</div>';
+
+    const actionHtml=transitions.length
+      ? transitions.map(next=>`
+          <button type="button"
+            class="btn ${next==='cancelled'?'btn-outline':'btn-primary'}"
+            onclick="window.VELORA_ADMIN_CONFIRM_ORDER_STATUS('${String(order.id)}','${next}')">
+            ${adminOrderTransitionIcon(next)} ${esc(adminOrderStatusLabel(next))}
+          </button>`).join(' ')
+      : '<div class="velora-op-muted">No status changes available from this state.</div>';
+
+    return `
+      <div style="display:grid;gap:1rem;">
+        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);">
+          <div>
+            <div class="velora-op-muted">Order</div>
+            <div style="font-size:1.35rem;font-weight:900;color:var(--primary);">#${esc(String(order.order_number))}</div>
+            <div class="velora-op-muted" style="margin-top:.25rem;">${esc(new Date(order.created_at).toLocaleString())}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="velora-op-muted">Order Status</div>
+            <span class="velora-op-status ${cls(status)}">${esc(status)}</span>
+            <div class="velora-op-muted" style="margin-top:.35rem;">Payment: ${esc(order.payment_status||'pending')}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;">
+          <section class="admin-section-card" style="margin:0;">
+            <h3>👤 Customer</h3>
+            <div style="display:grid;gap:.35rem;">
+              <div><strong>Name:</strong> ${esc(order.customer_name||'N/A')}</div>
+              <div><strong>Email:</strong> ${esc(order.customer_email||'N/A')}</div>
+              <div><strong>Phone:</strong> ${esc(order.customer_phone||'N/A')}</div>
+              <div><strong>City:</strong> ${esc(order.customer_city||'N/A')}</div>
+              <div><strong>Address:</strong> ${esc(order.customer_address||'N/A')}</div>
+            </div>
+          </section>
+
+          <section class="admin-section-card" style="margin:0;">
+            <h3>💳 Payment</h3>
+            <div style="display:grid;gap:.35rem;">
+              <div><strong>Method:</strong> ${esc(payment?.method||'COD')}</div>
+              <div><strong>Payment status:</strong> ${esc(order.payment_status||'pending')}</div>
+              <div><strong>Total:</strong> ${money(order.total,currency)}</div>
+            </div>
+          </section>
+        </div>
+
+        <section class="admin-section-card" style="margin:0;">
+          <h3>🛍️ Items (${order.items.length})</h3>
+          ${itemHtml}
+          <div style="display:flex;justify-content:flex-end;padding-top:.9rem;font-size:1.1rem;">
+            <strong>Total: ${money(order.total,currency)}</strong>
+          </div>
+        </section>
+
+        ${order.customer_notes?`
+          <section class="admin-section-card" style="margin:0;">
+            <h3>📝 Customer Notes</h3>
+            <div class="velora-op-muted" style="white-space:pre-wrap;">${esc(order.customer_notes)}</div>
+          </section>`:''}
+
+        <section class="admin-section-card" style="margin:0;">
+          <h3>🔄 Available Status Changes</h3>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;">${actionHtml}</div>
+        </section>
+      </div>
+    `;
+  }
+
+  async function openCanonicalAdminOrderDetails(orderId){
+    ensureAdminOrderModals();
+    const modal=document.getElementById('veloraAdminOrderDetailsModal');
+    const content=document.getElementById('veloraAdminOrderDetailsContent');
+    if(!modal||!content)return;
+
+    modal.classList.add('active');
+    document.body.style.overflow='hidden';
+    content.innerHTML='<div class="velora-op-card"><div style="font-size:1.8rem">⏳</div><div class="velora-op-muted">Loading order details…</div></div>';
+
+    try{
+      const order=await loadCanonicalAdminOrder(orderId);
+      window.__VELORA_ADMIN_ORDER_CONTEXT={order};
+      const title=document.getElementById('veloraAdminOrderDetailsTitle');
+      if(title) title.textContent='🧾 Order #'+order.order_number;
+      content.innerHTML=renderCanonicalAdminOrderDetails(order);
+    }catch(error){
+      closeModal('veloraAdminOrderDetailsModal');
+      const code=adminOrderRpcCode(error);
+      if(code==='AUTH_REQUIRED') showToast('Please login to continue.','warning');
+      else if(code==='ORDER_NOT_FOUND') showToast('❌ ORDER_NOT_FOUND','error');
+      else showToast('❌ Could not load order details.','error');
+      console.error('Velora admin order details:',error);
+    }
+  }
+
+  function openCanonicalAdminOrderStatusConfirmation(orderId,newStatus){
+    ensureAdminOrderModals();
+    const ctx=window.__VELORA_ADMIN_ORDER_CONTEXT;
+    const order=ctx?.order;
+    if(!order||String(order.id)!==String(orderId)){
+      showToast('Please reopen the order details and try again.','warning');
+      return;
+    }
+
+    const current=String(order.status||'pending').toLowerCase();
+    const next=String(newStatus||'').toLowerCase();
+    if(!(ADMIN_ORDER_TRANSITIONS[current]||[]).includes(next)){
+      showToast('❌ INVALID_TRANSITION','error');
+      return;
+    }
+
+    const modal=document.getElementById('veloraAdminOrderConfirmModal');
+    const content=document.getElementById('veloraAdminOrderConfirmContent');
+    if(!modal||!content)return;
+
+    content.innerHTML=`
+      <div style="display:grid;gap:1rem;">
+        <div style="padding:1rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);">
+          Change status from <strong>${esc(adminOrderStatusLabel(current))}</strong>
+          to <strong style="color:var(--primary);">${esc(adminOrderStatusLabel(next))}</strong>?
+        </div>
+        <div>
+          <label for="veloraAdminOrderNote" style="display:block;font-weight:700;margin-bottom:.4rem;">Note (optional)</label>
+          <textarea id="veloraAdminOrderNote" class="form-input" maxlength="500" rows="4" placeholder="Optional note (max 500 characters)"></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('veloraAdminOrderConfirmModal')">Cancel</button>
+          <button type="button" class="btn btn-primary" id="veloraAdminOrderConfirmButton" onclick="window.VELORA_ADMIN_EXECUTE_ORDER_STATUS('${String(order.id)}','${next}')">Confirm</button>
+        </div>
+      </div>
+    `;
+
+    modal.classList.add('active');
+    document.body.style.overflow='hidden';
+  }
+
+  async function executeCanonicalAdminOrderStatus(orderId,newStatus){
+    const sessionResult=await db.auth.getSession();
+    if(sessionResult.error) throw sessionResult.error;
+    if(!sessionResult.data?.session){
+      closeModal('veloraAdminOrderConfirmModal');
+      closeModal('veloraAdminOrderDetailsModal');
+      showToast('Please login to continue.','warning');
+      if(typeof openAuthModal==='function') setTimeout(()=>openAuthModal('login'),150);
+      return;
+    }
+
+    const note=document.getElementById('veloraAdminOrderNote')?.value?.trim()||null;
+    const button=document.getElementById('veloraAdminOrderConfirmButton');
+    if(button){button.disabled=true;button.textContent='Saving…';}
+
+    try{
+      const {data,error}=await db.rpc('velora_admin_update_order_status',{
+        p_order_id:orderId,
+        p_new_status:newStatus,
+        p_note:note
+      });
+      if(error) throw error;
+
+      const result=data||{};
+      showToast('✅ Order #'+String(window.__VELORA_ADMIN_ORDER_CONTEXT?.order?.order_number||'')+' → '+adminOrderStatusLabel(result.new_status||newStatus),'success');
+      closeModal('veloraAdminOrderConfirmModal');
+      await canonicalAdminSection('orders');
+      await openCanonicalAdminOrderDetails(orderId);
+    }catch(error){
+      const code=adminOrderRpcCode(error);
+      closeModal('veloraAdminOrderConfirmModal');
+      if(code==='AUTH_REQUIRED'){
+        closeModal('veloraAdminOrderDetailsModal');
+        showToast('Please login to continue.','warning');
+        if(typeof openAuthModal==='function') setTimeout(()=>openAuthModal('login'),150);
+      }else if(code==='INVALID_TRANSITION'){
+        showToast('❌ INVALID_TRANSITION','error');
+      }else if(code==='FORBIDDEN'){
+        showToast('❌ FORBIDDEN','error');
+      }else if(code==='ORDER_NOT_FOUND'){
+        showToast('❌ ORDER_NOT_FOUND','error');
+        closeModal('veloraAdminOrderDetailsModal');
+      }else if(code==='NOTE_TOO_LONG'){
+        showToast('❌ NOTE_TOO_LONG','error');
+      }else{
+        showToast('❌ Could not update order status.','error');
+      }
+      console.error('Velora admin order status RPC:',error);
+    }finally{
+      if(button){button.disabled=false;button.textContent='Confirm';}
+    }
+  }
+
+  async function renderCanonicalAdminOrders(){
+    const c=document.getElementById('adminContent');
+    const {data,error}=await db.from('orders')
+      .select('id,order_number,customer_id,total,currency,status,payment_status,customer_name,customer_email,created_at')
+      .order('created_at',{ascending:false})
+      .limit(250);
+    if(error)throw error;
+
+    c.innerHTML=`<div class="admin-section-card">
+      <h3>🧾 Orders</h3>
+      <div class="velora-op-table-wrap">
+        <table class="velora-op-table">
+          <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Order Status</th><th>Date</th></tr></thead>
+          <tbody>${(data||[]).map(o=>`
+            <tr
+              data-order-id="${esc(o.id)}"
+              role="button"
+              tabindex="0"
+              style="cursor:pointer;"
+              onclick="window.VELORA_ADMIN_OPEN_ORDER('${String(o.id)}')"
+              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.VELORA_ADMIN_OPEN_ORDER('${String(o.id)}')}"
+            >
+              <td><strong>#${esc(o.order_number)}</strong></td>
+              <td>${esc(o.customer_name||o.customer_email||'Customer')}</td>
+              <td>${money(o.total,o.currency)}</td>
+              <td><span class="velora-op-status ${cls(o.payment_status)}">${esc(o.payment_status)}</span></td>
+              <td><span class="velora-op-status ${cls(o.status)}">${esc(o.status)}</span></td>
+              <td>${new Date(o.created_at).toLocaleDateString()}</td>
+            </tr>`).join('')||'<tr><td colspan="6" class="velora-op-muted" style="padding:2rem;text-align:center">No orders.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  window.VELORA_ADMIN_OPEN_ORDER=openCanonicalAdminOrderDetails;
+  window.VELORA_ADMIN_CONFIRM_ORDER_STATUS=openCanonicalAdminOrderStatusConfirmation;
+  window.VELORA_ADMIN_EXECUTE_ORDER_STATUS=executeCanonicalAdminOrderStatus;
+
   async function renderCanonicalAdminUsers(){const c=document.getElementById('adminContent');const {data,error}=await db.from('profiles').select('id,full_name,email,country_code,preferred_language,preferred_currency,status,created_at').order('created_at',{ascending:false}).limit(250);if(error)throw error;c.innerHTML=`<div class="admin-section-card"><h3>👥 Users</h3><div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>User</th><th>Country</th><th>Currency</th><th>Status</th><th>Created</th></tr></thead><tbody>${(data||[]).map(u=>`<tr><td><strong>${esc(u.full_name||'Unnamed')}</strong><div class="velora-op-muted">${esc(u.email||'')}</div></td><td>${esc(u.country_code||'—')}</td><td>${esc(u.preferred_currency||'—')}</td><td><span class="velora-op-status ${cls(u.status)}">${esc(u.status)}</span></td><td>${new Date(u.created_at).toLocaleDateString()}</td></tr>`).join('')||'<tr><td colspan="5" class="velora-op-muted" style="padding:2rem;text-align:center">No users.</td></tr>'}</tbody></table></div></div>`}
   async function renderCanonicalAudit(){const c=document.getElementById('adminContent');const {data,error}=await db.from('audit_logs').select('id,actor_id,action,entity_type,entity_id,metadata,created_at').order('created_at',{ascending:false}).limit(200);if(error)throw error;c.innerHTML=`<div class="admin-section-card"><h3>🛡️ Audit Logs</h3><div class="velora-op-note">Audit history is read-only here. Only trusted backend operations create operational events.</div><div class="velora-op-table-wrap" style="margin-top:1rem"><table class="velora-op-table"><thead><tr><th>Time</th><th>Action</th><th>Entity</th><th>Actor</th></tr></thead><tbody>${(data||[]).map(a=>`<tr><td>${new Date(a.created_at).toLocaleString()}</td><td><strong>${esc(a.action)}</strong></td><td>${esc(a.entity_type)} ${a.entity_id?`<code>${esc(a.entity_id)}</code>`:''}</td><td><code>${esc(a.actor_id||'system')}</code></td></tr>`).join('')||'<tr><td colspan="4" class="velora-op-muted" style="padding:2rem;text-align:center">No audit events.</td></tr>'}</tbody></table></div></div>`}
   async function renderCanonicalApplications(){const c=document.getElementById('adminContent');const {data,error}=await db.from('seller_applications').select('id,user_id,requested_store_name,requested_store_slug,business_name,business_country_code,business_description,status,rejection_reason,created_at').order('created_at',{ascending:false});if(error)throw error;c.innerHTML=`<div class="admin-section-card"><h3>📝 Seller Applications</h3><div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>Store</th><th>Business</th><th>Country</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(a=>`<tr><td><strong>${esc(a.requested_store_name)}</strong><div class="velora-op-muted">/${esc(a.requested_store_slug)}</div></td><td>${esc(a.business_name||'—')}</td><td>${esc(a.business_country_code||'—')}</td><td><span class="velora-op-status ${cls(a.status)}">${esc(a.status)}</span></td><td>${new Date(a.created_at).toLocaleDateString()}</td><td><div class="velora-op-actions">${['pending','under_review'].includes(a.status)?`<button onclick="window.VELORA_REVIEW_APPLICATION('${a.id}','approve')">✅ Approve</button><button class="velora-op-danger" onclick="window.VELORA_REVIEW_APPLICATION('${a.id}','reject')">❌ Reject</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="6" class="velora-op-muted" style="padding:2rem;text-align:center">No applications.</td></tr>'}</tbody></table></div></div>`}
