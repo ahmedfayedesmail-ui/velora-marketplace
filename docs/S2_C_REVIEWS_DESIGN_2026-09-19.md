@@ -19,6 +19,10 @@ Status: Implementation active on Restore-Test; Production remains frozen.
 
 Write operations are controlled RPCs. SECURITY DEFINER is used only where required for cross-table writes and aggregate maintenance, with search_path pinned to an empty string and schema-qualified references. Read RPCs are SECURITY INVOKER. Execute grants are explicit.
 
+## RLS policy decision
+
+The review read policies are consolidated by role: anonymous users can read published reviews; authenticated users use one combined policy for customer-owner, seller-owner, and staff visibility. This reduces same-role policy overlap while preserving the intended access model.
+
 ## UI ownership
 
 53-s2c-reviews.js wraps the existing classic-script architecture rather than refactoring the baseline. It replaces review persistence with DB RPCs, adds product-detail reviews, seller review visibility, and staff moderation UI while preserving script order.
