@@ -3959,9 +3959,11 @@ function registerAuthListenerOnce() {
                 }
 
                 if (!profile) {
-                    STATE.user = null;
-                    try { localStorage.removeItem(KEYS.USER); } catch (e) {}
-                    updateAccountButton();
+                    // Do not clobber a valid login state because this async listener
+                    // lost a race with the explicit login/profile-loading flow.
+                    // The login handler already validates profile access and owns
+                    // the user-facing failure path.
+                    console.warn('⚠️ Supabase auth listener: profile unavailable; preserving current STATE.user.');
                     return;
                 }
 
