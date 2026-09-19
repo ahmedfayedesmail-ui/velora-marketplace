@@ -35,7 +35,7 @@ Production remains FROZEN.
 
 ## S2-D - Admin Dashboard
 Status: Implementation + authorization regression PASS.
-Migration: 20260919062000 - read-only admin dashboard RPC
+Migration: 20260919061938 - s2_d_admin_dashboard_readonly
 The dashboard is a staff-gated read-only operational overview and does not rebuild existing admin management sections.
 Order value is grouped by currency.
 Rollback verification: PASS.
