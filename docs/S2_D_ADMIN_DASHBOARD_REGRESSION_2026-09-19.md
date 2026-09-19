@@ -30,7 +30,7 @@ PASS
 The rollback operation was executed transactionally by dropping public.velora_get_admin_dashboard() and then rolling back. The function was present again after rollback.
 
 Rollback artifact:
-docs/rollback/20260919062000_s2d_admin_dashboard_readonly.rollback.sql
+docs/rollback/20260919061938_s2_d_admin_dashboard_readonly.rollback.sql
 
 ## Static integration
 PASS
@@ -41,6 +41,12 @@ PASS
 - existing Admin Sellers/Products/Orders/Users/Coupons/Settings sections remain delegated to the legacy admin implementation
 - S2-D dashboard adds read-only overview + refresh only
 
+## Restore-Test migration identity
+PASS
+- canonical migration version recorded by Supabase: 20260919061938
+- migration name: s2_d_admin_dashboard_readonly
+- canonical repository migration file matches that version
+
 ## Residue
 PASS
 The authorization regression used transactional fixtures. No S2-D fixture rows persist after rollback.
@@ -50,7 +56,7 @@ PASS
 Production ref cogplqokzxqaedvjxbwu was checked after S2-D work:
 - S2-B migrations 20260919054924 / 20260919055000 / 20260919055525: absent
 - S2-E migration 20260919060045: absent
-- S2-D migration 20260919062000: absent
+- S2-D migration 20260919061938: absent
 - products: 1
 - variants: 0
 - reviews: 0
