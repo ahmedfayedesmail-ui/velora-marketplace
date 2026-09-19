@@ -10,7 +10,7 @@ drop function if exists private.velora_notify_product_status();
 drop function if exists private.velora_notify_seller_status();
 drop function if exists private.velora_notify_new_user();
 drop function if exists private.velora_notify_order_event();
-drop function if exists private.velora_create_notification();
+drop function if exists private.velora_create_notification(uuid,text,text,text,text,uuid);
 
 drop function if exists public.velora_mark_all_notifications_read();
 drop function if exists public.velora_mark_notification_read(uuid);
@@ -100,3 +100,7 @@ with check (user_id=(select auth.uid()));
 
 revoke all on public.notifications from anon,authenticated;
 grant select,insert,update on public.notifications to anon,authenticated;
+
+-- RG-06 correction: the writer has a six-argument signature; dropping the zero-arg
+-- overload would leave the active S2-E writer in place. No schema migration is required;
+-- this is a rollback-artifact correctness fix only.
