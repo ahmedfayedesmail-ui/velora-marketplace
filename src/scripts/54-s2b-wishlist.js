@@ -180,7 +180,7 @@
     if(!container) return typeof originalRenderFavorites==='function'?originalRenderFavorites():undefined;
     var items=Array.isArray(STATE.favorites)?STATE.favorites:[];
     if(!items.length){
-      container.innerHTML='<div class="empty-state"><div class="empty-icon">❤️</div><h3>Your wishlist is empty</h3><p>Click ❤️ on any product to save it here.</p><button class="btn btn-primary btn-lg" onclick="navigateTo(\\'shop\\')">Shop Now</button><div class="velora-wishlist-note">Guest wishlists are saved on this device. Sign in to sync across devices.</div></div>';
+      container.innerHTML='<div class="empty-state"><div class="empty-icon">❤️</div><h3>Your wishlist is empty</h3><p>Click ❤️ on any product to save it here.</p><button class="btn btn-primary btn-lg" onclick="navigateTo(\'shop\')">Shop Now</button><div class="velora-wishlist-note">Guest wishlists are saved on this device. Sign in to sync across devices.</div></div>';
       return;
     }
     hydrateCatalog(items);
@@ -190,7 +190,7 @@
       p=p||item;
       return typeof renderProductCard==='function'?renderProductCard(p):('<div class="product-card"><div class="product-info"><div class="product-name">'+String(p.name||'Product')+'</div></div></div>');
     }).join('');
-    container.innerHTML='<div class="velora-wishlist-toolbar"><div><strong>'+items.length+' saved '+(items.length===1?'item':'items')+'</strong><div class="velora-wishlist-note">Your account wishlist is synced with Velora.</div></div><button class="btn btn-outline" onclick="navigateTo(\\'shop\\')">Continue Shopping</button></div><div class="products-grid">'+cards+'</div>';
+    container.innerHTML='<div class="velora-wishlist-toolbar"><div><strong>'+items.length+' saved '+(items.length===1?'item':'items')+'</strong><div class="velora-wishlist-note">Your account wishlist is synced with Velora.</div></div><button class="btn btn-outline" onclick="navigateTo(\'shop\')">Continue Shopping</button></div><div class="products-grid">'+cards+'</div>';
   };
 
   async function boot(){
