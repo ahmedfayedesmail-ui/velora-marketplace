@@ -37,7 +37,7 @@ Rollback references were added under `docs/rollback/`.
 Canonical S2-C performance migration:
 `20260919053354_s2c_reviews_feed_performance.sql`
 
-The invalid documentation value `20260919054000` was removed from the reviewed Sprint 2 documentation. S2-C status now lists all four canonical migrations:
+The earlier non-canonical documentation entry was removed from the reviewed Sprint 2 documentation. S2-C status now lists all four canonical migrations:
 - 20260919053023
 - 20260919053229
 - 20260919053354
