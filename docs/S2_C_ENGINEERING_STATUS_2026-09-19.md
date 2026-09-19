@@ -17,7 +17,7 @@ Browser E2E: NOT TESTED; retained as a Production-launch residual.
 3. `20260919053354` — `s2c_reviews_feed_performance`
 4. `20260919053811` — `s2c_review_rls_policy_consolidation`
 
-**CC-02 reconciliation:** `20260919053354` is the only canonical version for the published-review-feed performance migration. The previously documented `20260919054000` was a documentation error and is not a valid Restore-Test migration version.
+**CC-02 reconciliation:** `20260919053354` is the only canonical version for the published-review-feed performance migration. The earlier documentation entry was incorrect and has been removed.
 
 Each migration has a corresponding rollback artifact in `docs/rollback/`.
 
