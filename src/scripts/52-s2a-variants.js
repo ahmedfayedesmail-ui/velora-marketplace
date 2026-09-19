@@ -250,9 +250,12 @@
   };
 
   /* Seller variant CRUD: preserve the canonical product modal and append a secure variant editor. */
-  var originalOpenSeller=window.VELORA_OPEN_PRODUCT_MODAL;
-  var originalEditSeller=window.VELORA_EDIT_PRODUCT;
-  var originalSellerSave=window.VELORA_SAVE_PRODUCT;
+  /* Wire S2-A into the actual seller CRUD functions used by the source-of-truth UI.
+     The legacy VELORA_* hook names are not present in the current seller dashboard; the
+     browser-visible Edit/Add forms call openAddProductModal/editSellerProduct/handleAddProduct. */
+  var originalOpenSeller=window.openAddProductModal;
+  var originalEditSeller=window.editSellerProduct;
+  var originalSellerSave=window.handleAddProduct;
 
   function sellerVariantRow(v){
     v=v||{};
@@ -289,7 +292,10 @@
     }
     if(rows.length || existing.length){
       var totalStock=rows.reduce(function(n,x){return n+Number(x.stock_quantity||0);},0);
-      var seller=window.VELORA_CANONICAL_SELLER;
+      var seller=(typeof SELLER_STATE!=="undefined"&&SELLER_STATE&&SELLER_STATE.currentSeller)
+        ?SELLER_STATE.currentSeller
+        :(window.VELORA_CANONICAL_SELLER||null);
+      if(!seller||!seller.id)throw new Error("Seller context unavailable while syncing variant stock.");
       var ur=await db.from("products").update({stock:totalStock,updated_at:new Date().toISOString()}).eq("id",productId).eq("seller_id",seller.id);
       if(ur.error)throw ur.error;
     }
@@ -307,47 +313,72 @@
     modal.dataset.s2aProductId=productId||"";
   }
 
-  window.VELORA_OPEN_PRODUCT_MODAL=async function(){await originalOpenSeller();await enhanceSellerModal("");};
-  window.VELORA_EDIT_PRODUCT=async function(id){await originalEditSeller(id);await enhanceSellerModal(id);};
+  async function enhanceAfterOpen(editId){
+    try{
+      await enhanceSellerModal(editId||"");
+    }catch(err){console.error("S2-A seller variant editor init failed:",err);}
+  }
 
-  window.VELORA_SAVE_PRODUCT=async function(e,productId){
+  /* Add/Edit buttons in index.html resolve these global functions directly. */
+  window.openAddProductModal=function(editId){
+    var r=originalOpenSeller?originalOpenSeller(editId):undefined;
+    Promise.resolve(r).then(function(){return enhanceAfterOpen(editId);});
+    return r;
+  };
+
+  window.editSellerProduct=function(id){
+    var r=originalOpenSeller?originalOpenSeller(id):
+      (originalEditSeller?originalEditSeller(id):undefined);
+    Promise.resolve(r).then(function(){return enhanceAfterOpen(id);});
+    return r;
+  };
+
+  window.handleAddProduct=async function(e,productId){
     var host=document.getElementById("s2aVariantEditor");
-    if(!host)return originalSellerSave(e,productId);
-    var rows=[];
-    try{rows=collectSellerRows(host);}catch(err){if(e)e.preventDefault();showToast("❌ "+(err.message||"Invalid variant data"),"error");return;}
-    if(!rows.length)return originalSellerSave(e,productId);
+    if(!host||typeof originalSellerSave!=="function")return originalSellerSave?originalSellerSave(e,productId):undefined;
 
-    if(!productId){
-      /* The canonical create handler owns translations and moderation. Create the parent first, then attach staged variants to the freshly-created seller product. */
-      var snapshot=JSON.stringify(rows);
-      var stagedName=(document.getElementById("vcName")?.value||"").trim();
-      var stagedSeller=window.VELORA_CANONICAL_SELLER;
-      var createStartedAt=new Date().toISOString();
-      var result;
-      try{ result=await originalSellerSave(e,productId); }catch(createErr){
-        throw createErr;
-      }
-      try{
-        if(stagedSeller&&stagedName){
-          var vr=await db.from("products").select("id,name,created_at").eq("seller_id",stagedSeller.id).eq("name",stagedName).gte("created_at",createStartedAt).order("created_at",{ascending:false}).limit(5);
-          var target=(vr.data||[]).sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);})[0];
-          if(target){
-            await saveSellerVariants(target.id,JSON.parse(snapshot));
-          }else{
-            throw new Error("Freshly-created product could not be resolved for variant attachment.");
-          }
-        }
-      }catch(err2){if(typeof toastErr==="function")toastErr(err2);else showToast("⚠️ Product created, but variants were not attached: "+(err2.message||err2),"warning");}
-      return result;
+    var rows;
+    try{
+      rows=collectSellerRows(host);
+    }catch(err){
+      if(e)e.preventDefault();
+      showToast("❌ "+(err.message||"Invalid variant data"),"error");
+      return;
     }
 
-    if(e)e.preventDefault();
+    var beforeIds=new Set(
+      (typeof SELLER_STATE!=="undefined"&&SELLER_STATE.currentSeller)
+        ?getSellerProducts(SELLER_STATE.currentSeller.id).map(function(p){return String(p.id);})
+        :[]
+    );
+
     try{
-      await originalSellerSave({preventDefault:function(){},currentTarget:e.currentTarget},productId);
-      /* The original handler closes the modal, but the row nodes remain readable after the call. */
-      await saveSellerVariants(productId,rows);
-    }catch(err3){
-      if(typeof toastErr==="function")toastErr(err3);else showToast("❌ "+(err3.message||err3),"error");
+      await originalSellerSave(e,productId);
+    }catch(saveErr){
+      if(typeof toastErr==="function")toastErr(saveErr);
+      else showToast("❌ "+(saveErr.message||"Could not save product"),"error");
+      return;
+    }
+
+    try{
+      var targetId=productId||null;
+      if(!targetId&&typeof SELLER_STATE!=="undefined"&&SELLER_STATE.currentSeller){
+        var sellerProducts=getSellerProducts(SELLER_STATE.currentSeller.id)||[];
+        var candidates=sellerProducts.filter(function(p){return !beforeIds.has(String(p.id));});
+        candidates.sort(function(a,b){return Number(b.createdAt||0)-Number(a.createdAt||0);});
+        if(candidates[0])targetId=candidates[0].id;
+      }
+      if(!targetId){
+        throw new Error("Saved product could not be resolved for variant attachment.");
+      }
+      await saveSellerVariants(targetId,rows);
+      variantCache.delete(targetId);
+      if(typeof showSellerSection==="function"){
+        setTimeout(function(){showSellerSection("products");},50);
+      }
+    }catch(err2){
+      if(typeof toastErr==="function")toastErr(err2);
+      else showToast("⚠️ Product saved, but variants were not attached: "+(err2.message||err2),"warning");
     }
   };
 })();
