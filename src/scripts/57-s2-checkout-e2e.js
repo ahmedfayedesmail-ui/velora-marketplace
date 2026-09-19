@@ -55,7 +55,7 @@
     return code;
   }
 
-  function renderCanonicalCheckoutSummary(){
+  async function renderCanonicalCheckoutSummary(){
     var container=document.getElementById("checkoutSummary");
     var items=cartItems();
     if(!container||!items.length)return;
@@ -200,6 +200,7 @@
     });
   },true);
 
+  window.__VELORA_CHECKOUT_E2E_LOADED=true;
   window.placeOrder=runCheckout;
 
   setTimeout(function(){
