@@ -302,7 +302,7 @@
     variantCache.delete(productId);
   }
   async function enhanceSellerModal(productId){
-    var modal=document.getElementById("veloraCanonicalProductModal"),form=modal&&modal.querySelector("form");if(!modal||!form)return;
+    var modal=document.getElementById("addProductModal"),form=modal&&modal.querySelector("form");if(!modal||!form)return;
     var old=modal.querySelector("#s2aVariantEditor");if(old)old.remove();
     var variants=productId?await loadVariants(productId,true):[];
     var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
