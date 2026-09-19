@@ -15,3 +15,13 @@ Production remains **FROZEN**. No Production migration was executed.
 ## S2-C — Reviews + Ratings
 
 Discovery may proceed after S2-A closure. Implementation remains subject to the Sprint 2 sequencing and Restore-Test-first gate.
+
+## S2-C — Reviews + Ratings
+
+Engineering implementation is active on Restore-Test. Product decisions are owned by the engineering track unless a business/legal decision is required.
+
+Current backend gate: PASS for DB/RLS review lifecycle regression.
+
+Browser E2E: NOT TESTED and remains a Production-launch residual.
+
+Production remains FROZEN.
