@@ -1,0 +1,4 @@
+-- Rollback for 20260919054924_s2_b_wishlist_authoritative_path
+-- This migration is intentionally a no-op preflight marker.
+-- Therefore its rollback is also intentionally a no-op.
+-- No schema, policy, function, index, data, or privilege changes were made by 20260919054924.
