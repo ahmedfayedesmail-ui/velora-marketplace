@@ -4548,7 +4548,7 @@ const COUPONS = {
         maxDiscount: 500,
         description: '20% off for new customers',
         forFirstOrder: true,
-        active: true
+        active: false
     },
     'MAHA50': {
         code: 'MAHA50',
@@ -4556,7 +4556,7 @@ const COUPONS = {
         value: 50,
         minPurchase: 300,
         description: 'EGP 50 off orders above 300',
-        active: true
+        active: false
     },
     'FREESHIP': {
         code: 'FREESHIP',
@@ -4564,7 +4564,7 @@ const COUPONS = {
         value: 0,
         minPurchase: 200,
         description: 'Free shipping on orders above 200',
-        active: true
+        active: false
     },
     'SUMMER30': {
         code: 'SUMMER30',
@@ -4573,7 +4573,7 @@ const COUPONS = {
         minPurchase: 500,
         maxDiscount: 800,
         description: '30% off summer sale',
-        active: true
+        active: false
     },
     'VIP15': {
         code: 'VIP15',
@@ -4582,7 +4582,7 @@ const COUPONS = {
         minPurchase: 100,
         maxDiscount: 300,
         description: 'VIP 15% discount',
-        active: true
+        active: false
     }
 };
 
@@ -4630,7 +4630,10 @@ function removeCoupon() {
 }
 
 function loadCoupon() {
-    appliedCoupon = getFromStorage('maha_coupon', null);
+    const saved = getFromStorage('maha_coupon', null);
+    const code = String(saved?.code || '').toUpperCase();
+    appliedCoupon = COUPONS[code]?.active ? COUPONS[code] : null;
+    if (!appliedCoupon) localStorage.removeItem('maha_coupon');
 }
 
 /* ============ CALCULATE DISCOUNT ============ */
@@ -4937,37 +4940,9 @@ function updateFlashTimer() {
 
 /* ============ FIRST ORDER BANNER ============ */
 function renderFirstOrderBanner() {
-    // Show only for logged-in users who haven't ordered
-    if (!STATE.user) return;
-    if (document.getElementById('firstOrderBanner')) return;
-
-    const orders = getOrders();
-    if (orders.length > 0) return;
-
-    const dismissed = getFromStorage('first_order_dismissed_' + STATE.user.uid, false);
-    if (dismissed) return;
-
-    const banner = document.createElement('div');
-    banner.id = 'firstOrderBanner';
-    banner.className = 'first-order-banner';
-    banner.innerHTML = `
-        <div class="first-order-inner">
-            <span class="first-order-icon">🎁</span>
-            <div class="first-order-text">
-                <strong>First Order Gift!</strong>
-                <span>20% off with code <span class="first-order-code">WELCOME20</span></span>
-            </div>
-            <button class="first-order-copy" onclick="copyFirstOrderCode()">📋 Copy Code</button>
-            <button class="first-order-close" onclick="dismissFirstOrder()">✕</button>
-        </div>
-    `;
-
-    const main = document.querySelector('main');
-    if (main) {
-        main.insertBefore(banner, main.firstChild);
-    }
+    // Staging/browser-E2E must not advertise unverified promotions.
+    return;
 }
-
 function copyFirstOrderCode() {
     if (navigator.clipboard) {
         navigator.clipboard.writeText('WELCOME20').then(() => {
