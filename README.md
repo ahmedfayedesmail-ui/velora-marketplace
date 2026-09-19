@@ -16,3 +16,5 @@ Then open `http://localhost:4173`.
 
 ## Migration rule
 New work goes into the structured `src/` tree. Do not patch `legacy/`.
+
+<!-- preview deployment trigger -->
