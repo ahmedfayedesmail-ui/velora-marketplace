@@ -304,13 +304,26 @@
   async function enhanceSellerModal(productId){
     var modal=document.getElementById("addProductModal"),form=modal&&modal.querySelector("form");if(!modal||!form)return;
     var old=modal.querySelector("#s2aVariantEditor");if(old)old.remove();
-    var variants=productId?await loadVariants(productId,true):[];
+    /* Do not gate the editor on a Supabase read. Mount first, hydrate existing variants in background. */
+    var variants=[];
     var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
     host.innerHTML="<div class=\"velora-variant-editor-head\"><div><strong>Variants (optional)</strong><div class=\"velora-op-muted\">One row per purchasable combination. Attributes are free-form JSON such as {"color":"red","size":"M"}.</div></div><button type=\"button\" class=\"btn btn-outline\" id=\"s2aAddVariant\">+ Add Variant</button></div><div id=\"s2aVariantRows\">"+variants.map(sellerVariantRow).join("")+"</div><div class=\"velora-op-note\">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
     var loc=modal.querySelector(".velora-loc-editor");form.insertBefore(host,loc||form.lastElementChild);
     host.querySelector("#s2aAddVariant").onclick=function(){document.getElementById("s2aVariantRows").insertAdjacentHTML("beforeend",sellerVariantRow(null));};
     host.addEventListener("click",function(e){if(e.target.closest(".s2aRemoveVariant")){var row=e.target.closest(".velora-seller-variant-row");if(row)row.remove();}});
     modal.dataset.s2aProductId=productId||"";
+    console.log("✅ S2-A seller variant editor mounted",productId||"(new product)");
+    if(productId){
+      loadVariants(productId,true).then(function(loaded){
+        if(!document.body.contains(host))return;
+        var rows=document.getElementById("s2aVariantRows");
+        if(rows)rows.innerHTML=(loaded||[]).map(sellerVariantRow).join("");
+      }).catch(function(err){
+        console.error("S2-A seller variant hydrate failed:",err);
+        var rows=document.getElementById("s2aVariantRows");
+        if(rows)rows.innerHTML="<div class=\\"velora-op-muted\\">Existing variants could not be loaded. You can still add a new variant.</div>";
+      });
+    }
   }
 
   async function enhanceAfterOpen(editId){
