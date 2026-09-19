@@ -252,18 +252,19 @@
     }).join("")+"</div><div class=\"order-summary\"><h3>Summary</h3><div class=\"order-total-row\"><span>Subtotal</span><span>"+formatPrice(subtotal)+"</span></div><div class=\"order-total-row\"><span>Shipping</span><span>"+(shipping===0?"Free":formatPrice(shipping))+"</span></div><div class=\"order-total-row grand\"><span>Total</span><span>"+formatPrice(total)+"</span></div><button class=\"btn btn-primary btn-block btn-lg\" style=\"margin-top:1.5rem;\" onclick=\"navigateTo('checkout')\">💳 Checkout</button></div></div>";
   };
 
-  /* Seller variant CRUD: preserve the canonical product modal and append a secure variant editor. */
-  /* Wire S2-A into the actual seller CRUD functions used by the source-of-truth UI.
-     The legacy VELORA_* hook names are not present in the current seller dashboard; the
-     browser-visible Edit/Add forms call openAddProductModal/editSellerProduct/handleAddProduct. */
-  var originalOpenSeller=window.openAddProductModal;
-  var originalEditSeller=window.editSellerProduct;
-  var originalSellerSave=window.handleAddProduct;
-  console.log("[S2-A DEBUG] hook-capture", { openAddProductModal: typeof originalOpenSeller, editSellerProduct: typeof originalEditSeller, handleAddProduct: typeof originalSellerSave });
-
+  /* Seller variant integration: observe the real modal, then bind directly to its real form.
+     This avoids depending on global function rebinding or legacy hook names. */
+  function isUuid(value){
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||""));
+  }
+  function extractEditId(form){
+    var attr=form&&form.getAttribute("onsubmit")||"";
+    var m=attr.match(/handleAddProduct\s*\(\s*event\s*,\s*['"]([^'"]+)['"]\s*\)/);
+    return m&&m[1]?m[1]:null;
+  }
   function sellerVariantRow(v){
     v=v||{};
-    return "<div class=\"velora-seller-variant-row\" data-variant-id=\""+esc(v.id||"")+"\"><input type=\"hidden\" class=\"s2aVariantId\" value=\""+esc(v.id||"")+"\"><div class=\"form-group\"><label>Name *</label><input class=\"form-input s2aVariantName\" required value=\""+esc(v.name||"")+"\"></div><div class=\"form-group\"><label>SKU *</label><input class=\"form-input s2aVariantSku\" required value=\""+esc(v.sku||"")+"\"></div><div class=\"form-group\"><label>Price</label><input class=\"form-input s2aVariantPrice\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+(v.price==null?"":esc(v.price))+"\"></div><div class=\"form-group\"><label>Stock *</label><input class=\"form-input s2aVariantStock\" type=\"number\" step=\"1\" min=\"0\" value=\""+Number(v.stock_quantity||0)+"\" required></div><div class=\"form-group\"><label>Attributes JSON</label><textarea class=\"form-textarea s2aVariantAttrs\" rows=\"2\">"+esc(JSON.stringify(v.attributes||{}))+"</textarea></div><button type=\"button\" class=\"btn btn-outline s2aRemoveVariant\">Retire</button></div>";
+    return "<div class=\"velora-seller-variant-row\" data-variant-id=\""+esc(v.id||"")+""><input type=\"hidden\" class=\"s2aVariantId\" value=\""+esc(v.id||"")+"\"><div class=\"form-group\"><label>Variant name *</label><input class=\"form-input s2aVariantName\" required value=\""+esc(v.name||"")+"\"></div><div class=\"form-group\"><label>SKU *</label><input class=\"form-input s2aVariantSku\" required value=\""+esc(v.sku||"")+"\"></div><div class=\"form-group\"><label>Price</label><input class=\"form-input s2aVariantPrice\" type=\"number\" step=\"0.01\" min=\"0\" value=\""+(v.price==null?"":esc(v.price))+"\"></div><div class=\"form-group\"><label>Stock *</label><input class=\"form-input s2aVariantStock\" type=\"number\" step=\"1\" min=\"0\" value=\""+Number(v.stock_quantity||0)+"\" required></div><div class=\"form-group\"><label>Attributes JSON</label><textarea class=\"form-textarea s2aVariantAttrs\" rows=\"2\">"+esc(JSON.stringify(v.attributes||{}))+"</textarea></div><button type=\"button\" class=\"btn btn-outline s2aRemoveVariant\">Retire</button></div>";
   }
   function collectSellerRows(host){
     return Array.prototype.slice.call(host.querySelectorAll(".velora-seller-variant-row")).map(function(row){
@@ -278,132 +279,129 @@
     });
   }
   async function saveSellerVariants(productId,rows){
-    if(!productId)return;
-    var existing=(await loadVariants(productId,true)).slice(),seen=new Set();
+    if(!isUuid(productId)) return;
+    var existing=(await loadVariants(productId,true)).slice();
+    var seen=new Set();
     for(var i=0;i<rows.length;i++){
       var x=rows[i];
       if(!x.name||!x.sku)throw new Error("Each variant needs a name and SKU.");
-      if(x.price!==null&&!Number.isFinite(x.price))throw new Error("Variant price must be a valid number.");
+      if(x.price!==null&&(!Number.isFinite(x.price)||x.price<0))throw new Error("Variant price must be a valid non-negative number.");
+      if(!Number.isInteger(x.stock_quantity)||x.stock_quantity<0)throw new Error("Variant stock must be a non-negative integer.");
       var r=await db.rpc("velora_upsert_product_variant",{p_product_id:productId,p_variant_id:x.id||null,p_name:x.name,p_sku:x.sku,p_price:x.price,p_stock_quantity:x.stock_quantity,p_attributes:x.attributes});
       if(r.error)throw r.error;
-      seen.add(x.id||r.data);
+      seen.add(String(x.id||r.data));
     }
     for(var j=0;j<existing.length;j++){
-      if(!seen.has(existing[j].id)){
+      if(!seen.has(String(existing[j].id))){
         var rr=await db.rpc("velora_retire_product_variant",{p_variant_id:existing[j].id});
         if(rr.error)throw rr.error;
       }
     }
-    if(rows.length || existing.length){
-      var totalStock=rows.reduce(function(n,x){return n+Number(x.stock_quantity||0);},0);
-      var seller=(typeof SELLER_STATE!=="undefined"&&SELLER_STATE&&SELLER_STATE.currentSeller)
-        ?SELLER_STATE.currentSeller
-        :(window.VELORA_CANONICAL_SELLER||null);
-      if(!seller||!seller.id)throw new Error("Seller context unavailable while syncing variant stock.");
+    var totalStock=rows.reduce(function(n,x){return n+Number(x.stock_quantity||0);},0);
+    var seller=(typeof SELLER_STATE!=="undefined"&&SELLER_STATE&&SELLER_STATE.currentSeller)?SELLER_STATE.currentSeller:null;
+    if(seller&&seller.id){
       var ur=await db.from("products").update({stock:totalStock,updated_at:new Date().toISOString()}).eq("id",productId).eq("seller_id",seller.id);
       if(ur.error)throw ur.error;
     }
     variantCache.delete(productId);
   }
-  async function enhanceSellerModal(productId){
-    console.log("[S2-A DEBUG] enhance-enter", { productId: productId || "", addProductModal: !!document.getElementById("addProductModal"), sellerProductForm: !!document.getElementById("sellerProductForm") });
-    var modal=document.getElementById("addProductModal"),form=modal&&modal.querySelector("form");
-    if(!modal||!form){ console.warn("[S2-A DEBUG] enhance-abort", { modal: !!modal, form: !!form }); return; }
-    var old=modal.querySelector("#s2aVariantEditor");if(old)old.remove();
-    /* Do not gate the editor on a Supabase read. Mount first, hydrate existing variants in background. */
-    var variants=[];
-    var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
-    host.innerHTML='<div class="velora-variant-editor-head"><div><strong>Variants (optional)</strong><div class="velora-op-muted">One row per purchasable combination. Attributes are free-form JSON such as {"color":"red","size":"M"}.</div></div><button type="button" class="btn btn-outline" id="s2aAddVariant">+ Add Variant</button></div><div id="s2aVariantRows">'+variants.map(sellerVariantRow).join("")+'</div><div class="velora-op-note">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>';
-    var loc=modal.querySelector(".velora-loc-editor");
-    console.log("[S2-A DEBUG] before-mount", { modalId: modal.id, formId: form.id, productId: productId || "", hostId: host.id });
-    form.insertBefore(host,loc||form.lastElementChild);
-    console.log("[S2-A DEBUG] after-mount", { editorPresent: !!document.getElementById("s2aVariantEditor"), addButtonPresent: !!document.getElementById("s2aAddVariant"), rowHostPresent: !!document.getElementById("s2aVariantRows") });
-    host.querySelector("#s2aAddVariant").onclick=function(){document.getElementById("s2aVariantRows").insertAdjacentHTML("beforeend",sellerVariantRow(null));};
-    host.addEventListener("click",function(e){if(e.target.closest(".s2aRemoveVariant")){var row=e.target.closest(".velora-seller-variant-row");if(row)row.remove();}});
-    modal.dataset.s2aProductId=productId||"";
-    console.log("✅ S2-A seller variant editor mounted",productId||"(new product)");
-    if(productId){
-      loadVariants(productId,true).then(function(loaded){
-        if(!document.body.contains(host))return;
-        var rows=document.getElementById("s2aVariantRows");
-        if(rows)rows.innerHTML=(loaded||[]).map(sellerVariantRow).join("");
-      }).catch(function(err){
-        console.error("S2-A seller variant hydrate failed:",err);
-        var rows=document.getElementById("s2aVariantRows");
-        if(rows)rows.innerHTML='<div class="velora-op-muted">Existing variants could not be loaded. You can still add a new variant.</div>';
-      });
+  function renderLegacyNotice(host,message){
+    host.innerHTML='<div class="velora-op-note">'+esc(message)+'</div>';
+  }
+  async function enhanceSellerModal(productId,form){
+    var modal=document.getElementById("addProductModal");
+    if(!modal||!form)return;
+    var old=modal.querySelector("#s2aVariantEditor");
+    if(old)old.remove();
+
+    var host=document.createElement("div");
+    host.id="s2aVariantEditor";
+    host.className="velora-variant-editor";
+    form.insertBefore(host,form.lastElementChild);
+
+    var canonicalId=productId&&isUuid(productId)?String(productId):"";
+    modal.dataset.s2aProductId=canonicalId;
+
+    if(!canonicalId){
+      renderLegacyNotice(host,"Variants are enabled for canonical products. Save this product first, then reopen Edit to add purchasable variants.");
+      return host;
     }
-  }
 
-  async function enhanceAfterOpen(editId){
-    console.log("[S2-A DEBUG] enhance-after-open", { editId: editId || "", modal: !!document.getElementById("addProductModal") });
+    host.innerHTML='<div class="velora-variant-editor-head"><div><strong>Variants</strong><div class="velora-op-muted">Add one row per purchasable combination. Attributes use JSON, for example {"color":"red","size":"M"}.</div></div><button type="button" class="btn btn-outline" id="s2aAddVariant">+ Add Variant</button></div><div id="s2aVariantRows"></div><div class="velora-op-note">Existing variants are retired rather than hard-deleted.</div>';
+
+    var rowsHost=host.querySelector("#s2aVariantRows");
+    host.querySelector("#s2aAddVariant").onclick=function(){
+      rowsHost.insertAdjacentHTML("beforeend",sellerVariantRow(null));
+    };
+    host.addEventListener("click",function(e){
+      var remove=e.target.closest(".s2aRemoveVariant");
+      if(remove){
+        var row=remove.closest(".velora-seller-variant-row");
+        if(row)row.remove();
+      }
+    });
+
     try{
-      await enhanceSellerModal(editId||"");
-    }catch(err){console.error("S2-A seller variant editor init failed:",err);}
-  }
-
-  /* Add/Edit buttons in index.html resolve these global functions directly. */
-  window.openAddProductModal=function(editId){
-    console.log("[S2-A DEBUG] wrapper-openAddProductModal", { editId: editId || "" });
-    var r=originalOpenSeller?originalOpenSeller(editId):undefined;
-    Promise.resolve(r).then(function(){return enhanceAfterOpen(editId);});
-    return r;
-  };
-
-  window.editSellerProduct=function(id){
-    console.log("[S2-A DEBUG] wrapper-editSellerProduct", { id: id || "" });
-    var r=originalOpenSeller?originalOpenSeller(id):
-      (originalEditSeller?originalEditSeller(id):undefined);
-    Promise.resolve(r).then(function(){return enhanceAfterOpen(id);});
-    return r;
-  };
-
-  window.handleAddProduct=async function(e,productId){
-    var host=document.getElementById("s2aVariantEditor");
-    if(!host||typeof originalSellerSave!=="function")return originalSellerSave?originalSellerSave(e,productId):undefined;
-
-    var rows;
-    try{
-      rows=collectSellerRows(host);
+      var loaded=await loadVariants(canonicalId,true);
+      if(document.body.contains(host)&&rowsHost){
+        rowsHost.innerHTML=(loaded||[]).map(sellerVariantRow).join("");
+      }
     }catch(err){
-      if(e)e.preventDefault();
-      showToast("❌ "+(err.message||"Invalid variant data"),"error");
-      return;
+      if(rowsHost)rowsHost.innerHTML='<div class="velora-op-muted">Existing variants could not be loaded. You can still add a new variant.</div>';
+      console.warn("S2-A variant hydration unavailable:",err);
     }
+    return host;
+  }
 
-    var beforeIds=new Set(
-      (typeof SELLER_STATE!=="undefined"&&SELLER_STATE.currentSeller)
-        ?getSellerProducts(SELLER_STATE.currentSeller.id).map(function(p){return String(p.id);})
-        :[]
-    );
+  function bindSellerForm(form,productId){
+    if(!form||form.dataset.s2aBound==="1")return;
+    form.dataset.s2aBound="1";
+    var originalSubmit=form.onsubmit;
+    form.onsubmit=async function(e){
+      var host=document.getElementById("s2aVariantEditor");
+      var rows=[];
+      if(host&&isUuid(productId)){
+        try{rows=collectSellerRows(host);}catch(err){
+          if(e)e.preventDefault();
+          if(typeof showToast==="function")showToast("❌ "+(err.message||"Invalid variant data"),"error");
+          return;
+        }
+      }
+      var result;
+      try{
+        result=originalSubmit?originalSubmit.call(form,e):undefined;
+        if(result&&typeof result.then==="function")await result;
+      }catch(err){
+        throw err;
+      }
+      if(host&&isUuid(productId)){
+        try{
+          await saveSellerVariants(productId,rows);
+          if(typeof showToast==="function")showToast("✅ Product and variants saved successfully.","success");
+        }catch(err2){
+          if(typeof showToast==="function")showToast("⚠️ Product saved, but variants were not attached: "+(err2.message||err2),"warning");
+        }
+      }
+      return result;
+    };
+  }
 
-    try{
-      await originalSellerSave(e,productId);
-    }catch(saveErr){
-      if(typeof toastErr==="function")toastErr(saveErr);
-      else showToast("❌ "+(saveErr.message||"Could not save product"),"error");
-      return;
-    }
+  function scanSellerModal(){
+    var modal=document.getElementById("addProductModal");
+    var form=modal&&modal.querySelector("#sellerProductForm");
+    if(!modal||!form)return;
+    if(form.dataset.s2aBound==="1"&&modal.querySelector("#s2aVariantEditor"))return;
+    var productId=modal.dataset.s2aProductId||extractEditId(form)||"";
+    Promise.resolve(enhanceSellerModal(productId,form)).then(function(){
+      bindSellerForm(form,productId);
+    }).catch(function(err){console.warn("S2-A seller variant editor unavailable:",err);});
+  }
 
-    try{
-      var targetId=productId||null;
-      if(!targetId&&typeof SELLER_STATE!=="undefined"&&SELLER_STATE.currentSeller){
-        var sellerProducts=getSellerProducts(SELLER_STATE.currentSeller.id)||[];
-        var candidates=sellerProducts.filter(function(p){return !beforeIds.has(String(p.id));});
-        candidates.sort(function(a,b){return Number(b.createdAt||0)-Number(a.createdAt||0);});
-        if(candidates[0])targetId=candidates[0].id;
-      }
-      if(!targetId){
-        throw new Error("Saved product could not be resolved for variant attachment.");
-      }
-      await saveSellerVariants(targetId,rows);
-      variantCache.delete(targetId);
-      if(typeof showSellerSection==="function"){
-        setTimeout(function(){showSellerSection("products");},50);
-      }
-    }catch(err2){
-      if(typeof toastErr==="function")toastErr(err2);
-      else showToast("⚠️ Product saved, but variants were not attached: "+(err2.message||err2),"warning");
-    }
-  };
-})();
+  var sellerObserver=new MutationObserver(function(){scanSellerModal();});
+  sellerObserver.observe(document.body,{childList:true,subtree:true});
+  setTimeout(scanSellerModal,0);
+  setTimeout(scanSellerModal,250);
+
+  window.__VELORA_S2A_SELLER_INTEGRATED__=true;
+  console.log("✅ S2-A seller variant integration ready");
+})();\n
