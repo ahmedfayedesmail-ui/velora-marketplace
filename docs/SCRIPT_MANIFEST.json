@@ -322,5 +322,11 @@
     "file": "53-s2c-reviews.js",
     "id": "s2c-reviews",
     "chars": 15268
+  },
+  {
+    "order": 54,
+    "file": "54-s2b-wishlist.js",
+    "id": "s2b-wishlist",
+    "chars": 10453
   }
 ]
