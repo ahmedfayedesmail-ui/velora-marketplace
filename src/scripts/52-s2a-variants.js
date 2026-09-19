@@ -1,6 +1,7 @@
 /* Velora Sprint 2 - S2-A Variants runtime adapter */
 (function(){
   "use strict";
+  window.__VELORA_S2A_LOADED = true;
   console.log("[S2-A DEBUG] script-start", { href: location.href, hasSupabase: !!window.mahaSupabase, readyState: document.readyState });
   var db=window.mahaSupabase||null;
   console.log("[S2-A DEBUG] supabase-client", { present: !!db });
