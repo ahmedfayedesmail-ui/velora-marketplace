@@ -1,7 +1,9 @@
 /* Velora Sprint 2 - S2-A Variants runtime adapter */
 (function(){
   "use strict";
+  console.log("[S2-A DEBUG] script-start", { href: location.href, hasSupabase: !!window.mahaSupabase, readyState: document.readyState });
   var db=window.mahaSupabase||null;
+  console.log("[S2-A DEBUG] supabase-client", { present: !!db });
   if(!db)return;
 
   var variantCache=window.__VELORA_VARIANTS_S2A=window.__VELORA_VARIANTS_S2A||new Map();
@@ -256,6 +258,7 @@
   var originalOpenSeller=window.openAddProductModal;
   var originalEditSeller=window.editSellerProduct;
   var originalSellerSave=window.handleAddProduct;
+  console.log("[S2-A DEBUG] hook-capture", { openAddProductModal: typeof originalOpenSeller, editSellerProduct: typeof originalEditSeller, handleAddProduct: typeof originalSellerSave });
 
   function sellerVariantRow(v){
     v=v||{};
@@ -302,13 +305,18 @@
     variantCache.delete(productId);
   }
   async function enhanceSellerModal(productId){
-    var modal=document.getElementById("addProductModal"),form=modal&&modal.querySelector("form");if(!modal||!form)return;
+    console.log("[S2-A DEBUG] enhance-enter", { productId: productId || "", addProductModal: !!document.getElementById("addProductModal"), sellerProductForm: !!document.getElementById("sellerProductForm") });
+    var modal=document.getElementById("addProductModal"),form=modal&&modal.querySelector("form");
+    if(!modal||!form){ console.warn("[S2-A DEBUG] enhance-abort", { modal: !!modal, form: !!form }); return; }
     var old=modal.querySelector("#s2aVariantEditor");if(old)old.remove();
     /* Do not gate the editor on a Supabase read. Mount first, hydrate existing variants in background. */
     var variants=[];
     var host=document.createElement("div");host.id="s2aVariantEditor";host.className="velora-variant-editor";
     host.innerHTML="<div class=\"velora-variant-editor-head\"><div><strong>Variants (optional)</strong><div class=\"velora-op-muted\">One row per purchasable combination. Attributes are free-form JSON such as {"color":"red","size":"M"}.</div></div><button type=\"button\" class=\"btn btn-outline\" id=\"s2aAddVariant\">+ Add Variant</button></div><div id=\"s2aVariantRows\">"+variants.map(sellerVariantRow).join("")+"</div><div class=\"velora-op-note\">Saved variants are retired, not hard-deleted, so historical order links remain safe.</div>";
-    var loc=modal.querySelector(".velora-loc-editor");form.insertBefore(host,loc||form.lastElementChild);
+    var loc=modal.querySelector(".velora-loc-editor");
+    console.log("[S2-A DEBUG] before-mount", { modalId: modal.id, formId: form.id, productId: productId || "", hostId: host.id });
+    form.insertBefore(host,loc||form.lastElementChild);
+    console.log("[S2-A DEBUG] after-mount", { editorPresent: !!document.getElementById("s2aVariantEditor"), addButtonPresent: !!document.getElementById("s2aAddVariant"), rowHostPresent: !!document.getElementById("s2aVariantRows") });
     host.querySelector("#s2aAddVariant").onclick=function(){document.getElementById("s2aVariantRows").insertAdjacentHTML("beforeend",sellerVariantRow(null));};
     host.addEventListener("click",function(e){if(e.target.closest(".s2aRemoveVariant")){var row=e.target.closest(".velora-seller-variant-row");if(row)row.remove();}});
     modal.dataset.s2aProductId=productId||"";
@@ -327,6 +335,7 @@
   }
 
   async function enhanceAfterOpen(editId){
+    console.log("[S2-A DEBUG] enhance-after-open", { editId: editId || "", modal: !!document.getElementById("addProductModal") });
     try{
       await enhanceSellerModal(editId||"");
     }catch(err){console.error("S2-A seller variant editor init failed:",err);}
@@ -334,12 +343,14 @@
 
   /* Add/Edit buttons in index.html resolve these global functions directly. */
   window.openAddProductModal=function(editId){
+    console.log("[S2-A DEBUG] wrapper-openAddProductModal", { editId: editId || "" });
     var r=originalOpenSeller?originalOpenSeller(editId):undefined;
     Promise.resolve(r).then(function(){return enhanceAfterOpen(editId);});
     return r;
   };
 
   window.editSellerProduct=function(id){
+    console.log("[S2-A DEBUG] wrapper-editSellerProduct", { id: id || "" });
     var r=originalOpenSeller?originalOpenSeller(id):
       (originalEditSeller?originalEditSeller(id):undefined);
     Promise.resolve(r).then(function(){return enhanceAfterOpen(id);});
