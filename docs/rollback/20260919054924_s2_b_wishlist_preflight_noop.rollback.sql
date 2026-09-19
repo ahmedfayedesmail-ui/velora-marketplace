@@ -1,0 +1,2 @@
+-- Rollback for 20260919054924_s2_b_wishlist_preflight_noop
+-- No schema or data effect; no SQL action is required.
