@@ -328,5 +328,11 @@
     "file": "54-s2b-wishlist.js",
     "id": "s2b-wishlist",
     "chars": 10449
+  },
+  {
+    "order": 55,
+    "file": "55-s2e-notifications.js",
+    "id": "s2e-notifications",
+    "chars": 9242
   }
 ]
