@@ -197,8 +197,17 @@
     var user=await currentUser();
     if(user){await mergeGuestThenSync({silent:true});return;}
     try{
-      var legacy=Array.isArray(STATE.favorites)?STATE.favorites:[];
-      if(!readGuestItems().length&&legacy.length) writeGuestItems(legacy);
+      var guest=readGuestItems();
+      if(guest.length){
+        STATE.favorites=guest;
+        hydrateCatalog(guest);
+      }else{
+        var legacy=Array.isArray(STATE.favorites)?STATE.favorites:[];
+        if(legacy.length) {
+          STATE.favorites=cleanGuestItems(legacy);
+          writeGuestItems(STATE.favorites);
+        }
+      }
     }catch(_){}
     refreshBadge();
   }
@@ -207,9 +216,9 @@
     if(event==='SIGNED_IN') setTimeout(function(){mergeGuestThenSync({silent:false});},325);
     else if(event==='TOKEN_REFRESHED'&&session&&session.user) setTimeout(function(){syncServer({silent:true});},325);
     else if(event==='SIGNED_OUT'){
-      STATE.favorites=[];
+      STATE.favorites=readGuestItems();
       try{localStorage.removeItem(KEYS.FAVORITES);}catch(_){}
-      clearGuestItems();refreshBadge();
+      refreshBadge();
       if(STATE.currentPage==='favorites'&&typeof renderFavoritesPage==='function') renderFavoritesPage();
     }
   });
