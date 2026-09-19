@@ -22,6 +22,7 @@ with check (exists(select 1 from public.products p join public.stores s on s.id=
 CREATE OR REPLACE FUNCTION public.velora_get_product_variants(p_product_id uuid)
  RETURNS TABLE(id uuid, product_id uuid, name text, sku text, price numeric, stock_quantity integer, attributes jsonb, is_active boolean)
  LANGUAGE sql
+ SECURITY INVOKER
  SET search_path TO 'public'
 AS $function$
   select v.id,v.product_id,v.name,v.sku,v.price,v.stock_quantity,v.attributes,v.is_active
@@ -31,7 +32,7 @@ AS $function$
     and v.is_active=true
     and p.status::text='approved'
   order by v.created_at asc,v.id asc;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.velora_upsert_product_variant(p_product_id uuid, p_variant_id uuid, p_name text, p_sku text, p_price numeric, p_stock_quantity integer, p_attributes jsonb)
  RETURNS uuid
