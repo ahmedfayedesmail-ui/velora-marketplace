@@ -12,17 +12,37 @@
     return Array.isArray(window.STATE&&STATE.cart)?STATE.cart:[];
   }
 
-  function cartCurrency(){
+  async function resolveCartCurrency(){
     var items=cartItems(),codes=[];
     items.forEach(function(item){
       var code=String(item.currency_code||item.currency||"").trim().toUpperCase();
+      if(!code&&window.MAHA_DATA&&Array.isArray(MAHA_DATA.PRODUCTS)){
+        var pid=item.canonicalId||item.productId||item.id;
+        var p=MAHA_DATA.PRODUCTS.find(function(x){return String(x.id)===String(pid);});
+        code=String(p?.currency_code||p?.currency||"").trim().toUpperCase();
+      }
       if(code&&codes.indexOf(code)<0)codes.push(code);
     });
+    if(codes.length===1)return codes[0];
+    if(!codes.length){
+      var ids=items.map(function(item){return item.canonicalId||item.productId||item.id;}).filter(isUuid);
+      if(ids.length){
+        try{
+          var r=await client.from("products").select("id,currency_code").in("id",ids);
+          if(!r.error){
+            (r.data||[]).forEach(function(p){
+              var code=String(p.currency_code||"").trim().toUpperCase();
+              if(code&&codes.indexOf(code)<0)codes.push(code);
+            });
+          }
+        }catch(_){}
+      }
+    }
     return codes.length===1?codes[0]:null;
   }
 
-  function applyCheckoutCurrency(){
-    var code=cartCurrency();
+  async function applyCheckoutCurrency(){
+    var code=await resolveCartCurrency();
     if(!code)return null;
     var select=document.getElementById("currencySelect");
     if(select){
@@ -39,7 +59,7 @@
     var container=document.getElementById("checkoutSummary");
     var items=cartItems();
     if(!container||!items.length)return;
-    var code=applyCheckoutCurrency()||String(document.getElementById("currencySelect")?.value||window.VELORA_CURRENCY||"USD").toUpperCase();
+    var code=await applyCheckoutCurrency()||String(document.getElementById("currencySelect")?.value||window.VELORA_CURRENCY||"USD").toUpperCase();
     var subtotal=items.reduce(function(sum,item){return sum+Number(item.price||0)*Number(item.quantity||0);},0);
     container.innerHTML=
       "<h3>Summary</h3>"+
@@ -65,7 +85,10 @@
     return result;
   };
 
-  window.placeOrder=async function(event){
+  async function runCheckout(event){
+    if(event&&typeof event.preventDefault==="function")event.preventDefault();
+    if(event&&typeof event.stopImmediatePropagation==="function")event.stopImmediatePropagation();
+
     if(event&&typeof event.preventDefault==="function")event.preventDefault();
 
     var items=cartItems();
@@ -105,9 +128,9 @@
       return;
     }
 
-    applyCheckoutCurrency();
+    var resolvedCurrency=await applyCheckoutCurrency();
     var ctx=window.VELORA_MARKET_CONTEXT||{};
-    var currency=(cartCurrency()||document.getElementById("currencySelect")?.value||ctx.currencyCode||"USD").toUpperCase();
+    var currency=(resolvedCurrency||document.getElementById("currencySelect")?.value||ctx.currencyCode||"USD").toUpperCase();
     var checkoutRef="VELORA-"+Date.now()+"-"+Math.random().toString(36).slice(2,10);
 
     try{
@@ -164,7 +187,20 @@
         old.textContent="Checkout failed: "+errorText(err);
       }
     }
-  };
+  }
+
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!form||form.id!=="checkoutForm"&& !form.querySelector("#custName"))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    runCheckout(event).catch(function(err){
+      console.error("Velora Checkout E2E uncaught:",err);
+      showToast("❌ Checkout failed: "+errorText(err),"error");
+    });
+  },true);
+
+  window.placeOrder=runCheckout;
 
   setTimeout(function(){
     if(document.getElementById("page-checkout")?.classList.contains("active")){
