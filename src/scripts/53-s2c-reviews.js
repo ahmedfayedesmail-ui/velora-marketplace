@@ -68,5 +68,11 @@ function addSellerNav(){const nav=document.querySelector('#sellerPlatform .selle
 function addAdminNav(){const nav=document.querySelector('#adminPlatform .admin-nav');if(!nav||nav.querySelector('[data-s2c-review-nav]'))return;const sec=document.createElement('div');sec.className='admin-nav-section';sec.innerHTML='<div class="admin-nav-title">Catalog Trust</div><div class="admin-nav-item" data-s2c-review-nav><span>⭐</span><span>Reviews</span></div>';const item=sec.querySelector('[data-s2c-review-nav]');item.onclick=()=>{document.querySelectorAll('.admin-nav-item').forEach(x=>x.classList.remove('active'));item.classList.add('active');const h=document.getElementById('adminHeaderTitle');if(h)h.textContent='Review Moderation';renderAdminReviewQueue('pending')};nav.appendChild(sec)}
 const legacyOpenAdmin=window.VELORA_OPEN_ADMIN;window.VELORA_OPEN_ADMIN=async function(){const r=legacyOpenAdmin?await legacyOpenAdmin.apply(this,arguments):undefined;setTimeout(addAdminNav,350);setTimeout(addSellerNav,350);return r};
 setTimeout(()=>{addAdminNav();addSellerNav()},1200);
+/* Defense-in-depth: neutralize legacy localStorage review writers.
+   All current review entry points route through the DB-authoritative S2-C flow. */
+window.openWriteReviewModal=window.VELORA_OPEN_REVIEW;
+window.openWriteReview=window.VELORA_OPEN_REVIEW;
+window.submitReviewV2=function(event,productId){if(event?.preventDefault)event.preventDefault();return window.VELORA_OPEN_REVIEW(productId)};
+window.submitReview=function(event,productId){if(event?.preventDefault)event.preventDefault();return window.VELORA_OPEN_REVIEW(productId)};
 console.log('✅ Velora S2-C Reviews + Ratings loaded');
 })();
