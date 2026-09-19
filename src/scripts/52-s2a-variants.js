@@ -390,11 +390,13 @@
     var modal=document.getElementById("addProductModal");
     var form=modal&&modal.querySelector("#sellerProductForm");
     if(!modal||!form)return;
-    if(form.dataset.s2aBound==="1"&&modal.querySelector("#s2aVariantEditor"))return;
+    if(form.dataset.s2aBound==="1"||form.dataset.s2aEnhancing==="1")return;
     var productId=modal.dataset.s2aProductId||extractEditId(form)||"";
+    form.dataset.s2aEnhancing="1";
     Promise.resolve(enhanceSellerModal(productId,form)).then(function(){
       bindSellerForm(form,productId);
-    }).catch(function(err){console.warn("S2-A seller variant editor unavailable:",err);});
+    }).catch(function(err){console.warn("S2-A seller variant editor unavailable:",err);})
+      .finally(function(){delete form.dataset.s2aEnhancing;});
   }
 
   var sellerObserver=new MutationObserver(function(){scanSellerModal();});
