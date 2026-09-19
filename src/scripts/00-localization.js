@@ -2,14 +2,18 @@
     // VELORA — SUPABASE CONNECTION
     // ============================================================
 
-    const MAHA_SUPABASE_URL = 'https://cogplqokzxqaedvjxbwu.supabase.co';
+    const MAHA_SUPABASE_URL = 'https://arlaxqmhtvjwjbjinjfw.supabase.co';
 
-    const MAHA_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xu2BFqE12uuXVEEQoGeZcA_prh49ZGp';
+    const MAHA_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_RDyqYgvJyT37RiQ1PNxYuQ_ov_8eceA';
 
     window.mahaSupabase = window.supabase.createClient(
         MAHA_SUPABASE_URL,
         MAHA_SUPABASE_PUBLISHABLE_KEY
     );
+    // Staging-only compatibility aliases for legacy modules.
+    window.supabaseClient = window.mahaSupabase;
+    window.db = window.mahaSupabase;
+    window.sb = window.mahaSupabase;
 
     console.log('✅ Velora — Supabase connected');
 
@@ -2365,6 +2369,7 @@ function detectVeloraCurrency() {
     const byLocale=[['de','EUR'],['fr','EUR'],['es','EUR'],['it','EUR'],['pt','EUR'],['nl','EUR'],['en-gb','GBP'],['en-au','AUD'],['en-ca','CAD'],['en-in','INR'],['ar-eg','EGP'],['ar-ae','AED'],['ar-sa','SAR'],['ar-qa','QAR'],['ar-kw','KWD'],['ar-bh','BHD'],['ar-om','OMR'],['tr','TRY'],['zh','CNY'],['ja','JPY'],['ko','KRW'],['th','THB'],['id','IDR'],['ms','MYR'],['pl','PLN'],['sv','SEK'],['no','NOK'],['da','DKK'],['he','ILS']];
     const hit=byLocale.find(([prefix])=>lang===prefix||lang.startsWith(prefix+'-')); return hit?hit[1]:'USD';
 }
+window.VELORA_CURRENCY_META = VELORA_CURRENCY_META;
 let VELORA_CURRENCY = detectVeloraCurrency();
 
 function setVeloraCurrency(code) {
@@ -4868,7 +4873,7 @@ renderCheckoutSummary = function() {
 
 /* ============ FLASH SALE ============ */
 const FLASH_SALE = {
-    active: true,
+    active: false,
     discount: 30,
     endsAt: (() => { try { const k = 'velora_flash_sale_ends_at'; const saved = Number(localStorage.getItem(k)); if (saved && saved > Date.now()) return saved; const next = Date.now() + (48 * 60 * 60 * 1000); localStorage.setItem(k, String(next)); return next; } catch (e) { return Date.now() + (48 * 60 * 60 * 1000); } })(), // persistent 48-hour countdown
     label: '🔥 Velora Deals — Limited-Time Offers',
