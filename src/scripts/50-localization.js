@@ -9,10 +9,14 @@
   'use strict';
   const LANG_META = (window.VELORA_CORE && window.VELORA_CORE.languages) || {};
   const CURRENCIES = window.VELORA_CURRENCY_META || {};
+  const initialCountry = (localStorage.getItem('velora_country') || 'EG').toUpperCase();
+  const storedLanguage = localStorage.getItem('velora_language') || 'en';
+  const storedCurrency = (localStorage.getItem('velora_currency') || '').toUpperCase();
+  const initialCurrency = initialCountry === 'EG' ? 'EGP' : (storedCurrency || 'USD');
   const state = window.VELORA_GLOBAL_LOCALE_STATE = window.VELORA_GLOBAL_LOCALE_STATE || {
-    locale: localStorage.getItem('velora_language') || 'en',
-    country_code: localStorage.getItem('velora_country') || 'EG',
-    currency_code: localStorage.getItem('velora_currency') || 'EGP',
+    locale: storedLanguage,
+    country_code: initialCountry,
+    currency_code: initialCurrency,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     date_locale: localStorage.getItem('velora_date_locale') || (navigator.language || 'en-US')
   };
@@ -27,6 +31,8 @@
       const r = await c.rpc('velora_get_global_locale_context');
       if (r?.error || !r?.data) return state;
       Object.assign(state, r.data);
+      // An empty/invalid server currency must never blank the selector.
+      if (!CURRENCIES[state.currency_code]) state.currency_code = initialCurrency;
       localStorage.setItem('velora_language', state.locale);
       localStorage.setItem('velora_country', state.country_code);
       localStorage.setItem('velora_currency', state.currency_code);
