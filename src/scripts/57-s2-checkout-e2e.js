@@ -55,10 +55,22 @@
     return code;
   }
 
+  function ensureCheckoutFormForItems(){
+    var items=cartItems();
+    var form=document.getElementById("checkoutForm");
+    if(!form||!items.length)return;
+    if(form.querySelector("#custName"))return;
+    if(window.__VELORA_CHECKOUT_CART_SYNCING===true)return;
+    if(typeof originalRender==="function"){
+      originalRender.apply(this,[]);
+    }
+  }
+
   async function renderCanonicalCheckoutSummary(){
     var container=document.getElementById("checkoutSummary");
     var items=cartItems();
     if(!container||!items.length)return;
+    ensureCheckoutFormForItems();
     var code=await applyCheckoutCurrency()||String(document.getElementById("currencySelect")?.value||window.VELORA_CURRENCY||"USD").toUpperCase();
     var subtotal=items.reduce(function(sum,item){return sum+Number(item.price||0)*Number(item.quantity||0);},0);
     container.innerHTML=
