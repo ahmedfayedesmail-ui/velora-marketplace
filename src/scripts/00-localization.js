@@ -1115,7 +1115,30 @@ const PRODUCTS = [
         usage: 'After shower',
         description: 'Classic moisturizing body lotion.',
         tags: ['body lotion', 'nivea', 'hydration']
+    },
+    {
+        // Canonical Restore-Test review E2E product.
+        id: '21d977a0-111b-4bb4-9736-0f2994294d48',
+        name: 'Test Vitamin C Serum',
+        brand: 'Velora E2E',
+        category: 'skincare',
+        subcategory: 'Serum',
+        emoji: '🧪',
+        price: 250,
+        oldPrice: null,
+        rating: 0,
+        reviewsCount: 0,
+        stock: 23,
+        ingredients: [],
+        bestFor: [],
+        skinType: [],
+        pros: [],
+        cons: [],
+        usage: '',
+        description: 'Restore-Test product used for the Reviews E2E flow.',
+        tags: ['e2e review product', 'review', 'test vitamin c serum']
     }
+
 ];
 
 /* ============ CATEGORIES ============ */
