@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch HEAD:** updated through Sprint 1 Phase B B1 verification  
+**Current branch HEAD:** updated through Sprint 1 Phase B B2 verification  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -195,8 +195,44 @@ Verified:
 - authenticated EXECUTE enabled; anon EXECUTE disabled
 - all Beauty and legacy recommendation test tables empty after rollback
 
+### B2 — VERIFIED
+
+Evidence:
+`docs/SPRINT_1_PHASE_B_B2_EVIDENCE_2026-09-20.md`
+
+Ruleset:
+`docs/SPRINT_1_PHASE_B_B2_RULESET_V1_2026-09-20.md`
+
+Implemented:
+- canonical authenticated Beauty recommendation operation
+- server-side SHA-256 Passport fingerprint
+- `CATALOG_V1:EG-EGP:<revision>` catalog revision
+- 24h cache reuse
+- 5 new calculations / 10 minutes server-side rate limit
+- no-match without creating empty recommendation runs
+- 18 deterministic rules
+- canonical product + variant output
+- legacy recommendation boundary preserved
+- private internal helpers with restricted ACL
+
+Restore-Test migrations:
+- `20260920202500 / s1_b2_beauty_recommendation_operation`
+- `20260920203000 / s1_b2_digest_schema_fix`
+- `20260920204000 / s1_b2_recommendation_operation_runtime_fix`
+- `20260920204500 / s1_b2_private_helper_acl_hardening`
+- `20260920205000 / s1_b2_private_helper_search_path_and_rate_pk`
+
+Runtime evidence:
+- incomplete state returned correctly
+- 5 new calculations succeeded
+- identical request reused the same run with `from_cache=true`
+- sixth new calculation returned `rate_limited`
+- product price change advanced catalog revision `8 → 9`
+- `no_matches` returned with no recommendation run created
+- legacy `recommendation_runs` remained untouched
+
 Current status:
-**B1 VERIFIED — B2 READY TO START.**
+**B1 VERIFIED + B2 VERIFIED — B5/B6 regression remains.**
 
 ---
 
