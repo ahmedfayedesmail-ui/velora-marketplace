@@ -2594,7 +2594,11 @@ function loadPageContent(page) {
             renderCartPage();
             break;
         case 'checkout':
-            renderCheckoutPage();
+            if (typeof window.veloraEnsureCheckoutCartReady === 'function') {
+                window.veloraEnsureCheckoutCartReady();
+            } else {
+                renderCheckoutPage();
+            }
             break;
         case 'orders':
             renderOrdersPage();
@@ -11675,6 +11679,76 @@ console.log('✅ Analytics + Events + Audit loaded!');
       return data?.session?.user||null;
     }catch(_){ return null; }
   }
+
+  let checkoutCartCacheAt = 0;
+  let checkoutCartCacheOk = false;
+  let checkoutCartSyncPromise = null;
+  const CHECKOUT_CART_CACHE_MS = 30 * 1000;
+  const CHECKOUT_CART_SYNC_TIMEOUT_MS = 5 * 1000;
+
+  function renderCheckoutLoadingState(){
+    const formContainer=document.getElementById('checkoutForm');
+    const summaryContainer=document.getElementById('checkoutSummary');
+    if(formContainer){
+      formContainer.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading checkout</h3><p>Syncing your cart…</p></div>';
+    }
+    if(summaryContainer){
+      summaryContainer.innerHTML='<div class="empty-state"><div class="empty-icon">🛒</div><p>Preparing your order summary…</p></div>';
+    }
+  }
+
+  function withCheckoutTimeout(promise, ms){
+    return Promise.race([
+      promise.then(value=>({timedOut:false,value})).catch(()=>({timedOut:false,value:false})),
+      new Promise(resolve=>setTimeout(()=>resolve({timedOut:true,value:false}),ms))
+    ]);
+  }
+
+  async function syncCheckoutCartOnce(){
+    if(checkoutCartSyncPromise) return checkoutCartSyncPromise;
+    checkoutCartSyncPromise = syncCloudCartFromServer()
+      .then(ok=>{
+        checkoutCartCacheAt=Date.now();
+        checkoutCartCacheOk=ok===true;
+        return ok===true;
+      })
+      .catch(()=>{
+        checkoutCartCacheAt=Date.now();
+        checkoutCartCacheOk=false;
+        return false;
+      })
+      .finally(()=>{ checkoutCartSyncPromise=null; });
+    return checkoutCartSyncPromise;
+  }
+
+  window.veloraEnsureCheckoutCartReady = async function(){
+    if(STATE.currentPage!=='checkout') return;
+
+    const cacheFresh = (Date.now()-checkoutCartCacheAt) < CHECKOUT_CART_CACHE_MS;
+    if(cacheFresh){
+      renderCheckoutPage();
+      return;
+    }
+
+    renderCheckoutLoadingState();
+
+    if(typeof window.veloraSyncCloudCart!=='function'){
+      renderCheckoutPage();
+      return;
+    }
+
+    const result = await withCheckoutTimeout(
+      syncCheckoutCartOnce(),
+      CHECKOUT_CART_SYNC_TIMEOUT_MS
+    );
+
+    if(result.timedOut || result.value!==true){
+      // Fall back to the local STATE.cart after 5s or on sync failure.
+      if(STATE.currentPage==='checkout') renderCheckoutPage();
+    }
+    // On success, syncCloudCartFromServer already re-renders Checkout via
+    // the canonical cloud-cart synchronization hook.
+  };
 
   async function syncCloudCartFromServer(){
     const user=await currentUser();
