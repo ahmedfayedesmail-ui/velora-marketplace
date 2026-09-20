@@ -148,6 +148,7 @@
       }
       return false;
     };
+  }
 
   function boot(){
     makePicker(byId('languageSelect'),'language');
