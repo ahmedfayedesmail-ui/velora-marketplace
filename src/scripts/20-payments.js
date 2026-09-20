@@ -8,6 +8,8 @@ const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??
 async function rpc(name,args){const {data,error}=await db.rpc(name,args||{});if(error)throw error;return data??null;}
 function chip(t){return `<span class="velora-int-chip">${esc(t)}</span>`}
 async function loadIntegrations(){
+ if(!document.querySelector('#adminPlatform.active'))return;
+ try{const s=await db.auth?.getSession?.();if(!s?.data?.session?.user)return;}catch(_){return}
  const c=document.getElementById('adminContent');if(!c)return;
  c.innerHTML='<div class="velora-pay-note">⏳ Loading integration control plane…</div>';
  try{
