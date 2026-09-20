@@ -110,7 +110,23 @@ The operation does not calculate recommendations for an incomplete Passport.
 
 No-match is a valid domain result, not a fake recommendation and not an error.
 
-## 5. Authorization / transport boundary
+## 5. Rate-limited response
+
+When no compatible cache entry exists and the authenticated user has reached the server-side limit of **5 new calculations in 10 minutes**, return:
+
+```json
+{
+  "contract_version": "beauty-recommendation.v1",
+  "status": "rate_limited",
+  "run": null,
+  "recommendations": [],
+  "next_action": "retry_later"
+}
+```
+
+A rate-limit event is recorded only for a new calculation attempt. A cache hit does not create a rate-limit event. A `no_matches` calculation records the attempt even though it does not create a recommendation run.
+
+## 6. Authorization / transport boundary
 
 Authentication failure is handled by the transport/auth layer.
 
@@ -118,7 +134,7 @@ Authorization must always derive the customer from the active Supabase Auth sess
 
 The logical response contains no customer-selected owner UUID.
 
-## 6. Persistence mapping
+## 7. Persistence mapping
 
 The existing Phase-A tables remain authoritative for recommendation persistence:
 
@@ -144,7 +160,7 @@ Persists:
 
 Product display data is not a second product model; it is read from canonical `products` / `product_variants`.
 
-## 7. Versioning rule
+## 8. Versioning rule
 
 Breaking output changes require a new contract version, e.g. `beauty-recommendation.v2`.
 
@@ -156,7 +172,7 @@ Adding a non-breaking optional field must still be reviewed against:
 
 No silent contract mutation.
 
-## 8. Explicit non-goals
+## 9. Explicit non-goals
 
 - No AI/ML explanation text.
 - No medical/diagnostic language.
