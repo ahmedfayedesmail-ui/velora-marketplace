@@ -11707,6 +11707,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
       updateCartBadge();
       if(typeof renderCartSidebar==='function') renderCartSidebar();
       if(typeof renderCartPage==='function' && STATE.currentPage==='cart') renderCartPage();
+      if(typeof renderCheckoutPage==='function' && STATE.currentPage==='checkout') renderCheckoutPage();
       return true;
     }catch(err){
       console.warn('Velora cloud cart sync:',err);
