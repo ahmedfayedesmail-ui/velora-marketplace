@@ -144,12 +144,10 @@ async function setLang(code){
     console.warn('[Velora i18n] V5 runtime failure; activating V4 fallback',e);
     try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
     return false;
-  }finally{
-    if(hadOverrides&&old)PACK[code]=old;
   }
 }
 
-window.VELORA_TRANSLATE_ALL=()=>translateDom(document);window.VELORA_TRANSLATE_ALL=()=>translateDom(document);
+
 function __veloraFixHeroCore(locale){
   const root=document.querySelector('#page-home'); if(!root)return;
   const h=root.querySelector('.hero-title');
