@@ -346,5 +346,11 @@
     "file": "57-s2-checkout-e2e.js",
     "id": "s2-checkout-e2e",
     "chars": 9707
+  },
+  {
+    "order": 58,
+    "file": "58-s1-b1-beauty-passport.js",
+    "id": "s1-b1-beauty-passport",
+    "chars": 3795
   }
 ]
