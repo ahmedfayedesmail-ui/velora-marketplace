@@ -18,85 +18,80 @@ The following design contracts were frozen before implementation:
 
 ### B1 — Beauty Passport Persistence — VERIFIED
 
-Completed:
-
-- current-user Beauty Passport read
-- current-user Beauty Passport upsert
-- session-derived ownership
-- validation of supported quiz version and required fields
-- optional-value normalization
-- controlled avoidance object validation
-- no client-selected owner authorization
-- authenticated-only save RPC
-
 Evidence:
 `docs/SPRINT_1_PHASE_B_B1_EVIDENCE_2026-09-20.md`
 
-### B2 — Recommendation Operation — NEXT
+### B2 — Canonical Recommendation Operation — VERIFIED
 
-Build one canonical server-side operation that:
+B2 includes the approved cache/rate-limit implementation aspects:
 
-1. resolves authenticated user;
-2. loads current `beauty_profiles`;
-3. builds the deterministic input snapshot according to the fingerprint specification;
-4. computes the server-side SHA-256 input fingerprint;
-5. resolves the `CATALOG_V1:EG-EGP:<revision>` token;
-6. checks the 24h reusable result;
-7. enforces the 5 runs / 10 minutes rate limit only when a new calculation is required;
-8. executes the 18-rule deterministic scorer;
-9. persists `beauty_recommendation_runs`;
-10. persists up to five `beauty_recommendation_items`;
-11. returns the frozen `beauty-recommendation.v1` output contract.
+- authenticated-user resolution;
+- Passport input construction;
+- server-side SHA-256 fingerprint;
+- catalog revision resolution;
+- 24h cache lookup;
+- 5 new calculations / 10 minutes server-side rate limit;
+- 18-rule deterministic scorer;
+- canonical product/variant persistence;
+- frozen `beauty-recommendation.v1` output.
 
-### B3 — 24h Cache
+Evidence:
+`docs/SPRINT_1_PHASE_B_B2_EVIDENCE_2026-09-20.md`
 
-Reuse an existing compatible run when:
+Ruleset:
+`docs/SPRINT_1_PHASE_B_B2_RULESET_V1_2026-09-20.md`
+
+### B3 — 24h Cache — COVERED BY B2
+
+Cache reuse is part of the canonical operation.
+
+A valid hit matches:
 
 `user_id + input_fingerprint + ruleset_version + catalog_revision`
 
-match and the run is within 24 hours.
+and is within 24 hours.
 
-A changed Passport, ruleset, or catalog revision produces a new calculation.
+Cache hits:
+- return the existing run;
+- set `from_cache=true`;
+- do not create a run;
+- do not consume rate quota.
 
-A cache hit does not create a new run and does not consume the new-calculation quota.
+### B4 — Rate Limit — COVERED BY B2
 
-### B4 — Rate Limit
-
-Apply:
+Server-side limit:
 
 **5 new calculations / 10 minutes / authenticated user**
 
-The limit is enforced server-side.
+Implementation uses a private rate-event ledger so `no_matches` can be rate-limited without creating an empty recommendation run.
 
-Cache hits are exempt from the quota because they are reads of an already valid calculation.
+Cache hits do not create rate events.
 
-### B5 — Recommendation Read Contract
+### B5 — Recommendation Read Contract — NEXT HARDENING
 
-Customer reads only own runs/items through RLS.
+Customer reads only their own persisted recommendation history through RLS.
 
-The browser does not submit arbitrary scores, reason codes, catalog revisions, ruleset versions, or owner UUIDs for persistence.
+The browser does not submit:
+- arbitrary scores;
+- reason codes;
+- ruleset versions;
+- catalog revisions;
+- owner UUIDs.
 
-### B6 — Regression
+### B6 — Regression — REQUIRED BEFORE PHASE CLOSE
 
-Verify the new operation does not modify:
+Re-run:
+- Beauty table RLS positive/negative tests;
+- legacy recommendation boundary tests;
+- catalog revision tests;
+- cache/rate-limit regression;
+- Cart/Checkout/Orders/Variants/Reviews/Wishlist/Notifications regression.
 
-- legacy `recommendation_runs`
-- existing recommendation RPC behavior
-- Cart
-- Checkout
-- Orders
-- Variants
-- Reviews
-- Wishlist
-- Notifications
-
-Re-run RLS positive/negative tests for all new Beauty tables and the canonical recommendation operation.
+Browser E2E remains a separate later gate.
 
 ## Why Persistence comes first
 
 The Passport is the authoritative input state for every deterministic recommendation calculation.
-
-Without a stable persisted Passport, cache keys and rate-limit semantics would be tied to transient UI state.
 
 Therefore:
 
@@ -113,4 +108,4 @@ Therefore:
 
 ## Current status
 
-**B1 VERIFIED — B2 READY TO START.**
+**B1 VERIFIED + B2 VERIFIED — B5/B6 regression remains.**
