@@ -38,7 +38,7 @@ Migration:
 
 Repository artifact:
 
-`supabase/migrations/20260920235000_s1_b1_beauty_passport_save_rpc.sql`
+`supabase/migrations/20260920200702_s1_b1_beauty_passport_save_rpc.sql`
 
 Implementation properties:
 
