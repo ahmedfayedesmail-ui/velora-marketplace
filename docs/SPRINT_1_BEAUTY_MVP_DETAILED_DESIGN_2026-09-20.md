@@ -85,7 +85,7 @@ Variant-aware commerce source with:
 
 ## 3. Beauty Passport Data Contract
 
-### 3.1 Minimal table: `beauty_passports`
+### 3.1 Minimal table: `beauty_profiles`
 
 One active Passport per authenticated customer.
 
@@ -280,7 +280,7 @@ Optional lightweight event for:
 
 Restore-Test currently contains functions named:
 
-- `velora_get_recommendations`
+- `velora_get_recommendations` (legacy catalog-quality path; preserve)
 - `velora_get_recommendation_intelligence`
 - `velora_get_recommendation_quality`
 - `velora_record_recommendation_feedback`
@@ -360,7 +360,7 @@ Example:
 - repeated positive texture feedback can strengthen future texture matching
 - repeated negative effect feedback can reduce future effect matching
 
-The first implementation should keep the Passport itself explicit and user-editable.
+The first implementation should keep the Passport itself explicit and user-editable.\n\n### Phase A implementation note\nThe existing `public.recommendation_runs` table is already used by the legacy recommendation intelligence path. It was intentionally left untouched. Sprint 1 Beauty uses the dedicated `beauty_recommendation_runs` / `beauty_recommendation_items` tables.
 
 Do not silently mutate user preferences from inferred behavior.
 
@@ -514,13 +514,13 @@ This is a launch/browser gate and is not replaced by source-level PASS.
 
 ## 16. Delivery Sequence
 
-### Phase A — Data contract
+### Phase A — Data contract + RLS (COMPLETED ON RESTORE-TEST)
 - create/approve Beauty Passport contract
 - create recommendation run/item contracts
 - create Beauty Feedback contract
 - define RLS policies
 
-### Phase B — Passport persistence
+### Phase B — Passport persistence (NEXT)
 - load/save current user's Passport
 - tests
 
