@@ -3067,11 +3067,6 @@ function renderCartSidebar() {
     if (!body || !footer) return;
 
     if (STATE.cart.length === 0) {
-        if (window.__VELORA_CHECKOUT_CART_SYNCING === true) {
-            formContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading checkout</h3><p>Syncing your cart…</p></div>';
-            summaryContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div><p>Preparing your order summary…</p></div>';
-            return;
-        }
         body.innerHTML = `
             <div class="cart-empty">
                 <div class="empty-icon">🛒</div>
@@ -3630,6 +3625,11 @@ function renderCheckoutPage() {
     if (!formContainer || !summaryContainer) return;
 
     if (STATE.cart.length === 0) {
+        if (window.__VELORA_CHECKOUT_CART_SYNCING === true) {
+            formContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading checkout</h3><p>Syncing your cart…</p></div>';
+            summaryContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div><p>Preparing your order summary…</p></div>';
+            return;
+        }
         formContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">🛒</div>
