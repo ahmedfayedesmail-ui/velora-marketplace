@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch HEAD:** updated through Sprint 1 Phase A Restore-Test implementation (see latest branch commit)  
+**Current branch HEAD:** updated through Sprint 1 Phase B design gates  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -31,44 +31,6 @@ Current closeout document:
 
 ---
 
-## Latest Resolved / Remediated Work
-
-### Checkout stale empty state
-Root cause was a separate UX44 injection path in `src/scripts/39-payments.js`.
-
-Status:
-**SOURCE FIX DEPLOYED**
-
-### Cart mobile clipping
-Root cause was an inline two-column Cart layout retaining a fixed 400px summary track.
-
-Status:
-**SOURCE FIX DEPLOYED**
-
-### Language exposure
-Visible selector is now:
-- EN
-- AR
-
-Existing localization support for future languages remains in source.
-
-### Desktop layout / screen boundary hardening
-Fixed secondary grid tracks now use shrinkable `minmax(0,...)` behavior and page-level content children are constrained to viewport width.
-
-Status:
-**SOURCE FIX DEPLOYED — browser verification pending**
-
-### Dark-mode contrast hardening
-Customer-facing inputs/selects and native options now inherit dark-theme surfaces/text/borders.
-
-Status:
-**SOURCE FIX DEPLOYED — browser verification pending**
-
-### Script manifest
-`docs/SCRIPT_MANIFEST.json` synchronized with the active script set, including `57-s2-checkout-e2e.js`.
-
----
-
 ## Current Findings
 
 | Finding | Status |
@@ -82,7 +44,9 @@ Status:
 | FIND-BE-023 Console Errors | OPEN; source audit complete, browser correlation required |
 | FIND-BE-015 Checkout submit/order creation | OPEN; authenticated browser gate |
 | F-008 Currency | TEMPORARY; EGP-first Phase 1 model |
-| FIND-BE-008 Variant UI | DEFERRED |\n| FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |\n| FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
+| FIND-BE-008 Variant UI | DEFERRED |
+| FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
+| FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
 
 ---
 
@@ -125,31 +89,57 @@ Primary acceptance target:
 
 ---
 
-## Browser Gate
+## Sprint 1 Phase A — Data Contract + RLS
 
-The final browser gate must still validate:
-
-`Login → Search → Product → Add to Cart → Cart → Checkout → Shipping → Currency → Place Order → My Orders → Seller/Admin visibility`
-
-Plus:
-- mobile
-- desktop
-- dark mode
-- EN / AR
-- no unintended 400/401 behavior
-- no duplicate listener behavior
-
-No browser result should be inferred from source-level fixes.
+- Four Beauty tables implemented on Restore-Test: `beauty_profiles`, `beauty_recommendation_runs`, `beauty_recommendation_items`, `beauty_feedback`
+- Existing legacy `recommendation_runs` preserved unchanged
+- Positive/negative RLS tests completed
+- Staff-only feedback moderation path verified
+- Evidence: `docs/SPRINT_1_PHASE_A_EVIDENCE_2026-09-20.md`
+- Rate-limit/cache enforcement remains Phase B; not marked implemented
 
 ---
 
-## FIND-BE-023 Source Audit
+## Sprint 1 Phase B — Pre-B1 Design Gates
 
-Recorded in `docs/FIND_BE_023_SOURCE_AUDIT_2026-09-20.md`. Restore-Test function privileges do not support a generic missing-EXECUTE explanation for the reported 401s. No speculative suppression or listener removal was applied.
+Phase B sequence:
+`docs/SPRINT_1_PHASE_B_ENGINEERING_SEQUENCE_2026-09-20.md`
 
-## Sprint 1 Phase B — Kickoff\n\n- Phase B sequence documented in `docs/SPRINT_1_PHASE_B_ENGINEERING_SEQUENCE_2026-09-20.md`\n- B1 is Beauty Passport persistence\n- B2 is the canonical Recommendation Operation\n- 24h cache + 5/10min rate limit are enforced within the new operation, after persistence exists\n- Legacy `public.recommendation_runs` remains untouched\n\n## Sprint 1 Phase A — Data Contract + RLS\n\n- Four Beauty tables implemented on Restore-Test: `beauty_profiles`, `beauty_recommendation_runs`, `beauty_recommendation_items`, `beauty_feedback`\n- Existing legacy `recommendation_runs` preserved unchanged\n- Positive/negative RLS tests completed\n- Staff-only feedback moderation path verified\n- Evidence: `docs/SPRINT_1_PHASE_A_EVIDENCE_2026-09-20.md`\n- Rate-limit/cache enforcement remains Phase B; not marked implemented\n\n## Production Control
+The following contracts are now frozen before B1:
 
-**No Production GO is granted by this snapshot. Phase A Restore-Test migrations are not Production authorization.**
+1. `docs/SPRINT_1_PHASE_B_OUTPUT_CONTRACT_2026-09-20.md`
+2. `docs/SPRINT_1_PHASE_B_FINGERPRINT_SPEC_2026-09-20.md`
+3. `docs/SPRINT_1_PHASE_B_CATALOG_REVISION_SPEC_2026-09-20.md`
+4. `docs/SPRINT_1_PHASE_B_B1_ACCEPTANCE_CRITERIA_2026-09-20.md`
+
+Locked engineering decisions:
+- fingerprint includes `beauty-passport.v1` schema version and canonical Passport inputs;
+- budget is not fingerprinted because it is not currently a persisted Passport field;
+- fingerprint is server-derived SHA-256 over canonical UTF-8 JSON;
+- catalog revision is a server-side monotonic counter for the EG/EGP recommendation catalog;
+- price and purchaseability/stock changes invalidate cached recommendations;
+- cache identity is `user_id + input_fingerprint + ruleset_version + catalog_revision`;
+- cache hits do not consume the new-calculation quota;
+- incomplete Passport returns a domain incomplete state and is not used for recommendation calculation;
+- no-match is a valid empty-result domain state;
+- B1 is persistence only; B2 owns recommendation calculation, cache, rate limit, and output persistence.
+
+Current status:
+**PRE-B1 — design gates locked; implementation not started.**
+
+---
+
+## Browser Gate
+
+The final browser gate must still validate the full authenticated flow and relevant responsive/localization/security behavior.
+
+No browser result should be inferred from source-level fixes or SQL tests.
+
+---
+
+## Production Control
+
+**No Production GO is granted by this snapshot. Restore-Test migrations and design documents are not Production authorization.**
 
 No Production DB migration, data change, provider credential change, or deployment should be executed without explicit Owner authorization.
 
@@ -160,7 +150,7 @@ No Production DB migration, data change, provider credential change, or deployme
 | Area | Owner input needed? |
 |---|---|
 | Phase 1 Egypt / Beauty / AR+EN / EGP scope | **Already decided** |
-| Beauty Passport MVP data contract | Engineer can implement within the documented scope |
+| Beauty Passport MVP data contract | Engineer can implement within documented scope |
 | Recommendation rules implementation | **Engineer** |
 | UX/component architecture | **Engineer** |
 | Responsive/CSS fixes | **Engineer** |
