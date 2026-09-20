@@ -106,11 +106,16 @@ function __veloraFixHeroCore(locale){
     if(parts[0]) parts[0].nodeValue=pack['Discover More.']||'Discover More.';
     if(parts[1]) parts[1].nodeValue=pack['Shop Better.']||'Shop Better.';
   }
+  const core=__VELORA_CORE_OVERRIDES[locale]||{};
+  const desc=root.querySelector('.hero-desc');
+  if(desc && core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.']){
+    desc.textContent=core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.'];
+  }
   root.querySelectorAll('.hero-badge').forEach(e=>{
     if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE')){
       const textNodes=[...e.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
       const last=textNodes[textNodes.length-1];
-      if(last) last.nodeValue=' '+(__VELORA_CORE_OVERRIDES[locale]?.['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
+      if(last) last.nodeValue=' '+(core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
     }
   });
 }
