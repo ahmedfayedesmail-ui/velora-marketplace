@@ -31,6 +31,44 @@ Current closeout document:
 
 ---
 
+## Latest Resolved / Remediated Work
+
+### Checkout stale empty state
+Root cause was a separate UX44 injection path in `src/scripts/39-payments.js`.
+
+Status:
+**SOURCE FIX DEPLOYED**
+
+### Cart mobile clipping
+Root cause was an inline two-column Cart layout retaining a fixed 400px summary track.
+
+Status:
+**SOURCE FIX DEPLOYED**
+
+### Language exposure
+Visible selector is now:
+- EN
+- AR
+
+Existing localization support for future languages remains in source.
+
+### Desktop layout / screen boundary hardening
+Fixed secondary grid tracks now use shrinkable `minmax(0,...)` behavior and page-level content children are constrained to viewport width.
+
+Status:
+**SOURCE FIX DEPLOYED — browser verification pending**
+
+### Dark-mode contrast hardening
+Customer-facing inputs/selects and native options now inherit dark-theme surfaces/text/borders.
+
+Status:
+**SOURCE FIX DEPLOYED — browser verification pending**
+
+### Script manifest
+`docs/SCRIPT_MANIFEST.json` synchronized with the active script set, including `57-s2-checkout-e2e.js`.
+
+---
+
 ## Current Findings
 
 | Finding | Status |
@@ -89,6 +127,12 @@ Primary acceptance target:
 
 ---
 
+## FIND-BE-023 Source Audit
+
+Recorded in `docs/FIND_BE_023_SOURCE_AUDIT_2026-09-20.md`. Restore-Test function privileges do not support a generic missing-EXECUTE explanation for the reported 401s. No speculative suppression or listener removal was applied.
+
+---
+
 ## Sprint 1 Phase A — Data Contract + RLS
 
 - Four Beauty tables implemented on Restore-Test: `beauty_profiles`, `beauty_recommendation_runs`, `beauty_recommendation_items`, `beauty_feedback`
@@ -105,7 +149,7 @@ Primary acceptance target:
 Phase B sequence:
 `docs/SPRINT_1_PHASE_B_ENGINEERING_SEQUENCE_2026-09-20.md`
 
-The following contracts are now frozen before B1:
+The following contracts are frozen before B1:
 
 1. `docs/SPRINT_1_PHASE_B_OUTPUT_CONTRACT_2026-09-20.md`
 2. `docs/SPRINT_1_PHASE_B_FINGERPRINT_SPEC_2026-09-20.md`
@@ -131,7 +175,17 @@ Current status:
 
 ## Browser Gate
 
-The final browser gate must still validate the full authenticated flow and relevant responsive/localization/security behavior.
+The final browser gate must still validate:
+
+`Login → Search → Product → Add to Cart → Cart → Checkout → Shipping → Currency → Place Order → My Orders → Seller/Admin visibility`
+
+Plus:
+- mobile
+- desktop
+- dark mode
+- EN / AR
+- no unintended 400/401 behavior
+- no duplicate listener behavior
 
 No browser result should be inferred from source-level fixes or SQL tests.
 
@@ -150,7 +204,7 @@ No Production DB migration, data change, provider credential change, or deployme
 | Area | Owner input needed? |
 |---|---|
 | Phase 1 Egypt / Beauty / AR+EN / EGP scope | **Already decided** |
-| Beauty Passport MVP data contract | Engineer can implement within documented scope |
+| Beauty Passport MVP data contract | Engineer can implement within the documented scope |
 | Recommendation rules implementation | **Engineer** |
 | UX/component architecture | **Engineer** |
 | Responsive/CSS fixes | **Engineer** |
