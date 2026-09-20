@@ -8656,17 +8656,17 @@ renderSellerEarnings = function(seller) {
         <div class="seller-kpi-grid">
             <div class="seller-kpi-card" style="border-color: #2196f3;">
                 <div class="seller-kpi-icon">💵</div>
-                <div class="seller-kpi-value" style="color: #2196f3; font-size: 1.1rem;">${formatPrice(totalRevenue)}</div>
+                <div class="seller-kpi-value" style="color: #2196f3; font-size: 1.1rem;">${formatPrice(totalRevenue, 'EGP')}</div>
                 <div class="seller-kpi-label">Gross Sales</div>
             </div>
             <div class="seller-kpi-card" style="border-color: #f44336;">
                 <div class="seller-kpi-icon">💎</div>
-                <div class="seller-kpi-value" style="color: #f44336; font-size: 1.1rem;">-${formatPrice(totalCommission)}</div>
+                <div class="seller-kpi-value" style="color: #f44336; font-size: 1.1rem;">-${formatPrice(totalCommission, 'EGP')}</div>
                 <div class="seller-kpi-label">Platform Commission</div>
             </div>
             <div class="seller-kpi-card" style="border-color: #4caf50;">
                 <div class="seller-kpi-icon">💰</div>
-                <div class="seller-kpi-value" style="color: #4caf50; font-size: 1.1rem;">${formatPrice(totalEarnings)}</div>
+                <div class="seller-kpi-value" style="color: #4caf50; font-size: 1.1rem;">${formatPrice(totalEarnings, 'EGP')}</div>
                 <div class="seller-kpi-label">Net Earnings</div>
             </div>
             <div class="seller-kpi-card" style="border-color: #9c27b0;">
@@ -8681,15 +8681,15 @@ renderSellerEarnings = function(seller) {
             <div style="padding: 1rem 0;">
                 <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
                     <span style="color: var(--text-muted);">Total Sales</span>
-                    <strong>${formatPrice(totalRevenue)}</strong>
+                    <strong>${formatPrice(totalRevenue, 'EGP')}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
                     <span style="color: var(--text-muted);">Platform Fee (${plan.commission}%)</span>
-                    <strong style="color: var(--error);">-${formatPrice(totalCommission)}</strong>
+                    <strong style="color: var(--error);">-${formatPrice(totalCommission, 'EGP')}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 0.75rem 0;">
                     <span style="color: var(--text-muted);">Available Balance</span>
-                    <strong style="color: var(--success); font-size: 1.15rem;">${formatPrice(totalEarnings)}</strong>
+                    <strong style="color: var(--success); font-size: 1.15rem;">${formatPrice(totalEarnings, 'EGP')}</strong>
                 </div>
             </div>
         </div>
