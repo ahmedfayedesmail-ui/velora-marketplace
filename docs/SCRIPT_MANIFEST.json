@@ -352,5 +352,11 @@
     "file": "58-s1-b1-beauty-passport.js",
     "id": "s1-b1-beauty-passport",
     "chars": 3795
+  },
+  {
+    "order": 59,
+    "file": "59-s1-b2-beauty-recommendations.js",
+    "id": "s1-b2-beauty-recommendations",
+    "chars": 917
   }
 ]
