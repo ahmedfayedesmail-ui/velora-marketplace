@@ -1593,6 +1593,35 @@ function getAllProducts() {
 
 console.log('🔎 Loading search foundation...');
 
+/* ============ Shared text/array search matcher ============ */
+/**
+ * Substring matcher for search fields.
+ * @param {*} value - string or array of strings
+ * @param {string} needle - MUST be pre-lowercased
+ * @returns {boolean}
+ */
+function matchesSearchField(value, needle) {
+    if (!needle) return false;
+
+    if (typeof value === 'string') {
+        return value.toLowerCase().indexOf(needle) !== -1;
+    }
+
+    if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++) {
+            const el = value[i];
+            if (
+                typeof el === 'string' &&
+                el.toLowerCase().indexOf(needle) !== -1
+            ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 /* ============ searchProducts (pure) ============ */
 function searchProducts(products, query, options) {
     if (!Array.isArray(products)) return [];
@@ -1622,27 +1651,23 @@ function searchProducts(products, query, options) {
         ? opts.fields
         : DEFAULT_FIELDS;
 
-    function stringMatches(value, needle) {
-        if (typeof value !== 'string') return false;
-        return value.toLowerCase().indexOf(needle) !== -1;
-    }
+    /* ============ Search-specific product matcher ============ */
+    function searchProductMatches(product, needle, searchFields) {
+        if (!product || typeof product !== 'object') return false;
 
-    function arrayMatches(arr, needle) {
-        if (!Array.isArray(arr)) return false;
-        for (let i = 0; i < arr.length; i++) {
-            const el = arr[i];
-            if (typeof el === 'string' && el.toLowerCase().indexOf(needle) !== -1) {
+        for (let i = 0; i < searchFields.length; i++) {
+            const field = searchFields[i];
+            if (matchesSearchField(product[field], needle)) {
                 return true;
             }
         }
+
         return false;
     }
 
-    
-
     const results = [];
     for (let i = 0; i < products.length; i++) {
-        if (productMatches(products[i])) {
+        if (searchProductMatches(products[i], q, fields)) {
             results.push(products[i]);
         }
     }
@@ -1759,7 +1784,7 @@ function filterProducts(products, filters) {
     const wantedStockStatus = normalizeString(filters.stockStatus);
 
     // --- Match single product ---
-    function productMatches(product) {
+    function filterProductMatches(product) {
         if (!product || typeof product !== 'object') return false;
 
         // category
@@ -1831,7 +1856,7 @@ function filterProducts(products, filters) {
     // --- Filter (preserve original order) ---
     const results = [];
     for (let i = 0; i < products.length; i++) {
-        if (productMatches(products[i])) {
+        if (filterProductMatches(products[i])) {
             results.push(products[i]);
         }
     }
