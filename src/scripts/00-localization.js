@@ -2687,11 +2687,30 @@ async function veloraLoadContentTranslations(locale){
     try{
         const db = (typeof getDb==='function' ? getDb() : window.mahaSupabase || window.supabaseClient);
         if(!db?.rpc) return;
-        const products = Array.isArray(window.MAHA_DATA?.PRODUCTS) ? window.MAHA_DATA.PRODUCTS.map(x=>x.id).filter(Boolean) : [];
-        const storeIds = Array.isArray(window.MAHA_DATA?.STORES) ? window.MAHA_DATA.STORES.map(x=>x.id).filter(Boolean) : [];
-        const categoryIds = Array.isArray(window.MAHA_DATA?.CATEGORIES) ? window.MAHA_DATA.CATEGORIES.map(x=>x.id).filter(x=>String(x).match(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i)) : [];
+
+        const isCanonicalUuid = value =>
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+
+        // The RPC contract accepts UUID arrays only. Ignore legacy catalog IDs
+        // (e.g. sk-001, mp-el-001) instead of sending them to PostgREST.
+        const products = Array.isArray(window.MAHA_DATA?.PRODUCTS)
+            ? window.MAHA_DATA.PRODUCTS.map(x=>x?.id).filter(isCanonicalUuid)
+            : [];
+        const storeIds = Array.isArray(window.MAHA_DATA?.STORES)
+            ? window.MAHA_DATA.STORES.map(x=>x?.id).filter(isCanonicalUuid)
+            : [];
+        const categoryIds = Array.isArray(window.MAHA_DATA?.CATEGORIES)
+            ? window.MAHA_DATA.CATEGORIES.map(x=>x?.id).filter(isCanonicalUuid)
+            : [];
+
         if(!products.length && !storeIds.length && !categoryIds.length) return;
-        const r = await db.rpc('velora_get_localized_content',{p_locale:locale,p_product_ids:products,p_store_ids:storeIds,p_category_ids:categoryIds});
+
+        const r = await db.rpc('velora_get_localized_content',{
+            p_locale:locale,
+            p_product_ids:products,
+            p_store_ids:storeIds,
+            p_category_ids:categoryIds
+        });
         if(!r.error && r.data) window.VELORA_LOCALIZED_CONTENT = r.data;
     }catch(_){ }
 }
