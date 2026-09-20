@@ -129,30 +129,25 @@
       hi:{'Discover More.':'और खोजें।','Shop Better.':'बेहतर खरीदारी करें।','Everything you need, from stores you can trust.':'भरोसेमंद स्टोर्स से आपकी ज़रूरत की हर चीज़।','Track your orders':'अपने ऑर्डर ट्रैक करें'}
     };
     window.VELORA_EXTRA_I18N = extra;
-    const __VELORA_EXTRA_TEXT_SOURCES = new WeakMap();
-    window.VELORA_APPLY_EXTRA_I18N = function(){
-      const lang=(typeof getVeloraLanguage==='function'?getVeloraLanguage():(localStorage.getItem('velora_language')||'en'));
-      const dict=extra[lang]||extra.en;
-      const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
-      const nodes=[]; let n; while((n=walker.nextNode())) nodes.push(n);
-      nodes.forEach(node=>{
-        const parent=node.parentElement;
-        if(!parent || /^(SCRIPT|STYLE|NOSCRIPT|OPTION)$/i.test(parent.tagName)) return;
-        if(parent.closest('.hero-title')) return;
-        let base=__VELORA_EXTRA_TEXT_SOURCES.get(node);
-        if(base===undefined){
-          base=String(node.nodeValue || '').replace(/\s+/g,' ').trim();
-          __VELORA_EXTRA_TEXT_SOURCES.set(node,base);
-        }
-        if(!base || base.length>180) return;
-        if(dict[base] && node.nodeValue.trim()!==dict[base]){
-          node.nodeValue=node.nodeValue.replace(node.nodeValue.trim(),dict[base]);
-        }
-      });
+
+    /* Registration only: V4/V5 own all DOM rendering and provenance. */
+    const packs = window.__VELORA_PACK || {};
+    Object.keys(extra).forEach(locale => {
+      const pack = packs[locale] || (packs[locale] = {});
+      Object.assign(pack, extra[locale]);
+      try {
+        window.VELORA_I18N_PROVENANCE?.registerCatalog(locale, extra[locale] || {});
+      } catch (_) {}
+    });
+    window.__VELORA_PACK = packs;
+
+    /* Compatibility API only; no independent renderer, observer, listener, or timer. */
+    window.VELORA_APPLY_EXTRA_I18N = function () {
+      if (typeof window.VELORA_TRANSLATE_ALL === 'function') {
+        return window.VELORA_TRANSLATE_ALL();
+      }
+      return false;
     };
-    window.addEventListener('velora:languagechange',()=>setTimeout(window.VELORA_APPLY_EXTRA_I18N,0));
-    setTimeout(window.VELORA_APPLY_EXTRA_I18N,120);
-  }
 
   function boot(){
     makePicker(byId('languageSelect'),'language');
