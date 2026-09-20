@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch HEAD:** `bc01d1efaebc9790092dad4be6432dd5940146d3`  
+**Current branch HEAD:** updated through Sprint 1 Phase A Restore-Test implementation (see latest branch commit)  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -82,7 +82,7 @@ Status:
 | FIND-BE-023 Console Errors | OPEN; source audit complete, browser correlation required |
 | FIND-BE-015 Checkout submit/order creation | OPEN; authenticated browser gate |
 | F-008 Currency | TEMPORARY; EGP-first Phase 1 model |
-| FIND-BE-008 Variant UI | DEFERRED |
+| FIND-BE-008 Variant UI | DEFERRED |\n| FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
 
 ---
 
@@ -147,9 +147,9 @@ No browser result should be inferred from source-level fixes.
 
 Recorded in `docs/FIND_BE_023_SOURCE_AUDIT_2026-09-20.md`. Restore-Test function privileges do not support a generic missing-EXECUTE explanation for the reported 401s. No speculative suppression or listener removal was applied.
 
-## Production Control
+## Sprint 1 Phase A — Data Contract + RLS\n\n- Four Beauty tables implemented on Restore-Test: `beauty_profiles`, `beauty_recommendation_runs`, `beauty_recommendation_items`, `beauty_feedback`\n- Existing legacy `recommendation_runs` preserved unchanged\n- Positive/negative RLS tests completed\n- Staff-only feedback moderation path verified\n- Evidence: `docs/SPRINT_1_PHASE_A_EVIDENCE_2026-09-20.md`\n- Rate-limit/cache enforcement remains Phase B; not marked implemented\n\n## Production Control
 
-**No Production GO is granted by this snapshot.**
+**No Production GO is granted by this snapshot. Phase A Restore-Test migrations are not Production authorization.**
 
 No Production DB migration, data change, provider credential change, or deployment should be executed without explicit Owner authorization.
 
