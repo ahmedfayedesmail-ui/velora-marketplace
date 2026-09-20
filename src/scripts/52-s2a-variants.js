@@ -406,4 +406,4 @@
 
   window.__VELORA_S2A_SELLER_INTEGRATED__=true;
   console.log("✅ S2-A seller variant integration ready");
-})();\n
+})();
