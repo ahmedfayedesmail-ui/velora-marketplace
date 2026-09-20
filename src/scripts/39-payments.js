@@ -4,7 +4,7 @@ const esc44=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':
 const host44=()=>document.getElementById('veloraCheckoutUX44');
 const session44=()=>{let k=sessionStorage.getItem('velora_checkout_ux44');if(!k){k='cx44-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('velora_checkout_ux44',k)}return k};
 async function rpc44(fn,args={}){const c=window.supabaseClient||window.sb;if(c?.rpc)return c.rpc(fn,args);throw new Error('Supabase client unavailable')}
-async function event44(name,step,status=null,code=null,meta={}){try{await rpc44('velora_record_checkout_ux_event',{p_session_key:session44(),p_event_name:name,p_checkout_step:step,p_status:status,p_error_code:code,p_metadata:meta})}catch(_){}}
+async function event44(name,step,status=null,code=null,meta={}){try{const c=window.supabaseClient||window.sb;if(!c?.auth)return;const s=await c.auth.getSession();if(!s?.data?.session?.user)return;await rpc44('velora_record_checkout_ux_event',{p_session_key:session44(),p_event_name:name,p_checkout_step:step,p_status:status,p_error_code:code,p_metadata:meta})}catch(_){}}
 function cart44(){return Array.isArray(window.STATE?.cart)?window.STATE.cart:[]}
 function totals44(){const items=cart44();const subtotal=items.reduce((s,i)=>s+Number(i.price||0)*Number(i.quantity||1),0);const shipping=subtotal>=500?0:30;return {subtotal,shipping,total:subtotal+shipping}}
 function currency44(){return String(document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'USD')}
