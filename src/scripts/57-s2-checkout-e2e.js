@@ -69,6 +69,10 @@
   async function renderCanonicalCheckoutSummary(){
     var container=document.getElementById("checkoutSummary");
     var items=cartItems();
+    if(items.length){
+      var staleEmpty=document.getElementById("veloraCheckoutUX44");
+      if(staleEmpty)staleEmpty.remove();
+    }
     if(!container||!items.length)return;
     ensureCheckoutFormForItems();
     var code=await applyCheckoutCurrency()||String(document.getElementById("currencySelect")?.value||window.VELORA_CURRENCY||"USD").toUpperCase();
