@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch HEAD:** updated through Sprint 1 Phase B design gates  
+**Current branch HEAD:** updated through Sprint 1 Phase B B1 verification  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -144,12 +144,12 @@ Recorded in `docs/FIND_BE_023_SOURCE_AUDIT_2026-09-20.md`. Restore-Test function
 
 ---
 
-## Sprint 1 Phase B — Pre-B1 Design Gates
+## Sprint 1 Phase B — Design Gates + B1
 
 Phase B sequence:
 `docs/SPRINT_1_PHASE_B_ENGINEERING_SEQUENCE_2026-09-20.md`
 
-The following contracts are frozen before B1:
+The following contracts were frozen before implementation:
 
 1. `docs/SPRINT_1_PHASE_B_OUTPUT_CONTRACT_2026-09-20.md`
 2. `docs/SPRINT_1_PHASE_B_FINGERPRINT_SPEC_2026-09-20.md`
@@ -168,8 +168,35 @@ Locked engineering decisions:
 - no-match is a valid empty-result domain state;
 - B1 is persistence only; B2 owns recommendation calculation, cache, rate limit, and output persistence.
 
+### B1 — VERIFIED
+
+Evidence:
+`docs/SPRINT_1_PHASE_B_B1_EVIDENCE_2026-09-20.md`
+
+Implementation:
+- `supabase/migrations/20260920235000_s1_b1_beauty_passport_save_rpc.sql`
+- `src/scripts/58-s1-b1-beauty-passport.js`
+- `src/index.html`
+- `docs/SCRIPT_MANIFEST.json`
+
+Restore-Test migration:
+`20260920200702 / s1_b1_beauty_passport_save_rpc`
+
+Verified:
+- create/read/update round-trip
+- one Passport row per user
+- cross-user SELECT blocked
+- cross-user UPDATE blocked
+- anonymous table/RPC access blocked
+- supported quiz version enforced
+- incomplete payload rejected
+- avoidance shape validated
+- save RPC is SECURITY INVOKER
+- authenticated EXECUTE enabled; anon EXECUTE disabled
+- all Beauty and legacy recommendation test tables empty after rollback
+
 Current status:
-**PRE-B1 — design gates locked; implementation not started.**
+**B1 VERIFIED — B2 READY TO START.**
 
 ---
 
