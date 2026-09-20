@@ -5257,43 +5257,112 @@ const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
 const current=()=>{const x=localStorage.getItem('velora_language');return LANGS.has(x)?x:'en';};
 const splitPrefix=s=>{const x=String(s);let i=0;while(i<x.length){const c=x.codePointAt(i);const ch=String.fromCodePoint(c);if(/[\p{L}\p{N}]/u.test(ch))break;i+=ch.length;}return [x.slice(0,i),x.slice(i)];};
 const keyOf=s=>norm(splitPrefix(norm(s))[1]);
-const CANONICAL_TEXT_MAP=Object.create(null);
+if(!window.VELORA_I18N_PROVENANCE){
+    const textCandidates=new Map();
+    const englishByKey=new Map();
+    const textSources=new WeakMap();
+    const attrSources=new WeakMap();
 
-Object.keys(PACK.en||{}).forEach(key=>{
-    const k=norm(key);
-    const v=norm(PACK.en[key]);
-    if(k) CANONICAL_TEXT_MAP[k]=key;
-    if(v) CANONICAL_TEXT_MAP[v]=key;
-});
-
-Object.keys(PACK).forEach(locale=>{
-    if(locale==='en') return;
-    const pack=PACK[locale]||{};
-    Object.keys(pack).forEach(key=>{
-        const value=norm(pack[key]);
-        if(value && CANONICAL_TEXT_MAP[value]===undefined){
-            CANONICAL_TEXT_MAP[value]=key;
+    const normValue=v=>String(v??'').replace(/\s+/g,' ').trim();
+    const splitValue=s=>{
+        const x=normValue(s);
+        let i=0;
+        while(i<x.length){
+            const cp=x.codePointAt(i);
+            const ch=String.fromCodePoint(cp);
+            if(/[\p{L}\p{N}]/u.test(ch))break;
+            i+=ch.length;
         }
-    });
+        return [x.slice(0,i),x.slice(i)];
+    };
+    const describeNode=node=>{
+        try{
+            if(!node)return null;
+            const el=node.nodeType===1?node:node.parentElement;
+            if(!el)return node.nodeName||null;
+            return {
+                tag:el.tagName,
+                id:el.id||null,
+                classes:typeof el.className==='string'?el.className.slice(0,160):null,
+                text:normValue(el.textContent||'').slice(0,200)
+            };
+        }catch(_){return null;}
+    };
+    const addCandidate=(value,canonical)=>{
+        const key=normValue(value), source=normValue(canonical);
+        if(!key||!source)return;
+        if(!textCandidates.has(key))textCandidates.set(key,new Set());
+        textCandidates.get(key).add(source);
+    };
+    const canonicalEnglish=candidates=>{
+        const values=[...candidates].map(k=>normValue(englishByKey.get(k)||k)).filter(Boolean);
+        if(!values.length)return {same:false,value:null};
+        const first=values[0];
+        return {same:values.every(v=>v===first),value:first};
+    };
+    const resolveCandidates=(raw,target,extra)=>{
+        const original=normValue(raw);
+        if(!original)return {source:original,known:false,ambiguous:false,englishFallback:null,candidates:[]};
+        const [prefix,body]=splitValue(original);
+        const candidates=new Set(textCandidates.get(original)||[]);
+        if(body&&body!==original)(textCandidates.get(body)||[]).forEach(x=>candidates.add(x));
+        const list=[...candidates];
+        if(!list.length)return {source:original,known:false,ambiguous:false,englishFallback:null,candidates:[]};
+        if(list.length===1)return {source:prefix+list[0],known:true,ambiguous:false,englishFallback:null,candidates:list};
+
+        const en=canonicalEnglish(list);
+        const safeFallback=en.same?prefix+en.value:null;
+        try{console.warn('[Velora i18n] AMBIGUOUS PROVENANCE',{
+            text:original,
+            canonicalCandidates:list,
+            target:target||null,
+            node:extra?.node?describeNode(extra.node):null,
+            attribute:extra?.attribute||null
+        });}catch(_){}
+        return {source:original,known:false,ambiguous:true,englishFallback:safeFallback,candidates:list};
+    };
+
+    window.VELORA_I18N_PROVENANCE={
+        version:'1.0.0',
+        registerCatalog(locale,dict){
+            const lang=String(locale||'en').toLowerCase();
+            Object.keys(dict||{}).forEach(key=>{
+                const canonical=normValue(key);
+                if(!canonical)return;
+                if(lang==='en'){
+                    englishByKey.set(canonical,normValue(dict[key])||canonical);
+                }else if(!englishByKey.has(canonical)){
+                    englishByKey.set(canonical,canonical);
+                }
+                addCandidate(canonical,canonical);
+                const value=normValue(dict[key]);
+                if(value)addCandidate(value,canonical);
+            });
+            return true;
+        },
+        resolve(raw,target,extra){return resolveCandidates(raw,target,extra);},
+        textSource(node,raw,target){
+            let meta=textSources.get(node);
+            if(meta===undefined){
+                meta=resolveCandidates(raw,target,{node});
+                textSources.set(node,meta);
+            }
+            return meta;
+        },
+        attrSource(el,attribute,raw,target){
+            let byAttr=attrSources.get(el);
+            if(!byAttr){byAttr=new Map();attrSources.set(el,byAttr);}
+            if(!byAttr.has(attribute))byAttr.set(attribute,resolveCandidates(raw,target,{node:el,attribute}));
+            return byAttr.get(attribute);
+        },
+        describeNode
+    };
+}
+const VELORA_I18N_PROVENANCE=window.VELORA_I18N_PROVENANCE;
+VELORA_I18N_PROVENANCE.registerCatalog('en',PACK);
+Object.keys(PACK).forEach(locale=>{
+    if(locale!=='en')VELORA_I18N_PROVENANCE.registerCatalog(locale,PACK[locale]);
 });
-
-const canonicalTextSource=raw=>{
-    const s=norm(raw);
-    if(!s) return {source:s,known:false};
-
-    const direct=CANONICAL_TEXT_MAP[s];
-    if(direct!==undefined){
-        return {source:direct,known:true};
-    }
-
-    const [prefix,body]=splitPrefix(s);
-    const canonical=CANONICAL_TEXT_MAP[norm(body)];
-    if(canonical!==undefined){
-        return {source:prefix+canonical,known:true};
-    }
-
-    return {source:s,known:false};
-};
 
 const trSrc=(src,lang)=>{
     const d=PACK[lang]||PACK.en;
@@ -5322,8 +5391,7 @@ function render(root=document){
     document.documentElement.lang=lang;
     document.documentElement.dir=DIR[lang]||'ltr';
     const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-    const nodes=[];
-    let n;
+    const nodes=[]; let n;
     while((n=w.nextNode()))nodes.push(n);
 
     for(const node of nodes){
@@ -5331,46 +5399,107 @@ function render(root=document){
         if(!p||/^(SCRIPT|STYLE|NOSCRIPT|OPTION|SVG|PATH)$/i.test(p.tagName))continue;
         const raw=String(node.nodeValue||'');
         if(!raw.trim())continue;
-
-        if(node.__veloraI18nSource===undefined){
-            const meta=canonicalTextSource(raw);
-            node.__veloraI18nSource=meta.source;
-            node.__veloraI18nKnown=meta.known;
-        }
-
-        const source=node.__veloraI18nSource;
-        const translated=trSrc(source,lang);
+        const meta=VELORA_I18N_PROVENANCE.textSource(node,raw,lang);
         const lead=raw.match(/^\s*/)?.[0]||'';
         const trail=raw.match(/\s*$/)?.[0]||'';
 
-        if(translated!==null){
-            node.nodeValue=lead+translated+trail;
-        }else if(node.__veloraI18nKnown){
-            node.nodeValue=lead+source+trail;
-        }else if(lang==='en'){
-            node.nodeValue=lead+source+trail;
+        if(meta.ambiguous){
+            if(meta.englishFallback)node.nodeValue=lead+meta.englishFallback+trail;
+            continue;
         }
+
+        const translated=trSrc(meta.source,lang);
+        if(translated!==null)node.nodeValue=lead+translated+trail;
+        else if(meta.known&&lang==='en')node.nodeValue=lead+meta.source+trail;
     }
 
-    const els=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
+    const rootQuery=root.querySelectorAll?root:document;
+    const els=rootQuery.querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
     for(const el of els){
         for(const attr of ['placeholder','title','aria-label']){
             if(!el.hasAttribute(attr))continue;
+            const raw=el.getAttribute(attr)||'';
+            const meta=VELORA_I18N_PROVENANCE.attrSource(el,attr,raw,lang);
             const slot='data-velora-i18n-'+attr;
-            if(!el.hasAttribute(slot))el.setAttribute(slot,norm(el.getAttribute(attr)||''));
-            const src=el.getAttribute(slot);
-            const translated=trSrc(src,lang);
+            if(!el.hasAttribute(slot))el.setAttribute(slot,norm(raw));
+            else if(meta.known)el.setAttribute(slot,norm(meta.source));
+
+            if(meta.ambiguous){
+                if(meta.englishFallback)el.setAttribute(attr,meta.englishFallback);
+                continue;
+            }
+            const translated=trSrc(meta.source,lang);
             if(translated!==null)el.setAttribute(attr,translated);
-            else if(lang==='en')el.setAttribute(attr,src);
+            else if(meta.known&&lang==='en')el.setAttribute(attr,meta.source);
         }
     }
 }
+
 async function client(){return window.mahaSupabase||window.supabaseClient||window.sb||null;}
 async function pref(){try{const c=await client();if(!c?.rpc)return null;const r=await c.rpc('velora_get_language_preference');const v=String(r?.data||'');if(LANGS.has(v)){localStorage.setItem('velora_language',v);return v;}}catch(_){ }return null;}
 async function overrides(lang){try{const c=await client();if(!c?.from)return {};const r=await c.from('velora_translation_overrides').select('source_text,translated_text').eq('locale',lang).eq('is_active',true);if(r.error||!Array.isArray(r.data))return {};const o={};r.data.forEach(x=>{if(x?.source_text&&x?.translated_text)o[norm(x.source_text)]=x.translated_text;});return o;}catch(_){return {};}}
-async function setLang(code){if(!LANGS.has(code))return false;localStorage.setItem('velora_language',code);try{const c=await client();if(c?.rpc)c.rpc('velora_set_language_preference',{p_locale:code});}catch(_){ }const old=PACK[code];const o=await overrides(code);if(Object.keys(o).length)PACK[code]=Object.assign({},old,o);render(document);if(Object.keys(o).length)PACK[code]=old;const s=document.getElementById('languageSelect');if(s)s.value=code;return true;}
+async function setLang(code){
+    if(!LANGS.has(code))return false;
+    if(window.VELORA_I18N_V5_PRESENT===true&&window.VELORA_I18N_V5_FAILED!==true)return false;
+    localStorage.setItem('velora_language',code);
+    try{
+        const c=await client();
+        if(c?.rpc)c.rpc('velora_set_language_preference',{p_locale:code});
+    }catch(_){}
+    const old=PACK[code];
+    const o=await overrides(code);
+    if(Object.keys(o).length)PACK[code]=Object.assign({},old,o);
+    try{VELORA_I18N_PROVENANCE.registerCatalog(code,PACK[code]||{});}catch(_){}
+    render(document);
+    if(Object.keys(o).length)PACK[code]=old;
+    const s=document.getElementById('languageSelect');if(s)s.value=code;
+    return true;
+}
+
 function style(){if(document.getElementById('velora-i18n-v4-style'))return;const st=document.createElement('style');st.id='velora-i18n-v4-style';st.textContent='#languageSelect option,#currencySelect option{background:#0f172a!important;color:#fff!important}';document.head.appendChild(st);}
-async function boot(){style();const p=await pref();const s=document.getElementById('languageSelect');if(s)s.value=p||current();render(document);const lang=current();const old=PACK[lang];const o=await overrides(lang);if(Object.keys(o).length){PACK[lang]=Object.assign({},old,o);render(document);PACK[lang]=old;}const ob=new MutationObserver(m=>{if(m.some(x=>x.type==='childList'&&x.addedNodes.length))setTimeout(()=>render(document),0);});if(document.body)ob.observe(document.body,{childList:true,subtree:true});}
+let __VELORA_V4_FALLBACK_OBSERVER=null;
+
+window.VELORA_I18N_ACTIVATE_FALLBACK=function(){
+    if(window.VELORA_I18N_V5_PRESENT===true&&window.VELORA_I18N_V5_FAILED!==true)return false;
+    if(!window.VELORA_I18N_V4_FALLBACK_ACTIVE){
+        window.VELORA_I18N_V4_FALLBACK_ACTIVE=true;
+    }
+    try{render(document);}catch(e){console.warn('[Velora i18n] V4 fallback render error',e);}
+    if(!__VELORA_V4_FALLBACK_OBSERVER){
+        __VELORA_V4_FALLBACK_OBSERVER=new MutationObserver(ms=>{
+            if(!window.VELORA_I18N_V4_FALLBACK_ACTIVE)return;
+            const frag=[];
+            ms.forEach(m=>m.addedNodes?.forEach(n=>{if(n.nodeType===1)frag.push(n);}));
+            if(frag.length)frag.forEach(n=>{try{render(n);}catch(e){console.warn('[Velora i18n] V4 fallback observer error',e);}});
+        });
+    }
+    try{
+        __VELORA_V4_FALLBACK_OBSERVER.disconnect();
+        if(document.body)__VELORA_V4_FALLBACK_OBSERVER.observe(document.body,{subtree:true,childList:true});
+    }catch(e){console.warn('[Velora i18n] V4 fallback observer setup error',e);}
+    return true;
+};
+
+async function boot(){
+    if(window.VELORA_I18N_V5_PRESENT===true&&window.VELORA_I18N_V5_FAILED!==true)return;
+    style();
+    const p=await pref();
+    const s=document.getElementById('languageSelect');if(s)s.value=p||current();
+    try{
+        render(document);
+        const lang=current(),old=PACK[lang],o=await overrides(lang);
+        if(Object.keys(o).length){
+            PACK[lang]=Object.assign({},old,o);
+            VELORA_I18N_PROVENANCE.registerCatalog(lang,PACK[lang]||{});
+            render(document);
+            PACK[lang]=old;
+        }
+    }catch(e){
+        console.warn('[Velora i18n] V4 fallback boot error',e);
+    }
+    if(window.VELORA_I18N_V5_FAILED===true||window.VELORA_I18N_V5_PRESENT!==true)window.VELORA_I18N_ACTIVATE_FALLBACK();
+}
+
 window.VELORA_I18N_SET_LANGUAGE=setLang;window.VELORA_I18N_RENDER=render;window.VELORA_I18N=PACK;window.VELORA_I18N_VERSION='5.0';window.setVeloraLanguage=setLang;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
@@ -5381,28 +5510,36 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
    runtime. This bridge intentionally overrides legacy handlers.
    ============================================================ */
 window.setVeloraLanguage = async function(code){
-  const lang = String(code || '').toLowerCase();
-  try {
-    if (typeof window.VELORA_I18N_SET_LANGUAGE === 'function') {
-      const ok = await window.VELORA_I18N_SET_LANGUAGE(lang);
-      if (ok) return true;
+  const lang=String(code||'').toLowerCase();
+
+  if(window.VELORA_I18N_V5_PRESENT===true&&window.VELORA_I18N_V5_FAILED!==true){
+    try{
+      if(typeof window.VELORA_V5_SET_LANGUAGE==='function')return !!(await window.VELORA_V5_SET_LANGUAGE(lang));
+    }catch(_){}
+    return false;
+  }
+
+  try{
+    if(typeof window.VELORA_I18N_SET_LANGUAGE==='function'){
+      const ok=await window.VELORA_I18N_SET_LANGUAGE(lang);
+      if(ok)return true;
     }
-  } catch (_) {}
-  const core = window.VELORA_CORE?.languages;
-  if (!core?.[lang]) return false;
-  try {
-    localStorage.setItem('velora_language', lang);
-    document.documentElement.lang = lang;
-    document.documentElement.dir = core[lang].dir || 'ltr';
-    const el = document.getElementById('languageSelect');
-    if (el) el.value = lang;
-    if (typeof window.VELORA_I18N_RENDER === 'function') window.VELORA_I18N_RENDER(document);
+  }catch(_){}
+
+  const core=window.VELORA_CORE?.languages;
+  if(!core?.[lang])return false;
+  try{
+    localStorage.setItem('velora_language',lang);
+    document.documentElement.lang=lang;
+    document.documentElement.dir=core[lang].dir||'ltr';
+    const el=document.getElementById('languageSelect');if(el)el.value=lang;
+    if(typeof window.VELORA_I18N_ACTIVATE_FALLBACK==='function')window.VELORA_I18N_ACTIVATE_FALLBACK();
+    if(typeof window.VELORA_I18N_RENDER==='function')window.VELORA_I18N_RENDER(document);
     return true;
-  } catch (_) { return false; }
+  }catch(_){return false;}
 };
 
-
-function getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
+function getVeloraDisplayCurrencyfunction getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
 function getSellerCurrency(seller){ return (seller && VELORA_CURRENCY_META[seller.currency]) ? seller.currency : getVeloraDisplayCurrency(); }
 function formatSellerPrice(value,seller){ return formatPrice(value,getSellerCurrency(seller)); }
 function saveSeller(seller){
