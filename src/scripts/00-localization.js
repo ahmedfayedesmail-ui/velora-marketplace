@@ -5539,7 +5539,7 @@ window.setVeloraLanguage = async function(code){
   }catch(_){return false;}
 };
 
-function getVeloraDisplayCurrencyfunction getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
+function getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
 function getSellerCurrency(seller){ return (seller && VELORA_CURRENCY_META[seller.currency]) ? seller.currency : getVeloraDisplayCurrency(); }
 function formatSellerPrice(value,seller){ return formatPrice(value,getSellerCurrency(seller)); }
 function saveSeller(seller){
