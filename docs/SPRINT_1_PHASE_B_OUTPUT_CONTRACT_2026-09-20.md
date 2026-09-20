@@ -178,3 +178,25 @@ No silent contract mutation.
 - No medical/diagnostic language.
 - No legacy `public.recommendation_runs` reuse.
 - No commercial ranking or pricing decisions.
+
+
+## 10. B5 Persisted Read Contract
+
+Persisted recommendation history is exposed through the separate authenticated read contract:
+
+`beauty-recommendation-read.v1`
+
+Canonical operation:
+
+`public.velora_get_beauty_recommendation_history(p_limit integer default 10)`
+
+The read operation derives customer identity from the active Auth context and RLS. It does not accept an owner UUID.
+
+The persisted read contract intentionally excludes internal calculation fields such as:
+
+- `input_snapshot`
+- `input_fingerprint`
+- rate-limit ledger state
+- cache-hit execution state
+
+The Recommendation Calculation contract `beauty-recommendation.v1` remains unchanged.
