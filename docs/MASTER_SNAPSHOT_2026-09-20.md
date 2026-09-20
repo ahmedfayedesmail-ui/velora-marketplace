@@ -79,7 +79,7 @@ Status:
 | F-003 Desktop Scroll | Source fix deployed; browser verification pending |
 | F-004 Screen Consistency | Source fix deployed; browser verification pending |
 | FIND-BE-020 Dark Mode | Source fix deployed; browser verification pending |
-| FIND-BE-023 Console Errors | OPEN; source/network correlation required |
+| FIND-BE-023 Console Errors | OPEN; source audit complete, browser correlation required |
 | FIND-BE-015 Checkout submit/order creation | OPEN; authenticated browser gate |
 | F-008 Currency | TEMPORARY; EGP-first Phase 1 model |
 | FIND-BE-008 Variant UI | DEFERRED |
@@ -142,6 +142,10 @@ Plus:
 No browser result should be inferred from source-level fixes.
 
 ---
+
+## FIND-BE-023 Source Audit
+
+Recorded in `docs/FIND_BE_023_SOURCE_AUDIT_2026-09-20.md`. Restore-Test function privileges do not support a generic missing-EXECUTE explanation for the reported 401s. No speculative suppression or listener removal was applied.
 
 ## Production Control
 
