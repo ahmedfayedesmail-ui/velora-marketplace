@@ -237,7 +237,7 @@
     "order": 39,
     "file": "39-payments.js",
     "id": "script-39",
-    "chars": 6066
+    "chars": 5869
   },
   {
     "order": 40,
@@ -340,5 +340,11 @@
     "file": "56-s2d-admin.js",
     "id": "s2d-admin",
     "chars": 9863
+  },
+  {
+    "order": 57,
+    "file": "57-s2-checkout-e2e.js",
+    "id": "s2-checkout-e2e",
+    "chars": 9707
   }
 ]
