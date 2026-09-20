@@ -100,4 +100,5 @@ end;
 $$;
 
 revoke all on function public.velora_save_beauty_profile(text,text,text,text,text,jsonb,text) from public;
+revoke execute on function public.velora_save_beauty_profile(text,text,text,text,text,jsonb,text) from anon;
 grant execute on function public.velora_save_beauty_profile(text,text,text,text,text,jsonb,text) to authenticated;
