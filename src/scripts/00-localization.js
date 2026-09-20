@@ -3067,6 +3067,11 @@ function renderCartSidebar() {
     if (!body || !footer) return;
 
     if (STATE.cart.length === 0) {
+        if (window.__VELORA_CHECKOUT_CART_SYNCING === true) {
+            formContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading checkout</h3><p>Syncing your cart…</p></div>';
+            summaryContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div><p>Preparing your order summary…</p></div>';
+            return;
+        }
         body.innerHTML = `
             <div class="cart-empty">
                 <div class="empty-icon">🛒</div>
@@ -11496,8 +11501,12 @@ console.log('✅ Analytics + Events + Audit loaded!');
       await loadMarketContext();
       await loadRelevantCurrencies();
       await loadCanonicalCatalog({limit:48});
-      if (typeof window.renderCheckoutPage === 'function' && document.getElementById('page-checkout')?.classList.contains('active')) {
-        window.renderCheckoutPage();
+      if (document.getElementById('page-checkout')?.classList.contains('active')) {
+        if (typeof window.veloraEnsureCheckoutCartReady === 'function') {
+          window.veloraEnsureCheckoutCartReady();
+        } else if (typeof window.renderCheckoutPage === 'function') {
+          window.renderCheckoutPage();
+        }
       }
     } catch (err) {
       console.warn('Velora Stage 7 boot:', err);
@@ -11724,8 +11733,11 @@ console.log('✅ Analytics + Events + Audit loaded!');
   window.veloraEnsureCheckoutCartReady = async function(){
     if(STATE.currentPage!=='checkout') return;
 
+    window.__VELORA_CHECKOUT_CART_SYNCING = true;
+
     const cacheFresh = (Date.now()-checkoutCartCacheAt) < CHECKOUT_CART_CACHE_MS;
     if(cacheFresh){
+      window.__VELORA_CHECKOUT_CART_SYNCING = false;
       renderCheckoutPage();
       return;
     }
@@ -11733,6 +11745,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     renderCheckoutLoadingState();
 
     if(typeof window.veloraSyncCloudCart!=='function'){
+      window.__VELORA_CHECKOUT_CART_SYNCING = false;
       renderCheckoutPage();
       return;
     }
@@ -11741,6 +11754,8 @@ console.log('✅ Analytics + Events + Audit loaded!');
       syncCheckoutCartOnce(),
       CHECKOUT_CART_SYNC_TIMEOUT_MS
     );
+
+    window.__VELORA_CHECKOUT_CART_SYNCING = false;
 
     if(result.timedOut || result.value!==true){
       // Fall back to the local STATE.cart after 5s or on sync failure.
