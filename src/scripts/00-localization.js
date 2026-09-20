@@ -5257,8 +5257,114 @@ const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
 const current=()=>{const x=localStorage.getItem('velora_language');return LANGS.has(x)?x:'en';};
 const splitPrefix=s=>{const x=String(s);let i=0;while(i<x.length){const c=x.codePointAt(i);const ch=String.fromCodePoint(c);if(/[\p{L}\p{N}]/u.test(ch))break;i+=ch.length;}return [x.slice(0,i),x.slice(i)];};
 const keyOf=s=>norm(splitPrefix(norm(s))[1]);
-const trSrc=(src,lang)=>{const d=PACK[lang]||PACK.en;const s=norm(src);if(d[s]!==undefined)return d[s];const [prefix,body]=splitPrefix(s);const k=norm(body);if(d[k]!==undefined)return prefix+d[k];const m=k.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);if(m&&d[m[2]]!==undefined)return `${m[1]} ${d[m[2]]}`;return null;};
-function render(root=document){const lang=current();document.documentElement.lang=lang;document.documentElement.dir=DIR[lang]||'ltr';const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];let n;while((n=w.nextNode()))nodes.push(n);for(const node of nodes){const p=node.parentElement;if(!p||/^(SCRIPT|STYLE|NOSCRIPT|OPTION|SVG|PATH)$/i.test(p.tagName))continue;const raw=String(node.nodeValue||'');if(!raw.trim())continue;if(node.__veloraI18nSource===undefined)node.__veloraI18nSource=norm(raw);const source=node.__veloraI18nSource;const translated=trSrc(source,lang);const lead=raw.match(/^\s*/)?.[0]||'';const trail=raw.match(/\s*$/)?.[0]||'';if(translated!==null)node.nodeValue=lead+translated+trail;else if(lang==='en')node.nodeValue=lead+source+trail;}const els=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];for(const el of els){for(const attr of ['placeholder','title','aria-label']){if(!el.hasAttribute(attr))continue;const slot='data-velora-i18n-'+attr;if(!el.hasAttribute(slot))el.setAttribute(slot,norm(el.getAttribute(attr)||''));const src=el.getAttribute(slot);const translated=trSrc(src,lang);if(translated!==null)el.setAttribute(attr,translated);else if(lang==='en')el.setAttribute(attr,src);}}}
+const CANONICAL_TEXT_MAP=Object.create(null);
+
+Object.keys(PACK.en||{}).forEach(key=>{
+    const k=norm(key);
+    const v=norm(PACK.en[key]);
+    if(k) CANONICAL_TEXT_MAP[k]=key;
+    if(v) CANONICAL_TEXT_MAP[v]=key;
+});
+
+Object.keys(PACK).forEach(locale=>{
+    if(locale==='en') return;
+    const pack=PACK[locale]||{};
+    Object.keys(pack).forEach(key=>{
+        const value=norm(pack[key]);
+        if(value && CANONICAL_TEXT_MAP[value]===undefined){
+            CANONICAL_TEXT_MAP[value]=key;
+        }
+    });
+});
+
+const canonicalTextSource=raw=>{
+    const s=norm(raw);
+    if(!s) return {source:s,known:false};
+
+    const direct=CANONICAL_TEXT_MAP[s];
+    if(direct!==undefined){
+        return {source:direct,known:true};
+    }
+
+    const [prefix,body]=splitPrefix(s);
+    const canonical=CANONICAL_TEXT_MAP[norm(body)];
+    if(canonical!==undefined){
+        return {source:prefix+canonical,known:true};
+    }
+
+    return {source:s,known:false};
+};
+
+const trSrc=(src,lang)=>{
+    const d=PACK[lang]||PACK.en;
+    const en=PACK.en||{};
+    const s=norm(src);
+    if(d[s]!==undefined)return d[s];
+
+    const [prefix,body]=splitPrefix(s);
+    const k=norm(body);
+    if(d[k]!==undefined)return prefix+d[k];
+
+    const m=k.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+    if(m&&d[m[2]]!==undefined)return `${m[1]} ${d[m[2]]}`;
+
+    /* Missing target translation must never retain a previous locale.
+       Fall back to canonical English instead. */
+    if(en[s]!==undefined)return en[s];
+    if(en[k]!==undefined)return prefix+en[k];
+    if(m&&en[m[2]]!==undefined)return `${m[1]} ${en[m[2]]}`;
+
+    return null;
+};
+
+function render(root=document){
+    const lang=current();
+    document.documentElement.lang=lang;
+    document.documentElement.dir=DIR[lang]||'ltr';
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    const nodes=[];
+    let n;
+    while((n=w.nextNode()))nodes.push(n);
+
+    for(const node of nodes){
+        const p=node.parentElement;
+        if(!p||/^(SCRIPT|STYLE|NOSCRIPT|OPTION|SVG|PATH)$/i.test(p.tagName))continue;
+        const raw=String(node.nodeValue||'');
+        if(!raw.trim())continue;
+
+        if(node.__veloraI18nSource===undefined){
+            const meta=canonicalTextSource(raw);
+            node.__veloraI18nSource=meta.source;
+            node.__veloraI18nKnown=meta.known;
+        }
+
+        const source=node.__veloraI18nSource;
+        const translated=trSrc(source,lang);
+        const lead=raw.match(/^\s*/)?.[0]||'';
+        const trail=raw.match(/\s*$/)?.[0]||'';
+
+        if(translated!==null){
+            node.nodeValue=lead+translated+trail;
+        }else if(node.__veloraI18nKnown){
+            node.nodeValue=lead+source+trail;
+        }else if(lang==='en'){
+            node.nodeValue=lead+source+trail;
+        }
+    }
+
+    const els=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
+    for(const el of els){
+        for(const attr of ['placeholder','title','aria-label']){
+            if(!el.hasAttribute(attr))continue;
+            const slot='data-velora-i18n-'+attr;
+            if(!el.hasAttribute(slot))el.setAttribute(slot,norm(el.getAttribute(attr)||''));
+            const src=el.getAttribute(slot);
+            const translated=trSrc(src,lang);
+            if(translated!==null)el.setAttribute(attr,translated);
+            else if(lang==='en')el.setAttribute(attr,src);
+        }
+    }
+}
 async function client(){return window.mahaSupabase||window.supabaseClient||window.sb||null;}
 async function pref(){try{const c=await client();if(!c?.rpc)return null;const r=await c.rpc('velora_get_language_preference');const v=String(r?.data||'');if(LANGS.has(v)){localStorage.setItem('velora_language',v);return v;}}catch(_){ }return null;}
 async function overrides(lang){try{const c=await client();if(!c?.from)return {};const r=await c.from('velora_translation_overrides').select('source_text,translated_text').eq('locale',lang).eq('is_active',true);if(r.error||!Array.isArray(r.data))return {};const o={};r.data.forEach(x=>{if(x?.source_text&&x?.translated_text)o[norm(x.source_text)]=x.translated_text;});return o;}catch(_){return {};}}
