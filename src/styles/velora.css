@@ -1740,6 +1740,8 @@ ul { list-style: none; }
     padding: 1.5rem;
     position: sticky;
     top: 100px;
+    min-width: 0;
+    width: 100%;
 }
 
 .order-summary h3 {
