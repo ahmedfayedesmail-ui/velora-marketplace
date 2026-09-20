@@ -128,7 +128,12 @@ async function setLang(code){
   try{
     localStorage.setItem('velora_language',code);
     const c=getDb();
-    if(c?.rpc)await c.rpc('velora_set_language_preference',{p_locale:code});
+    if(c?.rpc){
+      try{
+        const s=await c.auth?.getSession?.();
+        if(s?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
+      }catch(_){}
+    }
     state.locale=code;
     const s=document.getElementById('languageSelect');if(s)s.value=code;
     await applyLocale(code);
