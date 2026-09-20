@@ -168,7 +168,7 @@
     }
 
     state.loading=true;
-    renderBell();
+    if(!document.getElementById('notifBell')) renderBell();
     renderList();
 
     try{
@@ -184,7 +184,8 @@
       state.unread=Number(results[1].data||0);
       state.loading=false;
 
-      renderBell();
+      if(!document.getElementById('notifBell')) renderBell();
+      renderBadge();
       renderList();
     }catch(err){
       state.loading=false;
