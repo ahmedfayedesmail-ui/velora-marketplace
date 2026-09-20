@@ -24,7 +24,8 @@ async function v39Load(){
  v39El('v39Refresh')?.addEventListener('click',v39Load);
 }
 function v39Install(){
- let admin=document.querySelector('[data-page="seller-operations"],#page-seller-operations,#page-seller')||document.body;
+ let admin=document.querySelector('[data-page="seller-operations"],#page-seller-operations,#page-seller');
+ if(!admin || (admin.classList.contains('page') && !admin.classList.contains('active')))return;
  if(document.getElementById('veloraSellerOps39'))return;
  const wrap=document.createElement('div');wrap.id='veloraSellerOps39';
  const title=document.createElement('div');title.innerHTML='<h2 style="margin:0 0 8px">🏪 Seller Command Center</h2><div class="velora-seller39-muted">Seller-scoped operations, catalog health, order flow and earnings signals.</div>';
