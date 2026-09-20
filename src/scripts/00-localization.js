@@ -11717,7 +11717,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     if(checkoutCartSyncPromise) return checkoutCartSyncPromise;
     checkoutCartSyncPromise = syncCloudCartFromServer()
       .then(ok=>{
-        checkoutCartCacheAt=Date.now();
+        checkoutCartCacheAt=ok===true ? Date.now() : 0;
         checkoutCartCacheOk=ok===true;
         if(ok===true && STATE.currentPage==='checkout' && typeof renderCheckoutPage==='function'){
           renderCheckoutPage();
@@ -11725,7 +11725,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
         return ok===true;
       })
       .catch(()=>{
-        checkoutCartCacheAt=Date.now();
+        checkoutCartCacheAt=0;
         checkoutCartCacheOk=false;
         return false;
       })
@@ -11738,7 +11738,8 @@ console.log('✅ Analytics + Events + Audit loaded!');
 
     window.__VELORA_CHECKOUT_CART_SYNCING = true;
 
-    const cacheFresh = (Date.now()-checkoutCartCacheAt) < CHECKOUT_CART_CACHE_MS;
+    const cacheFresh = checkoutCartCacheOk === true &&
+      (Date.now()-checkoutCartCacheAt) < CHECKOUT_CART_CACHE_MS;
     if(cacheFresh){
       window.__VELORA_CHECKOUT_CART_SYNCING = false;
       renderCheckoutPage();
