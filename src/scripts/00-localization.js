@@ -11719,6 +11719,9 @@ console.log('✅ Analytics + Events + Audit loaded!');
       .then(ok=>{
         checkoutCartCacheAt=Date.now();
         checkoutCartCacheOk=ok===true;
+        if(ok===true && STATE.currentPage==='checkout' && typeof renderCheckoutPage==='function'){
+          renderCheckoutPage();
+        }
         return ok===true;
       })
       .catch(()=>{
@@ -11796,7 +11799,6 @@ console.log('✅ Analytics + Events + Audit loaded!');
       updateCartBadge();
       if(typeof renderCartSidebar==='function') renderCartSidebar();
       if(typeof renderCartPage==='function' && STATE.currentPage==='cart') renderCartPage();
-      if(typeof renderCheckoutPage==='function' && STATE.currentPage==='checkout') renderCheckoutPage();
       return true;
     }catch(err){
       console.warn('Velora cloud cart sync:',err);
@@ -11940,7 +11942,10 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function bootCloudCommerce(){
     const user=await currentUser();
     if(!user) return;
-    await syncCloudCartFromServer();
+    // Use the same in-flight/cache-aware cart sync used by Checkout.
+    // This prevents an independent background sync from racing the
+    // Checkout render path and repopulating STATE.cart too late.
+    await syncCheckoutCartOnce();
     await syncCloudWishlist();
   }
 
