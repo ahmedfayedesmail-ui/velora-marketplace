@@ -180,24 +180,27 @@ function __veloraFixHeroCore(locale){
 
 window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(source,locale);
 
+let observerRunning=false;
 const observer=new MutationObserver(ms=>{
+  if(observerRunning)return;
   if(document.documentElement.dataset.veloraI18nBusy==='1')return;
   if(!ms.some(m=>(m.type==='childList'&&m.addedNodes.length)||(m.type==='characterData'&&m.target)))return;
+
+  observerRunning=true;
+  observer.disconnect();
+
   try{
-    setTimeout(()=>{
-      try{translateDom(document);}
-      catch(e){
-        window.VELORA_I18N_V5_READY=false;
-        window.VELORA_I18N_V5_FAILED=true;
-        console.warn('[Velora i18n] V5 observer failure; activating V4 fallback',e);
-        try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
-      }
-    },0);
+    translateDom(document);
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 observer schedule failure; activating V4 fallback',e);
+    console.warn('[Velora i18n] V5 observer failure; activating V4 fallback',e);
     try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
+  }finally{
+    observerRunning=false;
+    if(document.body){
+      observer.observe(document.body,{childList:true,subtree:true});
+    }
   }
 });
 
