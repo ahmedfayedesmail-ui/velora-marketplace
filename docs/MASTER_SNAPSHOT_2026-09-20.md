@@ -174,7 +174,7 @@ Evidence:
 `docs/SPRINT_1_PHASE_B_B1_EVIDENCE_2026-09-20.md`
 
 Implementation:
-- `supabase/migrations/20260920235000_s1_b1_beauty_passport_save_rpc.sql`
+- `supabase/migrations/20260920200702_s1_b1_beauty_passport_save_rpc.sql`
 - `src/scripts/58-s1-b1-beauty-passport.js`
 - `src/index.html`
 - `docs/SCRIPT_MANIFEST.json`
