@@ -114,11 +114,18 @@ async function applyLocale(locale){
   window.VELORA_GLOBAL_LOCALE = locale;
   await loadDbCatalog(locale);
   if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
-  translateDom(document);
-  try{ __veloraFixHeroCore(locale); }catch(_){}
+
+  // Render locale-sensitive dynamic surfaces first, then translate the final DOM.
+  // This prevents fresh English/previous-locale nodes from surviving after a switch.
   try{ if(typeof renderCategories==='function') renderCategories(); }catch(_){}
   try{ if(typeof renderFeaturedProducts==='function') renderFeaturedProducts(); }catch(_){}
   try{ if(typeof renderShopProducts==='function' && document.getElementById('shopProducts')) renderShopProducts(); }catch(_){}
+
+  translateDom(document);
+  try{ __veloraFixHeroCore(locale); }catch(_){}
+  // Final pass covers DOM mutations performed by the renderers above.
+  translateDom(document);
+
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
   window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
 }
@@ -175,7 +182,7 @@ window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(sourc
 
 const observer=new MutationObserver(ms=>{
   if(document.documentElement.dataset.veloraI18nBusy==='1')return;
-  if(!ms.some(m=>m.type==='childList'&&m.addedNodes.length))return;
+  if(!ms.some(m=>(m.type==='childList'&&m.addedNodes.length)||(m.type==='characterData'&&m.target)))return;
   try{
     setTimeout(()=>{
       try{translateDom(document);}
