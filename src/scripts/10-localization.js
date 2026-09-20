@@ -129,6 +129,7 @@
       hi:{'Discover More.':'और खोजें।','Shop Better.':'बेहतर खरीदारी करें।','Everything you need, from stores you can trust.':'भरोसेमंद स्टोर्स से आपकी ज़रूरत की हर चीज़।','Track your orders':'अपने ऑर्डर ट्रैक करें'}
     };
     window.VELORA_EXTRA_I18N = extra;
+    const __VELORA_EXTRA_TEXT_SOURCES = new WeakMap();
     window.VELORA_APPLY_EXTRA_I18N = function(){
       const lang=(typeof getVeloraLanguage==='function'?getVeloraLanguage():(localStorage.getItem('velora_language')||'en'));
       const dict=extra[lang]||extra.en;
@@ -137,11 +138,15 @@
       nodes.forEach(node=>{
         const parent=node.parentElement;
         if(!parent || /^(SCRIPT|STYLE|NOSCRIPT|OPTION)$/i.test(parent.tagName)) return;
-        const raw=String(parent.dataset.veloraBaseText || node.nodeValue || '').replace(/\s+/g,' ').trim();
-        if(!raw || raw.length>180) return;
-        if(!parent.dataset.veloraBaseText) parent.dataset.veloraBaseText=raw;
-        const base=parent.dataset.veloraBaseText;
-        if(dict[base] && node.nodeValue.trim()!==dict[base]) node.nodeValue=node.nodeValue.replace(node.nodeValue.trim(),dict[base]);
+        let base=__VELORA_EXTRA_TEXT_SOURCES.get(node);
+        if(base===undefined){
+          base=String(node.nodeValue || '').replace(/\s+/g,' ').trim();
+          __VELORA_EXTRA_TEXT_SOURCES.set(node,base);
+        }
+        if(!base || base.length>180) return;
+        if(dict[base] && node.nodeValue.trim()!==dict[base]){
+          node.nodeValue=node.nodeValue.replace(node.nodeValue.trim(),dict[base]);
+        }
       });
     };
     window.addEventListener('velora:languagechange',()=>setTimeout(window.VELORA_APPLY_EXTRA_I18N,0));
