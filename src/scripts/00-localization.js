@@ -11209,6 +11209,8 @@ console.log('✅ Analytics + Events + Audit loaded!');
   const client = window.mahaSupabase;
   if(!client) return;
 
+  const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+
   function normalizeCanonicalProduct(row){
     if(!row) return null;
     const price = Number(row.display_price ?? row.price ?? row.seller_price ?? 0);
