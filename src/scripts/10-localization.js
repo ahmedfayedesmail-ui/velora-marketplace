@@ -138,6 +138,7 @@
       nodes.forEach(node=>{
         const parent=node.parentElement;
         if(!parent || /^(SCRIPT|STYLE|NOSCRIPT|OPTION)$/i.test(parent.tagName)) return;
+        if(parent.closest('.hero-title')) return;
         let base=__VELORA_EXTRA_TEXT_SOURCES.get(node);
         if(base===undefined){
           base=String(node.nodeValue || '').replace(/\s+/g,' ').trim();
