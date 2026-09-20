@@ -1,3 +1,39 @@
+
+/* Sprint 3 source hardening: prevent fixed secondary tracks from creating desktop overflow. */
+.checkout-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+}
+#cartContent > div[style*="grid-template-columns"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px) !important;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.page > .container,
+.page-hero,
+.checkout-grid > *,
+#cartContent > * {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Dark-mode form/readability hardening. */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .sort-select,
+[data-theme="dark"] .compare-search-input {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--border);
+    color-scheme: dark;
+}
+[data-theme="dark"] option {
+    background: var(--card);
+    color: var(--text);
+}
+
 /* ================================================================
    Extracted style block 0: velora-marketplace-foundation
    ================================================================ */
