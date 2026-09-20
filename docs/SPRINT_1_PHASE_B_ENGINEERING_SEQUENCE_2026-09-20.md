@@ -78,7 +78,9 @@ The browser does not submit:
 - catalog revisions;
 - owner UUIDs.
 
-### B6 — Regression — REQUIRED BEFORE PHASE CLOSE
+### B6 — Regression — NEXT / REQUIRED BEFORE PHASE CLOSE
+
+B5 read hardening is now verified.
 
 Re-run:
 - Beauty table RLS positive/negative tests;
@@ -108,4 +110,7 @@ Therefore:
 
 ## Current status
 
-**B1 VERIFIED + B2 VERIFIED — B5/B6 regression remains.**
+**B1 VERIFIED + B2 VERIFIED + B5 VERIFIED — B6 regression remains before Phase B close.**
+
+FIND-BE-029 remains **OPEN / HIGH / ARCHITECTURAL** for Phase C.
+
