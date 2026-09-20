@@ -5,7 +5,7 @@
 **Target test environment:** Restore-Test (`arlaxqmhtvjwjbjinjfw`)  
 **Production:** **FROZEN — no Production changes authorized**  
 **Phase:** Sprint 1 Beauty MVP — Phase A  
-**Status:** DESIGN / REVIEWABLE — **no database migration applied**
+**Status:** IMPLEMENTED / VERIFIED — Restore-Test only
 
 ---
 
@@ -14,8 +14,8 @@
 The Beauty MVP will use exactly four new domain tables:
 
 1. `beauty_profiles`
-2. `recommendation_runs`
-3. `recommendation_items`
+2. `beauty_recommendation_runs`
+3. `beauty_recommendation_items`
 4. `beauty_feedback`
 
 Existing commerce tables remain authoritative:
@@ -174,8 +174,8 @@ Preferred implementation:
 | Table | anon | authenticated customer | staff |
 |---|---|---|---|
 | `beauty_profiles` | none | SELECT/INSERT/UPDATE own | explicit operational read only if required |
-| `recommendation_runs` | none | SELECT own | explicit operational read if required |
-| `recommendation_items` | none | SELECT items belonging to own runs | explicit operational read if required |
+| `beauty_recommendation_runs` | none | SELECT own | explicit operational read if required |
+| `beauty_recommendation_items` | none | SELECT items belonging to own runs | explicit operational read if required |
 | `beauty_feedback` | none | SELECT/INSERT own | SELECT moderation queue + narrow moderation RPC |
 
 ### Customer ownership expression
@@ -186,7 +186,7 @@ The canonical row ownership pattern is:
 
 For child tables whose owner is inherited through a parent:
 
-`EXISTS (SELECT 1 FROM recommendation_runs r WHERE r.id = recommendation_items.run_id AND r.user_id = (select auth.uid()))`
+`EXISTS (SELECT 1 FROM beauty_recommendation_runs r WHERE r.id = beauty_recommendation_items.run_id AND r.user_id = (select auth.uid()))`
 
 RLS must be enabled on all four public tables.
 
@@ -207,7 +207,7 @@ Indexes should be added for policy join/filter keys, especially:
 
 **Yes — optional purchase link.**
 
-`beauty_feedback.order_item_id` points to the exact purchased line item.
+`beauty_feedback.order_item_id` points to the exact purchased line item. It remains nullable at the physical FK level because the approved delete action is `ON DELETE SET NULL`; purchase-sourced feedback still requires a non-null order item.
 
 The backend must validate that:
 
@@ -289,9 +289,9 @@ Do not accept a client-selected `user_id` as an authorization decision.
 
 ## 10. Migration Policy
 
-**No DDL has been applied in Phase A.**
+**Phase A DDL has been applied to Restore-Test.**
 
-Phase A produces the approved contract and RLS design first.
+Phase A produced the approved contract and RLS design, then the migration was applied to Restore-Test.
 
 After review:
 
@@ -349,6 +349,6 @@ must remain unchanged by Phase A.
 
 No database schema is changed by this document.
 
-The next implementation artifact will be a dedicated migration file after this contract is accepted.
+Migration and corrective hardening artifacts are committed under `supabase/migrations/`.
 
-**Status: READY FOR REVIEW — Restore-Test only.**
+**Status: IMPLEMENTED / VERIFIED — Restore-Test only. Production remains FROZEN.**
