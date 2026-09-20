@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch HEAD:** updated through Sprint 1 Phase B B2 verification  
+**Current branch HEAD:** updated through Sprint 1 Phase B B5 verification  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -122,8 +122,22 @@ Core components:
 6. Beauty-ready Variants
 7. Mobile-first UI
 
-Primary acceptance target:
-`Quiz ≤ 2 min → 5 explained recommendations → Add All ≤ 3 clicks → feedback persisted → Passport updated`
+Primary product direction:
+**Beauty Passport = Routine Discovery**
+
+Approved customer-facing direction:
+- CTA: **اعرفي روتينك**
+- Output: **روتينك**
+- Primary action: **اطلبي الروتين كله**
+- Minimum discovery path: three consumer-language questions
+- No unverified “30 seconds” marketing claim; timing is an internal target only
+
+Current Phase-C architectural gap:
+`docs/FIND-BE-029_VISION_VS_DATA_CONTRACT_GAP_2026-09-20.md`
+
+Mandatory review gate:
+Owner reviews the Phase-C Routine model before any Routine implementation begins.
+
 
 ---
 
@@ -155,6 +169,10 @@ The following contracts were frozen before implementation:
 2. `docs/SPRINT_1_PHASE_B_FINGERPRINT_SPEC_2026-09-20.md`
 3. `docs/SPRINT_1_PHASE_B_CATALOG_REVISION_SPEC_2026-09-20.md`
 4. `docs/SPRINT_1_PHASE_B_B1_ACCEPTANCE_CRITERIA_2026-09-20.md`
+
+Product direction ADR:
+`docs/ADR_BEAUTY_PASSPORT_ROUTINE_DISCOVERY_2026-09-20.md`
+
 
 Locked engineering decisions:
 - fingerprint includes `beauty-passport.v1` schema version and canonical Passport inputs;
@@ -216,11 +234,11 @@ Implemented:
 - private internal helpers with restricted ACL
 
 Restore-Test migrations:
-- `20260920202500 / s1_b2_beauty_recommendation_operation`
-- `20260920203000 / s1_b2_digest_schema_fix`
-- `20260920204000 / s1_b2_recommendation_operation_runtime_fix`
-- `20260920204500 / s1_b2_private_helper_acl_hardening`
-- `20260920205000 / s1_b2_private_helper_search_path_and_rate_pk`
+- `20260920201146 / s1_b2_beauty_recommendation_operation`
+- `20260920201409 / s1_b2_digest_schema_fix`
+- `20260920201437 / s1_b2_recommendation_operation_runtime_fix`
+- `20260920201535 / s1_b2_private_helper_acl_hardening`
+- `20260920201605 / s1_b2_private_helper_search_path_and_rate_pk`
 
 Runtime evidence:
 - incomplete state returned correctly
@@ -231,8 +249,32 @@ Runtime evidence:
 - `no_matches` returned with no recommendation run created
 - legacy `recommendation_runs` remained untouched
 
+### B5 — VERIFIED
+
+Evidence:
+`docs/SPRINT_1_PHASE_B_B5_EVIDENCE_2026-09-20.md`
+
+Read contract:
+`docs/SPRINT_1_PHASE_B_B5_READ_CONTRACT_2026-09-20.md`
+
+Implemented:
+- authenticated SECURITY INVOKER recommendation-history RPC
+- no owner UUID input
+- RLS-backed own-history reads
+- internal snapshot/fingerprint fields removed from authenticated column privileges
+- direct recommendation-run/item writes removed from application roles
+- deterministic sanitized read response
+- B2 recommendation calculation contract unchanged
+
+Restore-Test migrations:
+- `20260920204458 / s1_b5_beauty_recommendation_read_contract`
+- `20260920204600 / s1_b5_beauty_recommendation_read_privilege_hardening`
+
+B5 status:
+**VERIFIED — Restore-Test/source gate**
+
 Current status:
-**B1 VERIFIED + B2 VERIFIED — B5/B6 regression remains.**
+**B1 VERIFIED + B2 VERIFIED + B5 VERIFIED — B6 regression remains before Phase B close.****
 
 ---
 
