@@ -11803,11 +11803,33 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function syncCloudCartFromServer(){
     const user=await currentUser();
     if(!user) return false;
+    const reqId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+      ? globalThis.crypto.randomUUID()
+      : `cart-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     try{
+      console.log('[CLOUD-CART-QUERY]', {
+        reqId,
+        userId: user.id,
+        t: Date.now()
+      });
       const {data,error}=await client.from('carts')
         .select('id,currency_code,cart_items(id,product_id,product_variant_id,quantity,products(id,name,price,original_price,emoji,images,currency_code,store_id,seller_id))')
         .eq('customer_id',user.id)
         .maybeSingle();
+      const itemsCount = Array.isArray(data?.cart_items) ? data.cart_items.length : 0;
+      console.log('[CLOUD-CART-RESULT]', {
+        reqId,
+        userId: user.id,
+        error: error ? {
+          code: error.code ?? null,
+          message: error.message ?? null,
+          details: error.details ?? null,
+          hint: error.hint ?? null
+        } : null,
+        hasData: !!data,
+        itemsCount,
+        t: Date.now()
+      });
       if(error || !data) return false;
       const items=Array.isArray(data.cart_items)?data.cart_items:[];
       STATE.cart=items.map(row=>{
