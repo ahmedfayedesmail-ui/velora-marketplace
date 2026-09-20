@@ -115,15 +115,14 @@ async function applyLocale(locale){
   await loadDbCatalog(locale);
   if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
 
-  // Render locale-sensitive dynamic surfaces first, then translate the final DOM.
-  // This prevents fresh English/previous-locale nodes from surviving after a switch.
+  // Render locale-sensitive dynamic surfaces first, normalize the Home hero,
+  // then perform one final DOM translation pass. Keeping hero normalization
+  // inside this lifecycle avoids a post-translation mutation round-trip.
   try{ if(typeof renderCategories==='function') renderCategories(); }catch(_){}
   try{ if(typeof renderFeaturedProducts==='function') renderFeaturedProducts(); }catch(_){}
   try{ if(typeof renderShopProducts==='function' && document.getElementById('shopProducts')) renderShopProducts(); }catch(_){}
 
-  translateDom(document);
   try{ __veloraFixHeroCore(locale); }catch(_){}
-  // Final pass covers DOM mutations performed by the renderers above.
   translateDom(document);
 
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
@@ -161,19 +160,21 @@ function __veloraFixHeroCore(locale){
   if(h){
     const parts=[...h.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
     const pack=__VELORA_CORE_OVERRIDES[locale]||{};
-    if(parts[0]) parts[0].nodeValue=pack['Discover More.']||'Discover More.';
-    if(parts[1]) parts[1].nodeValue=pack['Shop Better.']||'Shop Better.';
+    const first=pack['Discover More.']||'Discover More.';
+    const second=pack['Shop Better.']||'Shop Better.';
+    if(parts[0] && parts[0].nodeValue !== first) parts[0].nodeValue=first;
+    if(parts[1] && parts[1].nodeValue !== second) parts[1].nodeValue=second;
   }
   const core=__VELORA_CORE_OVERRIDES[locale]||{};
   const desc=root.querySelector('.hero-desc');
-  if(desc && core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.']){
-    desc.textContent=core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.'];
-  }
+  const description=core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.'];
+  if(desc && description && desc.textContent !== description) desc.textContent=description;
   root.querySelectorAll('.hero-badge').forEach(e=>{
     if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE')){
       const textNodes=[...e.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
       const last=textNodes[textNodes.length-1];
-      if(last) last.nodeValue=' '+(core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
+      const badgeText=' '+(core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
+      if(last && last.nodeValue !== badgeText) last.nodeValue=badgeText;
     }
   });
 }
