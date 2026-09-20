@@ -76,7 +76,7 @@ function translateDom(root=document){
       const source=meta.source;
       const t=translateExact(source,locale);
       if(t!==source&&raw!==t)node.nodeValue=t;
-      else if(locale==='en'&&raw!==source)node.nodeValue=source;
+      else if(raw!==source)node.nodeValue=source;
     });
 
     const elements=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
@@ -91,7 +91,7 @@ function translateDom(root=document){
         if(meta.ambiguous){if(meta.englishFallback)el.setAttribute(attr,meta.englishFallback);return;}
         const t=translateExact(meta.source,locale);
         if(t!==meta.source)el.setAttribute(attr,t);
-        else if(locale==='en'&&meta.known)el.setAttribute(attr,meta.source);
+        else if(meta.known&&raw!==meta.source)el.setAttribute(attr,meta.source);
       });
     });
   }finally{translating=false;}
