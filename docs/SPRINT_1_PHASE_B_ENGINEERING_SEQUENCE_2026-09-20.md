@@ -7,35 +7,32 @@
 
 ## Phase B pre-implementation gates — LOCKED
 
-Before B1 implementation, the following design contracts are frozen:
+The following design contracts were frozen before implementation:
 
 1. `docs/SPRINT_1_PHASE_B_OUTPUT_CONTRACT_2026-09-20.md`
 2. `docs/SPRINT_1_PHASE_B_FINGERPRINT_SPEC_2026-09-20.md`
 3. `docs/SPRINT_1_PHASE_B_CATALOG_REVISION_SPEC_2026-09-20.md`
 4. `docs/SPRINT_1_PHASE_B_B1_ACCEPTANCE_CRITERIA_2026-09-20.md`
 
-These four documents are the design gate for B1/B2 and are not production authorization.
-
 ## Phase B order
 
-### B1 — Beauty Passport Persistence
+### B1 — Beauty Passport Persistence — VERIFIED
 
-Implement and verify:
+Completed:
 
 - current-user Beauty Passport read
 - current-user Beauty Passport upsert
 - session-derived ownership
-- validation of controlled fields
-- quiz version persistence
-- explicit user-editable preferences
+- validation of supported quiz version and required fields
+- optional-value normalization
+- controlled avoidance object validation
 - no client-selected owner authorization
+- authenticated-only save RPC
 
-Acceptance:
-`Auth → Save Passport → Read → Refresh → Same values`
+Evidence:
+`docs/SPRINT_1_PHASE_B_B1_EVIDENCE_2026-09-20.md`
 
-B1 does not calculate recommendations and does not implement cache/rate limiting.
-
-### B2 — Recommendation Operation
+### B2 — Recommendation Operation — NEXT
 
 Build one canonical server-side operation that:
 
@@ -116,4 +113,4 @@ Therefore:
 
 ## Current status
 
-**PRE-B1 — design gates locked; implementation not started.**
+**B1 VERIFIED — B2 READY TO START.**
