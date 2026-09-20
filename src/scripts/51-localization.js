@@ -201,7 +201,6 @@ const observer=new MutationObserver(ms=>{
 
 async function boot(){
   try{
-    style();
     const p=await pref();
     const s=document.getElementById('languageSelect');
     const lang=p||current();
