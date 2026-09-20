@@ -4114,11 +4114,27 @@ function initApp() {
     // Navigate to start page
     navigateTo(startPage);
 
-    // Hide loading screen
-    setTimeout(() => {
+    // Hide loading only after the authoritative V5 i18n boot completes.
+    // This prevents the initial English DOM from being exposed while the
+    // persisted locale is still being applied.
+    const hideLoading = () => {
         const loading = document.getElementById('loadingScreen');
         if (loading) loading.classList.add('hidden');
-    }, 500);
+    };
+
+    if (window.VELORA_I18N_V5_PRESENT === true) {
+        const waitForI18n = () => {
+            if (window.VELORA_I18N_V5_READY === true ||
+                window.VELORA_I18N_V5_FAILED === true) {
+                hideLoading();
+            } else {
+                setTimeout(waitForI18n, 50);
+            }
+        };
+        waitForI18n();
+    } else {
+        setTimeout(hideLoading, 500);
+    }
 
     console.log('✅ App ready!');
 }
@@ -11234,7 +11250,11 @@ console.log('✅ Analytics + Events + Audit loaded!');
 (function(){
   const applyPrefs=()=>{
     const lang=getVeloraLanguage();
-    setVeloraLanguage(lang);
+    // V5 is the single authoritative initial locale applicator.
+    // Legacy boot must not race it with a second async language apply.
+    if(!(window.VELORA_I18N_V5_PRESENT===true && typeof window.VELORA_V5_SET_LANGUAGE==='function')){
+      setVeloraLanguage(lang);
+    }
     const cur=getVeloraDisplayCurrency();
     if(VELORA_CURRENCY_META[cur]) VELORA_CURRENCY=cur;
     const c=document.getElementById('currencySelect'); if(c)c.value=cur;
