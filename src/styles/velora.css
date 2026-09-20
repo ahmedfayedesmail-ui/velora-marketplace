@@ -1296,6 +1296,25 @@ ul { list-style: none; }
 }
 
 /* ============ CART SIDEBAR ============ */
+
+/* S2-5 mobile hardening: cart page layout must not retain the desktop 400px summary track. */
+#cartContent > div[style*="grid-template-columns"] {
+    min-width: 0;
+}
+@media (max-width: 768px) {
+    #cartContent > div[style*="grid-template-columns"] {
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: 100%;
+    }
+    #cartContent .form-section,
+    #cartContent .order-summary {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+}
+
 .cart-sidebar-overlay {
     position: fixed;
     inset: 0;
