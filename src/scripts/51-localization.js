@@ -8,7 +8,8 @@ window.VELORA_I18N_V5_PRESENT=true;
 window.VELORA_I18N_V5_READY=false;
 window.VELORA_I18N_V5_FAILED=false;
 const getDb=()=>window.mahaSupabase||window.supabaseClient||window.sb||null;
-const state=window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||{locale:localStorage.getItem('velora_language')||'en'};
+const __phase1StoredLocale=(localStorage.getItem('velora_language')||'en').toLowerCase();
+const state=window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||{locale:['en','ar'].includes(__phase1StoredLocale)?__phase1StoredLocale:'en'};
 const meta=()=>window.VELORA_CORE?.languages||{};
 const basePack=()=>window.__VELORA_PACK||{};
 const __VELORA_CORE_OVERRIDES = {
@@ -130,6 +131,8 @@ async function applyLocale(locale){
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
 async function setLang(code){
+  code=String(code||'').toLowerCase();
+  if(!['en','ar'].includes(code))return false;
   if(!meta()[code] && !basePack()[code])return false;
   try{
     localStorage.setItem('velora_language',code);
