@@ -113,7 +113,7 @@
           '<div class="v56-two-col">'+
             '<section class="v56-card"><div class="v56-section-head"><h3>⚠️ Needs Attention</h3></div>'+
               '<div class="v56-attention">'+attentionRows.map(function(row){
-                var action=row[2]?'onclick="showAdminSection(\\''+row[2]+'\\')"':'';
+                var action=row[2]?'onclick="showAdminSection(\''+row[2]+'\')"':'';
                 return '<button type="button" class="v56-attention-row" '+action+'><span>'+esc(row[0])+'</span><strong>'+count(row[1])+'</strong></button>';
               }).join('')+'</div>'+
             '</section>'+
