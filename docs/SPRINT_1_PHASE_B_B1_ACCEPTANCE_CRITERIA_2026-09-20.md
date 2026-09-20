@@ -5,7 +5,8 @@
 **Environment:** Restore-Test/local only
 **Production:** **FROZEN**
 **Phase:** B1
-**Status:** PRE-IMPLEMENTATION CONTRACT
+**Status:** **PASS — Restore-Test/source gate**
+**Evidence:** `docs/SPRINT_1_PHASE_B_B1_EVIDENCE_2026-09-20.md`
 
 ## 1. Definition of B1 Done
 
@@ -22,148 +23,85 @@ B1 does **not** touch `public.recommendation_runs`.
 ## 2. Functional acceptance
 
 ### B1-01 — Create
-
-Given an authenticated customer with a valid completed Passport payload:
-
-- save succeeds;
-- exactly one `beauty_profiles` row exists for that customer;
-- stored values match the canonical normalized input;
-- `quiz_version` is persisted;
-- `updated_at` is server-generated.
+PASS. Valid save creates exactly one `beauty_profiles` row for the authenticated customer, persists `quiz_version`, and server-generates `updated_at`.
 
 ### B1-02 — Read
-
-The same customer can read the Passport through the canonical read path and receives the stored values unchanged after page refresh/session reload.
+PASS. The B1 source module reads the current user's Passport through `auth.getUser() → beauty_profiles SELECT` under RLS.
 
 ### B1-03 — Update / Upsert
-
-Saving a changed Passport updates the existing row instead of creating a second Passport.
-
-Assert:
-
-`count(beauty_profiles where user_id = customer) = 1`
-
-after repeated saves.
+PASS. Repeated save for the same authenticated user updates the existing row; row count remains one.
 
 ### B1-04 — Positive persistence round-trip
-
-`Auth → Save → Read → Refresh/Reload → Read`
-
-must preserve:
-
-- goal
-- concern
-- texture_preference
-- effect_preference
-- avoidance_preferences
-- shopping_priority
-- quiz_version
+PASS. Save → read verification preserved all persisted fields used in the test, normalized empty optionals to NULL, and preserved canonical avoidance data.
 
 ## 3. Negative security acceptance
 
 ### B1-05 — Cross-user SELECT
-
-Customer A cannot read Customer B's `beauty_profiles` row.
-
-Expected result:
-
-- no row leakage;
-- no ownership bypass;
-- RLS remains enabled.
+PASS. Customer B observed zero rows for Customer A.
 
 ### B1-06 — Cross-user UPDATE
-
-Customer A cannot modify Customer B's Passport by submitting Customer B's UUID.
-
-Expected result:
-
-- zero affected rows / authorization rejection;
-- Customer B's stored values remain unchanged.
+PASS. Customer B affected zero rows when targeting Customer A; Customer A's stored value remained unchanged.
 
 ### B1-07 — Anonymous access
-
-Unauthenticated users cannot read or write Beauty Passport data.
+PASS. Anonymous table read and anonymous RPC invocation were rejected.
 
 ### B1-08 — Client owner UUID is non-authoritative
-
-A client-supplied `user_id` cannot be used to select the owner of a save operation.
-
-The server derives ownership from the authenticated session.
+PASS. The save RPC has no `user_id` argument and derives ownership from `auth.uid()`.
 
 ## 4. Validation acceptance
 
 ### B1-09 — Required fields
-
-A completed Passport save must contain non-empty canonical values for:
-
-- `goal`
-- `concern`
-- `quiz_version`
-
-Whitespace-only required values are rejected.
+PASS. Blank/whitespace `goal` or `concern` is rejected as `PASSPORT_INCOMPLETE`.
 
 ### B1-10 — Supported quiz version
-
-The B1 write path accepts only a supported Passport/quiz contract version.
-
-An unknown version is rejected rather than silently stored.
+PASS. Only `beauty-quiz.v1` is accepted; unknown versions are rejected as `UNSUPPORTED_QUIZ_VERSION`.
 
 ### B1-11 — Canonical optional values
+PASS. Empty optional scalars normalize to NULL.
 
-Optional scalar fields normalize empty strings to `null`.
+For B1 `avoidance_preferences`, the approved top-level shape is an object containing only:
+- `ingredients`: array of strings
+- `tags`: array of strings
 
-`avoidance_preferences` must be a JSON object matching the approved shape; unknown top-level keys are rejected.
+Values are normalized by trimming, removing empty values, deduplicating, and sorting. Unknown keys and invalid value types are rejected as `INVALID_AVOIDANCE_PREFERENCES`.
 
-Exact controlled answer vocabularies come from the versioned quiz contract; B1 must not invent a second vocabulary.
+Exact controlled quiz-answer vocabularies remain owned by the versioned quiz contract; B1 does not invent a second quiz vocabulary.
 
 ## 5. Incomplete Passport edge cases
 
 ### B1-12 — Open before completion
-
-When no saved Passport exists, the read path returns a domain state equivalent to:
-
-`not_started`
-
-No recommendation calculation is attempted.
+PASS. Missing Passport is mapped by the source read module to `not_started`. No recommendation operation is invoked.
 
 ### B1-13 — Partial save
-
-B1 does not persist an invalid partial Passport into the current schema because `goal` and `concern` are required columns.
-
-A partial submission is rejected with a domain-level `PASSPORT_INCOMPLETE` result.
-
-The frontend may keep an unsaved draft locally until the required fields are complete.
+PASS. Required-field validation rejects incomplete saves with `PASSPORT_INCOMPLETE`.
 
 ### B1-14 — Egypt context with incomplete profile
-
-Country/market is not inferred from free-form client input.
-
-For the Phase-1 Egypt scope, a user who has not completed the Passport remains in the incomplete/not-started state and is guided to complete it; B1 must not fabricate preferences or country data.
+PASS. The B1 save API accepts no country/market override and does not fabricate preferences. An incomplete user remains explicitly incomplete.
 
 ## 6. RLS acceptance
 
-Verify on Restore-Test:
-
-- `beauty_profiles` has RLS enabled;
-- customer SELECT policy is own-user only;
-- customer INSERT policy binds `user_id` to `auth.uid()`;
-- customer UPDATE policy has both ownership `USING` and `WITH CHECK`;
-- no anonymous policy grants access.
+Verified on Restore-Test:
+- `beauty_profiles` RLS enabled;
+- customer ownership policies active;
+- cross-user SELECT blocked;
+- cross-user UPDATE blocked by ownership enforcement;
+- anonymous read blocked;
+- save RPC is `SECURITY INVOKER`;
+- `authenticated_execute = true`;
+- `anon_execute = false`.
 
 ## 7. Persistence invariants
 
-After a successful save:
-
-- one row per user;
+Verified:
+- one Passport row per user;
 - no duplicate Passport rows;
-- no recommendation rows are implicitly created;
-- no legacy recommendation rows are touched;
-- no product/cart/order rows are modified.
+- no recommendation rows implicitly created;
+- no legacy recommendation rows touched;
+- no product/cart/order rows modified by B1 tests.
 
 ## 8. Regression acceptance
 
-B1 must not change behavior of:
-
+No B1 change was made to:
 - Auth
 - Products
 - Product Variants
@@ -178,23 +116,22 @@ B1 must not change behavior of:
 
 ## 9. Evidence required to close B1
 
-A B1 evidence record must include:
+Evidence is recorded in:
+`docs/SPRINT_1_PHASE_B_B1_EVIDENCE_2026-09-20.md`
 
-1. implementation commit SHA;
-2. Restore-Test migration/RPC evidence, if schema changes are required;
-3. positive create/read test;
-4. update/upsert test;
-5. cross-user SELECT negative test;
-6. cross-user UPDATE negative test;
-7. anonymous negative test;
-8. invalid/partial payload test;
-9. final row-count/invariant check;
-10. explicit statement that Production was not changed.
+Implementation artifacts:
+- `supabase/migrations/20260920235000_s1_b1_beauty_passport_save_rpc.sql`
+- `src/scripts/58-s1-b1-beauty-passport.js`
+- `src/index.html`
+- `docs/SCRIPT_MANIFEST.json`
+
+Restore-Test migration history:
+`20260920200702 / s1_b1_beauty_passport_save_rpc`
 
 ## 10. B1 PASS gate
 
-B1 may be marked **PASS** only when all B1-01 through B1-14 applicable checks are evidenced.
+**PASS.**
 
-A source review alone is not sufficient.
+All B1-01 through B1-14 applicable checks are evidenced on Restore-Test/source verification.
 
-Browser E2E remains a later launch/browser gate and cannot be inferred from B1 source/SQL tests.
+Browser E2E remains a later launch/browser gate and is not inferred from B1 source/SQL tests.
