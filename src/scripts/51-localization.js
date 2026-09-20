@@ -124,21 +124,13 @@ async function applyLocale(locale){
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
 async function setLang(code){
-  if(!LANGS.has(code))return false;
-  let old=null, hadOverrides=false;
+  if(!meta()[code] && !basePack()[code])return false;
   try{
     localStorage.setItem('velora_language',code);
-    const c=await client();
+    const c=getDb();
     if(c?.rpc)await c.rpc('velora_set_language_preference',{p_locale:code});
     state.locale=code;
     const s=document.getElementById('languageSelect');if(s)s.value=code;
-
-    old=PACK[code];
-    const o=await overrides(code);
-    hadOverrides=Object.keys(o).length>0;
-    if(hadOverrides)PACK[code]=Object.assign({},old,o);
-    try{window.VELORA_I18N_PROVENANCE?.registerCatalog(code,PACK[code]||{});}catch(_){}
-
     await applyLocale(code);
     return true;
   }catch(e){
@@ -201,11 +193,9 @@ const observer=new MutationObserver(ms=>{
 
 async function boot(){
   try{
-    const p=await pref();
+    const lang=state.locale||localStorage.getItem('velora_language')||'en';
     const s=document.getElementById('languageSelect');
-    const lang=p||current();
     if(s)s.value=lang;
-    await loadDbCatalog(lang);
     await applyLocale(lang);
     if(document.body)observer.observe(document.body,{childList:true,subtree:true});
     window.VELORA_I18N_V5_READY=true;
