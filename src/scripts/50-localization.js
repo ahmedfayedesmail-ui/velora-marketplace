@@ -10,7 +10,7 @@
   const LANG_META = (window.VELORA_CORE && window.VELORA_CORE.languages) || {};
   const CURRENCIES = window.VELORA_CURRENCY_META || {};
   const initialCountry = (localStorage.getItem('velora_country') || 'EG').toUpperCase();
-  const storedLanguage = localStorage.getItem('velora_language') || 'en';
+  const storedLanguage = ['en','ar'].includes((localStorage.getItem('velora_language') || 'en').toLowerCase()) ? (localStorage.getItem('velora_language') || 'en').toLowerCase() : 'en';
   const storedCurrency = (localStorage.getItem('velora_currency') || '').toUpperCase();
   const initialCurrency = initialCountry === 'EG' ? 'EGP' : (storedCurrency || 'USD');
   const state = window.VELORA_GLOBAL_LOCALE_STATE = window.VELORA_GLOBAL_LOCALE_STATE || {
@@ -131,7 +131,7 @@
   function renderGlobalPreferences() {
     const host = document.getElementById('veloraGlobalPreferences');
     if (!host) return;
-    const languages = Object.keys(LANG_META).map(k => `<option value="${k}" ${k===state.locale?'selected':''}>${esc(LANG_META[k].name || k)}</option>`).join('');
+    const languages = ['en','ar'].filter(k => LANG_META[k]).map(k => `<option value="${k}" ${k===state.locale?'selected':''}>${esc(LANG_META[k].name || k)}</option>`).join('');
     const currencies = Object.keys(CURRENCIES).map(k => `<option value="${k}" ${k===state.currency_code?'selected':''}>${k} — ${esc(CURRENCIES[k].symbol || '')}</option>`).join('');
     host.innerHTML = `
       <div class="form-section" style="margin-top:1.25rem;border:1px solid rgba(255,255,255,.08);">
