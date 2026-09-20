@@ -247,11 +247,11 @@ Final test-state expectation:
 - `src/scripts/59-s1-b2-beauty-recommendations.js`
 - `src/index.html`
 - `docs/SCRIPT_MANIFEST.json`
-- `supabase/migrations/20260920202500_s1_b2_beauty_recommendation_operation.sql`
-- `supabase/migrations/20260920203000_s1_b2_digest_schema_fix.sql`
-- `supabase/migrations/20260920204000_s1_b2_recommendation_operation_runtime_fix.sql`
-- `supabase/migrations/20260920204500_s1_b2_private_helper_acl_hardening.sql`
-- `supabase/migrations/20260920205000_s1_b2_private_helper_search_path_and_rate_pk.sql`
+- `supabase/migrations/20260920201146_s1_b2_beauty_recommendation_operation.sql`
+- `supabase/migrations/20260920201409_s1_b2_digest_schema_fix.sql`
+- `supabase/migrations/20260920201437_s1_b2_recommendation_operation_runtime_fix.sql`
+- `supabase/migrations/20260920201535_s1_b2_private_helper_acl_hardening.sql`
+- `supabase/migrations/20260920201605_s1_b2_private_helper_search_path_and_rate_pk.sql`
 
 ## 10. Production Control
 
