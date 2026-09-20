@@ -80,7 +80,7 @@ async function applyLocale(locale){
   document.documentElement.lang=locale; document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
   window.VELORA_GLOBAL_LOCALE = locale;
   await loadDbCatalog(locale);
-  await veloraLoadContentTranslations(locale);
+  if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
   translateDom(document);
   try{ __veloraFixHeroCore(locale); }catch(_){}
   try{ if(typeof renderCategories==='function') renderCategories(); }catch(_){}
