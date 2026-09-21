@@ -230,6 +230,7 @@
     }
 
     const steps = Array.isArray(data.steps) ? data.steps : [];
+    window.__VELORA_CURRENT_ROUTINE = data;
     const statusText = document.getElementById('veloraRoutineStatusText');
     const body = document.getElementById('veloraRoutineBody');
 
@@ -280,7 +281,7 @@
       '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
       escapeHtml(t('عدّلي إجاباتك', 'Edit my answers')),
       '</button>',
-      '<button type="button" class="btn btn-primary btn-lg" aria-disabled="true" title="Sprint 1 integration">',
+      '<button type="button" class="btn btn-primary btn-lg" id="veloraRoutineAddAll">',
       escapeHtml(t('Order the whole routine', 'اطلبي الروتين كله')),
       '</button>',
       '</div>'
