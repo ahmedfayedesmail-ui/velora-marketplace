@@ -446,6 +446,60 @@ The developer should trace which path the actual UI uses and eliminate contradic
 
 ---
 
+## FIND-BE-030 — Base Cart Stock Guard gap
+
+### Severity
+**High — Cart correctness / commerce safety**
+
+### Status
+**RESOLVED / VERIFIED — Restore-Test**
+
+### Finding
+
+The base-product Cart writer, public.velora_upsert_cart_item(...), did not enforce:
+existing Cart quantity + requested quantity <= product stock.
+
+This allowed a base product to be added to Cart beyond available stock, violating the agreed **No add-then-fail** Cart principle.
+
+### Remediation
+
+Cart hardening migrations:
+
+- supabase/migrations/20260921120000_cart_base_product_stock_guard.sql
+- supabase/migrations/20260921123000_cart_base_product_stock_guard_null_existing_fix.sql
+
+The second migration corrected a verification-discovered NULL case where PL/pgSQL SELECT INTO returned NULL when no existing Cart row was present.
+
+Final behavior:
+
+- product row locked with FOR UPDATE;
+- empty Cart quantity normalized to 0;
+- existing + requested compared to product.stock;
+- over-capacity rejected with INSUFFICIENT_STOCK;
+- requested increment is atomic;
+- product inventory is not decremented at Cart Add.
+
+### Verification
+
+Restore-Test transaction-scoped verification passed:
+
+- request above stock rejected;
+- valid add succeeded;
+- existing quantity + requested quantity above stock rejected without modifying existing quantity;
+- exact remaining capacity succeeded;
+- full Cart + one more rejected without modification;
+- product stock unchanged;
+- test Cart state cleaned.
+
+Evidence:
+docs/FIND-BE-030_BASE_CART_STOCK_GUARD_EVIDENCE_2026-09-21.md
+
+### Boundary
+
+No Checkout, Order Creation, Price, Currency, Routine, or Production changes were made.
+
+---
+
 # Shared developer checklist
 
 ## Before changing code
