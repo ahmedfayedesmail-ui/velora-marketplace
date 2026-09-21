@@ -116,7 +116,20 @@ Existing v1 Passport rows remain untouched until that customer completes the v2 
 
 The existing v1 module and its API remain separate.
 
-## 7. UX Requirements Implemented
+## 7. Returning User UX
+
+The primary home entry point is state-aware:
+
+- no v2-complete Passport → **اعرفي روتينك / Build my routine** → Quiz v2;
+- v2-complete Passport → **شوفي روتينك / See my routine** → Routine UX directly;
+- v2 completeness means \\`beauty-quiz.v2\\` plus non-empty \\`skin_type\\`, \\`goal\\`, and \\`routine_budget\\`;
+- \\`unknown\\` is a valid persisted value and therefore counts as complete;
+- entry state is re-checked at click time, preventing stale client state from bypassing the current Passport state;
+- Passport ownership is enforced through authenticated session + RLS; the frontend does not send a user UUID as an ownership authority.
+
+The user can reach Quiz v2 again through the existing Quiz API when a profile update is needed.
+
+## 8. UX Requirements Implemented
 
 - Arabic and English visible copy.
 - Mobile-first modal layout.
@@ -133,7 +146,7 @@ The existing v1 module and its API remain separate.
 - No checkout integration.
 - No fabricated explanation generation.
 
-## 8. Routine Boundary
+## 9. Routine Boundary
 
 The Quiz module does not calculate recommendations.
 
@@ -147,7 +160,7 @@ and consumes only:
 
 `beauty-routine.v1`
 
-## 9. Source Verification
+## 10. Source Verification
 
 Verified by repository inspection:
 
@@ -159,7 +172,7 @@ Verified by repository inspection:
 - Routine entrypoint is owned by the Quiz v2 UI.
 - Question titles and subtitles have separate AR/EN source values.
 
-## 10. Browser Gate
+## 11. Browser Gate
 
 **Browser = PENDING.**
 
@@ -180,7 +193,7 @@ plus:
 - product + variant presentation;
 - no internal metadata exposure.
 
-## 11. Status
+## 12. Status
 
 **Quiz v2 UI Source = READY**
 
