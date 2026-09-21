@@ -67,7 +67,7 @@ Implementation uses a private rate-event ledger so `no_matches` can be rate-limi
 
 Cache hits do not create rate events.
 
-### B5 — Recommendation Read Contract — NEXT HARDENING
+### B5 — Recommendation Read Contract — VERIFIED
 
 Customer reads only their own persisted recommendation history through RLS.
 
@@ -78,18 +78,23 @@ The browser does not submit:
 - catalog revisions;
 - owner UUIDs.
 
-### B6 — Regression — NEXT / REQUIRED BEFORE PHASE CLOSE
+### B6 — Regression + Phase Close — VERIFIED
 
-B5 read hardening is now verified.
+B6 completed a full Phase-B domain regression:
+- B1 save/read + validation;
+- B2 recommendation operation;
+- B3 cache;
+- B4 rate limit;
+- catalog revision invalidation;
+- no-match behavior;
+- B5 read contract;
+- RLS across all four Beauty public tables;
+- anonymous access/EXECUTE boundaries;
+- direct recommendation write privileges;
+- legacy recommendation boundary;
+- static B1/B2 script integration.
 
-Re-run:
-- Beauty table RLS positive/negative tests;
-- legacy recommendation boundary tests;
-- catalog revision tests;
-- cache/rate-limit regression;
-- Cart/Checkout/Orders/Variants/Reviews/Wishlist/Notifications regression.
-
-Browser E2E remains a separate later gate.
+Broader Sprint 2 marketplace/browser regression remains a separate later launch gate.
 
 ## Why Persistence comes first
 
@@ -110,7 +115,9 @@ Therefore:
 
 ## Current status
 
-**B1 VERIFIED + B2 VERIFIED + B5 VERIFIED — B6 regression remains before Phase B close.**
+**B1 VERIFIED + B2 VERIFIED + B3/B4 VERIFIED + B5 VERIFIED + B6 VERIFIED — PHASE B CLOSED.**
 
 FIND-BE-029 remains **OPEN / HIGH / ARCHITECTURAL** for Phase C.
+
+Next sequence: **FIND-BE-029 → Phase C Data Contract v2 → Owner Review Gate → Routine UX → Sprint 1 UI.**
 
