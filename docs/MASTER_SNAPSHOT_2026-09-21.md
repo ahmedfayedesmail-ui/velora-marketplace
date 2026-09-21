@@ -454,6 +454,39 @@ No browser result should be inferred from source-level fixes or SQL tests.
 
 ---
 
+### Owner Review / Waiting State
+
+**Unified Browser Gate Plan = OWNER PRE-READ**
+
+The technical plan is ready but is **not LOCKED** until Owner review and explicit approval of the execution order.
+
+Companion execution layer:
+
+`docs/UNIFIED_BROWSER_GATE_OWNER_CHECKLIST_2026-09-21.md`
+
+Checklist status:
+
+**DRAFT — Owner Review Required**
+
+### FIND-BE-027 Data Protection Prep
+
+**OPEN / PRE-LAUNCH — PREPARED FOR OWNER/LEGAL REVIEW**
+
+Working title moved from generic “GDPR Deletion Flow” toward:
+
+**Data Protection / Deletion Readiness**
+
+Reason:
+- current product direction is Egypt-first;
+- Egypt's Personal Data Protection Law No. 151 of 2020 and Executive Regulations No. 816 of 2025 are the primary framework to assess for the current operation;
+- GDPR applicability is a separate territorial-scope assessment if Velora intentionally offers goods/services to people in the EU or monitors behavior there.
+
+Preparation document:
+
+`docs/FIND-BE-027_DATA_PROTECTION_DELETION_PREP_2026-09-21.md`
+
+No legal conclusion or Production authorization is implied.
+
 ## Production Control
 
 **No Production GO is granted by this snapshot.**
@@ -488,7 +521,7 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate plan ✅ → Browser execution ⏭️**
+**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate Owner Pre-Read ✅ → Owner approval ⏭️ → Browser execution ⏭️**
 
 Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅**
 
