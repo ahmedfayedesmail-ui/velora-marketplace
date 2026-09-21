@@ -307,22 +307,27 @@ ES is a sanity check only where the existing UI exposes it; it does not reopen F
 
 ---
 
-### BG-09 — GDPR / Launch Prerequisite
+### BG-09 — Launch Compliance / Data Protection Gate
 
 **Finding:** FIND-BE-027
 
-This is a release-readiness prerequisite, not a reason to mutate Production during the browser gate.
+**Important classification:** this is primarily a launch-readiness / compliance gate, not a browser-only gate. The browser is used only where the deletion workflow has a customer-facing UI or where UI evidence is needed.
 
-Test only against Restore-Test / approved test identity.
+For Velora's current Egypt-first scope, the primary legal framework to validate is Egypt's Personal Data Protection Law No. 151 of 2020 and Executive Regulations No. 816 of 2025. The PDPC states that the Executive Regulations were published on 1 November 2025 and that the one-year compliance period begins from their effective date. GDPR applicability is a separate territorial-scope question and should not be assumed merely because the product may later expand to Europe.
 
-Expected:
+Restore-Test only for technical verification; no Production deletion test.
+
+Expected technical state:
 - deletion flow requires the intended authenticated user;
 - correct ownership is enforced;
-- deleted user data follows the approved deletion contract;
-- no cross-user deletion;
+- deleted data follows the approved deletion/retention contract;
+- order-history retention is treated separately where legally required;
+- backups/exports/logs/storage are accounted for;
 - authorization failures are explicit.
 
 Evidence must include:
+- legal/scope assumptions and Owner decisions;
+- data inventory and retention map;
 - pre-test identity/data state;
 - deletion request/result;
 - post-test cleanup verification.
@@ -463,7 +468,9 @@ this establishes the complete runtime chain before spending browser time on down
 
 After BG-04 succeeds, continue:
 
-`BG-05 → BG-06 → BG-07 → BG-08 → BG-09`
+`BG-05 → BG-06 → BG-07 → BG-08`
+
+Run **BG-09 as a parallel launch/compliance workstream**, with browser verification only for any user-facing deletion workflow.
 
 ---
 
