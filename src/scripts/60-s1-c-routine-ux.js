@@ -291,28 +291,6 @@
     }
   }
 
-  function installEntryPoint() {
-    if (window.__VELORA_ROUTINE_UX_ENTRY_INSTALLED) return;
-    window.__VELORA_ROUTINE_UX_ENTRY_INSTALLED = true;
-
-    const heroButtons = document.querySelector('.hero-buttons');
-    if (heroButtons && !document.getElementById('veloraRoutineEntry')) {
-      const button = document.createElement('button');
-      button.id = 'veloraRoutineEntry';
-      button.className = 'btn btn-outline btn-lg';
-      button.type = 'button';
-      button.textContent = t('Build my routine', 'اعرفي روتينك');
-      button.addEventListener('click', () => open().catch(() => {}));
-      heroButtons.appendChild(button);
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installEntryPoint, { once: true });
-  } else {
-    installEntryPoint();
-  }
-
   window.veloraRoutineUX = Object.freeze({
     open,
     generate
