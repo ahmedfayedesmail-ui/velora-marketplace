@@ -16,9 +16,9 @@ For the pre-launch review, the broader working title should be:
 
 **Data Protection / Deletion Readiness**
 
-The primary framework to assess for the Egypt-first operation is Egypt's Personal Data Protection Law No. 151 of 2020 and its Executive Regulations No. 816 of 2025. The Egyptian PDPC states that the Executive Regulations were published in the Official Gazette on 1 November 2025 and that a one-year compliance period begins from their effective date. urlPDPC — official legal framework and FAQhttps://www.pdpc.gov.eg/faq
+The primary framework to assess for the Egypt-first operation is Egypt's Personal Data Protection Law No. 151 of 2020 and its Executive Regulations No. 816 of 2025. The Egyptian PDPC states that the Executive Regulations were published in the Official Gazette on 1 November 2025 and that a one-year compliance period begins from their effective date. The PDPC FAQ is the current official reference: https://www.pdpc.gov.eg/faq
 
-GDPR should be treated as a separate applicability assessment. Article 3 of the GDPR covers, among other cases, processing by a non-EU controller/processor connected to offering goods/services to people in the EU or monitoring their behavior in the EU. The EDPB notes that the mere presence of a person in the EU is not by itself sufficient; the targeting criterion matters. urlEUR-Lex — GDPR Article 3https://eur-lex.europa.eu/eli/reg/2016/679/ojv urlEDPB — territorial scope guidancehttps://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-32018-territorial-scope-gdpr-article_en
+GDPR should be treated as a separate applicability assessment. Article 3 of the GDPR covers, among other cases, processing by a non-EU controller/processor connected to offering goods/services to people in the EU or monitoring their behavior in the EU. The EDPB notes that the mere presence of a person in the EU is not by itself sufficient; the targeting criterion matters. References: EUR-Lex GDPR Article 3: https://eur-lex.europa.eu/eli/reg/2016/679/ojv ; EDPB territorial-scope guidance: https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-32018-territorial-scope-gdpr_en
 
 ## 2. Data inventory to prepare
 
@@ -66,7 +66,7 @@ For every dataset record:
 - cross-border transfer path;
 - backup/log/storage copies.
 
-The PDPC states that the Egyptian framework regulates collection, processing, storage, use, and transfer of electronic personal data, and identifies controller, processor, data holder, and DPO roles. citeturn392432search0turn392432search1
+The PDPC states that the Egyptian framework regulates collection, processing, storage, use, and transfer of electronic personal data, and identifies controller, processor, data holder, and DPO roles. Official PDPC reference: https://www.pdpc.gov.eg/
 
 ## 4. Deletion workflow questions
 
@@ -95,19 +95,19 @@ The existing database cascade behavior is useful but is not sufficient by itself
 
 ## 6. Rights / notice preparation
 
-The PDPC identifies data-subject rights including information, access, withdrawal, rectification, erasure, and breach notification. The final user-facing privacy notice and request workflow should be mapped to the actual processing model rather than copied from a generic GDPR template. citeturn392432search1
+The PDPC identifies data-subject rights including information, access, withdrawal, rectification, erasure, and breach notification. The final user-facing privacy notice and request workflow should be mapped to the actual processing model rather than copied from a generic GDPR template. Official PDPC FAQ: https://www.pdpc.gov.eg/faq
 
 ## 7. Breach readiness
 
-The PDPC FAQ currently states a 72-hour notification period to the PDPC after becoming aware of a breach and notification to affected data subjects within 3 working days from the PDPC notification, subject to the law/regulations and applicable exceptions. This should be verified against the final legal assessment and incident process before launch. citeturn392432search1
+The PDPC FAQ currently states a 72-hour notification period to the PDPC after becoming aware of a breach and notification to affected data subjects within 3 working days from the PDPC notification, subject to the law/regulations and applicable exceptions. This should be verified against the final legal assessment and incident process before launch. Official PDPC FAQ: https://www.pdpc.gov.eg/faq
 
 ## 8. Cross-border readiness
 
-The PDPC FAQ states that cross-border transfer of personal data outside Egypt requires the applicable prior license/permit or an applicable exception under the law. This matters for any external hosting, analytics, messaging, support, payment, or other subprocessors whose processing/transfer falls within the framework. citeturn392432search1
+The PDPC FAQ states that cross-border transfer of personal data outside Egypt requires the applicable prior license/permit or an applicable exception under the law. This matters for any external hosting, analytics, messaging, support, payment, or other subprocessors whose processing/transfer falls within the framework. Official PDPC FAQ: https://www.pdpc.gov.eg/faq
 
 ## 9. DPO / licensing checkpoint
 
-The PDPC states that the framework includes DPO registration and licensing/permit categories for controller/processor activity and cross-border data transfer. The Owner/legal workstream must determine which registrations, licenses, permits, or accredited roles actually apply to Velora's legal entity and processing activities. citeturn392432search0turn392432search1
+The PDPC states that the framework includes DPO registration and licensing/permit categories for controller/processor activity and cross-border data transfer. The Owner/legal workstream must determine which registrations, licenses, permits, or accredited roles actually apply to Velora's legal entity and processing activities. Official PDPC reference: https://www.pdpc.gov.eg/
 
 ## 10. Owner decision list
 
