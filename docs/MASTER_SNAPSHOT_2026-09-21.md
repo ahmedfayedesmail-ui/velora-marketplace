@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch state:** updated through Sprint 1 Phase C Routine Verification + Phase D1/D2/D3 planning  
+**Current branch state:** updated through Phase C Routine Verification + Routine UX source implementation + Phase D1/D2/D3/D4 planning  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -219,6 +219,32 @@ Evidence:
 
 `docs/PHASE_C_ROUTINE_OUTPUT_CONTRACT_V1_EVIDENCE_2026-09-21.md`
 
+### Phase C — Routine UX
+
+**SOURCE IMPLEMENTATION = READY FOR BROWSER VERIFICATION**
+
+Added:
+
+- `src/scripts/60-s1-c-routine-ux.js`
+
+Behavior:
+
+- calls `public.velora_generate_beauty_routine()`;
+- consumes only the `beauty-routine.v1` customer-safe contract;
+- renders AM/PM sections;
+- renders product + variant;
+- renders deterministic reason-based one-line explanation;
+- renders total cost / currency;
+- renders `partial` without fabricated replacement;
+- omits absent optional steps;
+- handles `no_matches`;
+- does not expose internal routine metadata;
+- remains independent from Quiz v2 persistence and Commerce integration.
+
+The home hero receives a **Build my routine / اعرفي روتينك** entry point.
+
+Browser verification is still required; no Browser PASS is inferred from source implementation.
+
 Quiz v2 frontend UI is not part of this gate yet.
 
 ---
@@ -267,6 +293,14 @@ Approved MVP model:
 Planning ready:
 
 `docs/PHASE_D3_LEGAL_TRUST_FRAMEWORK_PLANNING_2026-09-21.md`
+
+### D4 Unit Economics
+
+Planning ready:
+
+`docs/PHASE_D4_UNIT_ECONOMICS_PLANNING_2026-09-21.md`
+
+Framework-only; Owner/Product inputs remain separate from engineering mechanics.
 
 No Phase-D commercial policy is encoded in the Routine engine.
 
@@ -346,8 +380,8 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine UX → Quiz v2 UI → Sprint 1 UI**
+**Routine UX source ✅ → Browser verification ⏭️ → Quiz v2 UI → Sprint 1 UI**
 
-Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 Unit Economics Planning**
+Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅**
 
 Production remains **FROZEN**.
