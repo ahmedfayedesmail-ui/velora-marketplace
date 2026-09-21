@@ -194,11 +194,11 @@ No legacy recommendation run was created or repurposed by B2.
 
 B2 Restore-Test chain:
 
-1. `20260920202500 / s1_b2_beauty_recommendation_operation`
-2. `20260920203000 / s1_b2_digest_schema_fix`
-3. `20260920204000 / s1_b2_recommendation_operation_runtime_fix`
-4. `20260920204500 / s1_b2_private_helper_acl_hardening`
-5. `20260920205000 / s1_b2_private_helper_search_path_and_rate_pk`
+1. `20260920201146 / s1_b2_beauty_recommendation_operation`
+2. `20260920201409 / s1_b2_digest_schema_fix`
+3. `20260920201437 / s1_b2_recommendation_operation_runtime_fix`
+4. `20260920201535 / s1_b2_private_helper_acl_hardening`
+5. `20260920201605 / s1_b2_private_helper_search_path_and_rate_pk`
 
 All five applications completed successfully.
 
