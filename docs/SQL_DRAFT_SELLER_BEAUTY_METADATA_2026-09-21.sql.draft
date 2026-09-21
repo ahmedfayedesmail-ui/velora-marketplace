@@ -1,0 +1,112 @@
+-- Velora — Seller Beauty Metadata Validation Draft
+-- Date: 2026-09-21
+--
+-- STATUS: DRAFT ONLY. DO NOT APPLY WHILE BROWSER GATE IS LOCKED.
+-- This file deliberately lives outside supabase/migrations/.
+--
+-- Finding:
+-- The requested products columns already exist. This draft adds
+-- validation hardening only; it does not add duplicate columns.
+
+begin;
+
+create or replace function private.velora_validate_beauty_text_array(
+  p_values jsonb,
+  p_allowed text[],
+  p_max_items integer,
+  p_max_item_length integer
+)
+returns boolean
+language sql
+immutable
+set search_path = pg_catalog
+as $$
+  with vals as (
+    select lower(trim(value)) as value
+    from jsonb_array_elements_text(coalesce(p_values, '[]'::jsonb))
+  )
+  select
+    jsonb_typeof(coalesce(p_values, '[]'::jsonb)) = 'array'
+    and jsonb_array_length(coalesce(p_values, '[]'::jsonb)) <= p_max_items
+    and not exists (
+      select 1
+      from vals
+      where value = ''
+         or char_length(value) > p_max_item_length
+         or (p_allowed is not null and not (value = any(p_allowed)))
+    )
+    and (
+      select count(*) from vals
+    ) = (
+      select count(distinct value) from vals
+    );
+$$;
+
+alter table public.products
+  add constraint products_skin_types_contract_ck
+  check (
+    private.velora_validate_beauty_text_array(
+      skin_types,
+      array['oily','dry','combination','normal','sensitive','unknown']::text[],
+      6,
+      40
+    )
+  ) not valid;
+
+alter table public.products
+  add constraint products_concerns_contract_ck
+  check (
+    private.velora_validate_beauty_text_array(
+      concerns,
+      array[
+        'acne','hydration','hyperpigmentation','radiance',
+        'daily_care','sensitivity','oil_control','barrier_support'
+      ]::text[],
+      8,
+      40
+    )
+  ) not valid;
+
+alter table public.products
+  add constraint products_benefits_contract_ck
+  check (
+    private.velora_validate_beauty_text_array(
+      benefits,
+      array[
+        'hydration','acne','hyperpigmentation','radiance','daily_care',
+        'cleansing','moisturize','sun_protection','brightening',
+        'barrier_support','oil_control','soothing','anti_aging','exfoliation'
+      ]::text[],
+      12,
+      40
+    )
+  ) not valid;
+
+alter table public.products
+  add constraint products_ingredients_contract_ck
+  check (
+    private.velora_validate_beauty_text_array(
+      ingredients,
+      null::text[],
+      40,
+      120
+    )
+  ) not valid;
+
+alter table public.products
+  add constraint products_how_to_use_length_ck
+  check (how_to_use is null or char_length(how_to_use) <= 2000)
+  not valid;
+
+alter table public.products
+  add constraint products_warnings_length_ck
+  check (warnings is null or char_length(warnings) <= 2000)
+  not valid;
+
+commit;
+
+-- Follow-up, only after catalog data has been reviewed:
+--   ALTER TABLE public.products VALIDATE CONSTRAINT ...;
+--
+-- Do not add a NOT NULL requirement to the arrays beyond the current
+-- schema defaults; empty arrays are valid for draft state.
