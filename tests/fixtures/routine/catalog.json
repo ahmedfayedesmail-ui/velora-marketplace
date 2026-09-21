@@ -11,11 +11,24 @@
       "subcategory": "cleanser",
       "price": 80,
       "stock": 20,
-      "skin_types": ["oily", "combination"],
-      "concerns": ["acne", "daily_care"],
-      "ingredients": ["glycerin"],
-      "benefits": ["cleansing"],
-      "tags": ["cleanse", "cleansing"],
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "acne",
+        "daily_care"
+      ],
+      "ingredients": [
+        "glycerin"
+      ],
+      "benefits": [
+        "cleansing"
+      ],
+      "tags": [
+        "cleanse",
+        "cleansing"
+      ],
       "variant": null
     },
     {
@@ -25,11 +38,24 @@
       "subcategory": "cleanser",
       "price": 90,
       "stock": 20,
-      "skin_types": ["dry", "normal"],
-      "concerns": ["hydration", "daily_care"],
-      "ingredients": ["glycerin"],
-      "benefits": ["cleansing"],
-      "tags": ["cleanse", "cleansing"],
+      "skin_types": [
+        "dry",
+        "normal"
+      ],
+      "concerns": [
+        "hydration",
+        "daily_care"
+      ],
+      "ingredients": [
+        "glycerin"
+      ],
+      "benefits": [
+        "cleansing"
+      ],
+      "tags": [
+        "cleanse",
+        "cleansing"
+      ],
       "variant": null
     },
     {
@@ -39,11 +65,24 @@
       "subcategory": "serum",
       "price": 120,
       "stock": 20,
-      "skin_types": ["oily", "combination", "normal"],
-      "concerns": ["acne"],
-      "ingredients": ["niacinamide"],
-      "benefits": ["acne"],
-      "tags": ["serum", "treat"],
+      "skin_types": [
+        "oily",
+        "combination",
+        "normal"
+      ],
+      "concerns": [
+        "acne"
+      ],
+      "ingredients": [
+        "niacinamide"
+      ],
+      "benefits": [
+        "acne"
+      ],
+      "tags": [
+        "serum",
+        "treat"
+      ],
       "variant": null
     },
     {
@@ -53,11 +92,24 @@
       "subcategory": "serum",
       "price": 130,
       "stock": 20,
-      "skin_types": ["dry", "normal", "combination"],
-      "concerns": ["hydration"],
-      "ingredients": ["hyaluronic_acid"],
-      "benefits": ["hydration"],
-      "tags": ["serum", "treat"],
+      "skin_types": [
+        "dry",
+        "normal",
+        "combination"
+      ],
+      "concerns": [
+        "hydration"
+      ],
+      "ingredients": [
+        "hyaluronic_acid"
+      ],
+      "benefits": [
+        "hydration"
+      ],
+      "tags": [
+        "serum",
+        "treat"
+      ],
       "variant": null
     },
     {
@@ -67,11 +119,28 @@
       "subcategory": "serum",
       "price": 180,
       "stock": 20,
-      "skin_types": ["dry", "combination", "normal", "sensitive"],
-      "concerns": ["hyperpigmentation", "radiance"],
-      "ingredients": ["vitamin_c"],
-      "benefits": ["hyperpigmentation", "radiance"],
-      "tags": ["serum", "treat", "vitamin_c"],
+      "skin_types": [
+        "dry",
+        "combination",
+        "normal",
+        "sensitive"
+      ],
+      "concerns": [
+        "hyperpigmentation",
+        "radiance"
+      ],
+      "ingredients": [
+        "vitamin_c"
+      ],
+      "benefits": [
+        "hyperpigmentation",
+        "radiance"
+      ],
+      "tags": [
+        "serum",
+        "treat",
+        "vitamin_c"
+      ],
       "variant": {
         "id": "00000000-0000-4000-8000-000000000105",
         "sku": "VEL-FIX-BRIGHT-01",
@@ -79,7 +148,9 @@
         "price": 160,
         "stock_quantity": 10,
         "is_active": true,
-        "attributes": {"size": "30ml"}
+        "attributes": {
+          "size": "30ml"
+        }
       }
     },
     {
@@ -89,11 +160,25 @@
       "subcategory": "moisturizer",
       "price": 110,
       "stock": 20,
-      "skin_types": ["dry", "normal", "combination"],
-      "concerns": ["hydration", "daily_care"],
-      "ingredients": ["ceramides"],
-      "benefits": ["hydration"],
-      "tags": ["moisturize", "moisturizer"],
+      "skin_types": [
+        "dry",
+        "normal",
+        "combination"
+      ],
+      "concerns": [
+        "hydration",
+        "daily_care"
+      ],
+      "ingredients": [
+        "ceramides"
+      ],
+      "benefits": [
+        "hydration"
+      ],
+      "tags": [
+        "moisturize",
+        "moisturizer"
+      ],
       "variant": null
     },
     {
@@ -103,11 +188,24 @@
       "subcategory": "moisturizer",
       "price": 100,
       "stock": 20,
-      "skin_types": ["oily", "combination"],
-      "concerns": ["daily_care", "acne"],
-      "ingredients": ["niacinamide"],
-      "benefits": ["hydration"],
-      "tags": ["moisturize", "moisturizer"],
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "daily_care",
+        "acne"
+      ],
+      "ingredients": [
+        "niacinamide"
+      ],
+      "benefits": [
+        "hydration"
+      ],
+      "tags": [
+        "moisturize",
+        "moisturizer"
+      ],
       "variant": null
     },
     {
@@ -117,11 +215,26 @@
       "subcategory": "sunscreen",
       "price": 100,
       "stock": 20,
-      "skin_types": ["oily", "dry", "combination", "normal", "sensitive"],
-      "concerns": ["daily_care", "hyperpigmentation"],
+      "skin_types": [
+        "oily",
+        "dry",
+        "combination",
+        "normal",
+        "sensitive"
+      ],
+      "concerns": [
+        "daily_care",
+        "hyperpigmentation"
+      ],
       "ingredients": [],
-      "benefits": ["sun_protection"],
-      "tags": ["protect", "sunscreen", "spf"],
+      "benefits": [
+        "sun_protection"
+      ],
+      "tags": [
+        "protect",
+        "sunscreen",
+        "spf"
+      ],
       "variant": null
     },
     {
@@ -131,11 +244,21 @@
       "subcategory": "serum",
       "price": 125,
       "stock": 20,
-      "skin_types": ["oily", "combination"],
-      "concerns": ["acne"],
-      "ingredients": ["azelaic_acid"],
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "acne"
+      ],
+      "ingredients": [
+        "azelaic_acid"
+      ],
       "benefits": [],
-      "tags": ["serum", "treat"],
+      "tags": [
+        "serum",
+        "treat"
+      ],
       "variant": null
     },
     {
@@ -145,20 +268,160 @@
       "subcategory": "body_lotion",
       "price": 75,
       "stock": 20,
-      "skin_types": ["oily"],
-      "concerns": ["acne"],
+      "skin_types": [
+        "oily"
+      ],
+      "concerns": [
+        "acne"
+      ],
       "ingredients": [],
-      "benefits": ["hydration"],
-      "tags": ["body"],
+      "benefits": [
+        "hydration"
+      ],
+      "tags": [
+        "body"
+      ],
+      "variant": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "name": "Fixture Budget Stress Cleanser",
+      "category": "beauty",
+      "subcategory": "cleanser",
+      "price": 150,
+      "stock": 20,
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "acne"
+      ],
+      "ingredients": [
+        "glycerin"
+      ],
+      "benefits": [
+        "cleansing"
+      ],
+      "tags": [
+        "cleanse"
+      ],
+      "variant": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "name": "Fixture Budget Stress Serum",
+      "category": "beauty",
+      "subcategory": "serum",
+      "price": 200,
+      "stock": 20,
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "acne"
+      ],
+      "ingredients": [
+        "niacinamide"
+      ],
+      "benefits": [
+        "acne"
+      ],
+      "tags": [
+        "serum",
+        "treat"
+      ],
+      "variant": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "name": "Fixture Budget Stress Moisturizer",
+      "category": "beauty",
+      "subcategory": "moisturizer",
+      "price": 180,
+      "stock": 20,
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "daily_care"
+      ],
+      "ingredients": [
+        "ceramides"
+      ],
+      "benefits": [
+        "hydration"
+      ],
+      "tags": [
+        "moisturize"
+      ],
+      "variant": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000014",
+      "name": "Fixture Budget Stress Sunscreen",
+      "category": "beauty",
+      "subcategory": "sunscreen",
+      "price": 170,
+      "stock": 20,
+      "skin_types": [
+        "oily",
+        "combination"
+      ],
+      "concerns": [
+        "daily_care"
+      ],
+      "ingredients": [],
+      "benefits": [
+        "sun_protection"
+      ],
+      "tags": [
+        "protect",
+        "sunscreen"
+      ],
       "variant": null
     }
   ],
   "special_packs": {
-    "complete_low_budget": ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000003", "00000000-0000-4000-8000-000000000007", "00000000-0000-4000-8000-000000000008"],
-    "complete_dry": ["00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-000000000004", "00000000-0000-4000-8000-000000000006", "00000000-0000-4000-8000-000000000008"],
-    "concern_only": ["00000000-0000-4000-8000-000000000009"],
-    "no_match": ["00000000-0000-4000-8000-000000000010"],
-    "partial": ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000003", "00000000-0000-4000-8000-000000000007"],
-    "variant": ["00000000-0000-4000-8000-000000000005"]
+    "complete_low_budget": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000003",
+      "00000000-0000-4000-8000-000000000007",
+      "00000000-0000-4000-8000-000000000008"
+    ],
+    "complete_dry": [
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000004",
+      "00000000-0000-4000-8000-000000000006",
+      "00000000-0000-4000-8000-000000000008"
+    ],
+    "concern_only": [
+      "00000000-0000-4000-8000-000000000009"
+    ],
+    "no_match": [
+      "00000000-0000-4000-8000-000000000010"
+    ],
+    "partial": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000003",
+      "00000000-0000-4000-8000-000000000007"
+    ],
+    "variant": [
+      "00000000-0000-4000-8000-000000000005"
+    ],
+    "complete_hyper": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000005",
+      "00000000-0000-4000-8000-000000000006",
+      "00000000-0000-4000-8000-000000000008"
+    ],
+    "budget_stress": [
+      "00000000-0000-4000-8000-000000000011",
+      "00000000-0000-4000-8000-000000000012",
+      "00000000-0000-4000-8000-000000000013",
+      "00000000-0000-4000-8000-000000000014"
+    ]
   }
 }
