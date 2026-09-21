@@ -1,0 +1,38 @@
+-- Velora — Canonical Catalog Cutover / Hardening Draft
+-- Date: 2026-09-21
+--
+-- IMPORTANT:
+-- The legacy catalog is embedded in JavaScript. There is no valid
+-- legacy-to-canonical row migration to run.
+--
+-- This file is a deferred DB hardening draft only. It must not be
+-- copied into supabase/migrations/ or executed while the Browser Gate
+-- is LOCKED.
+--
+-- Design rule:
+-- 1) Do not INSERT legacy JS products into public.products.
+-- 2) Canonical source remains public.products/product_variants.
+-- 3) Source consumers are cut over first.
+-- 4) Only after browser verification should optional DB hardening below
+--    be promoted into a real migration after re-checking live constraints.
+
+begin;
+
+-- Canonical Beauty read-path index for the exact Routine eligibility
+-- dimensions used by the current implementation.
+create index if not exists idx_products_canonical_beauty_egp_status
+on public.products (status, category, currency_code, store_id);
+
+-- Canonical variant lookup is already indexed in the current schema,
+-- so no duplicate variant index is required.
+
+commit;
+
+-- NOTE:
+-- This hardening index is intentionally low-risk and does not change data,
+-- but it still belongs in the deferred migration track under the current
+-- Browser Gate rule.
+--
+-- The actual legacy removal is a source-change sequence:
+-- remove PRODUCTS -> remove legacy consumers -> browser verify -> delete
+-- remaining legacy catalog helpers.
