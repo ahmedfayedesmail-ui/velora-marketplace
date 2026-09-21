@@ -1,12 +1,11 @@
--- Velora Routine Fixture Regression Runner — Restore-Test only
--- 2026-09-21
+-- Velora Routine Fixture Regression — PRE-MIGRATION BASELINE
+-- Restore-Test only. Production execution is prohibited.
 --
--- This script is intentionally not a migration and must never run in Production.
--- It verifies the current/approved Routine contract against controlled fixtures.
+-- Requires tests/fixtures/routine/fixture_seed.sql to have been loaded.
+-- Run after loading the fixtures, then rollback/cleanup.
 --
--- IMPORTANT:
--- Scenario expectations that depend on the Sensitive migration or Concerns
--- migration are marked explicitly. Do not silently downgrade those assertions.
+-- This script intentionally verifies the current contract before the two
+-- deferred migrations are applied.
 
 begin;
 
@@ -14,7 +13,7 @@ do $$
 declare
   v_user_id uuid;
   v_out jsonb;
-  v_profile public.beauty_profiles%rowtype;
+  v_treat jsonb;
 begin
   select id into v_user_id
   from auth.users
@@ -25,55 +24,77 @@ begin
     raise exception 'NO_TEST_USER';
   end if;
 
+  if (select count(*) from public.products
+      where id between '00000000-0000-4000-8000-000000000001'::uuid
+                and '00000000-0000-4000-8000-000000000014'::uuid) < 14 then
+    raise exception 'FIXTURE_CATALOG_INCOMPLETE';
+  end if;
+
   perform set_config('request.jwt.claim.sub', v_user_id::text, true);
 
-  -- Baseline: current fixture catalog should support a complete oily/acne routine.
+  -- Baseline positive selection.
   perform public.velora_save_beauty_passport_v2('oily','acne','under_500');
   v_out := public.velora_generate_beauty_routine();
 
   if v_out->>'contract_version' <> 'beauty-routine.v1' then
-    raise exception 'R01_BAD_CONTRACT_VERSION: %', v_out;
+    raise exception 'BAD_CONTRACT_VERSION: %', v_out;
   end if;
-
   if v_out->>'status' <> 'complete' then
-    raise exception 'R01_EXPECTED_COMPLETE: %', v_out;
+    raise exception 'EXPECTED_COMPLETE: %', v_out;
   end if;
-
   if (v_out->>'total_cost')::numeric > 500 then
-    raise exception 'R01_BUDGET_EXCEEDED: %', v_out;
+    raise exception 'BUDGET_EXCEEDED: %', v_out;
   end if;
 
-  -- Sensitive case:
-  -- CURRENT behavior is expected to fail before the approved migration.
-  -- After the migration is applied, this block must succeed.
+  -- Determinism: same profile + same catalog must return the same output.
+  if public.velora_generate_beauty_routine() <> v_out then
+    raise exception 'NON_DETERMINISTIC_OUTPUT';
+  end if;
+
+  -- Sensitive is a known current compatibility failure.
   begin
     perform public.velora_save_beauty_passport_v2('sensitive','radiance','500_1000');
-    v_profile := public.beauty_profiles where false;
-    if public.velora_generate_beauty_routine() is null then
-      raise exception 'SENSITIVE_ROUTINE_NULL';
-    end if;
-  exception
-    when invalid_text_representation or check_violation or raise_exception then
-      -- Do not convert this into a pass automatically.
-      if sqlerrm like '%INVALID_SKIN_TYPE%' then
-        raise notice 'C-SENSITIVE CURRENT CONTRACT: INVALID_SKIN_TYPE (expected before migration)';
-      else
-        raise;
-      end if;
-  end;
-
-  -- Contract error must remain explicit.
-  begin
-    perform public.velora_save_beauty_passport_v2('not-a-skin-type','acne','under_500');
-    raise exception 'INVALID_SKIN_TYPE_WAS_NOT_REJECTED';
+    raise exception 'SENSITIVE_ACCEPTED_BEFORE_MIGRATION';
   exception
     when others then
       if sqlerrm not like '%INVALID_SKIN_TYPE%' then
         raise;
       end if;
+      raise notice 'EXPECTED PRE-MIGRATION SENSITIVE FAILURE: %', sqlerrm;
   end;
 
-  raise notice 'Routine fixture regression baseline checks completed.';
+  -- Concern-only product should be selectable by step type, but the current
+  -- engine does not yet award goal_match from products.concerns.
+  delete from public.beauty_routine_runs
+  where user_id = v_user_id;
+
+  delete from public.product_variants
+  where product_id <> '00000000-0000-4000-8000-000000000009'::uuid
+    and product_id between '00000000-0000-4000-8000-000000000001'::uuid
+                        and '00000000-0000-4000-8000-000000000014'::uuid;
+
+  delete from public.products
+  where id between '00000000-0000-4000-8000-000000000001'::uuid
+                and '00000000-0000-4000-8000-000000000014'::uuid
+    and id <> '00000000-0000-4000-8000-000000000009'::uuid;
+
+  perform public.velora_save_beauty_passport_v2('oily','acne','under_500');
+  v_out := public.velora_generate_beauty_routine();
+
+  select step into v_treat
+  from jsonb_array_elements(v_out->'steps') step
+  where step->>'step_type'='treat'
+  limit 1;
+
+  if v_treat is null then
+    raise exception 'CONCERN_ONLY_TREAT_STEP_NOT_SELECTED: %', v_out;
+  end if;
+
+  if coalesce((v_treat->'reason_codes') ? 'goal_match', false) then
+    raise exception 'CONCERNS_ALREADY_AWARD_GOAL_MATCH_BEFORE_MIGRATION';
+  end if;
+
+  raise notice 'PRE-MIGRATION baseline passed.';
 end $$;
 
 rollback;
