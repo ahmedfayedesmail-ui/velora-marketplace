@@ -11813,7 +11813,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
         t: Date.now()
       });
       const {data,error}=await client.from('carts')
-        .select('id,currency_code,cart_items(id,product_id,product_variant_id,quantity,products(id,name,price,original_price,emoji,images,currency_code,store_id,seller_id))')
+        .select('id,currency_code,cart_items(id,product_id,product_variant_id,quantity,products(id,name,price,original_price,emoji,images,currency_code,store_id,seller_id),product_variants(id,name,price,sku,attributes,stock_quantity,is_active))')
         .eq('customer_id',user.id)
         .maybeSingle();
       const itemsCount = Array.isArray(data?.cart_items) ? data.cart_items.length : 0;
@@ -11839,14 +11839,20 @@ console.log('✅ Analytics + Events + Audit loaded!');
           canonicalId:prod.id||row.product_id,
           productId:prod.id||row.product_id,
           name:prod.name||'Product',
-          price:Number(prod.price||0),
+          price:row.product_variants && row.product_variants.price!=null
+            ? Number(row.product_variants.price)
+            : Number(prod.price||0),
           oldPrice:prod.original_price!=null?Number(prod.original_price):null,
           emoji:prod.emoji||'📦',
           quantity:Number(row.quantity||1),
           currency:prod.currency_code||data.currency_code||VELORA_CURRENCY,
           storeId:prod.store_id||null,
           sellerId:prod.seller_id||null,
-          variantId:row.product_variant_id||null
+          variantId:row.product_variant_id||null,
+          variantName:row.product_variants?.name||null,
+          variantAttributes:row.product_variants?.attributes||{},
+          sku:row.product_variants?.sku||null,
+          variantStock:row.product_variants?.stock_quantity!=null?Number(row.product_variants.stock_quantity):null
         };
       }).filter(x=>isUuid(x.id));
       saveToStorage(KEYS.CART,STATE.cart);
