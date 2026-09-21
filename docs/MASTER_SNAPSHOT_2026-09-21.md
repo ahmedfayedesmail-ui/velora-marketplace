@@ -354,7 +354,7 @@ Production remains frozen; Checkout/FIND-BE-015 remains a separate workstream.
 
 ### Security Finding — FIND-BE-031
 
-**Variant Cart writer anon EXECUTE exposure = INVESTIGATED / DEFERRED**
+**Variant Cart writer anon EXECUTE exposure = INVESTIGATED / PARKED**
 
 Observed:
 - anon EXECUTE is currently granted on the variant Cart writer;
@@ -380,9 +380,9 @@ Decision:
 | FIND-BE-015 Checkout submit/order creation | OPEN; authenticated browser gate |
 | F-008 Currency | TEMPORARY; EGP-first Phase 1 model |
 | FIND-BE-008 Variant UI | DEFERRED |
-| FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
+| FIND-BE-027 Data Protection / Deletion Readiness | OPEN / PREP — Owner/Legal review; required before Production GO |
 | FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
-| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |\n| FIND-BE-030 Base Cart Stock Guard | RESOLVED / VERIFIED — Restore-Test |\n| FIND-BE-031 Variant cart writer anon EXECUTE exposure | OPEN — investigated / deferred |
+| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |\n| FIND-BE-030 Base Cart Stock Guard | RESOLVED / VERIFIED — Restore-Test |\n| FIND-BE-031 Variant cart writer anon EXECUTE exposure | INVESTIGATED / PARKED — broader ACL hardening workstream |
 
 ---
 
@@ -418,7 +418,7 @@ Browser verification is still pending.
 
 ### Unified Browser Gate
 
-**EXECUTION PLAN = READY**
+**EXECUTION PLAN = LOCKED — OWNER APPROVED — 2026-09-21**
 
 Document:
 
@@ -454,11 +454,11 @@ No browser result should be inferred from source-level fixes or SQL tests.
 
 ---
 
-### Owner Review / Waiting State
+### Owner Review / Browser Gate State
 
-**Unified Browser Gate Plan = OWNER PRE-READ**
+**Unified Browser Gate Plan = OWNER APPROVED — LOCKED — 2026-09-21**
 
-The technical plan is ready but is **not LOCKED** until Owner review and explicit approval of the execution order.
+Owner approved the execution order, stop conditions, and BG-09 parallel launch/compliance classification.
 
 Companion execution layer:
 
@@ -466,7 +466,9 @@ Companion execution layer:
 
 Checklist status:
 
-**DRAFT — Owner Review Required**
+**LOCKED — OWNER APPROVED**
+
+Owner Checklist review before the browser session is for familiarization only.
 
 ### FIND-BE-027 Data Protection Prep
 
@@ -521,7 +523,7 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate Owner Pre-Read ✅ → Owner approval ⏭️ → Browser execution ⏭️**
+**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate LOCKED ✅ → Browser execution ⏭️**
 
 Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅**
 
