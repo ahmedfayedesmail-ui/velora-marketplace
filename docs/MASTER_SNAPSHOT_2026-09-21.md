@@ -416,6 +416,24 @@ Evidence:
 
 Browser verification is still pending.
 
+### Unified Browser Gate
+
+**EXECUTION PLAN = READY**
+
+Document:
+
+`docs/UNIFIED_BROWSER_GATE_EXECUTION_PLAN_2026-09-21.md`
+
+Dependency order:
+
+`FIND-BE-023 → Auth/session → Cart → FIND-BE-015 → Orders/Seller/Admin → Routine/Quiz/Returning User → Sprint 2 residuals → presentation regression → FIND-BE-027`
+
+Lifecycle discipline:
+
+**Observed → Fixed → Browser Verified → Closed**
+
+Current agent runtime has no `agent-browser` executable, so no Browser PASS is claimed from this preparation.
+
 ## Browser Gate
 
 The final browser gate must still validate:
@@ -470,7 +488,7 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate ⏭️**
+**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate plan ✅ → Browser execution ⏭️**
 
 Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅**
 
