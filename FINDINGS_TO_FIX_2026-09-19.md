@@ -21,6 +21,27 @@
 
 ---
 
+
+## Legacy Findings Triage — 2026-09-21
+
+Bounded record-reconciliation only. No code, SQL, migration, browser execution, branch, or remediation was performed.
+
+| Legacy finding | Triage classification | Record basis |
+|---|---|---|
+| FIND-BE-009 — Mobile overflow | **SUPERSEDED / ABSORBED** | Covered by current F-002 mobile closure plus the final browser regression gate. Any recurrence is logged against the current gate rather than reopened as a second mobile finding. |
+| FIND-BE-010 — “Discover More” duplicated | **SUPERSEDED / ABSORBED** | Current hero normalization exists in the localization runtime and duplicate-hero behavior is part of the locked BG-08 presentation regression. Reopen only from new browser evidence. |
+| FIND-BE-011 — Reviews UUID syntax / invalid product IDs | **SUPERSEDED / ABSORBED** | Canonical UUID validation is now present in current S2 modules and the review path is DB-authoritative. Treat any recurrence as a new runtime/browser observation rather than retain the legacy demo-ID wording. |
+| FIND-BE-012 — US$ displayed instead of EGP | **SUPERSEDED / ABSORBED** | Current checkout currency resolution derives currency from the Cart/product path and F-008 is the active Phase-1 currency boundary. Final consistency remains a browser gate check. |
+| FIND-BE-013 — es-EG locale combination | **STALE** | Phase 1 exposes only EN/AR. The legacy Spanish+Egypt locale scenario is outside the current exposed language contract. Reopen only if ES is intentionally reintroduced. |
+| FIND-BE-014 — “Your cart is empty” inside Checkout | **RESOLVED** | Sprint 2.5 explicitly traced and corrected the stale UX44 empty-cart panel during Cart synchronization. |
+| FIND-BE-016 — Staff login failed | **RESOLVED** | Staff identity/role is now established in Restore-Test and Staff/Admin login was already validated in the current Sprint 2 Wave 1-A closure. |
+
+### Triage rule going forward
+
+A superseded/absorbed item is not deleted from history. It is no longer an independent active finding; new evidence is attached to the current finding or browser gate that owns the behavior.
+
+---
+
 # Findings
 
 ## FIND-BE-015 — Checkout submit does not create an order
@@ -181,7 +202,7 @@ Do **not** keep looping on this in Sprint 2. Fix locally under Sprint 2.5 later.
 Medium
 
 ### Status
-OPEN
+SUPERSEDED / ABSORBED
 
 ### Reproduction
 
@@ -222,7 +243,7 @@ The developer should test behavior instead of assuming these rules are sufficien
 Medium
 
 ### Status
-OPEN
+SUPERSEDED / ABSORBED
 
 ### Reproduction
 
@@ -258,7 +279,7 @@ OPEN
 High
 
 ### Status
-OPEN
+SUPERSEDED / ABSORBED
 
 ### Reproduction
 
@@ -291,7 +312,7 @@ OPEN
 High
 
 ### Status
-OPEN
+SUPERSEDED / ABSORBED
 
 ### Reproduction
 
@@ -332,7 +353,7 @@ OPEN
 Medium
 
 ### Status
-OPEN
+STALE
 
 ### Reproduction
 
@@ -363,7 +384,7 @@ OPEN
 High
 
 ### Status
-OPEN / related to cart synchronization
+RESOLVED
 
 ### Reproduction
 
@@ -403,7 +424,7 @@ OPEN / related to cart synchronization
 High
 
 ### Status
-OPEN
+RESOLVED
 
 ### Reproduction
 
