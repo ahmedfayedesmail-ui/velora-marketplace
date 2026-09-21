@@ -55,7 +55,7 @@
       "pack": "complete_dry",
       "expected": {
         "status": "complete",
-        "total_cost": 430,
+        "total_cost": 420,
         "required_steps": 4
       }
     },
