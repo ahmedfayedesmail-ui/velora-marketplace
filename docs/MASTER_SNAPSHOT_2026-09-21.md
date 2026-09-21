@@ -245,7 +245,22 @@ The home hero receives a **Build my routine / اعرفي روتينك** entry po
 
 Browser verification is still required; no Browser PASS is inferred from source implementation.
 
-Quiz v2 frontend UI is not part of this gate yet.
+Quiz v2 frontend source is now implemented separately in `src/scripts/61-s1-c-quiz-v2.js`.
+
+- three-question customer path;
+- `beauty-quiz.v2`;
+- `skin_type / goal / routine_budget`;
+- AR/EN copy;
+- explicit `unknown` handling for skin type and budget;
+- save through `velora_save_beauty_passport_v2`;
+- handoff to Routine UX only after successful v2 save;
+- no commerce/check-out logic;
+- legacy v1 module remains intact.
+
+Evidence:
+`docs/PHASE_C_QUIZ_V2_UI_SOURCE_EVIDENCE_2026-09-21.md`
+
+Quiz v2 UI Browser Verification remains pending.
 
 ---
 
