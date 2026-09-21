@@ -148,7 +148,47 @@ Everything in D remains deferred unless market evidence forces it back in.
 - No Browser PASS claim from source/SQL/Vercel evidence alone.
 - No new architecture project before the first transaction path is verified.
 
+
+## C-estimate guidance
+
+Engineering estimates for the minimum work after Browser Gate access is available; these are estimates, not promises.
+
+| Gap | Estimated effort | Main dependency |
+|---|---:|---|
+| C1 Browser verification | 0.5–1 engineering day | Chrome/browser access |
+| C2 Real seller/catalog supply | 2–7 business days for an initial test | Owner outreach + seller responses |
+| C3 Canonical Catalog Unification | 1–2 engineering days for minimum viable unification | Source review + safe regression |
+| C4 Minimum seller beauty metadata | 1–2 engineering days | Canonical fields / controlled vocabulary |
+| C5 Seller → Match entry point | 0.5–1 engineering day | Browser Gate baseline |
+
+C2 is deliberately a range because its critical path is human response, not engineering.
+
+## R1–R7 seller-response taxonomy
+
+Use one primary class per first substantive response, plus optional notes.
+
+| Code | Meaning |
+|---|---|
+| R1 | No need / no customer problem |
+| R2 | Commission / economics objection |
+| R3 | Prefers existing Instagram / WhatsApp flow |
+| R4 | Does not understand the value yet |
+| R5 | Concern about losing customer relationship/control |
+| R6 | Needs payment / delivery / operations capability first |
+| R7 | Other / specific objection not covered above |
+
+Record each conversation as:
+Date | Seller | Channel | Response summary | R-code | Next step | Test willingness
+
+R1–R7 are discovery categories, not failure labels.
+
+## Current public-contact verification note — 2026-09-21
+
+Public web checks currently support the listed details for LunaAngel, Hivee Care, EVRUM, Dylara, Glamy Skin, Skin Valet Egypt, Dr Jo, Maqam Cosmetics, and Pearl Cosmetics as current public business information. Organiic House Evora has the listed number in an accessible public directory, but that page is old, so treat it as STALE / VERIFY BEFORE USE.
+
+Important limitation: public-page confirmation is not the same as successfully placing a call or sending a WhatsApp/Instagram message. Final reachability is confirmed only by Owner outreach.
+
 ## Audit status
 
-COMPLETE for the current source/plan evidence.
+COMPLETE for current source/plan evidence, with estimates, seller-response taxonomy, and public-contact checks refreshed 2026-09-21.
 This file does not certify Browser PASS or commercial launch readiness.
