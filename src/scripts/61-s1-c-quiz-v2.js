@@ -304,7 +304,6 @@
     const { data, error } = await client
       .from('beauty_profiles')
       .select('quiz_version,skin_type,goal,routine_budget')
-      .eq('user_id', authData.user.id)
       .maybeSingle();
 
     if (error) throw error;
