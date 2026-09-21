@@ -6,24 +6,23 @@
 **Preferred environment:** local HTTP server; Vercel Preview may be used when required  
 **Restore-Test:** `arlaxqmhtvjwjbjinjfw`  
 **Production:** **FROZEN — no production mutation or GO**  
-**Approval status:** **OWNER PRE-READ — pending Owner review/approval**  
+**Approval status:** **OWNER APPROVED — LOCKED — 2026-09-21**  
 **Browser execution status:** **NOT AVAILABLE IN CURRENT AGENT RUNTIME**; execute when Owner has Chrome/browser access.
 
 ---
 
-## Owner Pre-Read
+## Owner Approval / Lock
 
-Before this execution plan is considered **LOCKED**, the Owner should:
-- read the dependency order;
-- review BG-01 through BG-08;
-- review the parallel launch/compliance classification for BG-09;
-- raise questions or objections;
-- explicitly approve the execution order.
+Owner has reviewed and approved the execution order, stop conditions, and BG-09 parallel launch/compliance classification.
+
+**Browser Gate status: LOCKED.**
 
 The companion execution-layer checklist is:
 `docs/UNIFIED_BROWSER_GATE_OWNER_CHECKLIST_2026-09-21.md`
 
-That checklist is a **DRAFT until Owner approval**.
+Owner Checklist status: **LOCKED — OWNER APPROVED**.
+
+The Owner may review the checklist before the browser session for familiarization only; this does not alter the technical gate specification.
 
 ## 1. Gate Discipline
 
@@ -494,7 +493,7 @@ Run **BG-09 as a parallel launch/compliance workstream**, with browser verificat
 At plan creation:
 
 - FIND-BE-030: **Resolved / Verified — Restore-Test**
-- FIND-BE-031: **Investigated / Deferred**
+- FIND-BE-031: **Investigated / Parked**
 - Routine → Cart: **Source Complete / Browser Pending**
 - Phase C: **Source Complete / Browser Pending**
 - Phase D: **Planning Complete**
@@ -503,4 +502,4 @@ At plan creation:
 - FIND-BE-027: **Open**
 - Production: **FROZEN**
 
-**This document is an execution plan, not a Browser PASS.**
+**This document is an execution plan, now LOCKED by Owner approval. It is not a Browser PASS.**
