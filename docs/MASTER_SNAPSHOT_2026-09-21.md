@@ -225,7 +225,7 @@ Quiz v2 frontend UI is not part of this gate yet.
 
 ## Phase D — Operations / Trust / Economics
 
-**Strategy = APPROVED — planning started in parallel**
+**Strategy = APPROVED — planning in parallel**
 
 Confirmed:
 
@@ -233,25 +233,13 @@ Confirmed:
 - MVP fulfillment model = Curated Sellers;
 - split shipment is an explicit transparent UX concept;
 - shipping adapter pattern;
+- no carrier commercial selection yet;
 - Legal/Trust planning in parallel;
 - no dermatologist dependency in MVP;
 - authenticity is separate from seller KYC;
 - Unit Economics is a shared framework;
 - critique market/unit-economics numbers remain assumptions until validated;
 - Routine ≠ Order.
-
-Planning outputs:
-
-- `docs/PHASE_D1_SELLER_OPERATIONS_PLANNING_2026-09-21.md`
-- `docs/PHASE_D3_LEGAL_TRUST_FRAMEWORK_PLANNING_2026-09-21.md`
-
-No Phase-D commercial policy is encoded in the Routine engine.
-
----
-
-## Phase D — Parallel Planning
-
-Strategy = APPROVED.
 
 ### D1 Seller Operations
 
@@ -280,7 +268,7 @@ Planning ready:
 
 `docs/PHASE_D3_LEGAL_TRUST_FRAMEWORK_PLANNING_2026-09-21.md`
 
-No commercial policy is encoded in the Routine engine.
+No Phase-D commercial policy is encoded in the Routine engine.
 
 ---
 
@@ -345,15 +333,13 @@ No Production DB migration, data change, provider credential change, or deployme
 | Responsive/CSS fixes | **Engineer** |
 | Dark-mode CSS | **Engineer** |
 | Console error investigation | **Engineer**, with security-sensitive escalation if uncovered |
-| Commission rate / commercial terms | **Owner/Product** |
-| Subscription pricing/package | **Owner/Product** |
-| Advertising commercial policy | **Owner/Product** |
-| Future vertical priority | **Owner/Product** |
 | Fulfillment model | **Already decided — Curated Sellers** |
 | Commission rate / commercial terms | **Owner/Product** |
 | Subscription pricing/package | **Owner/Product** |
+| Advertising commercial policy | **Owner/Product** |
 | Seller commercial terms | **Owner/Product** |
 | Refund economics | **Owner/Product** |
+| Future vertical priority | **Owner/Product** |
 | Production GO | **Owner** |
 
 ---
@@ -362,8 +348,6 @@ No Production DB migration, data change, provider credential change, or deployme
 
 **Routine UX → Quiz v2 UI → Sprint 1 UI**
 
-Phase D parallel: **D2 Planning ✅ → D4 Unit Economics Planning**
-
-In parallel: **D1 Seller Operations Planning → D3 Legal/Trust Planning → D2/D4 planning gates**
+Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 Unit Economics Planning**
 
 Production remains **FROZEN**.
