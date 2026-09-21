@@ -247,6 +247,8 @@ Browser verification is still required; no Browser PASS is inferred from source 
 
 Quiz v2 frontend source is now implemented separately in `src/scripts/61-s1-c-quiz-v2.js`.
 
+Returning-user behavior is state-aware: v2-complete Passport shows **شوفي روتينك / See my routine** and opens Routine directly; otherwise **اعرفي روتينك / Build my routine** opens Quiz v2. `unknown` remains a valid complete value, and the state is re-checked at click time.
+
 - three-question customer path;
 - `beauty-quiz.v2`;
 - `skin_type / goal / routine_budget`;
