@@ -122,8 +122,8 @@ The primary home entry point is state-aware:
 
 - no v2-complete Passport → **اعرفي روتينك / Build my routine** → Quiz v2;
 - v2-complete Passport → **شوفي روتينك / See my routine** → Routine UX directly;
-- v2 completeness means \\`beauty-quiz.v2\\` plus non-empty \\`skin_type\\`, \\`goal\\`, and \\`routine_budget\\`;
-- \\`unknown\\` is a valid persisted value and therefore counts as complete;
+- v2 completeness means `beauty-quiz.v2` plus non-empty `skin_type`, `goal`, and `routine_budget`;
+- `unknown` is a valid persisted value and therefore counts as complete;
 - entry state is re-checked at click time, preventing stale client state from bypassing the current Passport state;
 - Passport ownership is enforced through authenticated session + RLS; the frontend does not send a user UUID as an ownership authority.
 
@@ -170,6 +170,7 @@ Verified by repository inspection:
 - Quiz v2 RPC call exists exactly once in the save path.
 - Routine entrypoint is no longer owned by the Routine UI module.
 - Routine entrypoint is owned by the Quiz v2 UI.
+- Returning users have an active **عدّلي إجاباتك / Edit my answers** action from Routine back to Quiz v2.
 - Question titles and subtitles have separate AR/EN source values.
 
 ## 11. Browser Gate
