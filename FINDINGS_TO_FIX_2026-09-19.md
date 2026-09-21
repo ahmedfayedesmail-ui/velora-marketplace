@@ -500,6 +500,52 @@ No Checkout, Order Creation, Price, Currency, Routine, or Production changes wer
 
 ---
 
+## FIND-BE-031 — Variant cart writer anon EXECUTE exposure
+
+### Severity
+**TBD — investigation result does not establish an unauthorized Cart mutation**
+
+### Status
+**OPEN — INVESTIGATED / DEFERRED**
+
+### Finding
+
+The public variant Cart writer:
+
+`public.velora_upsert_cart_item_variant(uuid, uuid, integer, text)`
+
+currently has:
+
+- `SECURITY DEFINER = true`
+- `anon EXECUTE = true`
+- `authenticated EXECUTE = true`
+
+### Investigation result
+
+On Restore-Test, an anonymous execution probe invoked the function with no authenticated identity.
+
+Observed result:
+
+`AUTH_REQUIRED`
+
+No Cart mutation was observed.
+
+Therefore the current evidence does **not** establish an exploitable anonymous Cart write through this function.
+
+### Why it remains a finding
+
+The function is still exposed as an executable public API surface while using SECURITY DEFINER. The internal auth guard currently blocks anonymous use, but privilege exposure remains a defense-in-depth concern and should be reviewed deliberately rather than silently ignored.
+
+### Decision
+
+**No immediate fix in this Routine → Cart workstream.**
+
+Do not change function ACL/security semantics here without a dedicated security decision.
+
+### Boundary
+
+Production remains FROZEN.
+
 # Shared developer checklist
 
 ## Before changing code
