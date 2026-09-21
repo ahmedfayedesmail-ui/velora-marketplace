@@ -352,6 +352,20 @@ Evidence:
 
 Production remains frozen; Checkout/FIND-BE-015 remains a separate workstream.
 
+### Security Finding — FIND-BE-031
+
+**Variant Cart writer anon EXECUTE exposure = INVESTIGATED / DEFERRED**
+
+Observed:
+- anon EXECUTE is currently granted on the variant Cart writer;
+- anonymous invocation returned `AUTH_REQUIRED`;
+- no unauthorized Cart mutation was observed.
+
+Decision:
+- no security ACL fix in the current Routine → Cart workstream;
+- dedicated security decision remains open;
+- Production remains frozen.
+
 ## Current Findings
 
 | Finding | Status |
@@ -368,7 +382,7 @@ Production remains frozen; Checkout/FIND-BE-015 remains a separate workstream.
 | FIND-BE-008 Variant UI | DEFERRED |
 | FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
 | FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
-| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |\n| FIND-BE-030 Base Cart Stock Guard | RESOLVED / VERIFIED — Restore-Test |
+| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |\n| FIND-BE-030 Base Cart Stock Guard | RESOLVED / VERIFIED — Restore-Test |\n| FIND-BE-031 Variant cart writer anon EXECUTE exposure | OPEN — investigated / deferred |
 
 ---
 
