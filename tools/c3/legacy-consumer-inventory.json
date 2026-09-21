@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-09-21",
+  "branch": "sprint-2-s2d-admin",
+  "scope": "src/scripts + src/index.html",
+  "script_file_count": 63,
+  "legacy_catalog_symbol": "window.MAHA_DATA.PRODUCTS",
+  "decision": "KILL_LEGACY_DO_NOT_MERGE",
+  "verified_legacy_reference_files": [
+    {
+      "file": "src/scripts/00-localization.js",
+      "role": "LEGACY_SOURCE_AND_CONSUMER",
+      "legacy_definition": "const PRODUCTS = [",
+      "legacy_export": "window.MAHA_DATA = { PRODUCTS, CATEGORIES, GUIDE_ARTICLES, BLOG_ARTICLES, REVIEWS }",
+      "reference_counts": {
+        "MAHA_DATA.PRODUCTS": 37,
+        "MAHA_DATA?.PRODUCTS": 4,
+        "getAllProducts()": 3,
+        "getProductById()": 2
+      },
+      "known_reference_lines": [
+        29,1531,1533,1559,1561,1562,1568,1569,1570,1571,
+        2055,2059,2349,2517,2705,2706,2777,2849,2986,3194,
+        3253,3834,4272,4307,4488,4549,8423,9049,9574,9575,
+        10221,10368,10715,11242,11243,11258,11260,11261,11267,
+        11579,11582,11584,11634,11642,11884,11955,11979
+      ],
+      "replacement": "Remove embedded PRODUCTS dataset and legacy product access helpers after all consumers below are cut over. Keep unrelated localization/runtime code."
+    },
+    {
+      "file": "src/scripts/34-payments.js",
+      "role": "LEGACY_CONSUMER",
+      "evidence": "products() reads window.MAHA_DATA.PRODUCTS and falls back to getAllProducts(), then filters UUIDs.",
+      "replacement": "Use canonical product/catalog RPC or canonical product lookup; do not build a UUID-filtered legacy cache."
+    },
+    {
+      "file": "src/scripts/52-s2a-variants.js",
+      "role": "LEGACY_CONSUMER",
+      "evidence": "Variant selection/detail/cart paths resolve the base product from MAHA_DATA.PRODUCTS.",
+      "replacement": "Resolve the base product from the canonical product/variant path; variants remain canonical in product_variants."
+    },
+    {
+      "file": "src/scripts/53-s2c-reviews.js",
+      "role": "LEGACY_CONSUMER",
+      "evidence": "Review summary/write-review paths resolve product presentation data from MAHA_DATA.PRODUCTS.",
+      "replacement": "Use canonical product data or a local view model built from the canonical review/product response."
+    },
+    {
+      "file": "src/scripts/54-s2b-wishlist.js",
+      "role": "LEGACY_CONSUMER_AND_MUTATOR",
+      "evidence": "Wishlist hydrates, pushes and updates MAHA_DATA.PRODUCTS; product cards then resolve through the legacy array.",
+      "replacement": "Render wishlist rows directly from canonical wishlist/product data. Do not mutate a global legacy catalog."
+    },
+    {
+      "file": "src/scripts/57-s2-checkout-e2e.js",
+      "role": "LEGACY_CONSUMER_FALLBACK",
+      "evidence": "Checkout E2E currency fallback resolves product currency from MAHA_DATA.PRODUCTS when line currency is absent.",
+      "replacement": "Require line/canonical product currency from the authoritative checkout/cart representation; avoid legacy fallback."
+    }
+  ],
+  "presentation_leaks": [
+    {
+      "file": "src/index.html",
+      "evidence": "<strong id=\"statProducts\">50+</strong>",
+      "replacement": "Use a canonical count or remove the statistic. Never hard-code production catalog size."
+    }
+  ],
+  "clean_script_files": 57,
+  "post_cutover_acceptance": [
+    "No source file outside approved migration/delete set references MAHA_DATA.PRODUCTS.",
+    "00-localization.js no longer defines an embedded PRODUCTS array.",
+    "Variant/review/wishlist/checkout consumers resolve product data from canonical paths.",
+    "No feature copies canonical products into a global legacy cache.",
+    "Homepage does not claim a static catalog size.",
+    "Browser proof confirms Home, Shop, Search, Product, Compare, Routine, Cart and downstream role surfaces resolve the same canonical product identity."
+  ]
+}
