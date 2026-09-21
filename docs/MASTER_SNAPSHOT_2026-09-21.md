@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch state:** updated through Phase C Routine Verification + Routine UX source implementation + Phase D1/D2/D3/D4 planning  
+**Current branch state:** updated through Phase C Routine Verification + Routine/Quiz UX source implementation + Cart hardening + Phase D1/D2/D3/D4 planning  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -323,6 +323,35 @@ No Phase-D commercial policy is encoded in the Routine engine.
 
 ---
 
+### Cart Hardening — FIND-BE-030
+
+**BASE CART STOCK GUARD = VERIFIED — Restore-Test**
+
+Finding:
+`FIND-BE-030 — Base Cart Stock Guard gap`
+
+Implemented:
+
+- base product row locking with `FOR UPDATE`;
+- existing Cart quantity normalized to zero when absent;
+- `existing + requested <= stock` enforcement;
+- `INSUFFICIENT_STOCK` on over-capacity;
+- atomic requested increment behavior;
+- no inventory decrement at Cart Add.
+
+A verification harness exposed and corrected a NULL-on-empty-Cart implementation edge case before final verification.
+
+Migrations:
+
+- `20260921120000_cart_base_product_stock_guard`
+- `20260921123000_cart_base_product_stock_guard_null_existing_fix`
+
+Evidence:
+
+`docs/FIND-BE-030_BASE_CART_STOCK_GUARD_EVIDENCE_2026-09-21.md`
+
+Production remains frozen; Checkout/FIND-BE-015 remains a separate workstream.
+
 ## Current Findings
 
 | Finding | Status |
@@ -339,7 +368,7 @@ No Phase-D commercial policy is encoded in the Routine engine.
 | FIND-BE-008 Variant UI | DEFERRED |
 | FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
 | FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
-| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |
+| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |\n| FIND-BE-030 Base Cart Stock Guard | RESOLVED / VERIFIED — Restore-Test |
 
 ---
 
@@ -397,7 +426,7 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine UX source ✅ → Browser verification ⏭️ → Quiz v2 UI → Sprint 1 UI**
+**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart Integration ⏭️ → Unified Browser Gate**
 
 Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅**
 
