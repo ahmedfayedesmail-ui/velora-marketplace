@@ -1,7 +1,7 @@
 # Velora — Unified Browser Gate Owner Checklist
 ## Owner Pre-Read / Execution Layer — 2026-09-21
 
-**Status:** DRAFT — Owner Review Required  
+**Status:** LOCKED — OWNER APPROVED — 2026-09-21  
 **Parent spec:** `docs/UNIFIED_BROWSER_GATE_EXECUTION_PLAN_2026-09-21.md`  
 **Branch:** `sprint-2-s2d-admin`  
 **Source baseline at checklist drafting:** `8d35d7c74c148c3f76087630baf5af3d276d375b`  
@@ -326,4 +326,6 @@ Stop and classify before continuing when:
 
 ---
 
-**Approval state:** Pending Owner Review / Questions / Approval
+**Approval state:** OWNER APPROVED — LOCKED
+
+Owner checklist review before the browser session is for familiarization only; it is not a technical re-review of the parent execution plan.
