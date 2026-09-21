@@ -50,7 +50,11 @@ cross join (values
   ('00000000-0000-4000-8000-000000000007'::uuid,'Fixture Moisturizer Oily','beauty','moisturizer',100::numeric,'["niacinamide"]'::jsonb,'["hydration"]'::jsonb,'["oily","combination"]'::jsonb,'["daily_care","acne"]'::jsonb,'["moisturize","moisturizer"]'::jsonb),
   ('00000000-0000-4000-8000-000000000008'::uuid,'Fixture Sunscreen','beauty','sunscreen',100::numeric,'[]'::jsonb,'["sun_protection"]'::jsonb,'["oily","dry","combination","normal","sensitive"]'::jsonb,'["daily_care","hyperpigmentation"]'::jsonb,'["protect","sunscreen","spf"]'::jsonb),
   ('00000000-0000-4000-8000-000000000009'::uuid,'Fixture Concern-Only Acne Serum','beauty','serum',125::numeric,'["azelaic_acid"]'::jsonb,'[]'::jsonb,'["oily","combination"]'::jsonb,'["acne"]'::jsonb,'["serum","treat"]'::jsonb),
-  ('00000000-0000-4000-8000-000000000010'::uuid,'Fixture Non-Match Body Lotion','beauty','body_lotion',75::numeric,'[]'::jsonb,'["hydration"]'::jsonb,'["oily"]'::jsonb,'["acne"]'::jsonb,'["body"]'::jsonb)
+  ('00000000-0000-4000-8000-000000000010'::uuid,'Fixture Non-Match Body Lotion','beauty','body_lotion',75::numeric,'[]'::jsonb,'["hydration"]'::jsonb,'["oily"]'::jsonb,'["acne"]'::jsonb,'["body"]'::jsonb),
+  ('00000000-0000-4000-8000-000000000011'::uuid,'Fixture Budget Stress Cleanser','beauty','cleanser',150::numeric,'["glycerin"]'::jsonb,'["cleansing"]'::jsonb,'["oily","combination"]'::jsonb,'["acne"]'::jsonb,'["cleanse"]'::jsonb),
+  ('00000000-0000-4000-8000-000000000012'::uuid,'Fixture Budget Stress Serum','beauty','serum',200::numeric,'["niacinamide"]'::jsonb,'["acne"]'::jsonb,'["oily","combination"]'::jsonb,'["acne"]'::jsonb,'["serum","treat"]'::jsonb),
+  ('00000000-0000-4000-8000-000000000013'::uuid,'Fixture Budget Stress Moisturizer','beauty','moisturizer',180::numeric,'["ceramides"]'::jsonb,'["hydration"]'::jsonb,'["oily","combination"]'::jsonb,'["daily_care"]'::jsonb,'["moisturize"]'::jsonb),
+  ('00000000-0000-4000-8000-000000000014'::uuid,'Fixture Budget Stress Sunscreen','beauty','sunscreen',170::numeric,'[]'::jsonb,'["sun_protection"]'::jsonb,'["oily","combination"]'::jsonb,'["daily_care"]'::jsonb,'["protect","sunscreen"]'::jsonb)
 ) as v(id,name,category,subcategory,price,ingredients,benefits,skin_types,concerns,tags) on true
 where s.seller_id is not null;
 
@@ -87,6 +91,10 @@ commit;
 --   '00000000-0000-4000-8000-000000000007',
 --   '00000000-0000-4000-8000-000000000008',
 --   '00000000-0000-4000-8000-000000000009',
---   '00000000-0000-4000-8000-000000000010'
+--   '00000000-0000-4000-8000-000000000010',
+--   '00000000-0000-4000-8000-000000000011',
+--   '00000000-0000-4000-8000-000000000012',
+--   '00000000-0000-4000-8000-000000000013',
+--   '00000000-0000-4000-8000-000000000014'
 -- );
 -- commit;
