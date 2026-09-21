@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch HEAD:** updated through Sprint 1 Phase B B5 verification  
+**Current branch state:** updated through Sprint 1 Phase B closure  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -257,6 +257,9 @@ Evidence:
 Read contract:
 `docs/SPRINT_1_PHASE_B_B5_READ_CONTRACT_2026-09-20.md`
 
+Read contract:
+`docs/SPRINT_1_PHASE_B_B5_READ_CONTRACT_2026-09-20.md`
+
 Implemented:
 - authenticated SECURITY INVOKER recommendation-history RPC
 - no owner UUID input
@@ -273,8 +276,19 @@ Restore-Test migrations:
 B5 status:
 **VERIFIED — Restore-Test/source gate**
 
-Current status:
-**B1 VERIFIED + B2 VERIFIED + B5 VERIFIED — B6 regression remains before Phase B close.****
+### B6 — VERIFIED / PHASE B CLOSED
+
+Evidence:
+`docs/SPRINT_1_PHASE_B_B6_EVIDENCE_2026-09-21.md`
+
+Closure:
+`docs/SPRINT_1_PHASE_B_CLOSURE_2026-09-21.md`
+
+Consolidated evidence:
+`docs/SPRINT_1_PHASE_B_CONSOLIDATED_EVIDENCE_2026-09-21.md`
+
+Phase B result:
+**CLOSED — B1/B2/B3/B4/B5 verified and B6 regression passed.****
 
 ---
 
