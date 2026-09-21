@@ -1,0 +1,92 @@
+{
+  "fixture_id": "velora-routine-2026-09-21",
+  "scenarios": [
+    {
+      "id": "R01",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "pack": "complete_low_budget",
+      "expected": {"status": "complete", "total_cost": 400, "required_steps": 4}
+    },
+    {
+      "id": "R02",
+      "profile": {"skin_type": "dry", "goal": "hydration", "routine_budget": "under_500"},
+      "pack": "complete_dry",
+      "expected": {"status": "complete", "total_cost": 430, "required_steps": 4}
+    },
+    {
+      "id": "R03",
+      "profile": {"skin_type": "combination", "goal": "hyperpigmentation", "routine_budget": "500_1000"},
+      "pack": "complete_dry",
+      "expected": {"status": "complete", "total_cost": 480, "required_steps": 4}
+    },
+    {
+      "id": "R04",
+      "profile": {"skin_type": "normal", "goal": "daily_care", "routine_budget": "1000_2000"},
+      "pack": "complete_dry",
+      "expected": {"status": "complete", "total_cost": 430, "required_steps": 4}
+    },
+    {
+      "id": "R05",
+      "profile": {"skin_type": "unknown", "goal": "acne", "routine_budget": "unknown"},
+      "pack": "complete_low_budget",
+      "expected": {"status": "complete", "total_cost": 400, "required_steps": 4}
+    },
+    {
+      "id": "R06",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "pack": "concern_only",
+      "expected": {"status": "partial", "goal_match_must_be_true_for_serum": true}
+    },
+    {
+      "id": "R07",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "pack": "partial",
+      "expected": {"status": "partial", "required_unavailable": 1, "no_fabricated_replacement": true}
+    },
+    {
+      "id": "R08",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "pack": "no_match",
+      "expected": {"status": "no_matches", "total_cost": 0}
+    },
+    {
+      "id": "R09",
+      "profile": {"skin_type": "normal", "goal": "hyperpigmentation", "routine_budget": "500_1000"},
+      "pack": "variant",
+      "expected": {"status": "partial", "variant_id": "00000000-0000-4000-8000-000000000105", "selected_variant_price": 160}
+    },
+    {
+      "id": "R10",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "pack": "complete_low_budget",
+      "expected": {"status": "complete", "same_output_on_repeat": true}
+    },
+    {
+      "id": "R11",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "500_1000"},
+      "pack": "complete_low_budget",
+      "expected": {"status": "complete", "total_cost": 400}
+    },
+    {
+      "id": "R12",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "pack": "budget_stress",
+      "expected": {"status": "partial", "total_cost_less_than_or_equal": 500}
+    }
+  ],
+  "known_contract_cases": [
+    {
+      "id": "C-SENSITIVE",
+      "profile": {"skin_type": "sensitive", "goal": "radiance", "routine_budget": "500_1000"},
+      "current": "INVALID_SKIN_TYPE",
+      "after_migration": "save succeeds"
+    },
+    {
+      "id": "C-CONCERNS",
+      "profile": {"skin_type": "oily", "goal": "acne", "routine_budget": "under_500"},
+      "product_signal": "concerns=['acne'] only",
+      "current": "no goal-match credit from concerns",
+      "after_migration": "goal_match=true"
+    }
+  ]
+}
