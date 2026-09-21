@@ -11,8 +11,10 @@
   const QUESTIONS = [
     {
       id: 'skin_type',
-      title: 'بشرتك عاملة إزاي؟',
-      subtitle: 'اختاري الأقرب ليكي. مش متأكدة؟ اختاري "مش عارفة".',
+      ar: 'بشرتك عاملة إزاي؟',
+      en: 'What is your skin type?',
+      subtitleAr: 'اختاري الأقرب ليكي. مش متأكدة؟ اختاري "مش عارفة".',
+      subtitleEn: 'Choose the closest match. Not sure? Pick "I don\'t know".',
       options: [
         { value: 'oily', ar: 'دهنية', en: 'Oily' },
         { value: 'dry', ar: 'جافة', en: 'Dry' },
@@ -23,8 +25,10 @@
     },
     {
       id: 'goal',
-      title: 'إيه أكبر حاجة عايزة تحسّنيها؟',
-      subtitle: 'اختاري هدف تجميلي واحد أساسي للروتين.',
+      ar: 'إيه أكبر حاجة عايزة تحسّنيها؟',
+      en: 'What is the main thing you want to improve?',
+      subtitleAr: 'اختاري هدف تجميلي واحد أساسي للروتين.',
+      subtitleEn: 'Choose one primary cosmetic goal for your routine.',
       options: [
         { value: 'brightening', ar: 'إشراقة وتوحيد مظهر البشرة', en: 'Brightening & even-looking skin' },
         { value: 'hydration', ar: 'ترطيب البشرة', en: 'Hydration' },
@@ -35,8 +39,10 @@
     },
     {
       id: 'routine_budget',
-      title: 'ميزانيتك للروتين؟',
-      subtitle: 'دي ميزانية الروتين كله، مش اشتراك شهري.',
+      ar: 'ميزانيتك للروتين؟',
+      en: 'What is your routine budget?',
+      subtitleAr: 'دي ميزانية الروتين كله، مش اشتراك شهري.',
+      subtitleEn: 'This is the budget for the whole routine, not a monthly subscription.',
       options: [
         { value: 'under_500', ar: 'أقل من 500 جنيه', en: 'Under EGP 500' },
         { value: '500_1000', ar: 'من 500 لـ 1000 جنيه', en: 'EGP 500–1,000' },
@@ -175,8 +181,8 @@
         + '<span class="velora-quiz-check" aria-hidden="true">'+(selected?'✓':'')+'</span></button>';
     }).join('');
 
-    body.innerHTML = '<h3 class="velora-quiz-question">'+escapeHtml(t(q.title, q.title))+'</h3>'
-      + '<p class="velora-quiz-subtitle">'+escapeHtml(t(q.subtitle, q.subtitle))+'</p>'
+    body.innerHTML = '<h3 class="velora-quiz-question">'+escapeHtml(t(q.ar, q.en))+'</h3>'
+      + '<p class="velora-quiz-subtitle">'+escapeHtml(t(q.subtitleAr, q.subtitleEn))+'</p>'
       + '<div class="velora-quiz-options">'+options+'</div>'
       + (errorMessage ? '<div class="velora-quiz-error" role="alert">'+escapeHtml(errorMessage)+'</div>' : '')
       + '<div class="velora-quiz-footer">'
