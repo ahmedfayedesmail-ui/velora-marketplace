@@ -201,6 +201,26 @@
     ].join('');
   }
 
+  function bindEditPassport() {
+    const button = document.getElementById('veloraRoutineEditPassport');
+    if (!button || button.dataset.bound === '1') return;
+    button.dataset.bound = '1';
+    button.addEventListener('click', () => {
+      if (!window.veloraBeautyPassportV2 || typeof window.veloraBeautyPassportV2.open !== 'function') {
+        if (typeof showToast === 'function') {
+          showToast(t('تعديل الإجابات غير متاح حاليًا.', 'Editing your answers is not available right now.'), 'warning');
+        }
+        return;
+      }
+      const modal = document.getElementById(ROOT_ID);
+      if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+      window.veloraBeautyPassportV2.open().catch(() => {});
+    });
+  }
+
   function render(data) {
     if (!data || typeof data !== 'object') throw new Error('BEAUTY_ROUTINE_EMPTY_RESPONSE');
 
@@ -223,8 +243,14 @@
         '<strong>', escapeHtml(t('No matching products right now', 'مفيش منتجات مطابقة حاليًا')), '</strong>',
         '<div class="velora-routine-status">', escapeHtml(t('Your profile is valid, but the current catalog has no eligible match for the routine.', 'البروفايل صالح، لكن الكتالوج الحالي مفيهوش مطابقة مؤهلة للروتين.')), '</div>',
         '</div>',
-        '<div class="velora-routine-total"><span>', escapeHtml(t('Total', 'الإجمالي')), '</span><strong>', escapeHtml(formatMoney(data.total_cost || 0, data.currency || 'EGP')), '</strong></div>'
+        '<div class="velora-routine-total"><span>', escapeHtml(t('Total', 'الإجمالي')), '</span><strong>', escapeHtml(formatMoney(data.total_cost || 0, data.currency || 'EGP')), '</strong></div>',
+        '<div class="velora-routine-actions">',
+        '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
+        escapeHtml(t('عدّلي إجاباتك', 'Edit my answers')),
+        '</button>',
+        '</div>'
       ].join('');
+      bindEditPassport();
       return;
     }
 
@@ -251,11 +277,15 @@
       sections.join(''),
       '<div class="velora-routine-total"><span>', escapeHtml(t('Routine total', 'إجمالي الروتين')), '</span><strong>', escapeHtml(formatMoney(data.total_cost || 0, data.currency || 'EGP')), '</strong></div>',
       '<div class="velora-routine-actions">',
+      '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
+      escapeHtml(t('عدّلي إجاباتك', 'Edit my answers')),
+      '</button>',
       '<button type="button" class="btn btn-primary btn-lg" aria-disabled="true" title="Sprint 1 integration">',
       escapeHtml(t('Order the whole routine', 'اطلبي الروتين كله')),
       '</button>',
       '</div>'
     ].join('');
+    bindEditPassport();
   }
 
   async function generate() {
