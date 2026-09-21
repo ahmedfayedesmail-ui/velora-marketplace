@@ -6,9 +6,24 @@
 **Preferred environment:** local HTTP server; Vercel Preview may be used when required  
 **Restore-Test:** `arlaxqmhtvjwjbjinjfw`  
 **Production:** **FROZEN — no production mutation or GO**  
+**Approval status:** **OWNER PRE-READ — pending Owner review/approval**  
 **Browser execution status:** **NOT AVAILABLE IN CURRENT AGENT RUNTIME**; execute when Owner has Chrome/browser access.
 
 ---
+
+## Owner Pre-Read
+
+Before this execution plan is considered **LOCKED**, the Owner should:
+- read the dependency order;
+- review BG-01 through BG-08;
+- review the parallel launch/compliance classification for BG-09;
+- raise questions or objections;
+- explicitly approve the execution order.
+
+The companion execution-layer checklist is:
+`docs/UNIFIED_BROWSER_GATE_OWNER_CHECKLIST_2026-09-21.md`
+
+That checklist is a **DRAFT until Owner approval**.
 
 ## 1. Gate Discipline
 
