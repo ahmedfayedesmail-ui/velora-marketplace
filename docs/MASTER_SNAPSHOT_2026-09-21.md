@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch state:** updated through Sprint 1 Phase C Routine Output Contract verification + Phase D1/D3 planning  
+**Current branch state:** updated through Sprint 1 Phase C Routine Verification + Phase D1/D2/D3 planning  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -165,6 +165,37 @@ Evidence:
 
 The final customer-facing one-line explanation is deferred to the Routine UX mapping layer.
 
+### Phase C — Routine Verification
+
+**VERIFICATION = CLOSED — Restore-Test**
+
+Verified:
+
+- complete / partial / no_matches;
+- deterministic repeat;
+- all four budget bands;
+- variant selection;
+- required unavailable → partial;
+- optional unavailable → omitted;
+- no product reuse;
+- reason-code evidence;
+- no internal metadata leakage;
+- RLS / cross-user isolation;
+- clean rollback.
+
+A real step-eligibility bug was found during verification and fixed before closure:
+
+- generic `brightening` metadata no longer turns a moisturizer into a Treat candidate;
+- step matcher remains step-specific.
+
+Evidence:
+
+`docs/PHASE_C_ROUTINE_VERIFICATION_EVIDENCE_2026-09-21.md`
+
+Migration:
+
+`20260921033114 / phase_c_routine_step_match_hardening`
+
 ### Phase C — Routine Output Contract v1
 
 **IMPLEMENTATION = VERIFIED — Restore-Test**
@@ -218,6 +249,41 @@ No Phase-D commercial policy is encoded in the Routine engine.
 
 ---
 
+## Phase D — Parallel Planning
+
+Strategy = APPROVED.
+
+### D1 Seller Operations
+
+Planning ready:
+
+`docs/PHASE_D1_SELLER_OPERATIONS_PLANNING_2026-09-21.md`
+
+### D2 Fulfillment
+
+Planning ready:
+
+`docs/PHASE_D2_FULFILLMENT_PLANNING_2026-09-21.md`
+
+Approved MVP model:
+
+- Curated Sellers;
+- split shipments transparent;
+- shipping adapter abstraction;
+- carrier-neutral until commercial selection;
+- seller/store fulfillment unit concept;
+- existing `order_items` + `shipments` + `shipment_items` primitives retained.
+
+### D3 Legal / Trust
+
+Planning ready:
+
+`docs/PHASE_D3_LEGAL_TRUST_FRAMEWORK_PLANNING_2026-09-21.md`
+
+No commercial policy is encoded in the Routine engine.
+
+---
+
 ## Current Findings
 
 | Finding | Status |
@@ -234,7 +300,7 @@ No Phase-D commercial policy is encoded in the Routine engine.
 | FIND-BE-008 Variant UI | DEFERRED |
 | FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
 | FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
-| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT; continue through Routine UX |
+| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC + ROUTINE OUTPUT CONTRACT + ROUTINE VERIFICATION; continue through Routine UX |
 
 ---
 
@@ -294,7 +360,9 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine Verification → Routine UX → Sprint 1 UI**
+**Routine UX → Quiz v2 UI → Sprint 1 UI**
+
+Phase D parallel: **D2 Planning ✅ → D4 Unit Economics Planning**
 
 In parallel: **D1 Seller Operations Planning → D3 Legal/Trust Planning → D2/D4 planning gates**
 
