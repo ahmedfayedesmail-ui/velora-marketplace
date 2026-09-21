@@ -4,7 +4,7 @@
 **Status:** DRAFT — Owner Review Required  
 **Parent spec:** `docs/UNIFIED_BROWSER_GATE_EXECUTION_PLAN_2026-09-21.md`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current source HEAD:** `8d35d7c74c148c3f76087630baf5af3d276d375b`  
+**Source baseline at checklist drafting:** `8d35d7c74c148c3f76087630baf5af3d276d375b`  
 **Production:** **FROZEN**
 
 > This checklist is designed for execution in a real browser. Checking a box means the observation was actually made in the browser; it is not a source/SQL assertion.
