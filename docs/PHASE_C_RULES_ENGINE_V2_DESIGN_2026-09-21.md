@@ -1,7 +1,7 @@
 # Velora — Phase C
 ## Rules Engine v2 Design — Routine Discovery — 2026-09-21
 
-**Status:** **DESIGN DRAFT — OWNER REVIEW REQUIRED**  
+**Status:** **APPROVED DESIGN — IMPLEMENTATION AUTHORIZED**  
 **Production:** **FROZEN**
 
 ## 1. Old vs New
@@ -29,9 +29,11 @@ Allowed step types:
 - `moisturize`
 - `protect`
 
-Six is a maximum, not a mandatory output size.
+Normal Routine output is 4–6 steps.
 
-The ruleset determines whether a second instance of a type is justified.
+Six is the maximum, not a mandatory output size. A partial/no-match outcome may contain fewer only when required catalog eligibility is unavailable; no step is fabricated.
+
+Repetition limits: `cleanse` max 2 (AM + PM), `treat` max 2, `moisturize` max 2, `protect` max 1 (morning SPF). The ruleset determines whether a repeated slot is actually needed.
 
 ## 3. Candidate Eligibility
 
@@ -130,16 +132,14 @@ Proposed ruleset identifier:
 
 Breaking ruleset changes require an explicit new version.
 
-## 10. Implementation Preconditions
+## 10. Implementation Preconditions — Satisfied
 
-Owner approval is required for:
+Owner approval was recorded on 2026-09-21 for:
 
-- step-generation policy;
-- budget bands;
+- step-generation and repetition policy;
+- approved EGP budget bands;
 - deterministic precedence;
 - missing-step semantics;
-- explanation wording.
+- explanation model.
 
-Until approval:
-
-**No migration. No RPC. No UI implementation.**
+**Migration and implementation are authorized within this scope. Production remains FROZEN.**
