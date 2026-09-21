@@ -386,6 +386,36 @@ Decision:
 
 ---
 
+### Sprint 1 — Routine → Cart Integration
+
+**SOURCE IMPLEMENTATION = READY FOR BROWSER VERIFICATION**
+
+Implemented:
+
+- `src/scripts/62-s1-c-routine-cart.js` dedicated adapter;
+- active `اطلبي الروتين كله / Order the whole routine` CTA;
+- append-only behavior;
+- exact product + variant de-duplication against the canonical server Cart;
+- live product/variant availability preflight;
+- unavailable-item skip + explanation;
+- server-authoritative base/variant stock race handling;
+- cloud Cart refresh after add;
+- live variant price/metadata hydration in Cart representation.
+
+Boundaries preserved:
+
+- no Routine contract changes;
+- no Checkout / Order Creation changes;
+- no commercial logic;
+- no F-008 currency refactor;
+- Production remains frozen.
+
+Evidence:
+
+`docs/SPRINT_1_ROUTINE_CART_INTEGRATION_EVIDENCE_2026-09-21.md`
+
+Browser verification is still pending.
+
 ## Browser Gate
 
 The final browser gate must still validate:
@@ -440,7 +470,7 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart Integration ⏭️ → Unified Browser Gate**
+**Routine UX source ✅ → Quiz v2 UI source ✅ → Cart Guard ✅ → Routine → Cart source ✅ → Unified Browser Gate ⏭️**
 
 Phase D parallel: **D1 ✅ → D2 ✅ → D3 ✅ → D4 ✅**
 
