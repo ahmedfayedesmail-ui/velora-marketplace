@@ -285,12 +285,88 @@
     render();
   }
 
+  function isV2Complete(profile) {
+    return !!profile
+      && profile.quiz_version === QUIZ_VERSION
+      && String(profile.skin_type || '').trim() !== ''
+      && String(profile.goal || '').trim() !== ''
+      && String(profile.routine_budget || '').trim() !== '';
+  }
+
+  async function readV2PassportState() {
+    const client = getClient();
+    const { data: authData, error: authError } = await client.auth.getUser();
+    if (authError) throw authError;
+    if (!authData || !authData.user) {
+      return { authenticated: false, complete: false };
+    }
+
+    const { data, error } = await client
+      .from('beauty_profiles')
+      .select('quiz_version,skin_type,goal,routine_budget')
+      .eq('user_id', authData.user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    return {
+      authenticated: true,
+      complete: isV2Complete(data),
+      profile: data || null
+    };
+  }
+
+  function setEntryLabel(button, complete) {
+    if (!button) return;
+    button.textContent = complete
+      ? t('شوفي روتينك', 'See my routine')
+      : t('اعرفي روتينك', 'Build my routine');
+    button.dataset.passportState = complete ? 'v2-complete' : 'needs-v2';
+  }
+
+  async function refreshEntryPoint() {
+    const button = document.getElementById('veloraRoutineEntry');
+    if (!button) return;
+    try {
+      const state = await readV2PassportState();
+      setEntryLabel(button, state.complete);
+    } catch (_) {
+      setEntryLabel(button, false);
+    }
+  }
+
+  async function handleEntryClick(button) {
+    try {
+      const state = await readV2PassportState();
+
+      if (state.complete) {
+        if (!window.veloraRoutineUX || typeof window.veloraRoutineUX.open !== 'function') {
+          throw new Error('ROUTINE_UX_NOT_AVAILABLE');
+        }
+        await window.veloraRoutineUX.open();
+        return;
+      }
+
+      await open();
+    } catch (error) {
+      if (error && error.message === 'AUTH_REQUIRED' && typeof handleAccountClick === 'function') {
+        handleAccountClick();
+        return;
+      }
+      throw error;
+    } finally {
+      refreshEntryPoint();
+    }
+  }
+
   function installEntryPoint() {
     if (window.__VELORA_QUIZ_V2_ENTRY_INSTALLED) return;
     const heroButtons = document.querySelector('.hero-buttons');
     if (!heroButtons) return;
     if (document.getElementById('veloraRoutineEntry')) {
-      document.getElementById('veloraRoutineEntry').remove();
+      window.__VELORA_QUIZ_V2_ENTRY_INSTALLED = true;
+      refreshEntryPoint();
+      return;
     }
 
     const button = document.createElement('button');
@@ -298,15 +374,20 @@
     button.className = 'btn btn-primary btn-lg';
     button.type = 'button';
     button.textContent = t('اعرفي روتينك','Build my routine');
+    button.setAttribute('aria-label', t('اعرفي روتينك','Build my routine'));
     button.addEventListener('click', () => {
-      open().catch((error) => {
-        if (error && error.message === 'AUTH_REQUIRED' && typeof handleAccountClick === 'function') {
+      handleEntryClick(button).catch((error) => {
+        const code = error && error.message ? error.message : '';
+        if (code === 'AUTH_REQUIRED' && typeof handleAccountClick === 'function') {
           handleAccountClick();
+        } else if (typeof showToast === 'function') {
+          showToast(t('تعذر فتح روتينك. جرّبي تاني.', 'Unable to open your routine. Please try again.'), 'error');
         }
       });
     });
     heroButtons.appendChild(button);
     window.__VELORA_QUIZ_V2_ENTRY_INSTALLED = true;
+    refreshEntryPoint();
   }
 
   if (document.readyState === 'loading') {
