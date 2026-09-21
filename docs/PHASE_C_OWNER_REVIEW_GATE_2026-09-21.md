@@ -1,8 +1,8 @@
 # Velora — Phase C
 ## Owner Review Gate — Routine Discovery — 2026-09-21
 
-**Status:** **PENDING OWNER REVIEW**  
-**Implementation:** **BLOCKED**  
+**Status:** **APPROVED**  
+**Implementation:** **AUTHORIZED**  
 **Production:** **FROZEN**
 
 ## Review Objective
@@ -59,12 +59,22 @@ Approve:
 
 ## Review Outcome
 
-Record exactly one outcome:
+### Recorded Outcome
 
-- **APPROVED**
-- **CHANGES REQUESTED**
+**APPROVED — 2026-09-21**
 
-No implementation starts while the gate is `PENDING OWNER REVIEW`.
+All required Owner decisions were approved:
+
+- Routine model and step semantics;
+- EGP one-time budget bands;
+- AM/PM repetition limits;
+- three-question Quiz v2;
+- `مش عارفة` handling;
+- one-line evidence-derived explanation;
+- no location inference;
+- no fabrication / catalog-driven eligibility.
+
+Implementation is authorized after this gate. Production remains frozen.
 
 ## Linked Design
 
@@ -72,8 +82,13 @@ No implementation starts while the gate is `PENDING OWNER REVIEW`.
 
 ## Implementation Boundary
 
-After explicit Owner approval, the engineering sequence may proceed to:
+Owner approval recorded. Engineering sequence may proceed to:
 
-**Phase C implementation → Routine UX → Sprint 1 UI**
+**Phase C implementation → Routine Verification → Routine UX → Sprint 1 UI**
+
+### First implementation migrations
+
+- `20260921022410_phase_c_data_contract_v2_foundation`
+- `20260921022602_phase_c_routine_acl_hardening`
 
 No Production changes are implied by approval of the design.
