@@ -3,7 +3,7 @@
 
 **Repository:** `ahmedfayedesmail-ui/velora-marketplace`  
 **Branch:** `sprint-2-s2d-admin`  
-**Current branch state:** updated through Sprint 1 Phase C Rules Engine v2 verification  
+**Current branch state:** updated through Sprint 1 Phase C Quiz v2 RPC verification  
 **Frontend:** Vanilla JS + static HTML/CSS  
 **Backend:** Supabase  
 **Vercel Root:** `src`  
@@ -115,11 +115,57 @@ Evidence:
 
 `docs/PHASE_C_RULES_ENGINE_V2_EVIDENCE_2026-09-21.md`
 
+### Phase C — Quiz v2 RPC
+
+**IMPLEMENTATION = VERIFIED — Restore-Test**
+
+Applied migration:
+
+- `20260921024810 / phase_c_quiz_v2_save_rpc`
+
+RPC contract:
+
+- `public.velora_save_beauty_passport_v2(text, text, text)`
+- `SECURITY INVOKER`
+- server-derived `auth.uid()`
+- no client owner UUID argument
+- required `skin_type` and `routine_budget` for `beauty-quiz.v2`
+- v2 save updates `quiz_version`, `goal`, `skin_type`, `routine_budget`, `updated_at`
+- existing optional legacy fields are preserved on v2 core save
+- anonymous EXECUTE denied; authenticated EXECUTE granted
+- `updated_at` server generated
+
+Backward compatibility:
+
+- existing `beauty-quiz.v1` rows remain valid;
+- no automatic/bulk upgrade;
+- first successful v2 save is the user-level transition point;
+- legacy `concern` is nullable so the approved three-question minimum does not fabricate a value.
+
+Verification:
+
+- v1 row accepted before upgrade;
+- v2 upgrade persisted correctly;
+- existing concern preserved;
+- cross-user visibility blocked;
+- separate user save isolated;
+- invalid skin type rejected;
+- invalid budget rejected;
+- anonymous invocation denied;
+- notification count unchanged in test session;
+- all test data rolled back.
+
+Evidence:
+
+`docs/PHASE_C_QUIZ_V2_RPC_EVIDENCE_2026-09-21.md`
+
 ### Current Phase-C Boundary
 
 `selection_status = not_needed` remains a supported schema state but is not emitted by the current template; optional absent candidates are currently omitted.
 
 The final customer-facing one-line explanation is deferred to the Routine Output Contract / UX mapping layer.
+
+Quiz v2 frontend UI is not part of this gate yet.
 
 ---
 
@@ -139,7 +185,7 @@ The final customer-facing one-line explanation is deferred to the Routine Output
 | FIND-BE-008 Variant UI | DEFERRED |
 | FIND-BE-027 GDPR Deletion Flow | OPEN; required before Production GO |
 | FIND-BE-028 Legacy Recommendation Model Overlap | OPEN; architectural boundary documented |
-| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE; continue through Output Contract / UI |
+| FIND-BE-029 Vision vs Data Contract Gap | IMPLEMENTED THROUGH PHASE C DATA CONTRACT + RULES ENGINE + QUIZ V2 RPC; continue through Output Contract / UI |
 
 ---
 
@@ -194,6 +240,6 @@ No Production DB migration, data change, provider credential change, or deployme
 
 ## Next Engineering Sequence
 
-**Quiz v2 RPC → Routine Output Contract → Routine Verification → Routine UX → Sprint 1 UI**
+**Routine Output Contract → Routine Verification → Routine UX → Sprint 1 UI**
 
 Production remains **FROZEN**.
