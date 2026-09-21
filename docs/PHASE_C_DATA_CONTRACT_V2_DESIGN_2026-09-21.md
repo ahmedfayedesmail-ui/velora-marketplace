@@ -4,7 +4,7 @@
 **Branch:** `sprint-2-s2d-admin`  
 **Environment:** Design only / Restore-Test target for later implementation  
 **Production:** **FROZEN**  
-**Status:** **DESIGN DRAFT — OWNER REVIEW REQUIRED**  
+**Status:** **APPROVED DESIGN — IMPLEMENTATION AUTHORIZED**  
 **Finding:** FIND-BE-029 — Vision vs Data Contract Gap
 
 ## 1. Decision
@@ -36,7 +36,7 @@ Phase C will define:
 5. Consumer-language Quiz v2.
 6. One-line, evidence-derived explanations.
 
-No implementation is authorized by this design document.
+Owner Review Gate approved implementation on 2026-09-21. Implementation is authorized within the documented scope.
 
 ## 3. Beauty Passport v2
 
@@ -149,9 +149,11 @@ Purpose: ordered Routine steps generated from the Routine ruleset.
 
 `step_order` is sequencing, not a promise that every Routine contains six steps.
 
-A Routine may contain fewer than six steps.
+A standard Routine emits 4–6 step slots. A partial/no-match outcome may contain fewer only when the catalog makes an approved step unavailable; the engine must not fabricate rows.
 
-The four allowed step types may repeat only when the v2 ruleset explicitly creates a distinct step slot.
+Repetition limits are explicit: `cleanse` max 2 (AM + PM), `treat` max 2, `moisturize` max 2, `protect` max 1 (morning SPF).
+
+The four allowed step types may repeat only within these limits and only when the v2 ruleset explicitly creates the distinct step slots.
 
 No step is fabricated merely to reach six rows.
 
@@ -324,9 +326,9 @@ A Phase-C implementation may proceed only when the Owner has approved this desig
 8. Routine persistence and RLS model.
 9. Compatibility boundary with `beauty-recommendation.v1`.
 
-## 12. Mandatory Review Gate
+## 12. Review Gate — Completed
 
-**Implementation is BLOCKED until Owner Review.**
+**Owner Review Gate = APPROVED on 2026-09-21. Implementation is AUTHORIZED.**
 
 The Owner must explicitly review and approve:
 
@@ -337,7 +339,7 @@ The Owner must explicitly review and approve:
 - explanation model;
 - missing-step behavior.
 
-Only after approval may migration and implementation begin.
+Migration and implementation may proceed in the approved sequence.
 
 ## 13. Explicit Non-goals
 
@@ -353,10 +355,12 @@ Only after approval may migration and implementation begin.
 
 ## 14. Status
 
-**Phase C Data Contract v2 = DESIGN DRAFT**
+**Phase C Data Contract v2 = APPROVED**
 
-**Owner Review Gate = REQUIRED**
+**Owner Review Gate = APPROVED — 2026-09-21**
 
-**Implementation = BLOCKED pending Owner approval**
+**Implementation = AUTHORIZED**
+
+**Foundation Migration = APPLIED to Restore-Test**
 
 **Production = FROZEN**
