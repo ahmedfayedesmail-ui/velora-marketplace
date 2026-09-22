@@ -6779,7 +6779,7 @@ function showSellerSection(section, btn) {
     };
 
     const titleEl = document.getElementById('sellerHeaderTitle');
-    if (titleEl) titleEl.textContent = titles[section] || section;
+    if (titleEl) titleEl.textContent = window.VeloraI18n.t(titles[section] || section, titles[section] || section);
 
     const content = document.getElementById('sellerContent');
     if (!content) return;
@@ -7550,7 +7550,7 @@ function showAdminSection(section, btn) {
     };
 
     const titleEl = document.getElementById('adminHeaderTitle');
-    if (titleEl) titleEl.textContent = titles[section] || section;
+    if (titleEl) titleEl.textContent = window.VeloraI18n.t(titles[section] || section, titles[section] || section);
 
     const content = document.getElementById('adminContent');
     if (!content) return;
