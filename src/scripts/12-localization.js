@@ -483,7 +483,7 @@
           </tbody>
         </table>
       </div>
-    </div>);`;
+    </div>`);
   }
 
   window.VELORA_ADMIN_OPEN_ORDER=openCanonicalAdminOrderDetails;
