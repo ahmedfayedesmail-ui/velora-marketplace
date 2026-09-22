@@ -37,12 +37,27 @@
       if (!['en','ar'].includes(String(state.locale || '').toLowerCase())) state.locale = 'en';
       // An empty/invalid server currency must never blank the selector.
       if (!CURRENCIES[state.currency_code]) state.currency_code = initialCurrency;
+      // Keep one authoritative locale model for the active MVP languages.
+      state.locale = ['en','ar'].includes(String(state.locale || '').toLowerCase())
+        ? String(state.locale).toLowerCase()
+        : 'en';
+      const serverDateLocale = String(state.date_locale || '').toLowerCase();
+      if (!serverDateLocale || serverDateLocale.startsWith('es-') || !/^(en|ar)(-[a-z]{2,4})?$/i.test(serverDateLocale)) {
+        state.date_locale = state.locale === 'ar' ? 'ar-EG' : 'en-EG';
+      }
       localStorage.setItem('velora_language', state.locale);
       localStorage.setItem('velora_country', state.country_code);
       localStorage.setItem('velora_currency', state.currency_code);
-      localStorage.setItem('velora_date_locale', state.date_locale || state.locale);
-      if (CURRENCIES[state.currency_code]) VELORA_CURRENCY = state.currency_code;
+      localStorage.setItem('velora_date_locale', state.date_locale);
+      if (CURRENCIES[state.currency_code]) {
+        VELORA_CURRENCY = state.currency_code;
+        const currencySelect = document.getElementById('currencySelect');
+        if (currencySelect) currencySelect.value = state.currency_code;
+        try { if (typeof updateCurrencyDisplay === 'function') updateCurrencyDisplay(); } catch (_) {}
+      }
       if (typeof window.setVeloraLanguage === 'function') await window.setVeloraLanguage(state.locale);
+      const languageSelect = document.getElementById('languageSelect');
+      if (languageSelect) languageSelect.value = state.locale;
       if (typeof document !== 'undefined') {
         document.documentElement.lang = state.locale;
         document.documentElement.dir = LANG_META[state.locale]?.dir || (state.locale === 'ar' ? 'rtl' : 'ltr');
