@@ -4183,10 +4183,19 @@ function initApp() {
         if (loading) loading.classList.add('hidden');
     };
 
+    // i18n readiness must never deadlock application boot. V5 may continue
+    // hydrating translations after the shell is visible, but the splash has a
+    // hard upper bound so one bad/slow localization path cannot blank the app.
     if (window.VELORA_I18N_V5_PRESENT === true) {
+        let i18nWaitStarted = Date.now();
         const waitForI18n = () => {
             if (window.VELORA_I18N_V5_READY === true ||
-                window.VELORA_I18N_V5_FAILED === true) {
+                window.VELORA_I18N_V5_FAILED === true ||
+                Date.now() - i18nWaitStarted >= 2500) {
+                if (Date.now() - i18nWaitStarted >= 2500 &&
+                    window.VELORA_I18N_V5_READY !== true) {
+                    console.warn('[Velora boot] i18n readiness timed out; continuing with app shell.');
+                }
                 hideLoading();
             } else {
                 setTimeout(waitForI18n, 50);
