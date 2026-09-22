@@ -10,7 +10,8 @@
   const LANG_META = (window.VELORA_CORE && window.VELORA_CORE.languages) || {};
   const CURRENCIES = window.VELORA_CURRENCY_META || {};
   const initialCountry = (localStorage.getItem('velora_country') || 'EG').toUpperCase();
-  const storedLanguage = ['en','ar'].includes((localStorage.getItem('velora_language') || 'en').toLowerCase()) ? (localStorage.getItem('velora_language') || 'en').toLowerCase() : 'en';
+  const rawStoredLanguage = (localStorage.getItem('velora_language') || 'en').toLowerCase();
+  const storedLanguage = ['en','ar'].includes(rawStoredLanguage) ? rawStoredLanguage : 'en';
   const storedCurrency = (localStorage.getItem('velora_currency') || '').toUpperCase();
   const initialCurrency = initialCountry === 'EG' ? 'EGP' : (storedCurrency || 'USD');
   const state = window.VELORA_GLOBAL_LOCALE_STATE = window.VELORA_GLOBAL_LOCALE_STATE || {
@@ -31,6 +32,9 @@
       const r = await c.rpc('velora_get_global_locale_context');
       if (r?.error || !r?.data) return state;
       Object.assign(state, r.data);
+      // Velora staging MVP exposes English + Arabic only. Never allow a legacy
+      // server preference (e.g. Spanish) to leak into the UI.
+      if (!['en','ar'].includes(String(state.locale || '').toLowerCase())) state.locale = 'en';
       // An empty/invalid server currency must never blank the selector.
       if (!CURRENCIES[state.currency_code]) state.currency_code = initialCurrency;
       localStorage.setItem('velora_language', state.locale);
@@ -49,7 +53,8 @@
 
   const previousSetLanguage = window.setVeloraLanguage;
   window.setVeloraLanguage = async function(code) {
-    if (!LANG_META[code]) return false;
+    code = String(code || '').toLowerCase();
+    if (!['en','ar'].includes(code) || !LANG_META[code]) return false;
     const ok = typeof previousSetLanguage === 'function' ? await previousSetLanguage(code) : true;
     if (!ok) return false;
     state.locale = code;
@@ -97,7 +102,9 @@
 
   async function savePreferences(e) {
     e.preventDefault();
-    const locale = document.getElementById('vlpLanguage')?.value || state.locale;
+    const locale = ['en','ar'].includes(document.getElementById('vlpLanguage')?.value || state.locale)
+      ? (document.getElementById('vlpLanguage')?.value || state.locale)
+      : 'en';
     const country = (document.getElementById('vlpCountry')?.value || state.country_code).trim().toUpperCase();
     const currency = document.getElementById('vlpCurrency')?.value || state.currency_code;
     const timezone = document.getElementById('vlpTimezone')?.value || state.timezone;
