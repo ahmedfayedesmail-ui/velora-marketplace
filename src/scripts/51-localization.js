@@ -266,6 +266,13 @@ function translateDom(root=document){
   }finally{translating=false;}
 }
 
+const withTimeout=(promise,ms)=>{
+  let timer;
+  const timeout=new Promise(resolve=>{
+    timer=setTimeout(()=>resolve(false),ms);
+  });
+  return Promise.race([Promise.resolve(promise).then(()=>true).catch(()=>false),timeout]).finally(()=>clearTimeout(timer));
+};
 async function loadDbCatalog(locale){
   try{
     const db=getDb();if(!db?.rpc)return;
@@ -286,9 +293,13 @@ async function applyLocale(locale,requestId){
   localStorage.setItem('velora_language',locale);
   document.documentElement.lang=locale;
   document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
-  await loadDbCatalog(locale);
+  // DB-backed translation catalogs are optional enrichments. Never block
+  // first paint / V5 readiness on Supabase RPC latency or a missing RPC.
+  await withTimeout(loadDbCatalog(locale),1200);
   if(requestId!==localeEpoch)return false;
-  if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
+  if(typeof veloraLoadContentTranslations==='function'){
+    await withTimeout(veloraLoadContentTranslations(locale),1200);
+  }
 
   // Render locale-sensitive dynamic surfaces first, normalize the Home hero,
   // then perform one final DOM translation pass. Keeping hero normalization
