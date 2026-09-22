@@ -81,7 +81,8 @@ const __VELORA_CORE_OVERRIDES = {
     'No orders yet':'لا توجد طلبات بعد','Your first order will appear here':'سيظهر طلبك الأول هنا','Only order items belonging to this seller are returned by the canonical RPC.':'يعرض النظام فقط عناصر الطلبات الخاصة بهذا البائع عبر الواجهة المحمية.','New products enter pending review and cannot self-approve.':'تدخل المنتجات الجديدة في المراجعة المعلّقة ولا يمكن اعتمادها ذاتيًا.','Your status, approval and performance metrics are protected server-side. This page only edits safe storefront profile fields.':'حالة متجرك وموافقته ومؤشرات أدائه محمية من جهة الخادم. هذه الصفحة تعدّل فقط حقول الملف الآمنة.',
 
 
-    'Admin Dashboard':'لوحة تحكم المسؤول','Supabase-authoritative read-only overview':'نظرة عامة للقراءة فقط من Supabase',
+    'Admin Dashboard':'لوحة تحكم المسؤول','Admin Panel':'لوحة الإدارة','Supabase-authoritative read-only overview':'نظرة عامة للقراءة فقط من Supabase',
+    'Overview':'نظرة عامة','Management':'الإدارة','System':'النظام','Global Experience':'التجربة العامة','Localization Center':'مركز الترجمة','Close admin navigation':'إغلاق قائمة الإدارة','Close seller navigation':'إغلاق قائمة البائع','Seller Center':'مركز البائع',
     'Coupon':'كوبون','Coupons':'الكوبونات','Active Coupons':'الكوبونات النشطة','Coupon Code':'كود الخصم','Discount':'الخصم','Discount Code':'كود الخصم','Free Shipping':'شحن مجاني',
     'Refresh':'تحديث','Needs Attention':'تحتاج إلى اهتمام','Order Value by Currency':'قيمة الطلبات حسب العملة','Operations Breakdown':'تفصيل العمليات','Recent Audit Activity':'أحدث نشاط للتدقيق','Latest 10':'أحدث 10','Generated':'تم الإنشاء',
     'Dashboard':'لوحة التحكم','Dashboard unavailable.':'لوحة التحكم غير متاحة.','Admin dashboard unavailable.':'لوحة التحكم غير متاحة.','Operational overview':'نظرة تشغيلية',
