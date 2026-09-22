@@ -7276,6 +7276,8 @@ function openAdminPlatform() {
     }
 
     platform.innerHTML = renderAdminLayout();
+    platform.hidden = false;
+    platform.setAttribute('aria-hidden', 'false');
     platform.classList.add('active');
     document.body.style.overflow = 'hidden';
 
@@ -7358,7 +7360,11 @@ function renderAdminLayout() {
 /* ============ CLOSE ADMIN PANEL ============ */
 function closeAdminPlatform() {
     const platform = document.getElementById('adminPlatform');
-    if (platform) platform.classList.remove('active');
+    if (platform) {
+        platform.classList.remove('active');
+        platform.hidden = true;
+        platform.setAttribute('aria-hidden', 'true');
+    }
     document.body.style.overflow = '';
 }
 
