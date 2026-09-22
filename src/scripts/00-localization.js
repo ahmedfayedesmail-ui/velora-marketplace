@@ -6604,6 +6604,7 @@ function renderSellerLayout(seller) {
                 <span>⬅️</span><span>Back to Store</span>
             </button>
         </aside>
+        <div class="seller-sidebar-backdrop" id="sellerSidebarBackdrop" onclick="closeSellerSidebar()" aria-hidden="true"></div>
 
         <main class="seller-main">
             <header class="seller-header">
@@ -6633,14 +6634,36 @@ function closeSellerPlatform() {
     document.body.style.overflow = '';
 }
 
+function openSellerSidebar() {
+    const sidebar = document.getElementById('sellerSidebar');
+    const backdrop = document.getElementById('sellerSidebarBackdrop');
+    if (sidebar) sidebar.classList.add('open');
+    if (backdrop) {
+        backdrop.classList.add('open');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function closeSellerSidebar() {
+    const sidebar = document.getElementById('sellerSidebar');
+    const backdrop = document.getElementById('sellerSidebarBackdrop');
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) {
+        backdrop.classList.remove('open');
+        backdrop.setAttribute('aria-hidden', 'true');
+    }
+}
+
 function toggleSellerSidebar() {
     const sidebar = document.getElementById('sellerSidebar');
-    if (sidebar) sidebar.classList.toggle('open');
+    if (sidebar?.classList.contains('open')) closeSellerSidebar();
+    else openSellerSidebar();
 }
 
 /* ============ SHOW SELLER SECTION ============ */
 function showSellerSection(section, btn) {
     SELLER_STATE.currentSection = section;
+    closeSellerSidebar();
 
     document.querySelectorAll('.seller-nav-item').forEach(item => item.classList.remove('active'));
     if (btn) btn.classList.add('active');
@@ -7342,6 +7365,7 @@ function renderAdminLayout() {
                 <span>⬅️</span><span>Back to Store</span>
             </button>
         </aside>
+        <div class="admin-sidebar-backdrop" id="adminSidebarBackdrop" onclick="closeAdminSidebar()" aria-hidden="true"></div>
 
         <main class="admin-main">
             <header class="admin-header">
@@ -7368,9 +7392,30 @@ function closeAdminPlatform() {
     document.body.style.overflow = '';
 }
 
+function openAdminSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    const backdrop = document.getElementById('adminSidebarBackdrop');
+    if (sidebar) sidebar.classList.add('open');
+    if (backdrop) {
+        backdrop.classList.add('open');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function closeAdminSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    const backdrop = document.getElementById('adminSidebarBackdrop');
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) {
+        backdrop.classList.remove('open');
+        backdrop.setAttribute('aria-hidden', 'true');
+    }
+}
+
 function toggleAdminSidebar() {
     const sidebar = document.getElementById('adminSidebar');
-    if (sidebar) sidebar.classList.toggle('open');
+    if (sidebar?.classList.contains('open')) closeAdminSidebar();
+    else openAdminSidebar();
 }
 
 /* ============ COUNT PENDING PRODUCTS ============ */
@@ -7388,6 +7433,7 @@ function getAllSellerProductsCount() {
 /* ============ SHOW ADMIN SECTION ============ */
 function showAdminSection(section, btn) {
     ADMIN_STATE.currentSection = section;
+    closeAdminSidebar();
 
     document.querySelectorAll('.admin-nav-item').forEach(item => item.classList.remove('active'));
     if (btn) btn.classList.add('active');
