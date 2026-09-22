@@ -2557,6 +2557,11 @@ function navigateTo(page) {
     // Load page content
     loadPageContent(page);
 
+    // Re-run the authoritative two-locale renderer after page-specific DOM
+    // generation. Legacy renderers mostly use innerHTML and bypass initial boot.
+    try{window.VELORA_I18N_RENDER?.(document);}catch(_){}
+    setTimeout(()=>{try{window.VELORA_I18N_RENDER?.(document);}catch(_){}},0);
+
     console.log('📍 Navigate:', page);
 }
 
