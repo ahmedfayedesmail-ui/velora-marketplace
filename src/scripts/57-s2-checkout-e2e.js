@@ -174,7 +174,7 @@
       if(result.error)throw result.error;
       if(!result.data?.ok)throw new Error("Order creation returned an unsuccessful response.");
 
-      window.STATE.cart=[];
+      STATE.cart=[];
       if(typeof saveToStorage==="function")saveToStorage(KEYS.CART,STATE.cart);
       if(typeof updateCartBadge==="function")updateCartBadge();
       if(typeof renderCartSidebar==="function")renderCartSidebar();
