@@ -215,7 +215,7 @@
           <div class="form-group"><label>Date / Number Locale</label><input id="vlpDateLocale" class="form-input" value="${esc(state.date_locale)}" readonly aria-readonly="true"></div>
           <button class="btn btn-primary btn-block" style="margin-top:.5rem">💾 Save Global Preferences</button>
         </form>
-      </div>);`;
+      </div>`);
   }
 
   window.VELORA_SAVE_GLOBAL_PREFERENCES = savePreferences;
