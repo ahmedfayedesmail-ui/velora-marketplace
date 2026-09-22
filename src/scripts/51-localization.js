@@ -14,47 +14,12 @@ const ACTIVE_LOCALES=Object.freeze(['en','ar']);
 const meta=()=>window.VELORA_CORE?.languages||{};
 const basePack=()=>window.__VELORA_PACK||{};
 let localeEpoch=0;
-let reverseSourceCache=null;
+const textSourceCache=new WeakMap();
+const attrSourceCache=new WeakMap();
 function normalizeLocale(code){
   const value=String(code||'').toLowerCase();
   return ACTIVE_LOCALES.includes(value)?value:'en';
 }
-function buildReverseSourceCache(){
-  const reverse=new Map();
-  const addPack=(pack)=>{
-    if(!pack||typeof pack!=='object')return;
-    Object.entries(pack).forEach(([source,target])=>{
-      const sourceText=norm(source);
-      const targetText=norm(target);
-      if(sourceText)reverse.set(sourceText,sourceText);
-      if(targetText&&!reverse.has(targetText))reverse.set(targetText,sourceText||targetText);
-    });
-  };
-  addPack(basePack().en||{});
-  Object.keys(basePack()).forEach(locale=>addPack(basePack()[locale]));
-  Object.keys(__VELORA_CORE_OVERRIDES).forEach(locale=>addPack(__VELORA_CORE_OVERRIDES[locale]||{}));
-  Object.keys(dbCatalog).forEach(locale=>addPack(dbCatalog[locale]||{}));
-  reverseSourceCache=[...reverse.entries()].sort((a,b)=>b[0].length-a[0].length);
-  return reverseSourceCache;
-}
-function canonicalSourceFor(raw){
-  const original=norm(raw);
-  if(!original)return original;
-  const entries=reverseSourceCache||buildReverseSourceCache();
-  const direct=entries.find(([localized])=>localized===original);
-  if(direct)return direct[1];
-  let out=original;
-  let changed=false;
-  for(const [localized,source] of entries){
-    if(localized.length<3||localized===source)continue;
-    if(out.includes(localized)){
-      out=out.split(localized).join(source);
-      changed=true;
-    }
-  }
-  return changed?norm(out):original;
-}
-const textSourceCache=new WeakMap();
 const __VELORA_CORE_OVERRIDES = {
   en:{'Dashboard':'Dashboard',
     'Users':'Users',
@@ -84,7 +49,16 @@ const __VELORA_CORE_OVERRIDES = {
     'FAQ':'FAQ',
     'Contact Us':'Contact Us',
     'Discover More.':'Discover More.','Shop Better.':'Shop Better.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.','MULTI-SELLER MARKETPLACE':'MULTI-SELLER MARKETPLACE','Start Shopping':'Start Shopping','Become a Seller':'Become a Seller'},
-  ar:{'Dashboard':'لوحة التحكم',
+  ar:{
+    'Overview':'نظرة عامة','Operations':'العمليات','System':'النظام','Catalog Trust':'ثقة الكتالوج',
+    'Dashboard':'لوحة التحكم','Users':'المستخدمون','Sellers':'البائعون','Products':'المنتجات','Orders':'الطلبات','Order':'الطلب','ORDER':'الطلب',
+    'Audit Logs':'سجل التدقيق','Seller Applications':'طلبات البائعين','Applications':'التطبيقات','Back to Store':'العودة إلى المتجر',
+    'Quick Actions':'إجراءات سريعة','Review Applications':'مراجعة طلبات البائعين','Manage Sellers':'إدارة البائعين','Moderate Products':'مراجعة المنتجات',
+    'Name':'الاسم','Email':'البريد الإلكتروني','Switch Platform':'تبديل المنصة','My Orders':'طلباتي','Wishlist':'المفضلة',
+    'Main':'الرئيسية','Growth':'النمو','Settings':'الإعدادات','Analytics':'التحليلات','Earnings':'الأرباح','Inventory':'المخزون','Store Settings':'إعدادات المتجر','Seller Center':'مركز البائع',
+    'Total':'الإجمالي','Payment':'الدفع','Status':'الحالة','Date':'التاريخ','Customer':'العميل','Price':'السعر','Stock':'المخزون','Actions':'الإجراءات','Plan':'الخطة','Rating':'التقييم','Store':'المتجر','Product':'المنتج',
+    'No orders yet.':'لا توجد طلبات بعد.','No sellers.':'لا يوجد بائعون.','No products.':'لا توجد منتجات.','Protected':'محمي',
+
     'Users':'المستخدمون',
     'Sellers':'البائعون',
     'Audit Logs':'سجل التدقيق',
@@ -139,15 +113,47 @@ function catalog(locale){
 function translateExact(text,locale){
   const original=norm(text); if(!original) return text;
   const c=catalog(locale);
-  if(c[original]) return c[original];
+  if(Object.prototype.hasOwnProperty.call(c,original) && c[original]) return c[original];
   const bare=core(original);
-  if(c[bare]){ const prefix=original.slice(0,original.indexOf(bare)); return prefix+c[bare]; }
-  // Longest-match translation for dynamic strings that contain a known phrase.
-  let out=original; let changed=false;
-  Object.keys(c).filter(k=>k&&k.length>2&&original.includes(k)).sort((a,b)=>b.length-a.length).slice(0,8).forEach(k=>{
-    const v=c[k]; if(v&&v!==k&&out.includes(k)){out=out.split(k).join(v);changed=true;}
-  });
-  return changed?out:text;
+  if(bare!==original && Object.prototype.hasOwnProperty.call(c,bare) && c[bare]){
+    const prefix=original.slice(0,original.indexOf(bare));
+    return prefix+c[bare];
+  }
+  // IMPORTANT: never translate substrings. Substring replacement is what
+  // produced mixed-language fragments such as "Review تطبيق tions".
+  return original;
+}
+function sourceForTextNode(node,raw){
+  const current=norm(raw);
+  const record=textSourceCache.get(node);
+  if(!record){
+    const next={source:current,lastRendered:current};
+    textSourceCache.set(node,next);
+    return next;
+  }
+  // The node was changed by another renderer. Treat that new value as the
+  // source, unless it is exactly the text we rendered on the previous pass.
+  if(current!==record.lastRendered && current!==record.source){
+    record.source=current;
+  }
+  return record;
+}
+function sourceForAttribute(el,attr,raw){
+  const current=norm(raw);
+  let record=attrSourceCache.get(el);
+  if(!record){
+    record={};
+    attrSourceCache.set(el,record);
+  }
+  const previous=record[attr];
+  if(!previous){
+    record[attr]={source:current,lastRendered:current};
+    return record[attr];
+  }
+  if(current!==previous.lastRendered && current!==previous.source){
+    previous.source=current;
+  }
+  return previous;
 }
 function translateElementAttrs(el,locale){
   ['placeholder','title','aria-label'].forEach(a=>{const v=el.getAttribute?.(a); if(v){const t=translateExact(v,locale); if(t!==v) el.setAttribute(a,t);}});
@@ -169,10 +175,9 @@ function translateDom(root=document){
     const nodes=[];let n;while((n=walker.nextNode()))nodes.push(n);
     nodes.forEach(node=>{
       const raw=node.nodeValue||'';
-      const knownSource=textSourceCache.get(node);
-      const source=knownSource||canonicalSourceFor(raw);
-      textSourceCache.set(node,source);
-      const t=translateExact(source,locale);
+      const record=sourceForTextNode(node,raw);
+      const t=translateExact(record.source,locale);
+      record.lastRendered=t;
       if(raw!==t)node.nodeValue=t;
     });
 
@@ -181,13 +186,10 @@ function translateDom(root=document){
       ['placeholder','title','aria-label'].forEach(attr=>{
         if(!el.hasAttribute(attr))return;
         const raw=el.getAttribute(attr)||'';
-        const slot='data-velora-i18n-'+attr;
-        const knownSource=el.getAttribute(slot);
-        const source=knownSource||canonicalSourceFor(raw);
-        el.setAttribute(slot,source);
-        const t=translateExact(source,locale);
-        if(t!==source)el.setAttribute(attr,t);
-        else if(raw!==source)el.setAttribute(attr,source);
+        const record=sourceForAttribute(el,attr,raw);
+        const t=translateExact(record.source,locale);
+        record.lastRendered=t;
+        if(raw!==t)el.setAttribute(attr,t);
       });
     });
   }finally{translating=false;}
@@ -199,7 +201,6 @@ async function loadDbCatalog(locale){
     const r=await db.rpc('velora_get_i18n_catalog',{p_locale:locale});
     if(!r.error&&r.data&&typeof r.data==='object'){
       dbCatalog[locale]=r.data;
-      reverseSourceCache=null;
       try{window.VELORA_I18N_PROVENANCE?.registerCatalog(locale,r.data);}catch(_){}
     }
   }catch(_){}
