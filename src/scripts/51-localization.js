@@ -210,7 +210,12 @@ const observer=new MutationObserver(ms=>{
 
 async function boot(){
   try{
-    const lang=state.locale||localStorage.getItem('velora_language')||'en';
+    const stored=String(localStorage.getItem('velora_language')||'').toLowerCase();
+    const lang=['en','ar'].includes(String(state.locale||'').toLowerCase())
+      ? String(state.locale).toLowerCase()
+      : (['en','ar'].includes(stored) ? stored : 'en');
+    state.locale=lang;
+    localStorage.setItem('velora_language',lang);
     const s=document.getElementById('languageSelect');
     if(s)s.value=lang;
     await applyLocale(lang);
