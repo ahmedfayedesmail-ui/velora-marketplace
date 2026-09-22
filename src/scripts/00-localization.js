@@ -2435,7 +2435,7 @@ function setVeloraCurrency(code) {
     if (!VELORA_CURRENCY_META[code]) return false;
     VELORA_CURRENCY = code;
     saveToStorage('velora_currency', code);
-    if (typeof renderSellerDashboard==='function' && SELLER_STATE?.currentSeller && SELLER_STATE.currentSection==='dashboard') { const c=document.getElementById('sellerContent'); if(c) c.innerHTML=renderSellerDashboard(SELLER_STATE.currentSeller); }
+    if (typeof renderSellerDashboard==='function' && SELLER_STATE?.currentSeller && SELLER_STATE.currentSection==='dashboard') { const c=document.getElementById('sellerContent'); if(c) c.innerHTML=window.VeloraI18n.html(renderSellerDashboard(SELLER_STATE.currentSeller)); }
     if (typeof updateAccountButton==='function') updateAccountButton();
     return true;
 }
@@ -6601,7 +6601,7 @@ function openSellerPlatformCore() {
         document.body.appendChild(platform);
     }
 
-    platform.innerHTML = renderSellerLayout(seller);
+    platform.innerHTML = window.VeloraI18n.html(renderSellerLayout(seller));
     platform.hidden = false;
     platform.setAttribute('aria-hidden', 'false');
     platform.classList.add('active');
@@ -6788,25 +6788,25 @@ function showSellerSection(section, btn) {
 
     switch(section) {
         case 'dashboard':
-            content.innerHTML = renderSellerDashboard(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerDashboard(seller));
             break;
         case 'orders':
-            content.innerHTML = renderSellerOrders(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerOrders(seller));
             break;
         case 'products':
-            content.innerHTML = renderSellerProducts(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerProducts(seller));
             break;
         case 'inventory':
-            content.innerHTML = renderSellerInventory(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerInventory(seller));
             break;
         case 'analytics':
-            content.innerHTML = renderSellerAnalytics(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerAnalytics(seller));
             break;
         case 'earnings':
-            content.innerHTML = renderSellerEarnings(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerEarnings(seller));
             break;
         case 'settings':
-            content.innerHTML = renderSellerSettings(seller);
+            content.innerHTML = window.VeloraI18n.html(renderSellerSettings(seller));
             break;
     }
 }
@@ -7398,7 +7398,7 @@ function openAdminPlatform() {
         document.body.appendChild(platform);
     }
 
-    platform.innerHTML = renderAdminLayout();
+    platform.innerHTML = window.VeloraI18n.html(renderAdminLayout());
     platform.hidden = false;
     platform.setAttribute('aria-hidden', 'false');
     platform.classList.add('active');
@@ -7557,25 +7557,25 @@ function showAdminSection(section, btn) {
 
     switch(section) {
         case 'dashboard':
-            content.innerHTML = renderAdminDashboard();
+            content.innerHTML = window.VeloraI18n.html(renderAdminDashboard());
             break;
         case 'sellers':
-            content.innerHTML = renderAdminSellers();
+            content.innerHTML = window.VeloraI18n.html(renderAdminSellers());
             break;
         case 'products':
-            content.innerHTML = renderAdminProducts();
+            content.innerHTML = window.VeloraI18n.html(renderAdminProducts());
             break;
         case 'orders':
-            content.innerHTML = renderAdminOrders();
+            content.innerHTML = window.VeloraI18n.html(renderAdminOrders());
             break;
         case 'users':
-            content.innerHTML = renderAdminUsers();
+            content.innerHTML = window.VeloraI18n.html(renderAdminUsers());
             break;
         case 'coupons':
-            content.innerHTML = renderAdminCoupons();
+            content.innerHTML = window.VeloraI18n.html(renderAdminCoupons());
             break;
         case 'settings':
-            content.innerHTML = renderAdminSettings();
+            content.innerHTML = window.VeloraI18n.html(renderAdminSettings());
             break;
     }
 }
@@ -8179,7 +8179,7 @@ async function openAdminOrderDetails(orderRef) {
     window.__VELORA_ADMIN_ORDER_CONTEXT = { order, orderRef, dbId: order.id };
     const title = document.getElementById('adminOrderDetailsTitle');
     if (title) title.textContent = `🛒 Order #${adminOrderDisplayId(order)}`;
-    content.innerHTML = renderAdminOrderDetailsContent(order);
+    content.innerHTML = window.VeloraI18n.html(renderAdminOrderDetailsContent(order));
 }
 
 function openAdminOrderStatusConfirmation(orderRef, newStatus) {
@@ -9291,7 +9291,7 @@ function openOwnerPlatform() {
         document.body.appendChild(platform);
     }
 
-    platform.innerHTML = renderOwnerLayout();
+    platform.innerHTML = window.VeloraI18n.html(renderOwnerLayout());
     platform.classList.add('active');
     document.body.style.overflow = 'hidden';
 
@@ -9442,20 +9442,20 @@ function showOwnerSection(section, btn) {
     if (!content) return;
 
     switch(section) {
-        case 'dashboard': content.innerHTML = renderOwnerDashboard(); break;
-        case 'live': content.innerHTML = renderOwnerLive(); break;
-        case 'revenue': content.innerHTML = renderOwnerRevenue(); break;
-        case 'customers': content.innerHTML = renderOwnerCustomers(); break;
-        case 'sellers': content.innerHTML = renderOwnerSellers(); break;
-        case 'products': content.innerHTML = renderOwnerProducts(); break;
-        case 'orders': content.innerHTML = renderOwnerOrders(); break;
-        case 'search': content.innerHTML = renderOwnerSearch(); break;
-        case 'funnel': content.innerHTML = renderOwnerFunnel(); break;
-        case 'bi': content.innerHTML = renderOwnerBI(); break;
-        case 'risk': content.innerHTML = renderOwnerRisk(); break;
-        case 'security': content.innerHTML = renderOwnerSecurity(); break;
-        case 'admins': content.innerHTML = renderOwnerAdmins(); break;
-        case 'settings': content.innerHTML = renderOwnerSettings(); break;
+        case 'dashboard': content.innerHTML = window.VeloraI18n.html(renderOwnerDashboard()); break;
+        case 'live': content.innerHTML = window.VeloraI18n.html(renderOwnerLive()); break;
+        case 'revenue': content.innerHTML = window.VeloraI18n.html(renderOwnerRevenue()); break;
+        case 'customers': content.innerHTML = window.VeloraI18n.html(renderOwnerCustomers()); break;
+        case 'sellers': content.innerHTML = window.VeloraI18n.html(renderOwnerSellers()); break;
+        case 'products': content.innerHTML = window.VeloraI18n.html(renderOwnerProducts()); break;
+        case 'orders': content.innerHTML = window.VeloraI18n.html(renderOwnerOrders()); break;
+        case 'search': content.innerHTML = window.VeloraI18n.html(renderOwnerSearch()); break;
+        case 'funnel': content.innerHTML = window.VeloraI18n.html(renderOwnerFunnel()); break;
+        case 'bi': content.innerHTML = window.VeloraI18n.html(renderOwnerBI()); break;
+        case 'risk': content.innerHTML = window.VeloraI18n.html(renderOwnerRisk()); break;
+        case 'security': content.innerHTML = window.VeloraI18n.html(renderOwnerSecurity()); break;
+        case 'admins': content.innerHTML = window.VeloraI18n.html(renderOwnerAdmins()); break;
+        case 'settings': content.innerHTML = window.VeloraI18n.html(renderOwnerSettings()); break;
     }
 }
 
@@ -10349,7 +10349,7 @@ function injectNotificationBell() {
     const accountBtn = document.getElementById('accountBtn');
     if (accountBtn && accountBtn.parentNode === headerActions) {
         const wrapper = document.createElement('div');
-        wrapper.innerHTML = renderNotificationBell();
+        wrapper.innerHTML = window.VeloraI18n.html(renderNotificationBell());
         headerActions.insertBefore(wrapper.firstElementChild, accountBtn);
     }
 }
@@ -11278,7 +11278,7 @@ showOwnerSection = function(section, btn) {
         if (titleEl) titleEl.textContent = 'Audit Logs';
 
         const content = document.getElementById('ownerContent');
-        if (content) content.innerHTML = renderOwnerAuditLogs();
+        if (content) content.innerHTML = window.VeloraI18n.html(renderOwnerAuditLogs());
 
         return;
     }
@@ -11293,7 +11293,7 @@ showOwnerSection = function(section, btn) {
         if (titleEl) titleEl.textContent = 'Search Intelligence';
 
         const content = document.getElementById('ownerContent');
-        if (content) content.innerHTML = renderOwnerSearchIntelligence();
+        if (content) content.innerHTML = window.VeloraI18n.html(renderOwnerSearchIntelligence());
 
         return;
     }
