@@ -199,7 +199,7 @@
     if (!host) return;
     const languages = ['en','ar'].filter(k => LANG_META[k]).map(k => `<option value="${k}" ${k===state.locale?'selected':''}>${esc(LANG_META[k].name || k)}</option>`).join('');
     const currencies = Object.keys(CURRENCIES).map(k => `<option value="${k}" ${k===state.currency_code?'selected':''}>${k} — ${esc(CURRENCIES[k].symbol || '')}</option>`).join('');
-    host.innerHTML = `
+    host.innerHTML = window.VeloraI18n.html(`
       <div class="form-section" style="margin-top:1.25rem;border:1px solid rgba(255,255,255,.08);">
         <h3>🌍 Global Preferences</h3>
         <p style="color:var(--text-muted);margin:.35rem 0 1rem">Language, country, currency, timezone and regional formatting are saved to your Velora account.</p>
