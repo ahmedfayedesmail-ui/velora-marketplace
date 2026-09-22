@@ -5597,6 +5597,64 @@ ul { list-style: none; }
   .logo-text { display: none; }
 }
 
+/* ADMIN ORDER DETAILS — MOBILE FIT
+   Keep the order-details modal and its two-column desktop blocks within the viewport. */
+@media (max-width: 600px) {
+    #veloraAdminOrderDetailsModal {
+        padding: .45rem !important;
+        overflow-x: hidden !important;
+    }
+
+    #veloraAdminOrderDetailsModal .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        padding: 1rem !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
+    #veloraAdminOrderDetailsModal .modal-header {
+        gap: .6rem;
+    }
+
+    #veloraAdminOrderDetailsModal .modal-header h2 {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    #veloraAdminOrderDetailsModal .modal-content [style*="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    #veloraAdminOrderDetailsModal .modal-content [style*="grid-template-columns:minmax(0,1fr) auto auto"] {
+        grid-template-columns: minmax(0,1fr) !important;
+        gap: .45rem !important;
+        align-items: start !important;
+    }
+
+    #veloraAdminOrderDetailsModal .admin-section-card {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        padding: 1rem !important;
+    }
+
+    #veloraAdminOrderDetailsModal .admin-section-card div,
+    #veloraAdminOrderDetailsModal .admin-section-card strong,
+    #veloraAdminOrderDetailsModal .admin-section-card span {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    #veloraAdminOrderDetailsModal .velora-op-actions,
+    #veloraAdminOrderDetailsModal [style*="display:flex"][style*="flex-wrap:wrap"] {
+        min-width: 0;
+        max-width: 100%;
+        flex-wrap: wrap !important;
+    }
+}
+
 /* FINAL MOBILE DRAWER HEADER FIT
    Keep the mobile close button clear of two-line platform titles. */
 @media (max-width: 900px), (orientation: landscape) and (max-height: 700px) {
