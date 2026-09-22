@@ -10100,7 +10100,7 @@ function renderPlatformSwitcher() {
                 ${platforms.map(p => `
                     <div class="platform-switcher-item" 
                         style="border-left-color: ${p.color};"
-                        onclick="switchPlatform('${p.id}')">
+                        onclick="window.switchPlatform('${p.id}')">
                         <span>${p.icon}</span>
                         <span>${p.name}</span>
                     </div>
