@@ -174,6 +174,17 @@
       if(result.error)throw result.error;
       if(!result.data?.ok)throw new Error("Order creation returned an unsuccessful response.");
 
+      Promise.allSettled(canonicalItems.map(function(item){
+        return item.product_variant_id
+          ? client.rpc("velora_remove_cart_item_variant",{
+              p_product_id:item.product_id,
+              p_product_variant_id:item.product_variant_id
+            })
+          : client.rpc("velora_remove_cart_item",{p_product_id:item.product_id});
+      })).catch(function(cleanupError){
+        console.warn("Velora checkout cart cleanup:",cleanupError);
+      });
+
       STATE.cart=[];
       if(typeof saveToStorage==="function")saveToStorage(KEYS.CART,STATE.cart);
       if(typeof updateCartBadge==="function")updateCartBadge();
