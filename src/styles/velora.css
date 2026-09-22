@@ -3266,6 +3266,10 @@ ul { list-style: none; }
 /* ================================================================
    Extracted style block 6: style-06
    ================================================================ */
+.admin-platform[hidden] {
+    display: none !important;
+}
+
 /* ============ ADMIN PLATFORM ============ */
 .admin-platform {
     position: fixed;
