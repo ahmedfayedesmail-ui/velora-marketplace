@@ -2606,7 +2606,11 @@ function loadPageContent(page) {
             }
             break;
         case 'orders':
-            renderOrdersPage();
+            if (typeof window.renderOrdersPage === 'function') {
+                window.renderOrdersPage();
+            } else {
+                renderOrdersPage();
+            }
             break;
         case 'account':
             renderAccountPage();
