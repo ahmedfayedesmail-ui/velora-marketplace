@@ -171,19 +171,44 @@
         const menu = document.getElementById('platformSwitcherMenu');
         if (menu) menu.classList.remove('open');
 
-        switch (platformId) {
-            case 'marketplace':
-                goMarketplace();
-                break;
-            case 'seller':
-                return goPlatform('seller');
-            case 'admin':
-                return goPlatform('admin');
-            case 'owner':
-                return goPlatform('owner');
+        if (platformId === 'marketplace') {
+            goMarketplace();
+            return;
+        }
+
+        // Direct UI action: invoke the authoritative entry captured after
+        // the canonical platform controller loaded. No hashchange dependency.
+        const entry = platformId === 'seller'
+            ? originalOpenSeller
+            : platformId === 'admin'
+                ? originalOpenAdmin
+                : platformId === 'owner'
+                    ? originalOpenOwner
+                    : null;
+
+        if (typeof entry !== 'function') return;
+
+        try {
+            if (platformId !== 'seller' && typeof originalCloseSeller === 'function') originalCloseSeller();
+            if (platformId !== 'admin' && typeof originalCloseAdmin === 'function') originalCloseAdmin();
+            if (platformId !== 'owner' && typeof originalCloseOwner === 'function') originalCloseOwner();
+
+            const result = entry();
+            if (result && typeof result.catch === 'function') {
+                result.catch((error) => console.error('[Velora platform switch]', error));
+            }
+
+            if (!PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
+                returnHash = currentMarketplaceHash();
+            }
+            const url = new URL(window.location.href);
+            url.hash = platformId;
+            window.history.pushState({}, '', url);
+            return result;
+        } catch (error) {
+            console.error('[Velora platform switch]', error);
         }
     };
-
     window.addEventListener('hashchange', syncRoute);
     window.addEventListener('popstate', syncRoute);
 
