@@ -2487,7 +2487,7 @@ async function renderMarketplaceStores() {
     try {
         const db = window.mahaSupabase || window.supabaseClient || window.sb || null;
         if (!db?.rpc) throw new Error('marketplace_rpc_unavailable');
-        const locale = String(localStorage.getItem('velora_language') || 'en').toLowerCase();
+        const locale = typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en';
         const currency = String(localStorage.getItem('velora_currency') || 'EGP').toUpperCase();
         const country = String(localStorage.getItem('velora_country') || '*').toUpperCase();
         const r = await db.rpc('velora_get_marketplace_catalog', { p_country_code: country === '*' ? null : country, p_currency_code: currency, p_category_slug: null, p_search: null, p_limit: 100, p_offset: 0 });
@@ -2684,7 +2684,10 @@ function filterByCategory(category) {
 /* ============ PRODUCT RENDERING ============ */
 function veloraLocalizedProduct(input){
     const product = input || {};
-    const loc = (window.VELORA_GLOBAL_LOCALE || localStorage.getItem('velora_language') || 'en').toLowerCase();
+    const rawLocale = String(window.VELORA_GLOBAL_LOCALE || '').toLowerCase();
+    const loc = ['en','ar'].includes(rawLocale)
+      ? rawLocale
+      : (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en');
     if(loc==='en') return product;
     const row = window.VELORA_LOCALIZED_CONTENT?.products?.[String(product.id)] || null;
     if(!row) return product;
@@ -11491,7 +11494,9 @@ console.log('✅ Analytics + Events + Audit loaded!');
     window.VELORA_MARKET_CONTEXT = {
       countryCode,
       currencyCode,
-      languageCode: profile.preferred_language || (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en')
+      languageCode: (['en','ar'].includes(String(profile.preferred_language || '').toLowerCase())
+        ? String(profile.preferred_language).toLowerCase()
+        : (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en'))
     };
     return window.VELORA_MARKET_CONTEXT;
   }
