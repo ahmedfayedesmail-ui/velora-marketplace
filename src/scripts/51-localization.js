@@ -10,8 +10,51 @@ window.VELORA_I18N_V5_FAILED=false;
 const getDb=()=>window.mahaSupabase||window.supabaseClient||window.sb||null;
 const __phase1StoredLocale=(localStorage.getItem('velora_language')||'en').toLowerCase();
 const state=window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||{locale:['en','ar'].includes(__phase1StoredLocale)?__phase1StoredLocale:'en'};
+const ACTIVE_LOCALES=Object.freeze(['en','ar']);
 const meta=()=>window.VELORA_CORE?.languages||{};
 const basePack=()=>window.__VELORA_PACK||{};
+let localeEpoch=0;
+let reverseSourceCache=null;
+function normalizeLocale(code){
+  const value=String(code||'').toLowerCase();
+  return ACTIVE_LOCALES.includes(value)?value:'en';
+}
+function buildReverseSourceCache(){
+  const reverse=new Map();
+  const addPack=(pack)=>{
+    if(!pack||typeof pack!=='object')return;
+    Object.entries(pack).forEach(([source,target])=>{
+      const sourceText=norm(source);
+      const targetText=norm(target);
+      if(sourceText)reverse.set(sourceText,sourceText);
+      if(targetText&&!reverse.has(targetText))reverse.set(targetText,sourceText||targetText);
+    });
+  };
+  addPack(basePack().en||{});
+  Object.keys(basePack()).forEach(locale=>addPack(basePack()[locale]));
+  Object.keys(__VELORA_CORE_OVERRIDES).forEach(locale=>addPack(__VELORA_CORE_OVERRIDES[locale]||{}));
+  Object.keys(dbCatalog).forEach(locale=>addPack(dbCatalog[locale]||{}));
+  reverseSourceCache=[...reverse.entries()].sort((a,b)=>b[0].length-a[0].length);
+  return reverseSourceCache;
+}
+function canonicalSourceFor(raw){
+  const original=norm(raw);
+  if(!original)return original;
+  const entries=reverseSourceCache||buildReverseSourceCache();
+  const direct=entries.find(([localized])=>localized===original);
+  if(direct)return direct[1];
+  let out=original;
+  let changed=false;
+  for(const [localized,source] of entries){
+    if(localized.length<3||localized===source)continue;
+    if(out.includes(localized)){
+      out=out.split(localized).join(source);
+      changed=true;
+    }
+  }
+  return changed?norm(out):original;
+}
+const textSourceCache=new WeakMap();
 const __VELORA_CORE_OVERRIDES = {
   en:{'Dashboard':'Dashboard',
     'Users':'Users',
@@ -115,7 +158,7 @@ function translateElementAttrs(el,locale){
 function translateDom(root=document){
   if(translating)return;
   translating=true;
-  const locale=state.locale||localStorage.getItem('velora_language')||'en';
+  const locale=normalizeLocale(state.locale);
   try{
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
       const p=n.parentElement;if(!p)return NodeFilter.FILTER_REJECT;
@@ -126,12 +169,11 @@ function translateDom(root=document){
     const nodes=[];let n;while((n=walker.nextNode()))nodes.push(n);
     nodes.forEach(node=>{
       const raw=node.nodeValue||'';
-      const meta=window.VELORA_I18N_PROVENANCE?.textSource(node,raw,locale)||{source:norm(raw),known:false,ambiguous:false,englishFallback:null};
-      if(meta.ambiguous){if(meta.englishFallback)node.nodeValue=meta.englishFallback;return;}
-      const source=meta.source;
+      const knownSource=textSourceCache.get(node);
+      const source=knownSource||canonicalSourceFor(raw);
+      textSourceCache.set(node,source);
       const t=translateExact(source,locale);
-      if(t!==source&&raw!==t)node.nodeValue=t;
-      else if(raw!==source)node.nodeValue=source;
+      if(raw!==t)node.nodeValue=t;
     });
 
     const elements=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
@@ -139,14 +181,13 @@ function translateDom(root=document){
       ['placeholder','title','aria-label'].forEach(attr=>{
         if(!el.hasAttribute(attr))return;
         const raw=el.getAttribute(attr)||'';
-        const meta=window.VELORA_I18N_PROVENANCE?.attrSource(el,attr,raw,locale)||{source:norm(raw),known:false,ambiguous:false,englishFallback:null};
         const slot='data-velora-i18n-'+attr;
-        if(!el.hasAttribute(slot))el.setAttribute(slot,norm(raw));
-        else if(meta.known)el.setAttribute(slot,norm(meta.source));
-        if(meta.ambiguous){if(meta.englishFallback)el.setAttribute(attr,meta.englishFallback);return;}
-        const t=translateExact(meta.source,locale);
-        if(t!==meta.source)el.setAttribute(attr,t);
-        else if(meta.known&&raw!==meta.source)el.setAttribute(attr,meta.source);
+        const knownSource=el.getAttribute(slot);
+        const source=knownSource||canonicalSourceFor(raw);
+        el.setAttribute(slot,source);
+        const t=translateExact(source,locale);
+        if(t!==source)el.setAttribute(attr,t);
+        else if(raw!==source)el.setAttribute(attr,source);
       });
     });
   }finally{translating=false;}
@@ -158,16 +199,23 @@ async function loadDbCatalog(locale){
     const r=await db.rpc('velora_get_i18n_catalog',{p_locale:locale});
     if(!r.error&&r.data&&typeof r.data==='object'){
       dbCatalog[locale]=r.data;
+      reverseSourceCache=null;
       try{window.VELORA_I18N_PROVENANCE?.registerCatalog(locale,r.data);}catch(_){}
     }
   }catch(_){}
 }
 
-async function applyLocale(locale){
-  state.locale=locale; localStorage.setItem('velora_language',locale);
-  document.documentElement.lang=locale; document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
+async function applyLocale(locale,requestId){
+  locale=normalizeLocale(locale);
+  state.locale=locale;
+  const model=window.VELORA_GLOBAL_LOCALE_STATE||state;
+  model.locale=locale;
   window.VELORA_GLOBAL_LOCALE = locale;
+  localStorage.setItem('velora_language',locale);
+  document.documentElement.lang=locale;
+  document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
   await loadDbCatalog(locale);
+  if(requestId!==localeEpoch)return false;
   if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
 
   // Render locale-sensitive dynamic surfaces first, normalize the Home hero,
@@ -181,13 +229,15 @@ async function applyLocale(locale){
   translateDom(document);
 
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
+  if(requestId!==localeEpoch)return false;
   window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
+  return true;
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
 async function setLang(code){
-  code=String(code||'').toLowerCase();
-  if(!['en','ar'].includes(code))return false;
+  code=normalizeLocale(code);
   if(!meta()[code] && !basePack()[code])return false;
+  const requestId=++localeEpoch;
   try{
     localStorage.setItem('velora_language',code);
     const c=getDb();
@@ -199,8 +249,7 @@ async function setLang(code){
     }
     state.locale=code;
     const s=document.getElementById('languageSelect');if(s)s.value=code;
-    await applyLocale(code);
-    return true;
+    return await applyLocale(code,requestId);
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
@@ -265,14 +314,13 @@ const observer=new MutationObserver(ms=>{
 async function boot(){
   try{
     const stored=String(localStorage.getItem('velora_language')||'').toLowerCase();
-    const lang=['en','ar'].includes(String(state.locale||'').toLowerCase())
-      ? String(state.locale).toLowerCase()
-      : (['en','ar'].includes(stored) ? stored : 'en');
+    const lang=normalizeLocale(state.locale||stored);
     state.locale=lang;
     localStorage.setItem('velora_language',lang);
+    const requestId=++localeEpoch;
     const s=document.getElementById('languageSelect');
     if(s)s.value=lang;
-    await applyLocale(lang);
+    await applyLocale(lang,requestId);
     if(document.body)observer.observe(document.body,{childList:true,subtree:true});
     window.VELORA_I18N_V5_READY=true;
     window.VELORA_I18N_V5_FAILED=false;
