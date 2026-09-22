@@ -103,7 +103,8 @@ $function$;
 -- Verification checklist (run only after applying to Restore-Test):
 -- 1. authenticated call with sensitive succeeds.
 -- 2. returned beauty_profiles.skin_type = 'sensitive'.
--- 3. anonymous call still returns AUTH_REQUIRED.
--- 4. invalid skin_type still returns INVALID_SKIN_TYPE.
--- 5. existing v2 valid values still pass.
--- 6. Production remains untouched.
+-- 3. table check constraint accepts 'sensitive'.
+-- 4. anonymous call still returns AUTH_REQUIRED.
+-- 5. invalid skin_type still returns INVALID_SKIN_TYPE.
+-- 6. existing v2 valid values still pass.
+-- 7. Production remains untouched.
