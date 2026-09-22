@@ -140,6 +140,50 @@ function translateExact(text,locale){
   // produced mixed-language fragments such as "Review تطبيق tions".
   return original;
 }
+// Canonical translation API consumed by all dynamic renderers.
+// The renderer generates its HTML in a detached template, so translation
+// happens before the markup enters the live DOM.
+const VeloraI18n = window.VeloraI18n = window.VeloraI18n || {};
+VeloraI18n.t = function(key, fallback){
+  const source=norm(key);
+  const fallbackText=String(fallback ?? key ?? '');
+  if(!source)return fallbackText;
+  const locale=normalizeLocale(state.locale);
+  if(locale==='en')return fallbackText;
+  const translated=translateExact(source,locale);
+  return translated===source?fallbackText:translated;
+};
+VeloraI18n.html = function(markup){
+  const template=document.createElement('template');
+  template.innerHTML=String(markup??'');
+  const walk=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
+  const nodes=[];let node;
+  while((node=walk.nextNode()))nodes.push(node);
+  const locale=normalizeLocale(state.locale);
+  if(locale!=='en'){
+    nodes.forEach(n=>{
+      const raw=n.nodeValue||'';
+      const trimmed=norm(raw);
+      if(!trimmed)return;
+      const t=VeloraI18n.t(trimmed,trimmed);
+      if(t!==trimmed){
+        const lead=raw.match(/^\s*/)?.[0]||'';
+        const trail=raw.match(/\s*$/)?.[0]||'';
+        n.nodeValue=lead+t+trail;
+      }
+    });
+    template.content.querySelectorAll?.('input,textarea,button,[title],[aria-label]').forEach(el=>{
+      ['placeholder','title','aria-label'].forEach(attr=>{
+        if(!el.hasAttribute(attr))return;
+        const raw=el.getAttribute(attr)||'';
+        const trimmed=norm(raw);
+        const t=VeloraI18n.t(trimmed,trimmed);
+        if(t!==trimmed)el.setAttribute(attr,t);
+      });
+    });
+  }
+  return template.innerHTML;
+};
 function sourceForTextNode(node,raw){
   const current=norm(raw);
   const record=textSourceCache.get(node);
