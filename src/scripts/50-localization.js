@@ -106,14 +106,13 @@
 
   const previousSetLanguage = window.setVeloraLanguage;
   window.setVeloraLanguage = async function(code) {
-    code = String(code || '').toLowerCase();
-    if (!['en','ar'].includes(code) || !LANG_META[code]) return false;
+    code = canonicalLocale(code);
+    if (!LANG_META[code]) return false;
     const ok = typeof previousSetLanguage === 'function' ? await previousSetLanguage(code) : true;
     if (!ok) return false;
     state.locale = code;
-    localStorage.setItem('velora_language', code);
-    document.documentElement.lang = code;
-    document.documentElement.dir = LANG_META[code]?.dir || (code === 'ar' ? 'rtl' : 'ltr');
+    state.date_locale = canonicalDateLocale(state.locale,state.country_code);
+    syncLocaleUi();
     try {
       const c = db();
       if (c?.rpc && STATE?.user) {
