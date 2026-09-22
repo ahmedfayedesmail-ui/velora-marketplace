@@ -15,6 +15,54 @@
   const storedCurrency = (localStorage.getItem('velora_currency') || '').toUpperCase();
   const initialCurrency = initialCountry === 'EG' ? 'EGP' : (storedCurrency || 'USD');
   // Canonical global-locale helpers are defined below; all persisted locale state is normalized through them.
+  function canonicalLocale(value){
+    value=String(value||'').toLowerCase();
+    return value==='ar'?'ar':'en';
+  }
+  function canonicalCountry(value){
+    value=String(value||'').trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(value)?value:'EG';
+  }
+  function canonicalCurrency(value,country){
+    value=String(value||'').trim().toUpperCase();
+    if(CURRENCIES[value]) return value;
+    return country==='EG'?'EGP':'USD';
+  }
+  function canonicalDateLocale(locale,country){
+    return canonicalLocale(locale)+'-'+canonicalCountry(country);
+  }
+  function normalizeState(){
+    state.locale=canonicalLocale(state.locale);
+    state.country_code=canonicalCountry(state.country_code);
+    state.currency_code=canonicalCurrency(state.currency_code,state.country_code);
+    state.timezone=String(state.timezone||'UTC')||'UTC';
+    state.date_locale=canonicalDateLocale(state.locale,state.country_code);
+    return state;
+  }
+  function persistState(){
+    localStorage.setItem('velora_language',state.locale);
+    localStorage.setItem('velora_country',state.country_code);
+    localStorage.setItem('velora_currency',state.currency_code);
+    localStorage.setItem('velora_date_locale',state.date_locale);
+  }
+  function syncLocaleUi(){
+    normalizeState();
+    VELORA_CURRENCY=state.currency_code;
+    const currencySelect=document.getElementById('currencySelect');
+    if(currencySelect) currencySelect.value=state.currency_code;
+    const languageSelect=document.getElementById('languageSelect');
+    if(languageSelect) languageSelect.value=state.locale;
+    document.documentElement.lang=state.locale;
+    document.documentElement.dir=LANG_META[state.locale]?.dir||(state.locale==='ar'?'rtl':'ltr');
+    window.VELORA_GLOBAL_LOCALE=state.locale;
+    if(window.VELORA_MARKET_CONTEXT){
+      window.VELORA_MARKET_CONTEXT.countryCode=state.country_code;
+      window.VELORA_MARKET_CONTEXT.currencyCode=state.currency_code;
+      window.VELORA_MARKET_CONTEXT.languageCode=state.locale;
+    }
+    try{ if(typeof updateCurrencyDisplay==='function') updateCurrencyDisplay(); }catch(_){}
+    persistState();
+  }
   const state = window.VELORA_GLOBAL_LOCALE_STATE = window.VELORA_GLOBAL_LOCALE_STATE || {
     locale: storedLanguage,
     country_code: initialCountry,
