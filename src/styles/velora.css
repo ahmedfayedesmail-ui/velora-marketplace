@@ -5607,8 +5607,8 @@ ul { list-style: none; }
         top: 0 !important;
         bottom: 0 !important;
         left: 0 !important;
-        width: min(300px, 82vw) !important;
-        max-width: 82vw !important;
+        width: min(250px, 70vw) !important;
+        max-width: 70vw !important;
         height: 100dvh !important;
         flex: none !important;
         transform: translate3d(-105%, 0, 0) !important;
