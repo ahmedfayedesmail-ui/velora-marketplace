@@ -4338,7 +4338,7 @@ ul { list-style: none; }
 }
 
 /* Mobile landscape overlay layout.
-   Preserve the base open/closed state machine: closed = right:-100vw, open = right:0. */
+   Keep sizing responsive while DOM hidden state owns open/closed behavior. */
 @media (orientation: landscape) and (max-height: 700px) {
     html,
     body {
@@ -4347,16 +4347,15 @@ ul { list-style: none; }
     }
 
     .cart-sidebar {
-        left: auto !important;
-        right: -100vw !important;
-        width: 100vw !important;
-        max-width: 100vw !important;
-        height: 100dvh !important;
+        right: -100vw;
+        width: 100vw;
+        max-width: 100vw;
+        height: 100dvh;
         box-sizing: border-box;
     }
 
     .cart-sidebar.open {
-        right: 0 !important;
+        right: 0;
     }
 
     .cart-sidebar .cart-header,
@@ -4410,6 +4409,11 @@ ul { list-style: none; }
         overflow-wrap: anywhere;
         word-break: break-word;
     }
+}
+
+.cart-sidebar[hidden],
+.cart-sidebar-overlay[hidden] {
+    display: none !important;
 }
 
 /* ============ NOTIFICATION BELL ============ */
