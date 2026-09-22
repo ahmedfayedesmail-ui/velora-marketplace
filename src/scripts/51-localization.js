@@ -130,7 +130,22 @@ try{window.VELORA_I18N_PROVENANCE?.registerCatalog('en',__VELORA_CORE_OVERRIDES.
 Object.keys(__VELORA_CORE_OVERRIDES).forEach(locale=>{
   if(locale!=='en'){try{window.VELORA_I18N_PROVENANCE?.registerCatalog(locale,__VELORA_CORE_OVERRIDES[locale]||{});}catch(_){}}
 });
-const rxEmoji=/^[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]+/u;
+const DECORATIVE_EDGE=/[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]/u;
+function splitDecorativeEdges(v){
+  const value=String(v??'');
+  let start=0,end=value.length;
+  while(start<end){
+    const cp=value.codePointAt(start), ch=String.fromCodePoint(cp);
+    if(!DECORATIVE_EDGE.test(ch))break;
+    start+=ch.length;
+  }
+  while(end>start){
+    const cp=value.codePointBefore(end), ch=String.fromCodePoint(cp);
+    if(!DECORATIVE_EDGE.test(ch))break;
+    end-=ch.length;
+  }
+  return {prefix:value.slice(0,start),body:value.slice(start,end).trim(),suffix:value.slice(end)};
+};
 const norm=v=>String(v??'').replace(/\\s+/g,' ').trim();
 const core=v=>{
   const value=norm(v);
