@@ -5307,6 +5307,8 @@ function persistVeloraUser(){
 }
 const VELORA_ACTIVE_LANGUAGES = Object.freeze(['en','ar']);
 function getVeloraLanguage(){
+  const canonical=String(window.VELORA_GLOBAL_LOCALE_STATE?.locale||'').toLowerCase();
+  if(VELORA_ACTIVE_LANGUAGES.includes(canonical)) return canonical;
   const stored=String(getFromStorage('velora_language',null)||'').toLowerCase();
   if(VELORA_ACTIVE_LANGUAGES.includes(stored)) return stored;
   const browser=String(navigator.language||'en').slice(0,2).toLowerCase();
@@ -5618,7 +5620,11 @@ window.setVeloraLanguage = async function(code){
   }catch(_){return false;}
 };
 
-function getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
+function getVeloraDisplayCurrency(){
+  const canonical=String(window.VELORA_GLOBAL_LOCALE_STATE?.currency_code||'').toUpperCase();
+  if(canonical && VELORA_CURRENCY_META[canonical]) return canonical;
+  return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD';
+}
 function getSellerCurrency(seller){ return (seller && VELORA_CURRENCY_META[seller.currency]) ? seller.currency : getVeloraDisplayCurrency(); }
 function formatSellerPrice(value,seller){ return formatPrice(value,getSellerCurrency(seller)); }
 function saveSeller(seller){
@@ -11476,8 +11482,9 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function loadMarketContext(){
     const auth = await getAuthenticatedProfile();
     const profile = auth?.profile || {};
-    const countryCode = (profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
-    let currencyCode = (profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
+    const globalState=window.VELORA_GLOBAL_LOCALE_STATE;
+    const countryCode = (globalState?.country_code || profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
+    let currencyCode = (globalState?.currency_code || profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
 
     if (countryCode) {
       try {
@@ -11494,9 +11501,11 @@ console.log('✅ Analytics + Events + Audit loaded!');
     window.VELORA_MARKET_CONTEXT = {
       countryCode,
       currencyCode,
-      languageCode: (['en','ar'].includes(String(profile.preferred_language || '').toLowerCase())
-        ? String(profile.preferred_language).toLowerCase()
-        : (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en'))
+      languageCode: (['en','ar'].includes(String(globalState?.locale || '').toLowerCase())
+        ? String(globalState.locale).toLowerCase()
+        : (['en','ar'].includes(String(profile.preferred_language || '').toLowerCase())
+          ? String(profile.preferred_language).toLowerCase()
+          : (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en')))
     };
     return window.VELORA_MARKET_CONTEXT;
   }
@@ -11514,12 +11523,13 @@ console.log('✅ Analytics + Events + Audit loaded!');
     if (select && data.length) {
       const uiCurrencies = data.filter(c => !window.VELORA_CURRENCY_META || window.VELORA_CURRENCY_META[c.code]);
       const visible = uiCurrencies.length ? uiCurrencies : data;
-      const current = select.value || ctx.currencyCode || visible[0].code;
+      const current = window.VELORA_GLOBAL_LOCALE_STATE?.currency_code || ctx.currencyCode || select.value || visible[0].code;
       select.innerHTML = visible.map(c => `<option value=\"${escapeHtml(String(c.code))}\">${escapeHtml(String(c.code))}</option>`).join('');
       const selected = visible.some(c => c.code === current) ? current : visible[0].code;
       select.value = selected;
       if (typeof setVeloraCurrency === 'function') setVeloraCurrency(selected);
       window.VELORA_MARKET_CONTEXT.currencyCode = selected;
+      if(window.VELORA_GLOBAL_LOCALE_STATE) window.VELORA_GLOBAL_LOCALE_STATE.currency_code=selected;
     }
     return data;
   }
