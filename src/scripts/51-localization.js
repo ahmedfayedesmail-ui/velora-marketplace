@@ -161,15 +161,14 @@ function translateExact(text,locale){
   // PENDING/SHIPPED/DELIVERED while keeping the no-substring rule.
   const ci=Object.keys(c).find(k=>k && k.toLowerCase()===original.toLowerCase());
   if(ci && c[ci]) return c[ci];
-  const bare=core(original);
+  const parts=splitDecorativeEdges(original);
+  const bare=parts.body;
   if(bare!==original && Object.prototype.hasOwnProperty.call(c,bare) && c[bare]){
-    const prefix=original.slice(0,original.indexOf(bare));
-    return prefix+c[bare];
+    return parts.prefix+c[bare]+parts.suffix;
   }
   const bareCi=Object.keys(c).find(k=>k && k.toLowerCase()===bare.toLowerCase());
   if(bare!==original && bareCi && c[bareCi]){
-    const prefix=original.slice(0,original.indexOf(bare));
-    return prefix+c[bareCi];
+    return parts.prefix+c[bareCi]+parts.suffix;
   }
   // IMPORTANT: never translate substrings. Substring replacement is what
   // produced mixed-language fragments such as "Review تطبيق tions".
