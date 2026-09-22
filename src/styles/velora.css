@@ -5597,6 +5597,39 @@ ul { list-style: none; }
   .logo-text { display: none; }
 }
 
+/* FINAL MOBILE DRAWER HEADER FIT
+   Keep the mobile close button clear of two-line platform titles. */
+@media (max-width: 900px), (orientation: landscape) and (max-height: 700px) {
+    .seller-sidebar-header,
+    .admin-sidebar-header {
+        position: relative !important;
+        align-items: flex-start !important;
+        padding-right: 3.75rem !important;
+    }
+
+    .seller-store-info,
+    .admin-store-info {
+        min-width: 0 !important;
+        max-width: 90px !important;
+    }
+
+    .seller-store-name,
+    .admin-store-name {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        line-height: 1.25 !important;
+    }
+
+    .seller-sidebar-close,
+    .admin-sidebar-close {
+        position: absolute !important;
+        top: 0.9rem !important;
+        right: 0.75rem !important;
+        margin-left: 0 !important;
+    }
+}
+
 /* FINAL MOBILE DRAWER OVERRIDE
    Applied last so legacy responsive rules cannot re-expand the sidebar
    into the dashboard layout. */
