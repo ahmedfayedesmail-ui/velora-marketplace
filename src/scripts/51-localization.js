@@ -75,6 +75,11 @@ const __VELORA_CORE_OVERRIDES = {
     'Customers':'العملاء','Pending Reviews':'المراجعات المعلّقة','Active Account Actions':'إجراءات الحساب النشطة','Needs Attention':'تحتاج إلى اهتمام','Order Value by Currency':'قيمة الطلبات حسب العملة','Non-cancelled/refunded orders':'الطلبات غير الملغاة أو المستردة','Operations Breakdown':'تفصيل العمليات','Pending sellers':'البائعون المعلّقون','Pending products':'المنتجات المعلّقة','Pending reviews':'المراجعات المعلّقة','Failed payments':'المدفوعات الفاشلة','Pending payouts':'الدفعات المستحقة المعلّقة','Latest 10':'أحدث 10','Recent Audit Activity':'أحدث نشاط للتدقيق','Generated':'تم الإنشاء','Dashboard is read-only in S2-D; existing management sections retain their own controls.':'لوحة التحكم للقراءة فقط في S2-D؛ وتحتفظ أقسام الإدارة الحالية بعناصر التحكم الخاصة بها.',
     'No order value recorded.':'لا توجد قيمة طلبات مسجلة.','No orders found.':'لم يتم العثور على طلبات.','No recent audit activity.':'لا يوجد نشاط تدقيق حديث.',
     'Pending':'معلّق','Approved':'معتمد','Rejected':'مرفوض','Suspended':'موقوف','Paid':'مدفوع','Captured':'مقبوض','Published':'منشور','Completed':'مكتمل','Failed':'فشل','Refunded':'مُسترد','Hidden':'مخفي','Cancelled':'ملغى','Processing':'قيد المعالجة','Shipped':'تم الشحن','Delivered':'تم التسليم','Confirmed':'مؤكد','Inactive':'غير نشط',
+    'pending':'معلّق','approved':'معتمد','rejected':'مرفوض','suspended':'موقوف','paid':'مدفوع','captured':'مقبوض','published':'منشور','completed':'مكتمل','failed':'فشل','refunded':'مُسترد','hidden':'مخفي','cancelled':'ملغى','processing':'قيد المعالجة','shipped':'تم الشحن','delivered':'تم التسليم','confirmed':'مؤكد','inactive':'غير نشط',
+    'Main':'الرئيسية','Growth':'النمو','Settings':'الإعدادات','Store Settings':'إعدادات المتجر','Seller Center':'مركز البائع','Analytics':'التحليلات','Earnings':'الأرباح','Inventory':'المخزون',
+    'Welcome back,':'مرحبًا بعودتك،','Quick overview of your store performance':'نظرة سريعة على أداء متجرك','Total Earnings':'إجمالي الأرباح','Store Rating':'تقييم المتجر','Add Product':'إضافة منتج','View Orders':'عرض الطلبات','Update':'تحديث','Total Units':'إجمالي الوحدات','Low Stock':'مخزون منخفض','Out of Stock':'غير متوفر','Description':'الوصف','Store Name':'اسم المتجر','Store Slug':'معرّف المتجر','Product Name':'اسم المنتج','Order ID':'رقم الطلب','Items':'المنتجات','Your Earnings':'أرباحك','Your Orders':'طلباتك',
+    'No orders yet':'لا توجد طلبات بعد','Your first order will appear here':'سيظهر طلبك الأول هنا','Only order items belonging to this seller are returned by the canonical RPC.':'يعرض النظام فقط عناصر الطلبات الخاصة بهذا البائع عبر الواجهة المحمية.','New products enter pending review and cannot self-approve.':'تدخل المنتجات الجديدة في المراجعة المعلّقة ولا يمكن اعتمادها ذاتيًا.','Your status, approval and performance metrics are protected server-side. This page only edits safe storefront profile fields.':'حالة متجرك وموافقته ومؤشرات أدائه محمية من جهة الخادم. هذه الصفحة تعدّل فقط حقول الملف الآمنة.',
+
 
     'Users':'المستخدمون',
     'Sellers':'البائعون',
@@ -143,10 +148,19 @@ function translateExact(text,locale){
   const original=norm(text); if(!original) return text;
   const c=catalog(locale);
   if(Object.prototype.hasOwnProperty.call(c,original) && c[original]) return c[original];
+  // Exact case-insensitive fallback for machine/state labels such as
+  // PENDING/SHIPPED/DELIVERED while keeping the no-substring rule.
+  const ci=Object.keys(c).find(k=>k && k.toLowerCase()===original.toLowerCase());
+  if(ci && c[ci]) return c[ci];
   const bare=core(original);
   if(bare!==original && Object.prototype.hasOwnProperty.call(c,bare) && c[bare]){
     const prefix=original.slice(0,original.indexOf(bare));
     return prefix+c[bare];
+  }
+  const bareCi=Object.keys(c).find(k=>k && k.toLowerCase()===bare.toLowerCase());
+  if(bare!==original && bareCi && c[bareCi]){
+    const prefix=original.slice(0,original.indexOf(bare));
+    return prefix+c[bareCi];
   }
   // IMPORTANT: never translate substrings. Substring replacement is what
   // produced mixed-language fragments such as "Review تطبيق tions".
@@ -359,8 +373,7 @@ async function setLang(code){
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 runtime failure; activating V4 fallback',e);
-    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
+    console.warn('[Velora i18n] V5 runtime failure; keeping legacy renderer dormant',e);
     return false;
   }
 }
@@ -448,8 +461,7 @@ async function boot(){
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 boot failure; activating V4 fallback',e);
-    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
+    console.warn('[Velora i18n] V5 boot failure; legacy translation remains dormant',e);
   }
 }
 
