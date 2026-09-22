@@ -1,4 +1,15 @@
 // ============================================================
+    // VELORA — EARLY I18N FACADE
+    // Must exist before any numbered module can call VeloraI18n.html().
+    // 51-localization.js upgrades this facade with the real V5 engine.
+    window.VeloraI18n = window.VeloraI18n || {
+        _isStub: true,
+        locale: (localStorage.getItem('velora_language') || 'en').toLowerCase() === 'ar' ? 'ar' : 'en',
+        t: function(key, fallback) { return String(fallback ?? key ?? ''); },
+        html: function(markup) { return String(markup ?? ''); }
+    };
+
+// ============================================================
     // VELORA — SUPABASE CONNECTION
     // ============================================================
 
