@@ -364,7 +364,12 @@
 <button onclick="closeCart()">✕</button>
 </div>
 <div class="cart-body" id="cartSidebarBody">
-<!-- Will be filled by JS -->
+<div class="cart-empty" aria-live="polite">
+<div class="empty-icon">🛒</div>
+<h4>Your cart is empty</h4>
+<p>Start shopping to add products</p>
+<button class="btn btn-primary" onclick="closeCart(); navigateTo('shop');">Shop Now</button>
+</div>
 </div>
 <div class="cart-footer" id="cartSidebarFooter">
 <!-- Will be filled by JS -->
