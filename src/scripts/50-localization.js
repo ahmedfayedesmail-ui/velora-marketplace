@@ -14,6 +14,7 @@
   const storedLanguage = ['en','ar'].includes(rawStoredLanguage) ? rawStoredLanguage : 'en';
   const storedCurrency = (localStorage.getItem('velora_currency') || '').toUpperCase();
   const initialCurrency = initialCountry === 'EG' ? 'EGP' : (storedCurrency || 'USD');
+  // Canonical global-locale helpers are defined below; all persisted locale state is normalized through them.
   const state = window.VELORA_GLOBAL_LOCALE_STATE = window.VELORA_GLOBAL_LOCALE_STATE || {
     locale: storedLanguage,
     country_code: initialCountry,
