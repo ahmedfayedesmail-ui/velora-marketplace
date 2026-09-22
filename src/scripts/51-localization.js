@@ -222,11 +222,21 @@ function translateElementAttrs(el,locale){
     const v=el.value; if(v){const t=translateExact(v,locale); if(t!==v && !el.matches(':focus')) el.value=t;}
   }
 }
+function translateExplicitNodes(root,locale){
+  const host=root?.querySelectorAll?root:document;
+  host.querySelectorAll?.('[data-velora-i18n]').forEach(el=>{
+    const key=el.getAttribute('data-velora-i18n')||'';
+    if(!key)return;
+    const translated=VeloraI18n.t(key,key);
+    if(el.textContent!==translated)el.textContent=translated;
+  });
+}
 function translateDom(root=document){
   if(translating)return;
   translating=true;
   const locale=normalizeLocale(state.locale);
   try{
+    translateExplicitNodes(root,locale);
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
       const p=n.parentElement;if(!p)return NodeFilter.FILTER_REJECT;
       const tag=p.tagName;if(['SCRIPT','STYLE','NOSCRIPT','CODE','PRE','OPTION'].includes(tag))return NodeFilter.FILTER_REJECT;
