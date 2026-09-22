@@ -241,6 +241,11 @@ async function applyLocale(locale,requestId){
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
   if(requestId!==localeEpoch)return false;
   window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
+  // Dynamic renderers in the legacy bundle can commit markup in the next
+  // microtask/frame. Re-run the single authoritative renderer after them.
+  queueMicrotask(()=>{try{translateDom(document);}catch(_){}});
+  setTimeout(()=>{try{translateDom(document);}catch(_){}},0);
+  setTimeout(()=>{try{translateDom(document);}catch(_){}},120);
   return true;
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
@@ -316,7 +321,7 @@ const observer=new MutationObserver(ms=>{
   }finally{
     observerRunning=false;
     if(document.body){
-      observer.observe(document.body,{childList:true,subtree:true});
+      observer.observe(document.body,{childList:true,subtree:true,characterData:true});
     }
   }
 });
@@ -331,7 +336,7 @@ async function boot(){
     const s=document.getElementById('languageSelect');
     if(s)s.value=lang;
     await applyLocale(lang,requestId);
-    if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+    if(document.body)observer.observe(document.body,{childList:true,subtree:true,characterData:true});
     window.VELORA_I18N_V5_READY=true;
     window.VELORA_I18N_V5_FAILED=false;
   }catch(e){
