@@ -382,19 +382,29 @@ async function applyLocale(locale,requestId){
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
 async function setLang(code){
   code=normalizeLocale(code);
-  if(!meta()[code] && !basePack()[code])return false;
+  if(!['en','ar'].includes(code))return false;
+
   const requestId=++localeEpoch;
+
+  // Commit the authoritative locale synchronously before any network/DOM await.
+  state.locale=code;
+  window.VELORA_GLOBAL_LOCALE_STATE=state;
+  window.VELORA_GLOBAL_LOCALE=code;
+  localStorage.setItem('velora_language',code);
+  document.documentElement.lang=code;
+  document.documentElement.dir=meta()[code]?.dir||(code==='ar'?'rtl':'ltr');
+
+  const s=document.getElementById('languageSelect');if(s)s.value=code;
+
   try{
-    localStorage.setItem('velora_language',code);
     const c=getDb();
     if(c?.rpc){
       try{
-        const s=await c.auth?.getSession?.();
-        if(s?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
+        const session=await c.auth?.getSession?.();
+        if(session?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
       }catch(_){}
     }
-    state.locale=code;
-    const s=document.getElementById('languageSelect');if(s)s.value=code;
+    if(requestId!==localeEpoch)return false;
     return await applyLocale(code,requestId);
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
@@ -493,6 +503,10 @@ async function boot(){
 
 window.VELORA_V5_SET_LANGUAGE=setLang;
 window.VELORA_I18N_SET_LANGUAGE=setLang;
+// Public HTML onchange entry point: V5 is the single authoritative language setter.
+window.setVeloraLanguage=function(code){
+  return window.VELORA_V5_SET_LANGUAGE(code);
+};
 window.VELORA_I18N_RENDER=translateDom;
 window.VELORA_TRANSLATE_ALL=()=>translateDom(document);
 
