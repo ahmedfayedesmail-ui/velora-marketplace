@@ -6563,6 +6563,7 @@ function renderSellerLayout(seller) {
                     <div class="seller-store-name">${escapeHtml(seller.storeName)}</div>
                     <div class="seller-store-sub">Seller Center</div>
                 </div>
+                <button class="seller-sidebar-close" type="button" onclick="closeSellerSidebar()" aria-label="Close seller navigation">✕</button>
             </div>
 
             <nav class="seller-nav">
@@ -6633,6 +6634,46 @@ function closeSellerPlatform() {
     }
     document.body.style.overflow = '';
 }
+
+/* Mobile drawer gesture support: swipe right to close. */
+(function bindPlatformSidebarGestures(){
+    function bind(sidebarId, closeFn) {
+        const sidebar = document.getElementById(sidebarId);
+        if (!sidebar || sidebar.dataset.swipeBound === "1") return;
+        sidebar.dataset.swipeBound = "1";
+
+        let startX = 0;
+        let startY = 0;
+
+        sidebar.addEventListener("touchstart", function(event){
+            const touch = event.changedTouches && event.changedTouches[0];
+            if (!touch) return;
+            startX = touch.clientX;
+            startY = touch.clientY;
+        }, {passive:true});
+
+        sidebar.addEventListener("touchend", function(event){
+            const touch = event.changedTouches && event.changedTouches[0];
+            if (!touch) return;
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            if (dx > 70 && Math.abs(dx) > Math.abs(dy) * 1.15) closeFn();
+        }, {passive:true});
+    }
+
+    function bindWhenReady(){
+        bind("sellerSidebar", closeSellerSidebar);
+        bind("adminSidebar", closeAdminSidebar);
+    }
+
+    if(document.readyState === "loading"){
+        document.addEventListener("DOMContentLoaded", bindWhenReady, {once:true});
+    } else {
+        bindWhenReady();
+    }
+
+    new MutationObserver(bindWhenReady).observe(document.body,{childList:true,subtree:true});
+})();
 
 function openSellerSidebar() {
     const sidebar = document.getElementById('sellerSidebar');
@@ -7321,6 +7362,7 @@ function renderAdminLayout() {
                     <div class="admin-store-name">Admin Panel</div>
                     <div class="admin-store-sub">Velora</div>
                 </div>
+                <button class="admin-sidebar-close" type="button" onclick="closeAdminSidebar()" aria-label="Close admin navigation">✕</button>
             </div>
 
             <nav class="admin-nav">
