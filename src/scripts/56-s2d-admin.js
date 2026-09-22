@@ -56,7 +56,7 @@
   function renderError(message){
     var c=document.getElementById('adminContent');
     if(!c) return;
-    c.innerHTML='<div class="v56-card"><div class="v56-head"><div><h2>Admin Dashboard</h2><div class="v56-muted">Operational overview</div></div></div><div class="v56-error">⚠️ '+esc(message||'Dashboard unavailable.')+'</div></div>';
+    c.innerHTML=window.VeloraI18n.html('<div class="v56-card"><div class="v56-head"><div><h2>Admin Dashboard</h2><div class="v56-muted">Operational overview</div></div></div><div class="v56-error">⚠️ '+esc(message||'Dashboard unavailable.')+'</div></div>';
   }
 
   function renderLoading(){
