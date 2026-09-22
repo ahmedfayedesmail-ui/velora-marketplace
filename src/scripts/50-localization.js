@@ -87,11 +87,12 @@
         syncLocaleUi();
         return state;
       }
+      const previousLocale = canonicalLocale(window.VELORA_GLOBAL_LOCALE);
       Object.assign(state, r.data);
       normalizeState();
+      const localeChanged = previousLocale !== state.locale;
       syncLocaleUi();
-      if (window.VELORA_GLOBAL_LOCALE !== state.locale &&
-          typeof window.setVeloraLanguage === 'function') {
+      if (localeChanged && typeof window.setVeloraLanguage === 'function') {
         await window.setVeloraLanguage(state.locale);
       } else if (typeof window.VELORA_I18N_RENDER === 'function') {
         window.VELORA_I18N_RENDER(document);
