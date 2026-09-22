@@ -350,27 +350,27 @@ async function setLang(code){
 
 function __veloraFixHeroCore(locale){
   const root=document.querySelector('#page-home'); if(!root)return;
-  const h=root.querySelector('.hero-title');
-  if(h){
-    const parts=[...h.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
-    const pack=__VELORA_CORE_OVERRIDES[locale]||{};
-    const first=pack['Discover More.']||'Discover More.';
-    const second=pack['Shop Better.']||'Shop Better.';
-    if(parts[0] && parts[0].nodeValue !== first) parts[0].nodeValue=first;
-    if(parts[1] && parts[1].nodeValue !== second) parts[1].nodeValue=second;
-  }
   const core=__VELORA_CORE_OVERRIDES[locale]||{};
-  const desc=root.querySelector('.hero-desc');
-  const description=core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.'];
-  if(desc && description && desc.textContent !== description) desc.textContent=description;
-  root.querySelectorAll('.hero-badge').forEach(e=>{
-    if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE')){
-      const textNodes=[...e.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
-      const last=textNodes[textNodes.length-1];
-      const badgeText=' '+(core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
-      if(last && last.nodeValue !== badgeText) last.nodeValue=badgeText;
-    }
+
+  // Static hero markup now uses declarative data-velora-i18n keys.
+  // Keep this compatibility helper idempotent and never append duplicate
+  // text beside an existing translated span.
+  root.querySelectorAll?.('[data-velora-i18n]').forEach(el=>{
+    const key=el.getAttribute('data-velora-i18n')||'';
+    if(!key || !(key in core))return;
+    if(el.children.length===0 || el.children.length>0) el.textContent=core[key];
   });
+
+  const badge=root.querySelector('.hero-badge');
+  if(badge){
+    const label=badge.querySelector('[data-velora-i18n="MULTI-SELLER MARKETPLACE"]');
+    if(label){
+      label.textContent=core['MULTI-SELLER MARKETPLACE']||label.textContent;
+    }else{
+      const text=core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE';
+      badge.textContent='🛒 '+text;
+    }
+  }
 }
 
 window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(source,locale);
