@@ -2731,6 +2731,10 @@ ul { list-style: none; }
 /* ================================================================
    Extracted style block 5: style-05
    ================================================================ */
+.seller-platform[hidden] {
+    display: none !important;
+}
+
 /* ============ SELLER PLATFORM ============ */
 .seller-platform {
     position: fixed;
