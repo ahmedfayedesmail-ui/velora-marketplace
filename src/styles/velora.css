@@ -5596,3 +5596,111 @@ ul { list-style: none; }
   .main-nav { display: none !important; }
   .logo-text { display: none; }
 }
+
+/* FINAL MOBILE DRAWER OVERRIDE
+   Applied last so legacy responsive rules cannot re-expand the sidebar
+   into the dashboard layout. */
+@media (max-width: 900px), (orientation: landscape) and (max-height: 700px) {
+    .seller-sidebar,
+    .admin-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: min(300px, 82vw) !important;
+        max-width: 82vw !important;
+        height: 100dvh !important;
+        flex: none !important;
+        transform: translate3d(-105%, 0, 0) !important;
+        transition: transform .24s ease !important;
+        z-index: 1200 !important;
+    }
+
+    .seller-sidebar.open,
+    .admin-sidebar.open {
+        left: 0 !important;
+        transform: translate3d(0, 0, 0) !important;
+    }
+
+    .seller-sidebar-backdrop,
+    .admin-sidebar-backdrop {
+        position: fixed !important;
+        inset: 0 !important;
+        display: block !important;
+        z-index: 1190 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        transition: opacity .24s ease, visibility .24s ease !important;
+    }
+
+    .seller-sidebar-backdrop.open,
+    .admin-sidebar-backdrop.open {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+
+    .seller-sidebar-header,
+    .admin-sidebar-header {
+        display: flex !important;
+        min-width: 0;
+    }
+
+    .seller-sidebar-close,
+    .admin-sidebar-close {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        margin-left: .5rem;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 9px;
+        background: rgba(255,255,255,.06);
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    .seller-main,
+    .admin-main {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+        overflow: hidden !important;
+    }
+
+    .seller-content,
+    .admin-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+    }
+}
+
+@media (min-width: 901px) and (orientation: landscape) and (min-height: 701px) {
+    .seller-sidebar,
+    .admin-sidebar {
+        position: relative;
+        left: auto;
+        transform: none;
+        width: 260px;
+        max-width: none;
+        height: auto;
+    }
+
+    .seller-sidebar-backdrop,
+    .admin-sidebar-backdrop {
+        display: none;
+    }
+
+    .seller-sidebar-close,
+    .admin-sidebar-close {
+        display: none;
+    }
+}
