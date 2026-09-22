@@ -109,6 +109,8 @@
     });
 
     select.addEventListener('change',render);
+    window.addEventListener('velora:i18n-applied',function(){ render(); });
+    window.addEventListener('velora:global-locale-change',function(){ render(); });
     render();
   }
 
