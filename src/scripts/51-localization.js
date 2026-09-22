@@ -85,6 +85,12 @@ const __VELORA_CORE_OVERRIDES = {
     'Pending Sellers':'البائعون المعلّقون',
     'Pending Products':'المنتجات المعلّقة',
     'Global Preferences':'الإعدادات العالمية',
+    'Reviews':'المراجعات','Back to Store':'العودة إلى المتجر','Date / Number Locale':'التاريخ / تنسيق الأرقام',
+    'Save Global Preferences':'حفظ الإعدادات العالمية','Protected checkout':'دفع محمي','Multi-seller':'متعدد البائعين',
+    'Track your order':'تتبع طلبك','Trust & Safety':'الثقة والأمان','Quick Actions':'إجراءات سريعة',
+    'Review Applications':'مراجعة الطلبات','Manage Sellers':'إدارة البائعين','Moderate Products':'مراجعة المنتجات',
+    'Start Shopping':'ابدأ التسوق','Become a Seller':'كن بائعًا','Build my routine':'أنشئ روتيني',
+
     'Language, country, currency, timezone and regional formatting are saved to your Velora account.':'يتم حفظ اللغة والدولة والعملة والمنطقة الزمنية وتنسيق العرض الإقليمي في حسابك على Velora.',
     'Country / Region':'الدولة / المنطقة',
     'Currency':'العملة',
