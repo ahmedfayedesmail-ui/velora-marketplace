@@ -211,7 +211,7 @@
             <div class="form-group"><label>Currency</label><select id="vlpCurrency" class="form-input">${currencies}</select></div>
             <div class="form-group"><label>Timezone</label><input id="vlpTimezone" class="form-input" value="${esc(state.timezone || 'UTC')}"></div>
           </div>
-          <div class="form-group"><label>Date / Number Locale</label><input id="vlpDateLocale" class="form-input" value="${esc(state.date_locale || state.locale || 'en-US')}" placeholder="en-US"></div>
+          <div class="form-group"><label>Date / Number Locale</label><input id="vlpDateLocale" class="form-input" value="${esc(state.date_locale)}" readonly aria-readonly="true"></div>
           <button class="btn btn-primary btn-block" style="margin-top:.5rem">💾 Save Global Preferences</button>
         </form>
       </div>`;
