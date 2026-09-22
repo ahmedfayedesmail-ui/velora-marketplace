@@ -9,7 +9,7 @@
   function isUuid(v){return UUID_RE.test(String(v||""));}
 
   function cartItems(){
-    return Array.isArray(window.STATE&&STATE.cart)?STATE.cart:[];
+    return (typeof STATE!=="undefined" && Array.isArray(STATE.cart)) ? STATE.cart : [];
   }
 
   async function resolveCartCurrency(){
