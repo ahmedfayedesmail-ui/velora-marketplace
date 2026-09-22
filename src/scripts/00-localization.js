@@ -5334,8 +5334,14 @@ window.__VELORA_PACK=PACK;
 ;
 const DIR={en:'ltr',es:'ltr',ar:'rtl',fr:'ltr',de:'ltr',it:'ltr',pt:'ltr',tr:'ltr',zh:'ltr',ja:'ltr',ko:'ltr',hi:'ltr'};
 const LANGS=new Set(Object.keys(PACK));
+const ACTIVE_MVP_LANGS=new Set(['en','ar']);
 const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
-const current=()=>{const x=localStorage.getItem('velora_language');return LANGS.has(x)?x:'en';};
+const current=()=>{
+    const global=String(window.VELORA_GLOBAL_LOCALE_STATE?.locale||'').toLowerCase();
+    if(ACTIVE_MVP_LANGS.has(global))return global;
+    const x=String(localStorage.getItem('velora_language')||'').toLowerCase();
+    return ACTIVE_MVP_LANGS.has(x)?x:'en';
+};
 const splitPrefix=s=>{const x=String(s);let i=0;while(i<x.length){const c=x.codePointAt(i);const ch=String.fromCodePoint(c);if(/[\p{L}\p{N}]/u.test(ch))break;i+=ch.length;}return [x.slice(0,i),x.slice(i)];};
 const keyOf=s=>norm(splitPrefix(norm(s))[1]);
 if(!window.VELORA_I18N_PROVENANCE){
@@ -5517,10 +5523,22 @@ function render(root=document){
 }
 
 async function client(){return window.mahaSupabase||window.supabaseClient||window.sb||null;}
-async function pref(){try{const c=await client();if(!c?.rpc)return null;const r=await c.rpc('velora_get_language_preference');const v=String(r?.data||'');if(LANGS.has(v)){localStorage.setItem('velora_language',v);return v;}}catch(_){ }return null;}
+async function pref(){
+    try{
+        const c=await client();if(!c?.rpc)return null;
+        const r=await c.rpc('velora_get_language_preference');
+        const v=String(r?.data||'').toLowerCase();
+        if(ACTIVE_MVP_LANGS.has(v)){
+            localStorage.setItem('velora_language',v);
+            return v;
+        }
+    }catch(_){}
+    return null;
+}
 async function overrides(lang){try{const c=await client();if(!c?.from)return {};const r=await c.from('velora_translation_overrides').select('source_text,translated_text').eq('locale',lang).eq('is_active',true);if(r.error||!Array.isArray(r.data))return {};const o={};r.data.forEach(x=>{if(x?.source_text&&x?.translated_text)o[norm(x.source_text)]=x.translated_text;});return o;}catch(_){return {};}}
 async function setLang(code){
-    if(!LANGS.has(code))return false;
+    code=String(code||'').toLowerCase();
+    if(!ACTIVE_MVP_LANGS.has(code))return false;
     if(window.VELORA_I18N_V5_PRESENT===true&&window.VELORA_I18N_V5_FAILED!==true)return false;
     localStorage.setItem('velora_language',code);
     try{
