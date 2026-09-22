@@ -3585,7 +3585,7 @@ function renderAccountPage() {
         return;
     }
 
-    container.innerHTML = `
+    container.innerHTML = window.VeloraI18n.html(`
         <div class="form-section" style="max-width: 600px; margin: 0 auto;">
             <h3>👤 Profile</h3>
             <div class="form-group" style="margin-bottom: 1rem;">
