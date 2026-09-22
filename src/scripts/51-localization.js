@@ -417,8 +417,23 @@ const observer=new MutationObserver(ms=>{
   }
 });
 
+function installI18nObserver(){
+  if(document.body && document.body.dataset.veloraI18nObserver==='1')return;
+  if(document.body){
+    try{
+      observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+      document.body.dataset.veloraI18nObserver='1';
+    }catch(_){ }
+  } else if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',installI18nObserver,{once:true});
+  }
+}
+
+installI18nObserver();
+
 async function boot(){
   try{
+    installI18nObserver();
     const stored=String(localStorage.getItem('velora_language')||'').toLowerCase();
     const lang=normalizeLocale(state.locale||stored);
     state.locale=lang;
