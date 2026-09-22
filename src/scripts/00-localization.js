@@ -12085,13 +12085,23 @@ console.log('✅ Analytics + Events + Audit loaded!');
   const originalRenderOrdersPage=window.renderOrdersPage;
   window.renderOrdersPage=async function(){
     const container=document.getElementById('ordersContent');
-    if(!container || !window.STATE?.user){
+    if(!container){
       return typeof originalRenderOrdersPage==='function' ? originalRenderOrdersPage.apply(this,arguments) : undefined;
     }
+
+    const user=await getUser();
+    if(!user){
+      return typeof originalRenderOrdersPage==='function' ? originalRenderOrdersPage.apply(this,arguments) : undefined;
+    }
+
     container.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading your orders</h3><p>Syncing your Velora order history…</p></div>';
-    const orders=await loadCustomerOrders();
-    if(orders.length){ renderCanonicalOrders(orders); return; }
-    if(typeof originalRenderOrdersPage==='function') return originalRenderOrdersPage.apply(this,arguments);
+    try{
+      const orders=await loadCustomerOrders();
+      renderCanonicalOrders(orders);
+    }catch(error){
+      console.warn('Velora canonical orders render:',error);
+      container.innerHTML='<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Could not load your orders</h3><p>Please try again. Your orders have not been deleted.</p></div>';
+    }
   };
 
   client.auth.onAuthStateChange((event)=>{
