@@ -100,11 +100,10 @@
         returnHash = target;
         closeAllPlatforms();
 
-        if (normalizeHash(window.location.hash) !== target) {
-            window.location.hash = target === 'home' ? '' : target;
-        } else {
-            activateMarketplace(target);
-        }
+        const url = new URL(window.location.href);
+        url.hash = target === 'home' ? '' : target;
+        window.history.replaceState({}, '', url);
+        activateMarketplace(target);
     }
 
     function syncRoute() {
@@ -188,9 +187,9 @@
             let tries = 0;
             const timer = setInterval(function () {
                 tries += 1;
-                if (window.STATE?.user || tries >= 40) {
+                if ((typeof STATE !== 'undefined' && STATE.user) || tries >= 40) {
                     clearInterval(timer);
-                    if (window.STATE?.user) syncRoute();
+                    if (typeof STATE !== 'undefined' && STATE.user) syncRoute();
                 }
             }, 250);
             return;
