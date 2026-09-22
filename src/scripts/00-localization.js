@@ -3077,11 +3077,11 @@ function closeCart() {
         const panel=document.createElement('pre');
         panel.id='veloraCartTouchDebug';
         panel.style.cssText=[
-            'position:fixed','left:8px','right:8px','top:8px',
+            'position:fixed','left:8px','right:8px','bottom:8px',
             'z-index:2147483647','margin:0','padding:10px',
             'background:rgba(10,10,14,.94)','color:#9ef7b2',
             'border:2px solid #d4708a','border-radius:10px',
-            'font:11px/1.35 monospace','max-height:45vh',
+            'font:11px/1.35 monospace','max-height:32vh',
             'overflow:auto','white-space:pre-wrap',
             'pointer-events:none'
         ].join(';');
