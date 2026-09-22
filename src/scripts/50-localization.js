@@ -131,18 +131,20 @@
 
   const previousSetCurrency = window.setVeloraCurrency;
   window.setVeloraCurrency = async function(code) {
+    code=String(code||'').toUpperCase();
     if (!CURRENCIES[code]) return false;
     const ok = typeof previousSetCurrency === 'function' ? previousSetCurrency(code) : true;
     if (!ok) return false;
     state.currency_code = code;
-    localStorage.setItem('velora_currency', code);
+    normalizeState();
+    syncLocaleUi();
     try {
       const c = db();
       if (c?.rpc && STATE?.user) {
         await c.rpc('velora_set_global_locale_context', {
           p_locale: state.locale || 'en',
           p_country_code: state.country_code || null,
-          p_currency_code: code,
+          p_currency_code: state.currency_code,
           p_timezone: state.timezone || null,
           p_date_locale: state.date_locale || null
         });
