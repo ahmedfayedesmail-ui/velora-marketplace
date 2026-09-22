@@ -5302,9 +5302,16 @@ function persistVeloraUser(){
   if(i>=0){users[i]={...users[i],roles:user.roles,role:user.role,sellerId:user.sellerId||getSellerByUserId(user.uid)?.id||null};saveUsers(users);}
   return user;
 }
-function getVeloraLanguage(){ const code=getFromStorage('velora_language',null); return VELORA_CORE.languages[code]?code: String(navigator.language||'en').slice(0,2).toLowerCase() in VELORA_CORE.languages ? String(navigator.language||'en').slice(0,2).toLowerCase() : 'en'; }
+const VELORA_ACTIVE_LANGUAGES = Object.freeze(['en','ar']);
+function getVeloraLanguage(){
+  const stored=String(getFromStorage('velora_language',null)||'').toLowerCase();
+  if(VELORA_ACTIVE_LANGUAGES.includes(stored)) return stored;
+  const browser=String(navigator.language||'en').slice(0,2).toLowerCase();
+  return VELORA_ACTIVE_LANGUAGES.includes(browser) ? browser : 'en';
+}
 function setVeloraLanguage(code){
-  if(!VELORA_CORE.languages[code]) return false;
+  code=String(code||'').toLowerCase();
+  if(!VELORA_ACTIVE_LANGUAGES.includes(code)) return false;
   saveToStorage('velora_language',code);
   document.documentElement.lang=code;
   document.documentElement.dir=VELORA_CORE.languages[code].dir;
