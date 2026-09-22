@@ -3070,6 +3070,56 @@ function closeCart() {
     if (overlay) overlay.classList.remove('open');
 }
 
+/* Cart interaction hardening for mobile orientation changes. */
+(function(){
+    function bindCartInteractions(){
+        const sidebar=document.getElementById('cartSidebar');
+        if(!sidebar || sidebar.dataset.veloraCartBound==='1') return;
+        sidebar.dataset.veloraCartBound='1';
+
+        sidebar.addEventListener('click', function(event){
+            const button=event.target.closest('button');
+            if(!button || !sidebar.contains(button)) return;
+
+            if(button.matches('.cart-header button')){
+                event.preventDefault();
+                event.stopPropagation();
+                closeCart();
+                return;
+            }
+
+            if(button.closest('.cart-empty') && button.classList.contains('btn-primary')){
+                event.preventDefault();
+                event.stopPropagation();
+                closeCart();
+                navigateTo('shop');
+                return;
+            }
+        }, true);
+
+        sidebar.addEventListener('pointerup', function(event){
+            const button=event.target.closest('button');
+            if(!button || !sidebar.contains(button)) return;
+
+            if(button.matches('.cart-header button')){
+                event.preventDefault();
+                event.stopPropagation();
+                closeCart();
+            } else if(button.closest('.cart-empty') && button.classList.contains('btn-primary')){
+                event.preventDefault();
+                event.stopPropagation();
+                closeCart();
+                navigateTo('shop');
+            }
+        }, true);
+    }
+
+    if(document.readyState==='loading'){
+        document.addEventListener('DOMContentLoaded', bindCartInteractions, {once:true});
+    }else{
+        bindCartInteractions();
+    }
+})();
 function renderCartSidebar() {
     const body = document.getElementById('cartSidebarBody');
     const footer = document.getElementById('cartSidebarFooter');
