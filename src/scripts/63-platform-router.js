@@ -87,12 +87,21 @@
             returnHash = currentMarketplaceHash();
         }
 
-        if (normalizeHash(window.location.hash) === route) {
-            activatePlatform(route);
-            return;
+        // Platform switching is an application action, not a navigation event.
+        // Do not depend on hashchange here: locale re-renders can replace the
+        // switcher DOM while an async i18n pass is running, which could leave
+        // the Arabic switcher changing the hash without activating the panel.
+        // Activate the platform synchronously, then mirror the route in history.
+        const current = normalizeHash(window.location.hash);
+        const activate = () => activatePlatform(route);
+
+        if (current !== route) {
+            const url = new URL(window.location.href);
+            url.hash = route;
+            window.history.pushState({}, '', url);
         }
 
-        window.location.hash = route;
+        activate();
     }
 
     function goMarketplace() {
