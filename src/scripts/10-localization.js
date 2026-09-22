@@ -128,15 +128,16 @@
       ko:{'Discover More.':'더 발견하세요.','Shop Better.':'더 스마트하게 쇼핑하세요.','Everything you need, from stores you can trust.':'신뢰할 수 있는 스토어에서 필요한 모든 것을 만나보세요.','Track your orders':'주문 추적'},
       hi:{'Discover More.':'और खोजें।','Shop Better.':'बेहतर खरीदारी करें।','Everything you need, from stores you can trust.':'भरोसेमंद स्टोर्स से आपकी ज़रूरत की हर चीज़।','Track your orders':'अपने ऑर्डर ट्रैक करें'}
     };
-    window.VELORA_EXTRA_I18N = extra;
+    const activeExtra = {en: extra.en, ar: extra.ar};
+    window.VELORA_EXTRA_I18N = activeExtra;
 
     /* Registration only: V4/V5 own all DOM rendering and provenance. */
     const packs = window.__VELORA_PACK || {};
-    Object.keys(extra).forEach(locale => {
+    Object.keys(activeExtra).forEach(locale => {
       const pack = packs[locale] || (packs[locale] = {});
-      Object.assign(pack, extra[locale]);
+      Object.assign(pack, activeExtra[locale]);
       try {
-        window.VELORA_I18N_PROVENANCE?.registerCatalog(locale, extra[locale] || {});
+        window.VELORA_I18N_PROVENANCE?.registerCatalog(locale, activeExtra[locale] || {});
       } catch (_) {}
     });
     window.__VELORA_PACK = packs;
