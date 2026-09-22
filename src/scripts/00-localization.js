@@ -6543,6 +6543,8 @@ function openSellerPlatformCore() {
     }
 
     platform.innerHTML = renderSellerLayout(seller);
+    platform.hidden = false;
+    platform.setAttribute('aria-hidden', 'false');
     platform.classList.add('active');
     document.body.style.overflow = 'hidden';
 
@@ -6623,7 +6625,11 @@ function renderSellerLayout(seller) {
 /* ============ CLOSE SELLER PANEL ============ */
 function closeSellerPlatform() {
     const platform = document.getElementById('sellerPlatform');
-    if (platform) platform.classList.remove('active');
+    if (platform) {
+        platform.classList.remove('active');
+        platform.hidden = true;
+        platform.setAttribute('aria-hidden', 'true');
+    }
     document.body.style.overflow = '';
 }
 
