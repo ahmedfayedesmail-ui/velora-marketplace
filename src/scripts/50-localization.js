@@ -162,7 +162,7 @@
     const country = (document.getElementById('vlpCountry')?.value || state.country_code).trim().toUpperCase();
     const currency = document.getElementById('vlpCurrency')?.value || state.currency_code;
     const timezone = document.getElementById('vlpTimezone')?.value || state.timezone;
-    const dateLocale = document.getElementById('vlpDateLocale')?.value || state.date_locale;
+    const dateLocale = canonicalDateLocale(locale,country);
     try {
       const c = db();
       if (!c?.rpc || !STATE?.user) throw new Error('Please login first');
@@ -174,11 +174,15 @@
         p_date_locale: dateLocale
       });
       if (r?.error) throw r.error;
-      Object.assign(state, r.data || {}, {locale, country_code:country, currency_code:currency, timezone, date_locale:dateLocale});
-      localStorage.setItem('velora_language', locale);
-      localStorage.setItem('velora_country', country);
-      localStorage.setItem('velora_currency', currency);
-      localStorage.setItem('velora_date_locale', dateLocale);
+      Object.assign(state, r.data || {}, {
+        locale:canonicalLocale(locale),
+        country_code:canonicalCountry(country),
+        currency_code:canonicalCurrency(currency,canonicalCountry(country)),
+        timezone,
+        date_locale:canonicalDateLocale(locale,country)
+      });
+      normalizeState();
+      persistState();
       if (typeof window.setVeloraLanguage === 'function') await window.setVeloraLanguage(locale);
       if (CURRENCIES[currency]) VELORA_CURRENCY = currency;
       if (typeof updateCurrencyDisplay === 'function') updateCurrencyDisplay();
@@ -233,14 +237,13 @@
   window.addEventListener('velora:global-locale-change', () => setTimeout(renderGlobalPreferences, 0));
 
   async function bootGlobalLocale() {
+    normalizeState();
+    syncLocaleUi();
     await loadContext();
     const c = db();
-    if (c && STATE?.user) {
-      // Keep the first logged-in session synchronized with the server-side context.
-      try {
-        const r = await c.rpc('velora_get_global_locale_context');
-        if (!r?.error && r?.data) Object.assign(state, r.data);
-      } catch (_) {}
+    if (c?.auth?.onAuthStateChange && !window.__VELORA_GLOBAL_LOCALE_AUTH_BOUND) {
+      window.__VELORA_GLOBAL_LOCALE_AUTH_BOUND=true;
+      c.auth.onAuthStateChange(() => setTimeout(() => loadContext(),0));
     }
   }
 
