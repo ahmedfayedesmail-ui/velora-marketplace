@@ -3058,16 +3058,41 @@ function updateCartBadge() {
 function openCart() {
     const sidebar = document.getElementById('cartSidebar');
     const overlay = document.getElementById('cartOverlay');
-    if (sidebar) sidebar.classList.add('open');
-    if (overlay) overlay.classList.add('open');
+
+    if (sidebar) {
+        sidebar.hidden = false;
+        sidebar.setAttribute('aria-hidden', 'false');
+        sidebar.style.removeProperty('display');
+        sidebar.classList.add('open');
+    }
+
+    if (overlay) {
+        overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');
+        overlay.style.removeProperty('display');
+        overlay.classList.add('open');
+    }
+
     renderCartSidebar();
 }
 
 function closeCart() {
     const sidebar = document.getElementById('cartSidebar');
     const overlay = document.getElementById('cartOverlay');
-    if (sidebar) sidebar.classList.remove('open');
-    if (overlay) overlay.classList.remove('open');
+
+    if (sidebar) {
+        sidebar.classList.remove('open');
+        sidebar.hidden = true;
+        sidebar.setAttribute('aria-hidden', 'true');
+        sidebar.style.setProperty('display', 'none', 'important');
+    }
+
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.style.setProperty('display', 'none', 'important');
+    }
 }
 
 function renderCartSidebar() {
