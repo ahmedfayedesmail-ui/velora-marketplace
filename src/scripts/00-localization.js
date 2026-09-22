@@ -3604,7 +3604,7 @@ function renderAccountPage() {
                 Logout
             </button>
         </div>
-    );`;
+    `);
 }
 
 /* ============ ORDERS ============ */
