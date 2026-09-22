@@ -197,7 +197,9 @@ VeloraI18n.t = function(key, fallback){
   const source=norm(key);
   const fallbackText=String(fallback ?? key ?? '');
   if(!source)return fallbackText;
-  const activeLocale=window.VELORA_GLOBAL_LOCALE || state.locale || document.documentElement?.lang;
+  // V5 state is authoritative. Regional/date locale strings such as "es-EG"
+  // must never become the UI language.
+  const activeLocale=state.locale || localStorage.getItem('velora_language') || document.documentElement?.lang;
   const locale=normalizeLocale(activeLocale);
   if(locale==='en')return fallbackText;
   const translated=translateExact(source,locale);
