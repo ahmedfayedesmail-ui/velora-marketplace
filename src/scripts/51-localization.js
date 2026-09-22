@@ -82,6 +82,7 @@ const __VELORA_CORE_OVERRIDES = {
 
 
     'Admin Dashboard':'لوحة تحكم المسؤول','Supabase-authoritative read-only overview':'نظرة عامة للقراءة فقط من Supabase',
+    'Coupon':'كوبون','Coupons':'الكوبونات','Active Coupons':'الكوبونات النشطة','Coupon Code':'كود الخصم','Discount':'الخصم','Discount Code':'كود الخصم','Free Shipping':'شحن مجاني',
     'Refresh':'تحديث','Needs Attention':'تحتاج إلى اهتمام','Order Value by Currency':'قيمة الطلبات حسب العملة','Operations Breakdown':'تفصيل العمليات','Recent Audit Activity':'أحدث نشاط للتدقيق','Latest 10':'أحدث 10','Generated':'تم الإنشاء',
     'Dashboard':'لوحة التحكم','Dashboard unavailable.':'لوحة التحكم غير متاحة.','Admin dashboard unavailable.':'لوحة التحكم غير متاحة.','Operational overview':'نظرة تشغيلية',
     'Total Sellers':'إجمالي البائعين','Total Users':'إجمالي المستخدمين','Total Orders':'إجمالي الطلبات','Total Revenue':'إجمالي الإيرادات',
