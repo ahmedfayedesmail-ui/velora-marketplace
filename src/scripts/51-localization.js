@@ -121,7 +121,13 @@ Object.keys(__VELORA_CORE_OVERRIDES).forEach(locale=>{
 });
 const rxEmoji=/^[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]+/u;
 const norm=v=>String(v??'').replace(/\\s+/g,' ').trim();
-const core=v=>norm(v).replace(rxEmoji,'').trim();
+const core=v=>{
+  const value=norm(v);
+  // Strip only leading decorative emoji/symbol runs; never alter the
+  // semantic text itself. This makes "⬅️ Back to Store" and "⚡ Quick Actions"
+  // resolve against their exact translation keys.
+  return value.replace(/^(?:[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]+)(?=\\s|[A-Za-z]|[\\u0600-\\u06FF])/u,'').trim();
+};
 const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function catalog(locale){
   const p=basePack()[locale]||{};
@@ -144,11 +150,13 @@ function translateExact(text,locale){
 // The renderer generates its HTML in a detached template, so translation
 // happens before the markup enters the live DOM.
 const VeloraI18n = window.VeloraI18n = window.VeloraI18n || {};
+VeloraI18n._isStub = false;
 VeloraI18n.t = function(key, fallback){
   const source=norm(key);
   const fallbackText=String(fallback ?? key ?? '');
   if(!source)return fallbackText;
-  const locale=normalizeLocale(state.locale);
+  const activeLocale=window.VELORA_GLOBAL_LOCALE || state.locale || document.documentElement?.lang;
+  const locale=normalizeLocale(activeLocale);
   if(locale==='en')return fallbackText;
   const translated=translateExact(source,locale);
   return translated===source?fallbackText:translated;
@@ -159,7 +167,8 @@ VeloraI18n.html = function(markup){
   const walk=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
   const nodes=[];let node;
   while((node=walk.nextNode()))nodes.push(node);
-  const locale=normalizeLocale(state.locale);
+  const activeLocale=window.VELORA_GLOBAL_LOCALE || state.locale || document.documentElement?.lang;
+  const locale=normalizeLocale(activeLocale);
   if(locale!=='en'){
     nodes.forEach(n=>{
       const raw=n.nodeValue||'';
@@ -313,6 +322,9 @@ async function applyLocale(locale,requestId){
 
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
   if(requestId!==localeEpoch)return false;
+  // Ensure any renderers that committed after our first pass are re-hydrated
+  // using the same authoritative locale.
+  try{translateDom(document);}catch(_){}
   window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
   // Dynamic renderers in the legacy bundle can commit markup in the next
   // microtask/frame. Re-run the single authoritative renderer after them.
