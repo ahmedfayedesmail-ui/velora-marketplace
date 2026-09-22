@@ -42,7 +42,7 @@
       item.classList.toggle('active',item===btn || (!btn && item.dataset.section==='dashboard'));
     });
     var title=document.getElementById('adminHeaderTitle');
-    if(title) title.textContent='Dashboard';
+    if(title) title.textContent=window.VeloraI18n.t('Dashboard','Dashboard');
   }
 
   function statusClass(value){
