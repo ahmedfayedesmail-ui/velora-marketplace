@@ -231,6 +231,8 @@
       let host = document.getElementById('veloraGlobalPreferences');
       if (!host) { host = document.createElement('div'); host.id = 'veloraGlobalPreferences'; container.appendChild(host); }
       renderGlobalPreferences();
+      try{window.VELORA_I18N_RENDER?.(container);}catch(_){}
+      setTimeout(()=>{try{window.VELORA_I18N_RENDER?.(container);}catch(_){}},0);
     };
   }
 
