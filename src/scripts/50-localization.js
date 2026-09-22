@@ -70,11 +70,14 @@
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     date_locale: localStorage.getItem('velora_date_locale') || (navigator.language || 'en-US')
   };
+  let localeMutationSeq = 0;
 
   const db = () => window.mahaSupabase || window.supabaseClient || window.sb || null;
   const esc = (v) => typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   async function loadContext() {
+    const requestSeq = localeMutationSeq;
+    const localeBeforeRequest = state.locale;
     try {
       const c = db();
       normalizeState();
@@ -89,6 +92,9 @@
       }
       const previousLocale = canonicalLocale(window.VELORA_GLOBAL_LOCALE);
       Object.assign(state, r.data);
+      if (requestSeq !== localeMutationSeq) {
+        state.locale = canonicalLocale(localeBeforeRequest);
+      }
       normalizeState();
       const localeChanged = previousLocale !== state.locale;
       syncLocaleUi();
@@ -109,6 +115,7 @@
   window.setVeloraLanguage = async function(code) {
     code = canonicalLocale(code);
     if (!LANG_META[code]) return false;
+    localeMutationSeq += 1;
     const ok = typeof previousSetLanguage === 'function' ? await previousSetLanguage(code) : true;
     if (!ok) return false;
     state.locale = code;
