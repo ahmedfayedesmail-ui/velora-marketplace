@@ -147,13 +147,7 @@ function splitDecorativeEdges(v){
   return {prefix:value.slice(0,start),body:value.slice(start,end).trim(),suffix:value.slice(end)};
 };
 const norm=v=>String(v??'').replace(/\\s+/g,' ').trim();
-const core=v=>{
-  const value=norm(v);
-  // Strip only leading decorative emoji/symbol runs; never alter the
-  // semantic text itself. This makes "⬅️ Back to Store" and "⚡ Quick Actions"
-  // resolve against their exact translation keys.
-  return value.replace(/^(?:[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]+)(?=\\s|[A-Za-z]|[\\u0600-\\u06FF])/u,'').trim();
-};
+const core=v=>splitDecorativeEdges(norm(v)).body;
 const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function catalog(locale){
   const p=basePack()[locale]||{};
