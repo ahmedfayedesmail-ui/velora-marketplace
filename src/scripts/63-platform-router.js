@@ -23,6 +23,12 @@
     const originalOpenOwner = window.openOwnerPlatform;
     const originalCloseOwner = window.closeOwnerPlatform;
     const originalNavigateTo = window.navigateTo;
+    const canonicalOpenSeller = window.VELORA_OPEN_SELLER;
+    const canonicalCloseSeller = window.VELORA_CLOSE_SELLER;
+    const canonicalOpenAdmin = window.VELORA_OPEN_ADMIN;
+    const canonicalCloseAdmin = window.VELORA_CLOSE_ADMIN;
+    const canonicalOpenOwner = window.VELORA_OPEN_OWNER;
+    const canonicalCloseOwner = window.VELORA_CLOSE_OWNER;
 
     let returnHash = normalizeHash(window.location.hash);
     let syncing = false;
@@ -37,31 +43,31 @@
     }
 
     function closeAllPlatforms() {
-        try { if (typeof originalCloseSeller === 'function') originalCloseSeller(); } catch (e) {}
-        try { if (typeof originalCloseAdmin === 'function') originalCloseAdmin(); } catch (e) {}
-        try { if (typeof originalCloseOwner === 'function') originalCloseOwner(); } catch (e) {}
+        try { if (typeof canonicalCloseSeller === 'function') canonicalCloseSeller(); else if (typeof originalCloseSeller === 'function') originalCloseSeller(); } catch (e) {}
+        try { if (typeof canonicalCloseAdmin === 'function') canonicalCloseAdmin(); else if (typeof originalCloseAdmin === 'function') originalCloseAdmin(); } catch (e) {}
+        try { if (typeof canonicalCloseOwner === 'function') canonicalCloseOwner(); else if (typeof originalCloseOwner === 'function') originalCloseOwner(); } catch (e) {}
     }
 
-    function activatePlatform(route) {
+    async function activatePlatform(route) {
         if (!PLATFORM_ROUTES.has(route)) return false;
 
         syncing = true;
         try {
             closeAllPlatforms();
 
-            if (route === 'seller' && typeof originalOpenSeller === 'function') {
-                originalOpenSeller();
-                return true;
+            if (route === 'seller') {
+                const opener = typeof canonicalOpenSeller === 'function' ? canonicalOpenSeller : originalOpenSeller;
+                if (typeof opener === 'function') { await opener(); return true; }
             }
 
-            if (route === 'admin' && typeof originalOpenAdmin === 'function') {
-                originalOpenAdmin();
-                return true;
+            if (route === 'admin') {
+                const opener = typeof canonicalOpenAdmin === 'function' ? canonicalOpenAdmin : originalOpenAdmin;
+                if (typeof opener === 'function') { await opener(); return true; }
             }
 
-            if (route === 'owner' && typeof originalOpenOwner === 'function') {
-                originalOpenOwner();
-                return true;
+            if (route === 'owner') {
+                const opener = typeof canonicalOpenOwner === 'function' ? canonicalOpenOwner : originalOpenOwner;
+                if (typeof opener === 'function') { await opener(); return true; }
             }
         } finally {
             syncing = false;
@@ -80,28 +86,23 @@
         }
     }
 
-    function goPlatform(route) {
-        if (!PLATFORM_ROUTES.has(route)) return;
+    async function goPlatform(route) {
+        if (!PLATFORM_ROUTES.has(route)) return false;
 
         if (!PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
             returnHash = currentMarketplaceHash();
         }
 
-        // Platform switching is an application action, not a navigation event.
-        // Do not depend on hashchange here: locale re-renders can replace the
-        // switcher DOM while an async i18n pass is running, which could leave
-        // the Arabic switcher changing the hash without activating the panel.
-        // Activate the platform synchronously, then mirror the route in history.
+        // Platform activation is canonical and independent from hashchange.
+        // The hash mirrors the current platform for refresh/back navigation only.
         const current = normalizeHash(window.location.hash);
-        const activate = () => activatePlatform(route);
-
         if (current !== route) {
             const url = new URL(window.location.href);
             url.hash = route;
             window.history.pushState({}, '', url);
         }
 
-        activate();
+        return await activatePlatform(route);
     }
 
     function goMarketplace() {
@@ -129,17 +130,17 @@
     }
 
     window.openSellerPlatform = function () {
-        goPlatform('seller');
+        return goPlatform('seller');
     };
 
     window.openAdminPlatform = function () {
-        goPlatform('admin');
+        return goPlatform('admin');
     };
 
     window.openAdminPanel = window.openAdminPlatform;
 
     window.openOwnerPlatform = function () {
-        goPlatform('owner');
+        return goPlatform('owner');
     };
 
     window.closeSellerPlatform = function () {
@@ -175,14 +176,11 @@
                 goMarketplace();
                 break;
             case 'seller':
-                goPlatform('seller');
-                break;
+                return goPlatform('seller');
             case 'admin':
-                goPlatform('admin');
-                break;
+                return goPlatform('admin');
             case 'owner':
-                goPlatform('owner');
-                break;
+                return goPlatform('owner');
         }
     };
 
