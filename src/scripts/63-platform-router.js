@@ -180,6 +180,21 @@
     window.addEventListener('hashchange', syncRoute);
     window.addEventListener('popstate', syncRoute);
 
+    // Language changes are UI-state changes, but they can also invalidate a
+    // platform shell that was rendered under the previous locale. Re-sync the
+    // current hash after the locale paint settles instead of requiring a full
+    // page reload.
+    window.addEventListener('velora:languagechange', function(){
+        setTimeout(function(){
+            const route=normalizeHash(window.location.hash);
+            if(PLATFORM_ROUTES.has(route)){
+                activatePlatform(route);
+            } else {
+                syncRoute();
+            }
+        },0);
+    });
+
     function initialSync() {
         const route = normalizeHash(window.location.hash);
 
