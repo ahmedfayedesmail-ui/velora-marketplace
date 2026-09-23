@@ -168,6 +168,21 @@
     };
 
     window.switchPlatform = function (platformId) {
+        if (platformId === 'admin') {
+            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin',{
+                locale:window.VELORA_GLOBAL_LOCALE||null,
+                stateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale||null,
+                documentElementLang:document.documentElement.lang||null,
+                setVeloraLanguage:typeof window.setVeloraLanguage==='function' ? window.setVeloraLanguage.toString().slice(0,180) : null,
+                v5SetLanguage:typeof window.VELORA_V5_SET_LANGUAGE==='function' ? window.VELORA_V5_SET_LANGUAGE.toString().slice(0,180) : null,
+                setLanguageIsV5:window.setVeloraLanguage===window.VELORA_V5_SET_LANGUAGE,
+                windowOpenAdmin:typeof window.openAdminPlatform==='function' ? window.openAdminPlatform.toString().slice(0,180) : null,
+                capturedOriginalOpenAdmin:typeof originalOpenAdmin==='function' ? originalOpenAdmin.toString().slice(0,180) : null,
+                canonicalOpenAdmin:typeof canonicalOpenAdmin==='function' ? canonicalOpenAdmin.toString().slice(0,180) : null,
+                switchPlatform:window.switchPlatform.toString().slice(0,180)
+            });
+        }
+
         const menu = document.getElementById('platformSwitcherMenu');
         if (menu) menu.classList.remove('open');
 
@@ -186,7 +201,21 @@
                     ? originalOpenOwner
                     : null;
 
-        if (typeof entry !== 'function') return;
+        if (typeof entry !== 'function') {
+            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin entry missing',{
+                platformId,
+                originalOpenAdminType:typeof originalOpenAdmin
+            });
+            return;
+        }
+
+        if (platformId === 'admin') {
+            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin invoking entry',{
+                entry:entry.toString().slice(0,180),
+                sameAsWindowOpenAdmin:entry===window.openAdminPlatform,
+                sameAsCanonicalOpenAdmin:entry===window.VELORA_OPEN_ADMIN
+            });
+        }
 
         try {
             if (platformId !== 'seller' && typeof originalCloseSeller === 'function') originalCloseSeller();
@@ -194,8 +223,21 @@
             if (platformId !== 'owner' && typeof originalCloseOwner === 'function') originalCloseOwner();
 
             const result = entry();
+            if (platformId === 'admin') {
+                window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin entry returned',{
+                    resultType:typeof result,
+                    isPromiseLike:!!(result&&typeof result.then==='function')
+                });
+            }
             if (result && typeof result.catch === 'function') {
-                result.catch((error) => console.error('[Velora platform switch]', error));
+                result.catch((error) => {
+                    window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin async rejection',{
+                        message:error?.message||String(error),
+                        stack:error?.stack||null,
+                        name:error?.name||null
+                    });
+                    console.error('[Velora platform switch]', error);
+                });
             }
 
             if (!PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
@@ -206,6 +248,11 @@
             window.history.pushState({}, '', url);
             return result;
         } catch (error) {
+            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin sync exception',{
+                message:error?.message||String(error),
+                stack:error?.stack||null,
+                name:error?.name||null
+            });
             console.error('[Velora platform switch]', error);
         }
     };

@@ -5,6 +5,26 @@
    ============================================================ */
 (function(){
   'use strict';
+  const PLATFORM_TRACE_ON = (()=>{try{return new URLSearchParams(window.location.search).get('trace')==='1'}catch(_){return false}})();
+  function platformTrace(label,payload){
+    const prefix='[PLATFORM TRACE] '+label;
+    try{console.log(prefix,payload||{});}catch(_){}
+    if(!PLATFORM_TRACE_ON)return;
+    try{
+      let panel=document.getElementById('__veloraPlatformTrace');
+      if(!panel){
+        panel=document.createElement('pre');
+        panel.id='__veloraPlatformTrace';
+        panel.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;max-height:38vh;overflow:auto;margin:0;padding:10px;border:1px solid rgba(255,255,255,.28);border-radius:12px;background:#050505;color:#fff;font:11px/1.4 monospace;white-space:pre-wrap;box-shadow:0 8px 30px rgba(0,0,0,.45)';
+        document.body?.appendChild(panel);
+      }
+      const stamp=new Date().toISOString().slice(11,23);
+      panel.textContent+=stamp+' '+prefix+' '+JSON.stringify(payload||{},null,2)+'\\n';
+      panel.scrollTop=panel.scrollHeight;
+    }catch(_){}
+  }
+  window.__VELORA_PLATFORM_TRACE__=platformTrace;
+
   const db = window.mahaSupabase;
   if(!db){ console.warn('Velora Stage 8: Supabase client unavailable'); return; }
 
@@ -154,7 +174,66 @@
 
   /* ---------- ADMIN / OWNER ---------- */
   async function openCanonicalAdmin(){
-    try{const user=await authUser();const roles=await canonicalRoles(user.id);if(!roles.includes('admin')&&!roles.includes('owner')){showToast('🔒 Admin/Owner access only','error');return}window.VELORA_ADMIN_ROLES=roles;let p=document.getElementById('adminPlatform');if(!p){p=document.createElement('div');p.id='adminPlatform';p.className='admin-platform';document.body.appendChild(p)}p.innerHTML=canonicalAdminLayout();p.classList.add('active');document.body.style.overflow='hidden';await canonicalAdminSection('dashboard')}catch(e){toastErr(e)}
+    platformTrace('openCanonicalAdmin start',{
+      locale:window.VELORA_GLOBAL_LOCALE,
+      stateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale,
+      documentElementLang:document.documentElement.lang,
+      languageSelect:document.getElementById('languageSelect')?.value||null,
+      openAdminPlatform:typeof window.openAdminPlatform==='function' ? window.openAdminPlatform.toString().slice(0,180) : null,
+      canonicalOpenAdmin:typeof window.VELORA_OPEN_ADMIN==='function' ? window.VELORA_OPEN_ADMIN.toString().slice(0,180) : null
+    });
+    try{
+      platformTrace('openCanonicalAdmin auth begin');
+      const user=await authUser();
+      platformTrace('openCanonicalAdmin auth ok',{hasUser:!!user});
+      const roles=await canonicalRoles(user.id);
+      platformTrace('openCanonicalAdmin roles',{roles});
+      if(!roles.includes('admin')&&!roles.includes('owner')){
+        platformTrace('openCanonicalAdmin role denied',{roles});
+        showToast('🔒 Admin/Owner access only','error');
+        return;
+      }
+      window.VELORA_ADMIN_ROLES=roles;
+      let p=document.getElementById('adminPlatform');
+      platformTrace('openCanonicalAdmin container before',{
+        exists:!!p,
+        active:!!p?.classList.contains('active'),
+        id:p?.id||null
+      });
+      if(!p){
+        p=document.createElement('div');
+        p.id='adminPlatform';
+        p.className='admin-platform';
+        document.body.appendChild(p);
+        platformTrace('openCanonicalAdmin container created',{id:p.id});
+      }
+      const layout=canonicalAdminLayout();
+      platformTrace('openCanonicalAdmin layout built',{
+        layoutType:typeof layout,
+        layoutLength:String(layout||'').length
+      });
+      p.innerHTML=layout;
+      p.classList.add('active');
+      document.body.style.overflow='hidden';
+      platformTrace('openCanonicalAdmin shell active',{
+        exists:!!document.getElementById('adminPlatform'),
+        active:!!document.getElementById('adminPlatform')?.classList.contains('active'),
+        adminContent:!!document.getElementById('adminContent')
+      });
+      platformTrace('openCanonicalAdmin before dashboard');
+      await canonicalAdminSection('dashboard');
+      platformTrace('openCanonicalAdmin dashboard complete',{
+        active:!!document.getElementById('adminPlatform')?.classList.contains('active'),
+        adminContent:!!document.getElementById('adminContent')
+      });
+    }catch(e){
+      platformTrace('CRITICAL EXTRACTED ERROR inside openCanonicalAdmin',{
+        message:e?.message||String(e),
+        stack:e?.stack||null,
+        name:e?.name||null
+      });
+      toastErr(e);
+    }
   }
   function canonicalAdminLayout(){return window.VeloraI18n.html(`<aside class="admin-sidebar" id="adminSidebar"><div class="admin-sidebar-header"><div class="admin-logo">⚙️</div><div class="admin-store-info"><div class="admin-store-name">Velora Operations</div><div class="admin-store-sub">${(window.VELORA_ADMIN_ROLES||[]).includes('owner')?'Owner':'Admin'}</div></div><button class="admin-sidebar-close" type="button" onclick="closeAdminSidebar()" aria-label="Close admin navigation">✕</button></div><nav class="admin-nav"><div class="admin-nav-section"><div class="admin-nav-title">Overview</div><div class="admin-nav-item active" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('dashboard',this)"><span>📊</span><span>Dashboard</span></div></div><div class="admin-nav-section"><div class="admin-nav-title">Operations</div><div class="admin-nav-item" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('sellers',this)"><span>🏪</span><span>Sellers</span></div><div class="admin-nav-item" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('products',this)"><span>📦</span><span>Products</span></div><div class="admin-nav-item" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('orders',this)"><span>🧾</span><span>Orders</span></div><div class="admin-nav-item" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('users',this)"><span>👥</span><span>Users</span></div><div class="admin-nav-item" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('audit',this)"><span>🛡️</span><span>Audit Logs</span></div></div><div class="admin-nav-section"><div class="admin-nav-title">System</div><div class="admin-nav-item" onclick="window.VELORA_CANONICAL_ADMIN_SECTION('applications',this)"><span>📝</span><span>Seller Applications</span></div></div></nav><button class="admin-back-btn" onclick="window.VELORA_CLOSE_ADMIN()">⬅️ Back to Store</button></aside><div class="admin-sidebar-backdrop" id="adminSidebarBackdrop" onclick="closeAdminSidebar()" aria-hidden="true"></div><main class="admin-main"><header class="admin-header"><button class="admin-menu-btn" onclick="toggleAdminSidebar()">☰</button><div class="admin-header-title" id="adminHeaderTitle">Dashboard</div><div class="admin-header-actions"><div class="velora-op-status approved">🔐 Protected</div><button class="admin-icon-btn" onclick="window.VELORA_CLOSE_ADMIN()">🚪</button></div></header><div class="admin-content" id="adminContent"></div></main>`);}
   async function canonicalAdminSection(section,btn){const c=document.getElementById('adminContent');if(!c)return;if(typeof closeAdminSidebar==='function') closeAdminSidebar();document.querySelectorAll('.admin-nav-item').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');const h=document.getElementById('adminHeaderTitle');const t={dashboard:'Dashboard',sellers:'Sellers',products:'Products',orders:'Orders',users:'Users',audit:'Audit Logs',applications:'Seller Applications'};if(h)h.textContent=t[section]||section;try{setLoading('adminContent','');if(section==='dashboard')await renderCanonicalAdminDashboard();else if(section==='sellers')await renderCanonicalAdminSellers();else if(section==='products')await renderCanonicalAdminProducts();else if(section==='orders')await renderCanonicalAdminOrders();else if(section==='users')await renderCanonicalAdminUsers();else if(section==='audit')await renderCanonicalAudit();else if(section==='applications')await renderCanonicalApplications();try{window.VELORA_I18N_RENDER?.(c);}catch(_){};setTimeout(()=>{try{window.VELORA_I18N_RENDER?.(c);}catch(_){}},0)}catch(e){c.innerHTML=`<div class="velora-op-card"><b>Admin section failed.</b><div class="velora-op-muted">${esc(e?.message||e)}</div></div>`;console.error(e)}}
