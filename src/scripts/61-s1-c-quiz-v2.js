@@ -350,21 +350,25 @@
 
   async function handleEntryClick(button) {
     try {
-      const state = await readV2PassportState();
+      // Check the Auth session first. Do not query beauty_profiles for a guest;
+      // the entry point must resolve cleanly to the existing Auth UI.
+      const client = getClient();
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
 
-      // The routine entry is public, but V2 Passport persistence is account-backed.
-      // Resolve unauthenticated entry directly into the existing auth surface
-      // instead of relying on a secondary global callback.
-      if (!state.authenticated) {
-        if (typeof handleAccountClick === 'function') {
-          handleAccountClick();
-        } else if (typeof openAuthModal === 'function') {
+      const session = sessionData && sessionData.session;
+      if (!session || !session.user) {
+        if (typeof openAuthModal === 'function') {
           openAuthModal('login');
+        } else if (typeof handleAccountClick === 'function') {
+          handleAccountClick();
         } else {
           throw new Error('AUTH_UI_NOT_AVAILABLE');
         }
         return;
       }
+
+      const state = await readV2PassportState();
 
       if (state.complete) {
         if (!window.veloraRoutineUX || typeof window.veloraRoutineUX.open !== 'function') {
