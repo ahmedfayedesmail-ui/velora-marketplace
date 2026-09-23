@@ -352,6 +352,20 @@
     try {
       const state = await readV2PassportState();
 
+      // The routine entry is public, but V2 Passport persistence is account-backed.
+      // Resolve unauthenticated entry directly into the existing auth surface
+      // instead of relying on a secondary global callback.
+      if (!state.authenticated) {
+        if (typeof handleAccountClick === 'function') {
+          handleAccountClick();
+        } else if (typeof openAuthModal === 'function') {
+          openAuthModal('login');
+        } else {
+          throw new Error('AUTH_UI_NOT_AVAILABLE');
+        }
+        return;
+      }
+
       if (state.complete) {
         if (!window.veloraRoutineUX || typeof window.veloraRoutineUX.open !== 'function') {
           throw new Error('ROUTINE_UX_NOT_AVAILABLE');
@@ -361,12 +375,6 @@
       }
 
       await open();
-    } catch (error) {
-      if (error && error.message === 'AUTH_REQUIRED' && typeof handleAccountClick === 'function') {
-        handleAccountClick();
-        return;
-      }
-      throw error;
     } finally {
       refreshEntryPoint();
     }
