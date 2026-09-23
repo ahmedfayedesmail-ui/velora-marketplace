@@ -10,126 +10,11 @@ window.VELORA_I18N_V5_FAILED=false;
 const getDb=()=>window.mahaSupabase||window.supabaseClient||window.sb||null;
 const __phase1StoredLocale=(localStorage.getItem('velora_language')||'en').toLowerCase();
 const state=window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||{locale:['en','ar'].includes(__phase1StoredLocale)?__phase1StoredLocale:'en'};
-const ACTIVE_LOCALES=Object.freeze(['en','ar']);
 const meta=()=>window.VELORA_CORE?.languages||{};
 const basePack=()=>window.__VELORA_PACK||{};
-let localeEpoch=0;
-const textSourceCache=new WeakMap();
-const attrSourceCache=new WeakMap();
-function normalizeLocale(code){
-  const value=String(code||'').toLowerCase();
-  return ACTIVE_LOCALES.includes(value)?value:'en';
-}
 const __VELORA_CORE_OVERRIDES = {
-  en:{'Dashboard':'Dashboard',
-    'Users':'Users',
-    'Sellers':'Sellers',
-    'Audit Logs':'Audit Logs',
-    'Seller Applications':'Seller Applications',
-    'Applications':'Applications',
-    'Recent Orders':'Recent Orders',
-    'Pending Sellers':'Pending Sellers',
-    'Pending Products':'Pending Products',
-    'Global Preferences':'Global Preferences',
-    'Language, country, currency, timezone and regional formatting are saved to your Velora account.':'Language, country, currency, timezone and regional formatting are saved to your Velora account.',
-    'Country / Region':'Country / Region',
-    'Currency':'Currency',
-    'Timezone':'Timezone',
-    'Date / Locale':'Date / Locale',
-    'Save Global Preferences':'Save Global Preferences',
-    'My Account':'My Account',
-    'Manage your profile and preferences':'Manage your profile and preferences',
-    'Protected':'Protected',
-    'Quick Links':'Quick Links',
-    'Customer Service':'Customer Service',
-    'Newsletter':'Newsletter',
-    'Subscribe for latest offers':'Subscribe for latest offers',
-    'Return Policy':'Return Policy',
-    'Shipping Policy':'Shipping Policy',
-    'FAQ':'FAQ',
-    'Contact Us':'Contact Us',
-    'Discover More.':'Discover More.','Shop Better.':'Shop Better.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.','MULTI-SELLER MARKETPLACE':'MULTI-SELLER MARKETPLACE','Start Shopping':'Start Shopping','Become a Seller':'Become a Seller'},
-  ar:{
-    'Overview':'نظرة عامة','Operations':'العمليات','System':'النظام','Catalog Trust':'ثقة الكتالوج',
-    'Dashboard':'لوحة التحكم','Users':'المستخدمون','Sellers':'البائعون','Products':'المنتجات','Orders':'الطلبات','Order':'الطلب','ORDER':'الطلب',
-    'Audit Logs':'سجل التدقيق','Seller Applications':'طلبات البائعين','Applications':'التطبيقات','Back to Store':'العودة إلى المتجر',
-    'Quick Actions':'إجراءات سريعة','Review Applications':'مراجعة طلبات البائعين','Manage Sellers':'إدارة البائعين','Moderate Products':'مراجعة المنتجات',
-    'Name':'الاسم','Email':'البريد الإلكتروني','Switch Platform':'تبديل المنصة','My Orders':'طلباتي','Wishlist':'المفضلة',
-    'Main':'الرئيسية','Growth':'النمو','Settings':'الإعدادات','Analytics':'التحليلات','Earnings':'الأرباح','Inventory':'المخزون','Store Settings':'إعدادات المتجر','Seller Center':'مركز البائع',
-    'Total':'الإجمالي','Payment':'الدفع','Status':'الحالة','Date':'التاريخ','Customer':'العميل','Price':'السعر','Stock':'المخزون','Actions':'الإجراءات','Plan':'الخطة','Rating':'التقييم','Store':'المتجر','Product':'المنتج',
-    'Order Status':'حالة الطلب','User':'المستخدم','Country':'الدولة','Created':'تاريخ الإنشاء','Time':'الوقت','Entity':'الكيان','Actor':'المنفذ',
-    'Business':'النشاط التجاري','Search stores…':'ابحث عن المتاجر…','Search products…':'ابحث عن المنتجات…','No orders yet.':'لا توجد طلبات بعد.','No sellers.':'لا يوجد بائعون.','No products.':'لا توجد منتجات.',
-    'No users.':'لا يوجد مستخدمون.','No audit events.':'لا توجد أحداث تدقيق.','No applications.':'لا توجد طلبات.',
-    'Actions use protected RPCs; sellers cannot self-approve.':'تستخدم الإجراءات واجهات محمية؛ ولا يمكن للبائعين اعتماد أنفسهم.',
-    'Canonical products are seller-owned and status-controlled by Admin/Owner.':'المنتجات الأساسية مملوكة للبائعين، وتخضع حالتها لتحكم المسؤول/المالك.',
-    'Audit history is read-only here. Only trusted backend operations create operational events.':'سجل التدقيق للقراءة فقط هنا. وحدها العمليات الموثوقة من الخلفية تنشئ أحداث التشغيل.',
-    'Approved':'معتمد','Pending':'معلّق','Rejected':'مرفوض','Suspended':'موقوف','Inactive':'غير نشط','Confirmed':'مؤكد','Processing':'قيد المعالجة','Shipped':'تم الشحن','Delivered':'تم التسليم','Cancelled':'ملغى','Refunded':'مُسترد',
-    'Approve':'اعتماد','Reject':'رفض','Suspend':'إيقاف','Restore':'استعادة','Deactivate':'تعطيل',
-    'Search orders…':'ابحث عن الطلبات…','No orders.':'لا توجد طلبات.','No users.':'لا يوجد مستخدمون.',
-    'Protected':'محمي',
-    'Home':'الرئيسية','Shop':'تسوّق','Guide':'الدليل','Compare':'المقارنة','Categories':'التصنيفات','Shops':'المتاجر','Deals':'العروض','Sell on Velora':'بع على Velora','Cart':'السلة','Theme':'المظهر','Language':'اللغة','Search':'بحث','Top':'الأعلى','Menu':'القائمة',
-    'Start Shopping':'ابدأ التسوق','Become a Seller':'كن بائعًا','Build my routine':'أنشئ روتيني','View All Products':'عرض جميع المنتجات','Explore Velora':'استكشف فيلورا','Shop What You Love':'تسوّق ما تحب','Popular on Velora':'الأكثر رواجًا على فيلورا','Explore Products':'استكشف المنتجات','Explore Now':'استكشف الآن',
-    'Products':'المنتجات','Categories':'التصنيفات','Seller':'البائع','Powered':'مدعوم','Protected checkout':'دفع محمي','Multi-seller':'متعدد البائعين','Track your order':'تتبع طلبك','Trust & Safety':'الثقة والأمان','EXPLORE VELORA':'استكشف فيلورا','SELL ON VELORA':'بع على فيلورا','TRENDING NOW':'الرائج الآن',
-    'Shop smarter':'تسوّق بذكاء','Open Your Store':'افتح متجرك','Discover More.':'اكتشف المزيد.','Shop Better.':'تسوق بشكل أفضل.',
-    'Quick Links':'روابط سريعة','Customer Service':'خدمة العملاء','Newsletter':'النشرة البريدية','Subscribe for latest offers':'اشترك للحصول على أحدث العروض','Return Policy':'سياسة الإرجاع','Shipping Policy':'سياسة الشحن','FAQ':'الأسئلة الشائعة','Contact Us':'اتصل بنا','Your email':'بريدك الإلكتروني','Subscribe':'اشتراك',
-    'Customers':'العملاء','Pending Reviews':'المراجعات المعلّقة','Active Account Actions':'إجراءات الحساب النشطة','Needs Attention':'تحتاج إلى اهتمام','Order Value by Currency':'قيمة الطلبات حسب العملة','Non-cancelled/refunded orders':'الطلبات غير الملغاة أو المستردة','Operations Breakdown':'تفصيل العمليات','Pending sellers':'البائعون المعلّقون','Pending products':'المنتجات المعلّقة','Pending reviews':'المراجعات المعلّقة','Failed payments':'المدفوعات الفاشلة','Pending payouts':'الدفعات المستحقة المعلّقة','Latest 10':'أحدث 10','Recent Audit Activity':'أحدث نشاط للتدقيق','Generated':'تم الإنشاء','Dashboard is read-only in S2-D; existing management sections retain their own controls.':'لوحة التحكم للقراءة فقط في S2-D؛ وتحتفظ أقسام الإدارة الحالية بعناصر التحكم الخاصة بها.',
-    'No order value recorded.':'لا توجد قيمة طلبات مسجلة.','No orders found.':'لم يتم العثور على طلبات.','No recent audit activity.':'لا يوجد نشاط تدقيق حديث.',
-    'Pending':'معلّق','Approved':'معتمد','Rejected':'مرفوض','Suspended':'موقوف','Paid':'مدفوع','Captured':'مقبوض','Published':'منشور','Completed':'مكتمل','Failed':'فشل','Refunded':'مُسترد','Hidden':'مخفي','Cancelled':'ملغى','Processing':'قيد المعالجة','Shipped':'تم الشحن','Delivered':'تم التسليم','Confirmed':'مؤكد','Inactive':'غير نشط',
-    'pending':'معلّق','approved':'معتمد','rejected':'مرفوض','suspended':'موقوف','paid':'مدفوع','captured':'مقبوض','published':'منشور','completed':'مكتمل','failed':'فشل','refunded':'مُسترد','hidden':'مخفي','cancelled':'ملغى','processing':'قيد المعالجة','shipped':'تم الشحن','delivered':'تم التسليم','confirmed':'مؤكد','inactive':'غير نشط',
-    'Main':'الرئيسية','Growth':'النمو','Settings':'الإعدادات','Store Settings':'إعدادات المتجر','Seller Center':'مركز البائع','Analytics':'التحليلات','Earnings':'الأرباح','Inventory':'المخزون',
-    'Welcome back,':'مرحبًا بعودتك،','Quick overview of your store performance':'نظرة سريعة على أداء متجرك','Total Earnings':'إجمالي الأرباح','Store Rating':'تقييم المتجر','Add Product':'إضافة منتج','View Orders':'عرض الطلبات','Update':'تحديث','Total Units':'إجمالي الوحدات','Low Stock':'مخزون منخفض','Out of Stock':'غير متوفر','Description':'الوصف','Store Name':'اسم المتجر','Store Slug':'معرّف المتجر','Product Name':'اسم المنتج','Order ID':'رقم الطلب','Items':'المنتجات','Your Earnings':'أرباحك','Your Orders':'طلباتك',
-    'No orders yet':'لا توجد طلبات بعد','Your first order will appear here':'سيظهر طلبك الأول هنا','Only order items belonging to this seller are returned by the canonical RPC.':'يعرض النظام فقط عناصر الطلبات الخاصة بهذا البائع عبر الواجهة المحمية.','New products enter pending review and cannot self-approve.':'تدخل المنتجات الجديدة في المراجعة المعلّقة ولا يمكن اعتمادها ذاتيًا.','Your status, approval and performance metrics are protected server-side. This page only edits safe storefront profile fields.':'حالة متجرك وموافقته ومؤشرات أدائه محمية من جهة الخادم. هذه الصفحة تعدّل فقط حقول الملف الآمنة.',
-
-
-    'Admin Dashboard':'لوحة تحكم المسؤول','Admin Panel':'لوحة الإدارة','Supabase-authoritative read-only overview':'نظرة عامة للقراءة فقط من Supabase',
-    'Overview':'نظرة عامة','Management':'الإدارة','System':'النظام','Global Experience':'التجربة العامة','Localization Center':'مركز الترجمة','Close admin navigation':'إغلاق قائمة الإدارة','Close seller navigation':'إغلاق قائمة البائع','Seller Center':'مركز البائع',
-    'Coupon':'كوبون','Coupons':'الكوبونات','Active Coupons':'الكوبونات النشطة','Coupon Code':'كود الخصم','Discount':'الخصم','Discount Code':'كود الخصم','Free Shipping':'شحن مجاني',
-    'Refresh':'تحديث','Needs Attention':'تحتاج إلى اهتمام','Order Value by Currency':'قيمة الطلبات حسب العملة','Operations Breakdown':'تفصيل العمليات','Recent Audit Activity':'أحدث نشاط للتدقيق','Latest 10':'أحدث 10','Generated':'تم الإنشاء',
-    'Dashboard':'لوحة التحكم','Dashboard unavailable.':'لوحة التحكم غير متاحة.','Admin dashboard unavailable.':'لوحة التحكم غير متاحة.','Operational overview':'نظرة تشغيلية',
-    'Total Sellers':'إجمالي البائعين','Total Users':'إجمالي المستخدمين','Total Orders':'إجمالي الطلبات','Total Revenue':'إجمالي الإيرادات',
-    'Total':'الإجمالي','Sellers':'البائعون','Products':'المنتجات','Orders':'الطلبات','Users':'المستخدمون','Customers':'العملاء','Payments':'المدفوعات','Payouts':'الدفعات','Reviews':'المراجعات',
-    'Coupons':'الكوبونات','Active Coupons':'الكوبونات النشطة','Code':'الكود','Type':'النوع','Value':'القيمة','Min Purchase':'الحد الأدنى للشراء','Description':'الوصف','Active':'نشط','Inactive':'غير نشط','Settings':'الإعدادات','Contact Settings':'إعدادات الاتصال','WhatsApp Number':'رقم واتساب','Support Email':'البريد الإلكتروني للدعم','Address':'العنوان','Save Settings':'حفظ الإعدادات',
-    'Review Sellers':'مراجعة البائعين','Review Products':'مراجعة المنتجات','View Orders':'عرض الطلبات','View Users':'عرض المستخدمين','Pending Sellers':'البائعون المعلّقون','Pending Products':'المنتجات المعلّقة',
-    'Recent Orders':'أحدث الطلبات','No orders yet':'لا توجد طلبات بعد','Needs Attention':'تحتاج إلى اهتمام','Order ID':'رقم الطلب','Pending Review':'قيد المراجعة','Draft':'مسودة','Out of Stock':'غير متوفر',
-    'Multi':'متعدد','Categories':'الفئات','Seller':'البائع','Powered':'مدعوم','products':'منتجات','Store':'المتجر','Profile':'الملف الشخصي','Customer':'العميل',
-    'Welcome back':'مرحبًا بعودتك','Welcome back 👋':'مرحبًا بعودتك 👋','Quick overview of your store performance':'نظرة سريعة على أداء متجرك','Seller Operations':'عمليات البائع',
-    'Manage Products':'إدارة المنتجات','Inventory':'المخزون','Store Settings':'إعدادات المتجر','Analytics':'التحليلات','Earnings':'الأرباح','Order ID':'رقم الطلب',
-    'Price':'السعر','Stock':'المخزون','Updated':'آخر تحديث','Product Name':'اسم المنتج','Brand':'العلامة التجارية','Order':'الطلب','Items':'المنتجات',
-    'Pending':'معلّق','Approved':'معتمد','Rejected':'مرفوض','Suspended':'موقوف','Paid':'مدفوع','Captured':'مقبوض','Published':'منشور','Completed':'مكتمل','Failed':'فشل','Refunded':'مُسترد','Hidden':'مخفي','Cancelled':'ملغى','Processing':'قيد المعالجة','Shipped':'تم الشحن','Delivered':'تم التسليم','Confirmed':'مؤكد','Inactive':'غير نشط','Active':'نشط','Free Shipping':'شحن مجاني',
-    'pending':'معلّق','approved':'معتمد','rejected':'مرفوض','suspended':'موقوف','paid':'مدفوع','captured':'مقبوض','published':'منشور','completed':'مكتمل','failed':'فشل','refunded':'مُسترد','hidden':'مخفي','cancelled':'ملغى','processing':'قيد المعالجة','shipped':'تم الشحن','delivered':'تم التسليم','confirmed':'مؤكد','inactive':'غير نشط','active':'نشط',
-    'Admin Dashboard':'لوحة تحكم المسؤول','Users':'المستخدمون',
-    'Sellers':'البائعون',
-    'Audit Logs':'سجل التدقيق',
-    'Seller Applications':'طلبات البائعين',
-    'Applications':'التطبيقات',
-    'Recent Orders':'أحدث الطلبات',
-    'Pending Sellers':'البائعون المعلّقون',
-    'Pending Products':'المنتجات المعلّقة',
-    'Global Preferences':'الإعدادات العالمية',
-    'Reviews':'المراجعات','Back to Store':'العودة إلى المتجر','Date / Number Locale':'التاريخ / تنسيق الأرقام',
-    'Save Global Preferences':'حفظ الإعدادات العالمية','Protected checkout':'دفع محمي','Multi-seller':'متعدد البائعين',
-    'Track your order':'تتبع طلبك','Trust & Safety':'الثقة والأمان','Quick Actions':'إجراءات سريعة',
-    'Review Applications':'مراجعة الطلبات','Manage Sellers':'إدارة البائعين','Moderate Products':'مراجعة المنتجات',
-    'Start Shopping':'ابدأ التسوق','Become a Seller':'كن بائعًا','Build my routine':'أنشئ روتيني',
-
-    'Language, country, currency, timezone and regional formatting are saved to your Velora account.':'يتم حفظ اللغة والدولة والعملة والمنطقة الزمنية وتنسيق العرض الإقليمي في حسابك على Velora.',
-    'Country / Region':'الدولة / المنطقة',
-    'Currency':'العملة',
-    'Timezone':'المنطقة الزمنية',
-    'Date / Locale':'التاريخ / الإعدادات المحلية',
-    'Save Global Preferences':'حفظ الإعدادات العالمية',
-    'My Account':'حسابي',
-    'Manage your profile and preferences':'إدارة ملفك الشخصي وتفضيلاتك',
-    'Protected':'محمي',
-    'Quick Links':'روابط سريعة',
-    'Customer Service':'خدمة العملاء',
-    'Newsletter':'النشرة البريدية',
-    'Subscribe for latest offers':'اشترك للحصول على أحدث العروض',
-    'Return Policy':'سياسة الإرجاع',
-    'Shipping Policy':'سياسة الشحن',
-    'FAQ':'الأسئلة الشائعة',
-    'Contact Us':'اتصل بنا',
-    'Discover More.':'اكتشف المزيد.','Shop Better.':'تسوق بشكل أفضل.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'كل ما تحتاجه، من متاجر يمكنك الوثوق بها. استكشف المنتجات واكتشف بائعين جدد وتسوق بذكاء — كل ذلك في سوق واحد.','MULTI-SELLER MARKETPLACE':'سوق متعدد البائعين','Start Shopping':'ابدأ التسوق','Become a Seller':'كن بائعًا'},
+  en:{'Discover More.':'Discover More.','Shop Better.':'Shop Better.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.','MULTI-SELLER MARKETPLACE':'MULTI-SELLER MARKETPLACE','Start Shopping':'Start Shopping','Become a Seller':'Become a Seller'},
+  ar:{'Discover More.':'اكتشف المزيد.','Shop Better.':'تسوق بشكل أفضل.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'كل ما تحتاجه، من متاجر يمكنك الوثوق بها. استكشف المنتجات واكتشف بائعين جدد وتسوق بذكاء — كل ذلك في سوق واحد.','MULTI-SELLER MARKETPLACE':'سوق متعدد البائعين','Start Shopping':'ابدأ التسوق','Become a Seller':'كن بائعًا'},
   es:{'Discover More.':'Descubre más.','Shop Better.':'Compra mejor.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Todo lo que necesitas, de tiendas en las que puedes confiar. Explora productos, descubre nuevos vendedores y compra de forma más inteligente, todo en un mismo marketplace.','MULTI-SELLER MARKETPLACE':'MERCADO MULTIVENDEDOR','Start Shopping':'Empezar a comprar','Become a Seller':'Conviértete en vendedor'},
   fr:{'Discover More.':'Découvrez plus.','Shop Better.':'Achetez mieux.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Tout ce dont vous avez besoin, auprès de boutiques de confiance. Explorez les produits, découvrez de nouveaux vendeurs et achetez plus intelligemment, le tout sur une seule marketplace.','MULTI-SELLER MARKETPLACE':'MARKETPLACE MULTI-VENDEURS','Start Shopping':'Commencer les achats','Become a Seller':'Devenir vendeur'},
   de:{'Discover More.':'Mehr entdecken.','Shop Better.':'Besser einkaufen.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Alles, was Sie brauchen, von vertrauenswürdigen Shops. Entdecken Sie Produkte, neue Verkäufer und kaufen Sie intelligenter ein – alles auf einem Marktplatz.','MULTI-SELLER MARKETPLACE':'MULTI-VENDEUR-MARKTPLATZ','Start Shopping':'Jetzt einkaufen','Become a Seller':'Verkäufer werden'},
@@ -146,24 +31,9 @@ try{window.VELORA_I18N_PROVENANCE?.registerCatalog('en',__VELORA_CORE_OVERRIDES.
 Object.keys(__VELORA_CORE_OVERRIDES).forEach(locale=>{
   if(locale!=='en'){try{window.VELORA_I18N_PROVENANCE?.registerCatalog(locale,__VELORA_CORE_OVERRIDES[locale]||{});}catch(_){}}
 });
-const DECORATIVE_EDGE=/[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]/u;
-function splitDecorativeEdges(v){
-  const value=String(v??'');
-  let start=0,end=value.length;
-  while(start<end){
-    const cp=value.codePointAt(start), ch=String.fromCodePoint(cp);
-    if(!DECORATIVE_EDGE.test(ch))break;
-    start+=ch.length;
-  }
-  while(end>start){
-    const cp=value.codePointBefore(end), ch=String.fromCodePoint(cp);
-    if(!DECORATIVE_EDGE.test(ch))break;
-    end-=ch.length;
-  }
-  return {prefix:value.slice(0,start),body:value.slice(start,end).trim(),suffix:value.slice(end)};
-};
+const rxEmoji=/^[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]+/u;
 const norm=v=>String(v??'').replace(/\\s+/g,' ').trim();
-const core=v=>splitDecorativeEdges(norm(v)).body;
+const core=v=>norm(v).replace(rxEmoji,'').trim();
 const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function catalog(locale){
   const p=basePack()[locale]||{};
@@ -172,104 +42,15 @@ function catalog(locale){
 function translateExact(text,locale){
   const original=norm(text); if(!original) return text;
   const c=catalog(locale);
-  if(Object.prototype.hasOwnProperty.call(c,original) && c[original]) return c[original];
-  // Exact case-insensitive fallback for machine/state labels such as
-  // PENDING/SHIPPED/DELIVERED while keeping the no-substring rule.
-  const ci=Object.keys(c).find(k=>k && k.toLowerCase()===original.toLowerCase());
-  if(ci && c[ci]) return c[ci];
-  const parts=splitDecorativeEdges(original);
-  const bare=parts.body;
-  if(bare!==original && Object.prototype.hasOwnProperty.call(c,bare) && c[bare]){
-    return parts.prefix+c[bare]+parts.suffix;
-  }
-  const bareCi=Object.keys(c).find(k=>k && k.toLowerCase()===bare.toLowerCase());
-  if(bare!==original && bareCi && c[bareCi]){
-    return parts.prefix+c[bareCi]+parts.suffix;
-  }
-  // IMPORTANT: never translate substrings. Substring replacement is what
-  // produced mixed-language fragments such as "Review تطبيق tions".
-  return original;
-}
-// Canonical translation API consumed by all dynamic renderers.
-// The renderer generates its HTML in a detached template, so translation
-// happens before the markup enters the live DOM.
-const VeloraI18n = window.VeloraI18n = window.VeloraI18n || {};
-VeloraI18n._isStub = false;
-VeloraI18n.t = function(key, fallback){
-  const source=norm(key);
-  const fallbackText=String(fallback ?? key ?? '');
-  if(!source)return fallbackText;
-  // V5 state is authoritative. Regional/date locale strings such as "es-EG"
-  // must never become the UI language.
-  const activeLocale=state.locale || localStorage.getItem('velora_language') || document.documentElement?.lang;
-  const locale=normalizeLocale(activeLocale);
-  if(locale==='en')return fallbackText;
-  const translated=translateExact(source,locale);
-  return translated===source?fallbackText:translated;
-};
-VeloraI18n.html = function(markup){
-  const template=document.createElement('template');
-  template.innerHTML=String(markup??'');
-  const walk=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
-  const nodes=[];let node;
-  while((node=walk.nextNode()))nodes.push(node);
-  const activeLocale=window.VELORA_GLOBAL_LOCALE || state.locale || document.documentElement?.lang;
-  const locale=normalizeLocale(activeLocale);
-  if(locale!=='en'){
-    nodes.forEach(n=>{
-      const raw=n.nodeValue||'';
-      const trimmed=norm(raw);
-      if(!trimmed)return;
-      const t=VeloraI18n.t(trimmed,trimmed);
-      if(t!==trimmed){
-        const lead=raw.match(/^\s*/)?.[0]||'';
-        const trail=raw.match(/\s*$/)?.[0]||'';
-        n.nodeValue=lead+t+trail;
-      }
-    });
-    template.content.querySelectorAll?.('input,textarea,button,[title],[aria-label]').forEach(el=>{
-      ['placeholder','title','aria-label'].forEach(attr=>{
-        if(!el.hasAttribute(attr))return;
-        const raw=el.getAttribute(attr)||'';
-        const trimmed=norm(raw);
-        const t=VeloraI18n.t(trimmed,trimmed);
-        if(t!==trimmed)el.setAttribute(attr,t);
-      });
-    });
-  }
-  return template.innerHTML;
-};
-function sourceForTextNode(node,raw){
-  const current=norm(raw);
-  const record=textSourceCache.get(node);
-  if(!record){
-    const next={source:current,lastRendered:current};
-    textSourceCache.set(node,next);
-    return next;
-  }
-  // The node was changed by another renderer. Treat that new value as the
-  // source, unless it is exactly the text we rendered on the previous pass.
-  if(current!==record.lastRendered && current!==record.source){
-    record.source=current;
-  }
-  return record;
-}
-function sourceForAttribute(el,attr,raw){
-  const current=norm(raw);
-  let record=attrSourceCache.get(el);
-  if(!record){
-    record={};
-    attrSourceCache.set(el,record);
-  }
-  const previous=record[attr];
-  if(!previous){
-    record[attr]={source:current,lastRendered:current};
-    return record[attr];
-  }
-  if(current!==previous.lastRendered && current!==previous.source){
-    previous.source=current;
-  }
-  return previous;
+  if(c[original]) return c[original];
+  const bare=core(original);
+  if(c[bare]){ const prefix=original.slice(0,original.indexOf(bare)); return prefix+c[bare]; }
+  // Longest-match translation for dynamic strings that contain a known phrase.
+  let out=original; let changed=false;
+  Object.keys(c).filter(k=>k&&k.length>2&&original.includes(k)).sort((a,b)=>b.length-a.length).slice(0,8).forEach(k=>{
+    const v=c[k]; if(v&&v!==k&&out.includes(k)){out=out.split(k).join(v);changed=true;}
+  });
+  return changed?out:text;
 }
 function translateElementAttrs(el,locale){
   ['placeholder','title','aria-label'].forEach(a=>{const v=el.getAttribute?.(a); if(v){const t=translateExact(v,locale); if(t!==v) el.setAttribute(a,t);}});
@@ -277,21 +58,11 @@ function translateElementAttrs(el,locale){
     const v=el.value; if(v){const t=translateExact(v,locale); if(t!==v && !el.matches(':focus')) el.value=t;}
   }
 }
-function translateExplicitNodes(root,locale){
-  const host=root?.querySelectorAll?root:document;
-  host.querySelectorAll?.('[data-velora-i18n]').forEach(el=>{
-    const key=el.getAttribute('data-velora-i18n')||'';
-    if(!key)return;
-    const translated=VeloraI18n.t(key,key);
-    if(el.textContent!==translated)el.textContent=translated;
-  });
-}
 function translateDom(root=document){
   if(translating)return;
   translating=true;
-  const locale=normalizeLocale(state.locale);
+  const locale=state.locale||localStorage.getItem('velora_language')||'en';
   try{
-    translateExplicitNodes(root,locale);
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
       const p=n.parentElement;if(!p)return NodeFilter.FILTER_REJECT;
       const tag=p.tagName;if(['SCRIPT','STYLE','NOSCRIPT','CODE','PRE','OPTION'].includes(tag))return NodeFilter.FILTER_REJECT;
@@ -301,10 +72,12 @@ function translateDom(root=document){
     const nodes=[];let n;while((n=walker.nextNode()))nodes.push(n);
     nodes.forEach(node=>{
       const raw=node.nodeValue||'';
-      const record=sourceForTextNode(node,raw);
-      const t=translateExact(record.source,locale);
-      record.lastRendered=t;
-      if(raw!==t)node.nodeValue=t;
+      const meta=window.VELORA_I18N_PROVENANCE?.textSource(node,raw,locale)||{source:norm(raw),known:false,ambiguous:false,englishFallback:null};
+      if(meta.ambiguous){if(meta.englishFallback)node.nodeValue=meta.englishFallback;return;}
+      const source=meta.source;
+      const t=translateExact(source,locale);
+      if(t!==source&&raw!==t)node.nodeValue=t;
+      else if(raw!==source)node.nodeValue=source;
     });
 
     const elements=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
@@ -312,22 +85,19 @@ function translateDom(root=document){
       ['placeholder','title','aria-label'].forEach(attr=>{
         if(!el.hasAttribute(attr))return;
         const raw=el.getAttribute(attr)||'';
-        const record=sourceForAttribute(el,attr,raw);
-        const t=translateExact(record.source,locale);
-        record.lastRendered=t;
-        if(raw!==t)el.setAttribute(attr,t);
+        const meta=window.VELORA_I18N_PROVENANCE?.attrSource(el,attr,raw,locale)||{source:norm(raw),known:false,ambiguous:false,englishFallback:null};
+        const slot='data-velora-i18n-'+attr;
+        if(!el.hasAttribute(slot))el.setAttribute(slot,norm(raw));
+        else if(meta.known)el.setAttribute(slot,norm(meta.source));
+        if(meta.ambiguous){if(meta.englishFallback)el.setAttribute(attr,meta.englishFallback);return;}
+        const t=translateExact(meta.source,locale);
+        if(t!==meta.source)el.setAttribute(attr,t);
+        else if(meta.known&&raw!==meta.source)el.setAttribute(attr,meta.source);
       });
     });
   }finally{translating=false;}
 }
 
-const withTimeout=(promise,ms)=>{
-  let timer;
-  const timeout=new Promise(resolve=>{
-    timer=setTimeout(()=>resolve(false),ms);
-  });
-  return Promise.race([Promise.resolve(promise).then(()=>true).catch(()=>false),timeout]).finally(()=>clearTimeout(timer));
-};
 async function loadDbCatalog(locale){
   try{
     const db=getDb();if(!db?.rpc)return;
@@ -339,28 +109,12 @@ async function loadDbCatalog(locale){
   }catch(_){}
 }
 
-async function applyLocale(locale,requestId){
-  locale=normalizeLocale(locale);
-  const startedAt=Date.now();
-  try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale start',{locale,requestId,localeEpoch});}catch(_){}
-  state.locale=locale;
-  const model=window.VELORA_GLOBAL_LOCALE_STATE||state;
-  model.locale=locale;
-  model.date_locale=locale+'-'+String(model.country_code||'EG').toUpperCase();
+async function applyLocale(locale){
+  state.locale=locale; localStorage.setItem('velora_language',locale);
+  document.documentElement.lang=locale; document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
   window.VELORA_GLOBAL_LOCALE = locale;
-  localStorage.setItem('velora_language',locale);
-  document.documentElement.lang=locale;
-  document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
-  // DB-backed translation catalogs are optional enrichments. Never block
-  // first paint / V5 readiness on Supabase RPC latency or a missing RPC.
-  await withTimeout(loadDbCatalog(locale),1200);
-  if(requestId!==localeEpoch){
-    try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale end',{locale,requestId,result:false,reason:'stale-after-catalog',durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
-    return false;
-  }
-  if(typeof veloraLoadContentTranslations==='function'){
-    await withTimeout(veloraLoadContentTranslations(locale),1200);
-  }
+  await loadDbCatalog(locale);
+  if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
 
   // Render locale-sensitive dynamic surfaces first, normalize the Home hero,
   // then perform one final DOM translation pass. Keeping hero normalization
@@ -373,70 +127,31 @@ async function applyLocale(locale,requestId){
   translateDom(document);
 
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
-  if(requestId!==localeEpoch){
-    try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale end',{locale,requestId,result:false,reason:'stale-after-render',durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
-    return false;
-  }
-  // Ensure any renderers that committed after our first pass are re-hydrated
-  // using the same authoritative locale.
-  try{translateDom(document);}catch(_){}
   window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
-  // Dynamic renderers in the legacy bundle can commit markup in the next
-  // microtask/frame. Re-run the single authoritative renderer after them.
-  queueMicrotask(()=>{try{translateDom(document);}catch(_){}});
-  setTimeout(()=>{try{translateDom(document);}catch(_){}},0);
-  setTimeout(()=>{try{translateDom(document);}catch(_){}},120);
-  try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale end',{locale,requestId,result:true,durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
-  return true;
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
 async function setLang(code){
-  code=normalizeLocale(code);
+  code=String(code||'').toLowerCase();
   if(!['en','ar'].includes(code))return false;
-
-  const requestId=++localeEpoch;
-  // Invalidate any in-flight global-context read in Stage 50 before the
-  // language mutation performs network work. This makes V5 and Stage 50
-  // share one authoritative locale mutation boundary.
-  try{window.__VELORA_LOCALE_MUTATION__?.();}catch(_){}
-  const startedAt=Date.now();
-  try{window.__VELORA_LOCALE_TRACE__?.('51 setLang start',{code,requestId,localeEpoch});}catch(_){}
-
-  // Commit the authoritative locale synchronously before any network/DOM await.
-  state.locale=code;
-  if(window.VELORA_GLOBAL_LOCALE_STATE){
-    window.VELORA_GLOBAL_LOCALE_STATE.locale=code;
-    const country=String(window.VELORA_GLOBAL_LOCALE_STATE.country_code||'EG').toUpperCase();
-    window.VELORA_GLOBAL_LOCALE_STATE.date_locale=code+'-'+country;
-  }
-  window.VELORA_GLOBAL_LOCALE_STATE=state;
-  window.VELORA_GLOBAL_LOCALE=code;
-  localStorage.setItem('velora_language',code);
-  document.documentElement.lang=code;
-  document.documentElement.dir=meta()[code]?.dir||(code==='ar'?'rtl':'ltr');
-
-  const s=document.getElementById('languageSelect');if(s)s.value=code;
-
+  if(!meta()[code] && !basePack()[code])return false;
   try{
+    localStorage.setItem('velora_language',code);
     const c=getDb();
     if(c?.rpc){
       try{
-        const session=await c.auth?.getSession?.();
-        if(session?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
+        const s=await c.auth?.getSession?.();
+        if(s?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
       }catch(_){}
     }
-    if(requestId!==localeEpoch){
-      try{window.__VELORA_LOCALE_TRACE__?.('51 setLang end',{code,requestId,result:false,reason:'stale-before-apply',durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
-      return false;
-    }
-    const result=await applyLocale(code,requestId);
-    try{window.__VELORA_LOCALE_TRACE__?.('51 setLang end',{code,requestId,result,durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
-    return result;
+    state.locale=code;
+    const s=document.getElementById('languageSelect');if(s)s.value=code;
+    await applyLocale(code);
+    return true;
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
-    try{window.__VELORA_LOCALE_TRACE__?.('51 setLang caught',{code,requestId,message:e?.message||String(e),name:e?.name||null,durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
-    console.warn('[Velora i18n] V5 runtime failure; keeping legacy renderer dormant',e);
+    console.warn('[Velora i18n] V5 runtime failure; activating V4 fallback',e);
+    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
     return false;
   }
 }
@@ -444,27 +159,27 @@ async function setLang(code){
 
 function __veloraFixHeroCore(locale){
   const root=document.querySelector('#page-home'); if(!root)return;
-  const core=__VELORA_CORE_OVERRIDES[locale]||{};
-
-  // Static hero markup now uses declarative data-velora-i18n keys.
-  // Keep this compatibility helper idempotent and never append duplicate
-  // text beside an existing translated span.
-  root.querySelectorAll?.('[data-velora-i18n]').forEach(el=>{
-    const key=el.getAttribute('data-velora-i18n')||'';
-    if(!key || !(key in core))return;
-    if(el.children.length===0 || el.children.length>0) el.textContent=core[key];
-  });
-
-  const badge=root.querySelector('.hero-badge');
-  if(badge){
-    const label=badge.querySelector('[data-velora-i18n="MULTI-SELLER MARKETPLACE"]');
-    if(label){
-      label.textContent=core['MULTI-SELLER MARKETPLACE']||label.textContent;
-    }else{
-      const text=core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE';
-      badge.textContent='🛒 '+text;
-    }
+  const h=root.querySelector('.hero-title');
+  if(h){
+    const parts=[...h.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
+    const pack=__VELORA_CORE_OVERRIDES[locale]||{};
+    const first=pack['Discover More.']||'Discover More.';
+    const second=pack['Shop Better.']||'Shop Better.';
+    if(parts[0] && parts[0].nodeValue !== first) parts[0].nodeValue=first;
+    if(parts[1] && parts[1].nodeValue !== second) parts[1].nodeValue=second;
   }
+  const core=__VELORA_CORE_OVERRIDES[locale]||{};
+  const desc=root.querySelector('.hero-desc');
+  const description=core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.'];
+  if(desc && description && desc.textContent !== description) desc.textContent=description;
+  root.querySelectorAll('.hero-badge').forEach(e=>{
+    if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE')){
+      const textNodes=[...e.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
+      const last=textNodes[textNodes.length-1];
+      const badgeText=' '+(core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
+      if(last && last.nodeValue !== badgeText) last.nodeValue=badgeText;
+    }
+  });
 }
 
 window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(source,locale);
@@ -488,58 +203,30 @@ const observer=new MutationObserver(ms=>{
   }finally{
     observerRunning=false;
     if(document.body){
-      observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+      observer.observe(document.body,{childList:true,subtree:true});
     }
   }
 });
 
-function installI18nObserver(){
-  if(document.body && document.body.dataset.veloraI18nObserver==='1')return;
-  if(document.body){
-    try{
-      observer.observe(document.body,{childList:true,subtree:true,characterData:true});
-      document.body.dataset.veloraI18nObserver='1';
-    }catch(_){ }
-  } else if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',installI18nObserver,{once:true});
-  }
-}
-
-installI18nObserver();
-
 async function boot(){
   try{
-    installI18nObserver();
-    const stored=String(localStorage.getItem('velora_language')||'').toLowerCase();
-    const lang=normalizeLocale(state.locale||stored);
-    state.locale=lang;
-    localStorage.setItem('velora_language',lang);
-    const requestId=++localeEpoch;
+    const lang=state.locale||localStorage.getItem('velora_language')||'en';
     const s=document.getElementById('languageSelect');
     if(s)s.value=lang;
-    await applyLocale(lang,requestId);
-    if(document.body)observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+    await applyLocale(lang);
+    if(document.body)observer.observe(document.body,{childList:true,subtree:true});
     window.VELORA_I18N_V5_READY=true;
     window.VELORA_I18N_V5_FAILED=false;
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 boot failure; legacy translation remains dormant',e);
+    console.warn('[Velora i18n] V5 boot failure; activating V4 fallback',e);
+    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
   }
 }
 
 window.VELORA_V5_SET_LANGUAGE=setLang;
 window.VELORA_I18N_SET_LANGUAGE=setLang;
-// Public HTML onchange entry point: V5 is the single authoritative language setter.
-window.setVeloraLanguage=function(code){
-  return window.VELORA_V5_SET_LANGUAGE(code);
-};
-window.__VELORA_PLATFORM_TRACE__?.('language entry identities',{
-  setVeloraLanguage:window.setVeloraLanguage.toString().slice(0,180),
-  v5SetLanguage:window.VELORA_V5_SET_LANGUAGE?.toString?.().slice(0,180) || window.VELORA_V5_SET_LANGUAGE.toString().slice(0,180),
-  setLanguageIsV5:window.setVeloraLanguage===window.VELORA_V5_SET_LANGUAGE,
-  locale:state.locale
-});
 window.VELORA_I18N_RENDER=translateDom;
 window.VELORA_TRANSLATE_ALL=()=>translateDom(document);
 
