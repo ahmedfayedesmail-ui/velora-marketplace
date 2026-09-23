@@ -632,6 +632,11 @@
   window.VELORA_CLOSE_SELLER=()=>{const p=document.getElementById('sellerPlatform');if(p)p.classList.remove('active');document.body.style.overflow=''};
   window.VELORA_OPEN_SELLER=openCanonicalSeller;
 
+  // Stable core entry points: later feature modules may decorate public
+  // globals, but platform routing must always have a non-decorated opener.
+  window.__VELORA_OPEN_ADMIN_CORE=openCanonicalAdmin;
+  window.__VELORA_OPEN_SELLER_CORE=openCanonicalSeller;
+
   window.VELORA_CANONICAL_ADMIN_SECTION=canonicalAdminSection;
   window.VELORA_SET_SELLER_STATUS=setSellerStatus;
   window.VELORA_SET_PRODUCT_STATUS=setProductStatus;
