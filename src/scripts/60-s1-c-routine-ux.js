@@ -78,26 +78,76 @@
     return status === 'complete' ? 'complete' : status === 'partial' ? 'partial' : 'empty';
   }
 
-  function reasonText(reasonCodes) {
-    const code = Array.isArray(reasonCodes) ? reasonCodes.find(Boolean) : null;
-    const second = Array.isArray(reasonCodes) ? reasonCodes.slice(1).find(Boolean) : null;
-
+  function reasonMeta(code) {
     const map = {
-      goal_match: ['Matches your selected goal.', 'مناسب لهدفك في الروتين.'],
-      concern_match: ['Matches your selected concern.', 'مرتبط باهتمامك الأساسي.'],
-      skin_type_match: ['Fits your selected skin type.', 'مناسب لنوع بشرتك المختار.'],
-      step_match: ['Fits this routine step.', 'مناسب لخطوة الروتين.'],
-      availability_match: ['Available in the catalog now.', 'متاح حاليًا في الكتالوج.'],
-      budget_fit: ['Fits your routine budget.', 'داخل ميزانية الروتين.']
+      goal_match: ['Goal match', 'مطابقة الهدف', 'goal'],
+      concern_match: ['Concern match', 'مطابقة الاهتمام', 'concern'],
+      skin_type_match: ['Skin type match', 'مطابقة نوع البشرة', 'skin'],
+      step_match: ['Step fit', 'مناسب للخطوة', 'step'],
+      availability_match: ['In stock', 'متاح حاليًا', 'availability'],
+      budget_fit: ['Budget fit', 'داخل الميزانية', 'budget']
     };
+    return map[code] || [String(code || 'Rule match'), String(code || 'مطابقة قاعدة'), 'rule'];
+  }
 
-    const firstPair = map[code] || map.step_match;
-    const first = t(firstPair[0], firstPair[1]);
+  function reasonText(reasonCodes) {
+    const codes = Array.isArray(reasonCodes) ? reasonCodes.filter(Boolean) : [];
+    if (!codes.length) return t('No selection evidence returned.', 'لم يتم إرجاع دليل اختيار.');
+    return codes.map((code) => {
+      const meta = reasonMeta(code);
+      return t(meta[0], meta[1]);
+    }).join(' · ');
+  }
 
-    if (!second || !map[second]) return first;
+  function reasonChips(reasonCodes) {
+    const codes = Array.isArray(reasonCodes) ? reasonCodes.filter(Boolean) : [];
+    return codes.map((code) => {
+      const meta = reasonMeta(code);
+      return '<span class="velora-routine-reason-chip velora-routine-reason-' + escapeHtml(meta[2]) + '">'
+        + escapeHtml(t(meta[0], meta[1])) + '</span>';
+    }).join('');
+  }
 
-    const secondPair = map[second];
-    return first + ' ' + t(secondPair[0], secondPair[1]);
+  function passportValue(group, key) {
+    const labels = {
+      skin_type: {
+        oily: ['Oily', 'دهنية'],
+        dry: ['Dry', 'جافة'],
+        combination: ['Combination', 'مختلطة'],
+        normal: ['Normal', 'عادية'],
+        unknown: ["I don't know", 'مش عارفة']
+      },
+      goal: {
+        brightening: ['Brightening & even-looking skin', 'إشراقة وتوحيد مظهر البشرة'],
+        hydration: ['Hydration', 'ترطيب البشرة'],
+        acne: ['Blemish-prone skin care', 'العناية بالبشرة المعرضة للحبوب'],
+        'anti-aging': ['Anti-aging appearance', 'تحسين مظهر علامات التقدم في السن'],
+        oil: ['Reduce excess oil & shine', 'تقليل اللمعان والزيوت الزائدة']
+      },
+      routine_budget: {
+        under_500: ['Under EGP 500', 'أقل من 500 جنيه'],
+        '500_1000': ['EGP 500–1,000', 'من 500 لـ 1000 جنيه'],
+        '1000_2000': ['EGP 1,000–2,000', 'من 1000 لـ 2000 جنيه'],
+        over_2000: ['Over EGP 2,000', 'أكتر من 2000 جنيه'],
+        unknown: ["I don't know", 'مش عارفة']
+      }
+    };
+    const pair = labels[group]?.[key];
+    return pair ? t(pair[0], pair[1]) : String(key || '—');
+  }
+
+  async function loadPassportSummary() {
+    try {
+      const client = getClient();
+      const { data, error } = await client
+        .from('beauty_profiles')
+        .select('skin_type,goal,routine_budget')
+        .maybeSingle();
+      if (error) throw error;
+      return data || null;
+    } catch (_) {
+      return null;
+    }
   }
 
   function ensureStyle() {
@@ -106,18 +156,29 @@
     const style = document.createElement('style');
     style.id = 'veloraRoutineUxStyle';
     style.textContent = [
-      '#veloraRoutineUxModal .velora-routine-modal{width:min(980px,calc(100vw - 2rem));max-height:90vh;overflow:auto;background:var(--card);color:var(--text);border-radius:24px;border:1px solid var(--border);box-shadow:var(--shadow-lg);}',
-      '#veloraRoutineUxModal .velora-routine-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:1.25rem 1.25rem .75rem;position:sticky;top:0;background:var(--card);z-index:2;border-bottom:1px solid var(--border);}',
+      '#veloraRoutineUxModal .velora-routine-modal{width:min(980px,calc(100vw - 2rem));height:min(90vh,calc(100dvh - 1rem));max-height:calc(100dvh - 1rem);display:flex;flex-direction:column;overflow:hidden;background:var(--card);color:var(--text);border-radius:24px;border:1px solid var(--border);box-shadow:var(--shadow-lg);}',
+
+      '#veloraRoutineUxModal .velora-routine-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:1.25rem 1.25rem .75rem;background:var(--card);z-index:2;border-bottom:1px solid var(--border);flex:0 0 auto;}',
+
       '#veloraRoutineUxModal .velora-routine-kicker{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);}',
       '#veloraRoutineUxModal .velora-routine-title{font-size:1.7rem;margin:.2rem 0 .25rem;}',
       '#veloraRoutineUxModal .velora-routine-status{font-size:.9rem;color:var(--text-muted);}',
       '#veloraRoutineUxModal .velora-routine-close{width:40px;height:40px;border-radius:50%;background:var(--bg-alt);font-size:1.1rem;flex:0 0 auto;}',
-      '#veloraRoutineUxModal .velora-routine-body{padding:1rem 1.25rem 1.25rem;}',
+      '#veloraRoutineUxModal .velora-routine-body{padding:1rem 1.25rem 1.25rem;overflow:auto;min-height:0;-webkit-overflow-scrolling:touch;padding-bottom:calc(1.25rem + env(safe-area-inset-bottom));}',
+
       '#veloraRoutineUxModal .velora-routine-banner{border:1px solid var(--border);background:var(--bg-alt);border-radius:16px;padding:.9rem 1rem;margin-bottom:1rem;}',
       '#veloraRoutineUxModal .velora-routine-banner.complete{border-color:rgba(76,175,80,.35);}',
       '#veloraRoutineUxModal .velora-routine-banner.partial{border-color:rgba(212,169,96,.5);}',
       '#veloraRoutineUxModal .velora-routine-banner.empty{border-color:var(--border);}',
       '#veloraRoutineUxModal .velora-routine-banner strong{display:block;margin-bottom:.15rem;}',
+      '#veloraRoutineUxModal .velora-routine-basis{border:1px solid var(--border);background:var(--bg-alt);border-radius:16px;padding:.85rem 1rem;margin-bottom:1rem;}',
+      '#veloraRoutineUxModal .velora-routine-basis-title{font-weight:800;margin-bottom:.55rem;}',
+      '#veloraRoutineUxModal .velora-routine-basis-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;}',
+      '#veloraRoutineUxModal .velora-routine-basis-item{padding:.6rem .7rem;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0;}',
+      '#veloraRoutineUxModal .velora-routine-basis-item span{display:block;color:var(--text-muted);font-size:.72rem;margin-bottom:.15rem;}',
+      '#veloraRoutineUxModal .velora-routine-basis-item strong{font-size:.82rem;line-height:1.35;overflow-wrap:anywhere;}',
+      '#veloraRoutineUxModal .velora-routine-disclaimer{font-size:.75rem;line-height:1.45;color:var(--text-muted);margin-top:.7rem;}',
+
       '#veloraRoutineUxModal .velora-routine-group{margin-top:1rem;}',
       '#veloraRoutineUxModal .velora-routine-group h3{font-size:1rem;margin-bottom:.65rem;}',
       '#veloraRoutineUxModal .velora-routine-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;}',
@@ -129,13 +190,20 @@
       '#veloraRoutineUxModal .velora-routine-brand{color:var(--text-muted);font-size:.82rem;margin-top:.15rem;}',
       '#veloraRoutineUxModal .velora-routine-price{font-weight:800;margin-top:.55rem;}',
       '#veloraRoutineUxModal .velora-routine-variant{display:inline-flex;gap:.35rem;align-items:center;margin-top:.45rem;padding:.3rem .55rem;border-radius:999px;background:var(--bg-alt);font-size:.74rem;}',
-      '#veloraRoutineUxModal .velora-routine-reason{margin-top:.7rem;font-size:.8rem;color:var(--text-muted);line-height:1.45;}',
+      '#veloraRoutineUxModal .velora-routine-reason{margin-top:.55rem;font-size:.78rem;color:var(--text-muted);line-height:1.45;}',
+      '#veloraRoutineUxModal .velora-routine-reason-chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;}',
+      '#veloraRoutineUxModal .velora-routine-reason-chip{display:inline-flex;align-items:center;padding:.28rem .48rem;border:1px solid var(--border);border-radius:999px;background:var(--bg-alt);font-size:.68rem;font-weight:750;}',
+      '#veloraRoutineUxModal .velora-routine-reason-chip.velora-routine-reason-goal{border-color:rgba(212,112,138,.45);}',
+      '#veloraRoutineUxModal .velora-routine-reason-chip.velora-routine-reason-skin{border-color:rgba(105,160,120,.4);}',
+      '#veloraRoutineUxModal .velora-routine-reason-chip.velora-routine-reason-budget{border-color:rgba(120,120,170,.35);}',
+      '#veloraRoutineUxModal .velora-routine-actions{position:sticky;bottom:0;background:var(--card);padding:.8rem 0 calc(.3rem + env(safe-area-inset-bottom));border-top:1px solid var(--border);z-index:2;}',
+
       '#veloraRoutineUxModal .velora-routine-unavailable{font-size:.85rem;color:var(--text-muted);margin-top:.35rem;}',
       '#veloraRoutineUxModal .velora-routine-total{display:flex;justify-content:space-between;gap:1rem;align-items:center;border-top:1px solid var(--border);margin-top:1.1rem;padding-top:1rem;}',
       '#veloraRoutineUxModal .velora-routine-total strong{font-size:1.15rem;}',
       '#veloraRoutineUxModal .velora-routine-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem;}',
       '#veloraRoutineUxModal .velora-routine-actions .btn[aria-disabled="true"]{opacity:.55;cursor:not-allowed;}',
-      '@media(max-width:700px){#veloraRoutineUxModal .velora-routine-steps{grid-template-columns:1fr;}#veloraRoutineUxModal .velora-routine-head{padding:.9rem .9rem .7rem}#veloraRoutineUxModal .velora-routine-body{padding:.8rem .9rem 1rem}#veloraRoutineUxModal .velora-routine-title{font-size:1.35rem;}}'
+      '@media(max-width:700px){#veloraRoutineUxModal .velora-routine-steps{grid-template-columns:1fr;}#veloraRoutineUxModal .velora-routine-head{padding:.9rem .9rem .7rem}#veloraRoutineUxModal .velora-routine-body{padding:.8rem .9rem calc(.8rem + env(safe-area-inset-bottom))}#veloraRoutineUxModal .velora-routine-title{font-size:1.35rem;}#veloraRoutineUxModal .velora-routine-basis-grid{grid-template-columns:1fr;}#veloraRoutineUxModal .velora-routine-actions{flex-wrap:wrap;}#veloraRoutineUxModal .velora-routine-actions .btn{flex:1 1 100%;min-height:48px;}}'
     ].join('');
     document.head.appendChild(style);
   }
@@ -196,7 +264,8 @@
       '<div class="velora-routine-brand">', escapeHtml(product.brand || ''), '</div>',
       '<div class="velora-routine-price">', escapeHtml(formatMoney(price, product.currency || 'EGP')), '</div>',
       variant ? '<div class="velora-routine-variant">✓ ' + escapeHtml(variant.name || t('Selected variant', 'الاختيار')) + '</div>' : '',
-      '<div class="velora-routine-reason">', escapeHtml(reasonText(step.reason_codes)), '</div>',
+      '<div class="velora-routine-reason"><strong>', escapeHtml(t('Why it was selected', 'ليه المنتج اتاختار')), ':</strong> ', escapeHtml(reasonText(step.reason_codes)), '</div>',
+      '<div class="velora-routine-reason-chips">', reasonChips(step.reason_codes), '</div>',
       '</article>'
     ].join('');
   }
@@ -221,7 +290,7 @@
     });
   }
 
-  function render(data) {
+  function render(data, passport) {
     if (!data || typeof data !== 'object') throw new Error('BEAUTY_ROUTINE_EMPTY_RESPONSE');
 
     const status = String(data.status || '');
@@ -266,7 +335,20 @@
       sections.push('<div class="velora-routine-group"><h3>', escapeHtml(t('Evening', 'المساء')), '</h3><div class="velora-routine-steps">', pmSteps.map(renderStep).join(''), '</div></div>');
     }
 
+    const basis = passport ? [
+      '<div class="velora-routine-basis">',
+      '<div class="velora-routine-basis-title">', escapeHtml(t('Built from your Beauty Passport', 'مبني على Beauty Passport بتاعك')), '</div>',
+      '<div class="velora-routine-basis-grid">',
+      '<div class="velora-routine-basis-item"><span>', escapeHtml(t('Skin type', 'نوع البشرة')), '</span><strong>', escapeHtml(passportValue('skin_type', passport.skin_type)), '</strong></div>',
+      '<div class="velora-routine-basis-item"><span>', escapeHtml(t('Main goal', 'الهدف الأساسي')), '</span><strong>', escapeHtml(passportValue('goal', passport.goal)), '</strong></div>',
+      '<div class="velora-routine-basis-item"><span>', escapeHtml(t('Routine budget', 'ميزانية الروتين')), '</span><strong>', escapeHtml(passportValue('routine_budget', passport.routine_budget)), '</strong></div>',
+      '</div>',
+      '<div class="velora-routine-disclaimer">', escapeHtml(t('This is a deterministic cosmetic routine generated from your answers and the approved catalog. It is not a medical diagnosis or dermatologist assessment.', 'ده روتين تجميلي محدد بقواعد من إجاباتك والكتالوج المعتمد. مش تشخيص طبي ولا تقييم من طبيب جلدية.')), '</div>',
+      '</div>'
+    ].join('') : '';
+
     body.innerHTML = [
+      basis,
       '<div class="velora-routine-banner ', escapeHtml(statusTone(status)), '">',
       '<strong>', escapeHtml(statusText.textContent), '</strong>',
       '<div class="velora-routine-status">',
@@ -308,8 +390,11 @@
     if (body) body.innerHTML = '<div class="velora-variant-loading">' + escapeHtml(t('Loading your routine…', 'بنجهّز روتينك…')) + '</div>';
 
     try {
-      const data = await generate();
-      render(data);
+      const [data, passport] = await Promise.all([
+        generate(),
+        loadPassportSummary()
+      ]);
+      render(data, passport);
       return data;
     } catch (error) {
       if (body) {
