@@ -47,18 +47,6 @@
     ]).has(code);
   }
 
-  async function getAuthenticatedUser() {
-    if (typeof STATE !== 'undefined' && STATE?.user?.id) {
-      return STATE.user;
-    }
-
-    const client = getClient();
-    const { data, error } = await client.auth.getSession();
-    if (error) throw error;
-    if (!data?.session?.user) throw new Error('AUTH_REQUIRED');
-    return data.session.user;
-  }
-
   async function readServerCartKeys(userId) {
     const client = getClient();
     const { data, error } = await client
@@ -248,7 +236,6 @@
     };
 
     try {
-      const user = await getAuthenticatedUser();
       const client = getClient();
       const selectedSteps = (Array.isArray(routine.steps) ? routine.steps : [])
         .filter((step) => step?.selection_status === 'selected' && UUID_RE.test(String(step?.product?.id || '')) && step?.product);
