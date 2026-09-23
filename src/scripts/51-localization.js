@@ -107,7 +107,22 @@ const CORE_AR={
   'Review Applications':'مراجعة الطلبات',
   'No sellers.':'لا يوجد بائعون.',
   'No products.':'لا توجد منتجات.',
-  'No items recorded.':'لا توجد عناصر مسجلة.'
+  'No items recorded.':'لا توجد عناصر مسجلة.',
+  'Build my routine':'أنشئ روتينك',
+  'Protected checkout':'الدفع المحمي',
+  'Multi-seller':'متعدد البائعين',
+  'Track your order':'تتبع طلبك',
+  'Trust & Safety':'الثقة والأمان',
+  'Quick Actions':'إجراءات سريعة',
+  'Recent Orders':'أحدث الطلبات',
+  'Recent Audit Activity':'أحدث نشاط للتدقيق',
+  'Operations Breakdown':'ملخص العمليات',
+  'Order Value by Currency':'قيمة الطلبات حسب العملة',
+  'Pending Reviews':'التقييمات المعلقة',
+  'Active Account Actions':'إجراءات الحساب النشطة',
+  'Become a Seller':'كن بائعًا',
+  'Start Shopping':'ابدأ التسوق',
+  'Explore Velora':'استكشف Velora'
 };
 
 function catalog(locale){
@@ -118,23 +133,45 @@ function catalog(locale){
   return merged;
 }
 
+function splitDecorations(value){
+  const s=String(value??'');
+  const lead=(s.match(/^[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D]+/u)||[''])[0];
+  const tail=(s.match(/[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D]+$/u)||[''])[0];
+  const body=s.slice(lead.length, tail.length?s.length-tail.length:undefined).trim();
+  return {lead,body,tail};
+}
+
 function resolveExact(source,locale){
   const s=norm(source);
   if(!s)return s;
   const d=catalog(locale);
   if(Object.prototype.hasOwnProperty.call(d,s) && norm(d[s]))return String(d[s]);
 
-  // Case-insensitive exact match is allowed; substring replacement is not.
   const sl=s.toLowerCase();
   for(const k of Object.keys(d)){
     if(norm(k).toLowerCase()===sl && norm(d[k]))return String(d[k]);
   }
 
+  const decorated=splitDecorations(s);
+  if(decorated.body){
+    if(Object.prototype.hasOwnProperty.call(d,decorated.body) && norm(d[decorated.body]))
+      return decorated.lead+String(d[decorated.body])+decorated.tail;
+    const bl=decorated.body.toLowerCase();
+    for(const k of Object.keys(d)){
+      if(norm(k).toLowerCase()===bl && norm(d[k]))
+        return decorated.lead+String(d[k])+decorated.tail;
+    }
+  }
+
   const en=catalog('en');
   if(locale==='en'){
     if(Object.prototype.hasOwnProperty.call(en,s))return String(en[s]);
+    if(decorated.body && Object.prototype.hasOwnProperty.call(en,decorated.body))
+      return decorated.lead+String(en[decorated.body])+decorated.tail;
     for(const k of Object.keys(en)){
       if(norm(k).toLowerCase()===sl)return String(en[k]);
+      if(decorated.body && norm(k).toLowerCase()===decorated.body.toLowerCase())
+        return decorated.lead+String(en[k])+decorated.tail;
     }
   }
   return s;
@@ -179,6 +216,15 @@ function sourceForNode(node){
     if(key)source=key;
   }
   if(!source && Object.prototype.hasOwnProperty.call(catalog('en'),raw))source=raw;
+  if(!source){
+    const decorated=splitDecorations(raw);
+    if(decorated.body && (
+      Object.prototype.hasOwnProperty.call(catalog('en'),decorated.body) ||
+      Object.prototype.hasOwnProperty.call(catalog(state.locale),decorated.body)
+    )){
+      source=decorated.lead+decorated.body+decorated.tail;
+    }
+  }
   if(!source)source=reverseSource(raw);
   source=source||raw;
   sourceByNode.set(node,source);
