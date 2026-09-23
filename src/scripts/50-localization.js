@@ -72,26 +72,62 @@
   };
   let localeMutationSeq = 0;
 
+  function localeDiagnosticSnapshot(){
+    const languageSelect=document.getElementById('languageSelect');
+    return {
+      stateLocale:state?.locale,
+      globalLocale:window.VELORA_GLOBAL_LOCALE,
+      globalStateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale,
+      documentLang:document.documentElement?.lang,
+      languageSelect:languageSelect?.value||null,
+      dateLocale:state?.date_locale,
+      country:state?.country_code,
+      currency:state?.currency_code
+    };
+  }
+  function localeDiagnosticLog(label,extra){
+    const payload=Object.assign({snapshot:localeDiagnosticSnapshot()},extra||{});
+    try{console.log('[LOCALE TRACE] '+label,payload);}catch(_){}
+    try{window.__VELORA_PLATFORM_TRACE__?.('LOCALE '+label,payload);}catch(_){}
+  }
+  window.__VELORA_LOCALE_TRACE__=localeDiagnosticLog;
+
   const db = () => window.mahaSupabase || window.supabaseClient || window.sb || null;
   const esc = (v) => typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   async function loadContext() {
     const requestSeq = localeMutationSeq;
     const localeBeforeRequest = state.locale;
+    localeDiagnosticLog('50 loadContext start',{requestSeq,localeBeforeRequest});
     try {
       const c = db();
       normalizeState();
       if (!c?.rpc || !STATE?.user) {
         syncLocaleUi();
+        localeDiagnosticLog('50 loadContext end',{reason:'no-rpc-or-user'});
         return state;
       }
       const r = await c.rpc('velora_get_global_locale_context');
+      localeDiagnosticLog('50 loadContext rpc returned',{
+        hasData:!!r?.data,
+        hasError:!!r?.error,
+        returnedLocale:r?.data?.locale??null,
+        returnedDateLocale:r?.data?.date_locale??null,
+        returnedCountry:r?.data?.country_code??null,
+        returnedCurrency:r?.data?.currency_code??null
+      });
       if (r?.error || !r?.data) {
         syncLocaleUi();
+        localeDiagnosticLog('50 loadContext end',{reason:'rpc-error-or-empty'});
         return state;
       }
       const previousLocale = canonicalLocale(window.VELORA_GLOBAL_LOCALE);
       Object.assign(state, r.data);
+      localeDiagnosticLog('50 loadContext after Object.assign',{
+        requestSeq,
+        currentMutationSeq:localeMutationSeq,
+        staleRequest:requestSeq!==localeMutationSeq
+      });
       if (requestSeq !== localeMutationSeq) {
         state.locale = canonicalLocale(localeBeforeRequest);
       }
@@ -104,7 +140,9 @@
         window.VELORA_I18N_RENDER(document);
       }
       syncLocaleUi();
-    } catch (_) {
+      localeDiagnosticLog('50 loadContext end',{localeChanged});
+    } catch (error) {
+      localeDiagnosticLog('50 loadContext caught',{message:error?.message||String(error),name:error?.name||null});
       normalizeState();
       syncLocaleUi();
     }

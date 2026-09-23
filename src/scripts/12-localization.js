@@ -25,6 +25,34 @@
   }
   window.__VELORA_PLATFORM_TRACE__=platformTrace;
 
+  function scheduleAdminPostMountTrace(){
+    [100,500,1500].forEach(delay=>{
+      setTimeout(()=>{
+        const el=document.getElementById('adminPlatform');
+        if(!el){
+          platformTrace('POST-MOUNT +'+delay+'ms',{
+            exists:false,active:false,display:null,visibility:null,opacity:null,zIndex:null,
+            boundingWidth:0,boundingHeight:0
+          });
+          return;
+        }
+        let computed=null,rect=null;
+        try{computed=window.getComputedStyle(el);}catch(_){}
+        try{rect=el.getBoundingClientRect();}catch(_){}
+        platformTrace('POST-MOUNT +'+delay+'ms',{
+          exists:true,
+          active:el.classList.contains('active'),
+          display:computed?.display||null,
+          visibility:computed?.visibility||null,
+          opacity:computed?.opacity||null,
+          zIndex:computed?.zIndex||null,
+          boundingWidth:Math.round(rect?.width||0),
+          boundingHeight:Math.round(rect?.height||0)
+        });
+      },delay);
+    });
+  }
+
   const db = window.mahaSupabase;
   if(!db){ console.warn('Velora Stage 8: Supabase client unavailable'); return; }
 
@@ -220,11 +248,24 @@
         active:!!document.getElementById('adminPlatform')?.classList.contains('active'),
         adminContent:!!document.getElementById('adminContent')
       });
+      scheduleAdminPostMountTrace();
       platformTrace('openCanonicalAdmin before dashboard');
       await canonicalAdminSection('dashboard');
       platformTrace('openCanonicalAdmin dashboard complete',{
-        active:!!document.getElementById('adminPlatform')?.classList.contains('active'),
-        adminContent:!!document.getElementById('adminContent')
+        adminPlatformExists:!!document.getElementById('adminPlatform'),
+        adminActive:!!document.getElementById('adminPlatform')?.classList.contains('active'),
+        adminContentExists:!!document.getElementById('adminContent'),
+        adminContentChildren:document.getElementById('adminContent')?.children?.length||0,
+        adminContentInnerLength:document.getElementById('adminContent')?.innerHTML?.length||0,
+        localeSnapshot:{
+          locale:window.VELORA_GLOBAL_LOCALE,
+          stateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale,
+          documentElementLang:document.documentElement.lang,
+          languageSelect:document.getElementById('languageSelect')?.value||null,
+          dateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.date_locale||null,
+          country:window.VELORA_GLOBAL_LOCALE_STATE?.country_code||null,
+          currency:window.VELORA_GLOBAL_LOCALE_STATE?.currency_code||null
+        }
       });
     }catch(e){
       platformTrace('CRITICAL EXTRACTED ERROR inside openCanonicalAdmin',{

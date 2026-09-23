@@ -341,6 +341,8 @@ async function loadDbCatalog(locale){
 
 async function applyLocale(locale,requestId){
   locale=normalizeLocale(locale);
+  const startedAt=Date.now();
+  try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale start',{locale,requestId,localeEpoch});}catch(_){}
   state.locale=locale;
   const model=window.VELORA_GLOBAL_LOCALE_STATE||state;
   model.locale=locale;
@@ -351,7 +353,10 @@ async function applyLocale(locale,requestId){
   // DB-backed translation catalogs are optional enrichments. Never block
   // first paint / V5 readiness on Supabase RPC latency or a missing RPC.
   await withTimeout(loadDbCatalog(locale),1200);
-  if(requestId!==localeEpoch)return false;
+  if(requestId!==localeEpoch){
+    try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale end',{locale,requestId,result:false,reason:'stale-after-catalog',durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
+    return false;
+  }
   if(typeof veloraLoadContentTranslations==='function'){
     await withTimeout(veloraLoadContentTranslations(locale),1200);
   }
@@ -367,7 +372,10 @@ async function applyLocale(locale,requestId){
   translateDom(document);
 
   document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
-  if(requestId!==localeEpoch)return false;
+  if(requestId!==localeEpoch){
+    try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale end',{locale,requestId,result:false,reason:'stale-after-render',durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
+    return false;
+  }
   // Ensure any renderers that committed after our first pass are re-hydrated
   // using the same authoritative locale.
   try{translateDom(document);}catch(_){}
@@ -377,6 +385,7 @@ async function applyLocale(locale,requestId){
   queueMicrotask(()=>{try{translateDom(document);}catch(_){}});
   setTimeout(()=>{try{translateDom(document);}catch(_){}},0);
   setTimeout(()=>{try{translateDom(document);}catch(_){}},120);
+  try{window.__VELORA_LOCALE_TRACE__?.('51 applyLocale end',{locale,requestId,result:true,durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
   return true;
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
@@ -385,6 +394,8 @@ async function setLang(code){
   if(!['en','ar'].includes(code))return false;
 
   const requestId=++localeEpoch;
+  const startedAt=Date.now();
+  try{window.__VELORA_LOCALE_TRACE__?.('51 setLang start',{code,requestId,localeEpoch});}catch(_){}
 
   // Commit the authoritative locale synchronously before any network/DOM await.
   state.locale=code;
@@ -404,11 +415,17 @@ async function setLang(code){
         if(session?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
       }catch(_){}
     }
-    if(requestId!==localeEpoch)return false;
-    return await applyLocale(code,requestId);
+    if(requestId!==localeEpoch){
+      try{window.__VELORA_LOCALE_TRACE__?.('51 setLang end',{code,requestId,result:false,reason:'stale-before-apply',durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
+      return false;
+    }
+    const result=await applyLocale(code,requestId);
+    try{window.__VELORA_LOCALE_TRACE__?.('51 setLang end',{code,requestId,result,durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
+    return result;
   }catch(e){
     window.VELORA_I18N_V5_READY=false;
     window.VELORA_I18N_V5_FAILED=true;
+    try{window.__VELORA_LOCALE_TRACE__?.('51 setLang caught',{code,requestId,message:e?.message||String(e),name:e?.name||null,durationMs:Date.now()-startedAt,localeEpoch});}catch(_){}
     console.warn('[Velora i18n] V5 runtime failure; keeping legacy renderer dormant',e);
     return false;
   }
