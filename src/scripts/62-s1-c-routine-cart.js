@@ -190,6 +190,7 @@
 
     try {
       const user = await getAuthenticatedUser();
+      const client = getClient();
       const selectedSteps = (Array.isArray(routine.steps) ? routine.steps : [])
         .filter((step) => step?.selection_status === 'selected' && UUID_RE.test(String(step?.product?.id || '')) && step?.product);
 
