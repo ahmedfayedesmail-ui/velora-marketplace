@@ -25,7 +25,7 @@
     const originalNavigateTo = window.navigateTo;
     const canonicalOpenSeller = window.VELORA_OPEN_SELLER;
     const canonicalCloseSeller = window.VELORA_CLOSE_SELLER;
-    const canonicalOpenAdmin = window.VELORA_OPEN_ADMIN;
+    const canonicalOpenAdmin = window.__VELORA_OPEN_ADMIN_CORE || window.VELORA_OPEN_ADMIN;
     const canonicalCloseAdmin = window.VELORA_CLOSE_ADMIN;
     const canonicalOpenOwner = window.VELORA_OPEN_OWNER;
     const canonicalCloseOwner = window.VELORA_CLOSE_OWNER;
@@ -191,12 +191,13 @@
             return;
         }
 
-        // Direct UI action: invoke the authoritative entry captured after
-        // the canonical platform controller loaded. No hashchange dependency.
+        // Direct UI action: use the stable canonical core opener for Admin.
+        // Feature modules may decorate public globals, but they must not sit on
+        // the critical platform-entry path.
         const entry = platformId === 'seller'
-            ? originalOpenSeller
+            ? (window.__VELORA_OPEN_SELLER_CORE || originalOpenSeller)
             : platformId === 'admin'
-                ? originalOpenAdmin
+                ? (window.__VELORA_OPEN_ADMIN_CORE || originalOpenAdmin)
                 : platformId === 'owner'
                     ? originalOpenOwner
                     : null;
