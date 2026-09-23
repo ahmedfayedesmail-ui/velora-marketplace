@@ -90,57 +90,71 @@
 <main id="mainContent">
 <!-- ============ HOME PAGE ============ -->
 <section class="page active" id="page-home">
-<!-- HERO -->
-<div class="hero">
+<!-- HERO — BEAUTY-FIRST -->
+<div class="hero velora-beauty-hero">
 <div class="hero-content">
-<span class="hero-badge">🛒 <span data-velora-i18n="MULTI-SELLER MARKETPLACE">MULTI-SELLER MARKETPLACE</span></span>
-<h1 class="hero-title"><span data-velora-i18n="Discover More.">Discover More.</span><br/><span data-velora-i18n="Shop Better.">Shop Better.</span></h1>
-<p class="hero-desc" data-velora-i18n="Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.">Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.</p>
+<span class="hero-badge">✨ <span data-velora-i18n="PERSONAL BEAUTY EXPERIENCE">PERSONAL BEAUTY EXPERIENCE</span></span>
+<h1 class="hero-title"><span data-velora-i18n="Your beauty. Your routine.">Your beauty. Your routine.</span><br/><span data-velora-i18n="Built around you.">Built around you.</span></h1>
+<p class="hero-desc" data-velora-i18n="Tell Velora what you need, get a routine built from real catalog products, and keep your beauty journey in one place.">Tell Velora what you need, get a routine built from real catalog products, and keep your beauty journey in one place.</p>
 <div class="hero-buttons">
-<button class="btn btn-primary btn-lg" onclick="navigateTo('shop')">
-                        🛒 <span data-velora-i18n="Start Shopping">Start Shopping</span>
+<button class="btn btn-primary btn-lg" id="veloraRoutineEntry" type="button">
+                        ✨ <span data-velora-i18n="Build my routine">Build my routine</span>
                     </button>
-<button class="btn btn-outline btn-lg" onclick="openSellerRegistration()">
-                        🏪 <span data-velora-i18n="Become a Seller">Become a Seller</span>
+<button class="btn btn-outline btn-lg" onclick="openMarketplaceCategory('beauty')">
+                        🛍️ <span data-velora-i18n="Explore beauty">Explore beauty</span>
                     </button>
 </div>
 <div class="hero-stats">
-<div class="stat">
-<strong id="statProducts">50+</strong>
-<span>Products</span>
-</div>
-<div class="stat">
-<strong>Multi</strong>
-<span>Categories</span>
-</div>
-<div class="stat">
-<strong>Seller</strong>
-<span>Powered</span>
+<div class="stat"><strong id="statProducts">50+</strong><span data-velora-i18n="Beauty products">Beauty products</span></div>
+<div class="stat"><strong data-velora-i18n="Curated">Curated</strong><span data-velora-i18n="seller network">seller network</span></div>
+<div class="stat"><strong data-velora-i18n="Personal">Personal</strong><span data-velora-i18n="beauty journey">beauty journey</span></div>
 </div>
 </div>
 </div>
+
+<!-- BEAUTY PASSPORT / ROUTINE JOURNEY -->
+<div class="container">
+<section class="velora-beauty-journey" aria-labelledby="beautyJourneyTitle">
+<div class="velora-beauty-journey-copy">
+<span class="section-label" data-velora-i18n="YOUR BEAUTY PASSPORT">YOUR BEAUTY PASSPORT</span>
+<h2 class="section-title" id="beautyJourneyTitle" data-velora-i18n="From your answers to a routine you can actually shop.">From your answers to a routine you can actually shop.</h2>
+<p data-velora-i18n="Your Beauty Passport captures the signals Velora uses to build a practical routine from eligible products in the catalog.">Your Beauty Passport captures the signals Velora uses to build a practical routine from eligible products in the catalog.</p>
+<div class="velora-beauty-journey-steps">
+<div><span>01</span><strong data-velora-i18n="Tell us about your skin">Tell us about your skin</strong><small data-velora-i18n="Skin type, goal and routine budget.">Skin type, goal and routine budget.</small></div>
+<div><span>02</span><strong data-velora-i18n="Get your routine">Get your routine</strong><small data-velora-i18n="Clear steps, products and reasons.">Clear steps, products and reasons.</small></div>
+<div><span>03</span><strong data-velora-i18n="Shop the routine">Shop the routine</strong><small data-velora-i18n="Move from recommendation to cart.">Move from recommendation to cart.</small></div>
 </div>
-<!-- MARKETPLACE CATEGORIES -->
+</div>
+<div class="velora-beauty-journey-card">
+<div class="velora-beauty-journey-icon">🪞</div>
+<strong data-velora-i18n="A Beauty Passport that remembers your starting point.">A Beauty Passport that remembers your starting point.</strong>
+<p data-velora-i18n="Update your answers later and let Velora rebuild your routine around the latest catalog.">Update your answers later and let Velora rebuild your routine around the latest catalog.</p>
+<button class="btn btn-primary" type="button" onclick="document.getElementById('veloraRoutineEntry')?.click()">
+<span data-velora-i18n="Start my beauty journey">Start my beauty journey</span> →
+</button>
+</div>
+</section>
+</div>
+
+<!-- DISCOVERY -->
 <div class="container">
 <div class="section-header">
-<span class="section-label" data-velora-i18n="EXPLORE VELORA">EXPLORE VELORA</span>
-<h2 class="section-title" data-velora-i18n="Shop What You Love">Shop What You Love</h2>
-<p style="color:var(--text-muted); margin-top:.5rem;">Velora is built for every kind of store — not just one category.</p>
+<span class="section-label" data-velora-i18n="DISCOVER BEAUTY">DISCOVER BEAUTY</span>
+<h2 class="section-title" data-velora-i18n="Explore by beauty category">Explore by beauty category</h2>
+<p style="color:var(--text-muted); margin-top:.5rem;" data-velora-i18n="When you already know what you want, browse the catalog directly.">When you already know what you want, browse the catalog directly.</p>
 </div>
 <div class="velora-market-cats">
-<button class="velora-cat" onclick="openMarketplaceCategory('all')"><span>🛍️</span><strong>All Products</strong><small>Explore everything</small></button>
-<button class="velora-cat" onclick="openMarketplaceCategory('electronics')"><span>📱</span><strong>Electronics</strong><small>Phones &amp; tech</small></button>
-<button class="velora-cat" onclick="openMarketplaceCategory('fashion')"><span>👗</span><strong>Fashion</strong><small>Style &amp; accessories</small></button>
-<button class="velora-cat" onclick="openMarketplaceCategory('beauty')"><span>✨</span><strong>Beauty</strong><small>Skincare &amp; more</small></button>
-<button class="velora-cat" onclick="openMarketplaceCategory('home')"><span>🏠</span><strong>Home &amp; Living</strong><small>For your space</small></button>
-<button class="velora-cat" onclick="openMarketplaceCategory('sports')"><span>⚽</span><strong>Sports</strong><small>Move &amp; play</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('beauty')"><span>✨</span><strong data-velora-i18n="Skincare">Skincare</strong><small data-velora-i18n="Cleanse, treat &amp; protect">Cleanse, treat &amp; protect</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('beauty')"><span>💄</span><strong data-velora-i18n="Makeup">Makeup</strong><small data-velora-i18n="Everyday beauty</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('beauty')"><span>💇</span><strong data-velora-i18n="Hair care">Hair care</strong><small data-velora-i18n="Care for your hair">Care for your hair</small></button>
+<button class="velora-cat" onclick="openMarketplaceCategory('beauty')"><span>🌿</span><strong data-velora-i18n="Bath &amp; body">Bath &amp; body</strong><small data-velora-i18n="Daily care">Daily care</small></button>
 </div>
 </div>
 <!-- FEATURED PRODUCTS -->
 <div class="container">
 <div class="section-header">
-<span class="section-label">TRENDING NOW</span>
-<h2 class="section-title">Popular on Velora</h2>
+<span class="section-label" data-velora-i18n="BEAUTY PICKS">BEAUTY PICKS</span>
+<h2 class="section-title" data-velora-i18n="Popular beauty picks">Popular beauty picks</h2>
 </div>
 <div class="products-grid" id="featuredProducts">
 <!-- Will be filled by JS -->
