@@ -509,7 +509,7 @@ window.setVeloraLanguage=function(code){
 };
 window.__VELORA_PLATFORM_TRACE__?.('language entry identities',{
   setVeloraLanguage:window.setVeloraLanguage.toString().slice(0,180),
-  v5SetLanguage:window.VELORA_VELORA_V5_SET_LANGUAGE?.toString?.().slice(0,180) || window.VELORA_V5_SET_LANGUAGE.toString().slice(0,180),
+  v5SetLanguage:window.VELORA_V5_SET_LANGUAGE?.toString?.().slice(0,180) || window.VELORA_V5_SET_LANGUAGE.toString().slice(0,180),
   setLanguageIsV5:window.setVeloraLanguage===window.VELORA_V5_SET_LANGUAGE,
   locale:state.locale
 });
