@@ -164,19 +164,30 @@
     }
 
     const skipped = Array.isArray(result.skipped) ? result.skipped : [];
+    const failed = Array.isArray(result.failed) ? result.failed : [];
     const already = Number(result.alreadyInCart || 0);
     const added = Number(result.added || 0);
 
     const parts = [
       added ? t(added + ' item(s) added to your cart.', 'تمت إضافة ' + added + ' منتج للـCart.') : '',
       already ? t(already + ' item(s) were already in your cart.', already + ' منتج موجودين بالفعل في الـCart.') : '',
-      skipped.length ? t(skipped.length + ' item(s) were skipped because they are not available now.', 'اتخطّينا ' + skipped.length + ' منتج لأنهم مش متاحين حاليًا.') : ''
+      skipped.length ? t(skipped.length + ' item(s) were skipped because they are not available now.', 'اتخطّينا ' + skipped.length + ' منتج لأنهم مش متاحين حاليًا.') : '',
+      failed.length ? t(failed.length + ' item(s) could not be added. Please try again.', failed.length + ' منتج ماقدرتش أضيفهم. جرّبي تاني.') : ''
     ].filter(Boolean);
 
     node.innerHTML =
       '<div class="velora-routine-cart-summary"><strong>' +
-      escapeHtml(parts.join(' ' ) || t('No cart changes were needed.', 'مفيش تغيير مطلوب في الـCart.')) +
+      escapeHtml(parts.join(' ') || t('No cart changes were needed.', 'مفيش تغيير مطلوب في الـCart.')) +
       '</strong>' +
+      (failed.length
+        ? '<div class="velora-routine-cart-skipped"><div>' +
+          escapeHtml(t('Could not add:', 'تعذرت إضافة:')) +
+          '</div><ul>' +
+          failed.map((item) =>
+            '<li>' + escapeHtml(item.label || 'Product') + '</li>'
+          ).join('') +
+          '</ul></div>'
+        : '') +
       (skipped.length
         ? '<div class="velora-routine-cart-skipped"><div>' +
           escapeHtml(t('Skipped items:', 'المنتجات المتخطّية:')) +
@@ -186,7 +197,19 @@
           ).join('') +
           '</ul></div>'
         : '') +
+      ((added || already) && typeof navigateTo === 'function'
+        ? '<button type="button" class="btn btn-outline" id="veloraRoutineOpenCart" style="margin-top:.75rem;width:100%;">' +
+          escapeHtml(t('Open my cart', 'افتحي الـCart')) +
+          '</button>'
+        : '') +
       '</div>';
+
+    const openCartButton = document.getElementById('veloraRoutineOpenCart');
+    if (openCartButton) {
+      openCartButton.addEventListener('click', () => {
+        navigateTo('cart');
+      }, { once: true });
+    }
   }
 
   function bindStyles() {
