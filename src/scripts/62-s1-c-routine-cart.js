@@ -245,13 +245,23 @@
           'Product'
         );
 
+        const product = catalog.products.get(productId);
+
         if (serverKeys.has(key)) {
           result.alreadyInCart += 1;
-          syncLocalCartLine(product || step.product, variant, serverKeys.get(key));
+
+          if (product && String(product.status || '') === 'approved') {
+            const serverVariant = requestedVariantId
+              ? (catalog.variants.get(productId) || []).find((candidate) =>
+                  candidate.is_active === true && String(candidate.id) === requestedVariantId
+                ) || null
+              : null;
+            syncLocalCartLine(product, serverVariant, serverKeys.get(key));
+          }
+
           continue;
         }
 
-        const product = catalog.products.get(productId);
         if (!product || String(product.status || '') !== 'approved') {
           result.skipped.push({
             label,
