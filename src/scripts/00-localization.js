@@ -2686,7 +2686,8 @@ function veloraLocalizedProduct(input){
     const product = input || {};
     const loc = (window.VELORA_GLOBAL_LOCALE || localStorage.getItem('velora_language') || 'en').toLowerCase();
     if(loc==='en') return product;
-    const row = window.VELORA_LOCALIZED_CONTENT?.products?.[String(product.id)] || null;
+    const scoped = window.VELORA_LOCALIZED_CONTENT_BY_LOCALE?.[loc] || null;
+    const row = scoped?.products?.[String(product.id)] || null;
     if(!row) return product;
     return Object.assign({}, product, {
         name: row.name || product.name,
@@ -2698,6 +2699,14 @@ function veloraLocalizedProduct(input){
 
 async function veloraLoadContentTranslations(locale){
     try{
+        const lang = String(locale||'en').toLowerCase();
+        window.VELORA_LOCALIZED_CONTENT_BY_LOCALE = window.VELORA_LOCALIZED_CONTENT_BY_LOCALE || {};
+        if(window.VELORA_LOCALIZED_CONTENT_BY_LOCALE[lang]){
+            if(lang === String(window.VELORA_GLOBAL_LOCALE||'').toLowerCase()){
+                window.VELORA_LOCALIZED_CONTENT = window.VELORA_LOCALIZED_CONTENT_BY_LOCALE[lang];
+            }
+            return;
+        }
         const db = (typeof getDb==='function' ? getDb() : window.mahaSupabase || window.supabaseClient);
         if(!db?.rpc) return;
 
@@ -2719,12 +2728,17 @@ async function veloraLoadContentTranslations(locale){
         if(!products.length && !storeIds.length && !categoryIds.length) return;
 
         const r = await db.rpc('velora_get_localized_content',{
-            p_locale:locale,
+            p_locale:lang,
             p_product_ids:products,
             p_store_ids:storeIds,
             p_category_ids:categoryIds
         });
-        if(!r.error && r.data) window.VELORA_LOCALIZED_CONTENT = r.data;
+        if(!r.error && r.data){
+            window.VELORA_LOCALIZED_CONTENT_BY_LOCALE[lang] = r.data;
+            if(lang === String(window.VELORA_GLOBAL_LOCALE||'').toLowerCase()){
+                window.VELORA_LOCALIZED_CONTENT = r.data;
+            }
+        }
     }catch(_){ }
 }
 
