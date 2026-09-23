@@ -113,6 +113,8 @@ async function applyLocale(locale){
   state.locale=locale; localStorage.setItem('velora_language',locale);
   document.documentElement.lang=locale; document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
   window.VELORA_GLOBAL_LOCALE = locale;
+  // Local catalog is synchronous; do not leave the previous locale on screen while DB catalogs load.
+  try{translateDom(document);}catch(_){}
   await loadDbCatalog(locale);
   if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
 
@@ -135,7 +137,15 @@ async function setLang(code){
   if(!['en','ar'].includes(code))return false;
   if(!meta()[code] && !basePack()[code])return false;
   try{
+    // Commit and paint the new locale before any asynchronous Supabase work.
+    state.locale=code;
+    window.VELORA_GLOBAL_LOCALE=code;
+    try{window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||state;window.VELORA_GLOBAL_LOCALE_STATE.locale=code;}catch(_){}
     localStorage.setItem('velora_language',code);
+    document.documentElement.lang=code;
+    document.documentElement.dir=meta()[code]?.dir||(code==='ar'?'rtl':'ltr');
+    const sel=document.getElementById('languageSelect');if(sel)sel.value=code;
+    try{translateDom(document);}catch(_){}
     const c=getDb();
     if(c?.rpc){
       try{
