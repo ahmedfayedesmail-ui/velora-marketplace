@@ -65,14 +65,57 @@
 
     if (error) throw error;
 
-    const keys = new Set();
+    const quantities = new Map();
     const rows = Array.isArray(data?.cart_items) ? data.cart_items : [];
     rows.forEach((row) => {
       if (UUID_RE.test(String(row.product_id || ''))) {
-        keys.add(lineKey(row.product_id, row.product_variant_id));
+        quantities.set(
+          lineKey(row.product_id, row.product_variant_id),
+          Math.max(0, Number(row.quantity || 0))
+        );
       }
     });
-    return keys;
+    return quantities;
+  }
+
+  function syncLocalCartLine(product, variant, quantity) {
+    if (typeof STATE === 'undefined' || !Array.isArray(STATE.cart)) return;
+
+    const productId = String(product?.id || '');
+    if (!UUID_RE.test(productId)) return;
+
+    const variantId = variant?.id ? String(variant.id) : null;
+    const existing = STATE.cart.find((item) => {
+      const itemProductId = item?.canonicalId || item?.productId || item?.id;
+      const itemVariantId = item?.variantId || item?.product_variant_id || null;
+      return String(itemProductId || '') === productId &&
+        String(itemVariantId || '') === String(variantId || '');
+    });
+
+    const normalizedQuantity = Math.max(1, Number(quantity || 1));
+    const nextItem = {
+      id: productId,
+      canonicalId: productId,
+      productId,
+      variantId,
+      product_variant_id: variantId,
+      name: String(product.name || 'Product'),
+      brand: String(product.brand || ''),
+      price: Number(variant?.price ?? product.price ?? 0),
+      emoji: String(product.emoji || '✨'),
+      currency_code: String(product.currency_code || 'EGP').toUpperCase(),
+      quantity: normalizedQuantity
+    };
+
+    if (existing) Object.assign(existing, nextItem);
+    else STATE.cart.push(nextItem);
+
+    if (typeof saveToStorage === 'function' && typeof KEYS !== 'undefined') {
+      saveToStorage(KEYS.CART, STATE.cart);
+    }
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof renderCartSidebar === 'function') renderCartSidebar();
+    if (typeof renderCartPage === 'function') renderCartPage();
   }
 
   async function readLiveCatalog(productIds) {
@@ -204,6 +247,7 @@
 
         if (serverKeys.has(key)) {
           result.alreadyInCart += 1;
+          syncLocalCartLine(product || step.product, variant, serverKeys.get(key));
           continue;
         }
 
@@ -271,7 +315,8 @@
           if (rpcResult.error) throw rpcResult.error;
 
           result.added += 1;
-          serverKeys.add(key);
+          serverKeys.set(key, 1);
+          syncLocalCartLine(product, variant, 1);
         } catch (error) {
           const code = errorCode(error);
           if (isUnavailableCode(code)) {
@@ -292,12 +337,9 @@
 
       renderFeedback(result);
 
-      if (typeof window.veloraSyncCloudCart === 'function') {
-        // Cloud-cart refresh is useful but must never block the routine feedback.
-        void window.veloraSyncCloudCart().catch((syncError) => {
-          console.warn('[Routine→Cart] cloud cart sync failed', syncError);
-        });
-      }
+      // The authenticated server cart is updated by the RPCs above.
+      // Keep the legacy local UI cart synchronized so badge, sidebar, cart page,
+      // and checkout all see the same newly-added canonical lines.
 
       if (result.failed.length) {
         result.failed.forEach((item) => console.error('[Routine→Cart] add failed', item.error));
