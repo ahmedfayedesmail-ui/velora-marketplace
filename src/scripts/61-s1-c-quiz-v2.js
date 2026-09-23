@@ -362,7 +362,21 @@
     if (window.__VELORA_QUIZ_V2_ENTRY_INSTALLED) return;
     const heroButtons = document.querySelector('.hero-buttons');
     if (!heroButtons) return;
-    if (document.getElementById('veloraRoutineEntry')) {
+    const existing = document.getElementById('veloraRoutineEntry');
+    if (existing) {
+      if (!existing.dataset.bound) {
+        existing.dataset.bound = '1';
+        existing.addEventListener('click', () => {
+          handleEntryClick(existing).catch((error) => {
+            const code = error && error.message ? error.message : '';
+            if (code === 'AUTH_REQUIRED' && typeof handleAccountClick === 'function') {
+              handleAccountClick();
+            } else if (typeof showToast === 'function') {
+              showToast(t('تعذر فتح روتينك. جرّبي تاني.', 'Unable to open your routine. Please try again.'), 'error');
+            }
+          });
+        });
+      }
       window.__VELORA_QUIZ_V2_ENTRY_INSTALLED = true;
       refreshEntryPoint();
       return;
