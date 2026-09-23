@@ -173,6 +173,18 @@
     return renderDashboard();
   }
 
+  // A locale switch may occur while Admin is closed. When it is already
+  // open, re-render the authoritative dashboard immediately; when closed,
+  // the normal opener remains ready for the next route activation.
+  window.addEventListener('velora:languagechange', function(){
+    setTimeout(function(){
+      var p=document.getElementById('adminPlatform');
+      if(p && p.classList.contains('active')){
+        try{renderDashboard();}catch(_){}
+      }
+    },0);
+  });
+
   window.VELORA_RENDER_ADMIN_DASHBOARD=renderDashboard;
   window.showAdminSection=show;
 
