@@ -374,6 +374,93 @@ const observer=new MutationObserver(mutations=>{
   }finally{rendering=false;}
 });
 
+
+/* ----------------------------------------------------------------
+   RENDER-CAPTURE GUARD
+   Dynamic Velora renderers still contain legacy hard-coded English
+   strings. Intercept the final DOM write so localized HTML is
+   translated BEFORE it reaches the live page. This is the last
+   compatibility boundary while feature renderers migrate to t().
+   ---------------------------------------------------------------- */
+let nativeInnerHTML=null;
+let nativeTextContent=null;
+let nativeSetAttribute=null;
+let renderCaptureInstalled=false;
+let captureBusy=false;
+
+function localizeMarkupBeforeMount(html){
+  const locale=state.locale||'en';
+  if(locale==='en'||captureBusy||typeof document==='undefined')return String(html??'');
+  captureBusy=true;
+  try{
+    const tpl=document.createElement('template');
+    nativeInnerHTML?.set?.call(tpl,String(html??''));
+    prime(tpl.content);
+    translateRoot(tpl.content,locale);
+    return tpl.innerHTML;
+  }catch(_){
+    return String(html??'');
+  }finally{
+    captureBusy=false;
+  }
+}
+
+function installRenderCapture(){
+  if(renderCaptureInstalled||typeof Element==='undefined')return;
+  renderCaptureInstalled=true;
+
+  const inner=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(inner?.set){
+    nativeInnerHTML=inner;
+    Object.defineProperty(Element.prototype,'innerHTML',{
+      configurable:inner.configurable,
+      enumerable:inner.enumerable,
+      get:inner.get,
+      set(value){
+        const tag=String(this?.tagName||'').toUpperCase();
+        if(captureBusy||['SCRIPT','STYLE','NOSCRIPT'].includes(tag)){
+          inner.set.call(this,value);return;
+        }
+        inner.set.call(this,localizeMarkupBeforeMount(value));
+      }
+    });
+  }
+
+  const textDesc=Object.getOwnPropertyDescriptor(Node.prototype,'textContent');
+  if(textDesc?.set){
+    nativeTextContent=textDesc;
+    Object.defineProperty(Node.prototype,'textContent',{
+      configurable:textDesc.configurable,
+      enumerable:textDesc.enumerable,
+      get:textDesc.get,
+      set(value){
+        if(captureBusy||this?.nodeType!==1){
+          textDesc.set.call(this,value);return;
+        }
+        const locale=state.locale||'en';
+        const raw=String(value??'');
+        const translated=resolveExact(raw,locale);
+        textDesc.set.call(this,translated);
+      }
+    });
+  }
+
+  const setAttr=Element.prototype.setAttribute;
+  if(typeof setAttr==='function'){
+    nativeSetAttribute=setAttr;
+    Element.prototype.setAttribute=function(name,value){
+      const attr=String(name||'').toLowerCase();
+      if(!captureBusy&&['placeholder','title','aria-label'].includes(attr)){
+        const locale=state.locale||'en';
+        value=resolveExact(String(value??''),locale);
+      }
+      return setAttr.call(this,name,value);
+    };
+  }
+
+  window.__VELORA_I18N_RENDER_CAPTURE=true;
+}
+
 function syncLoadingScreen(){
   const loading=document.getElementById('loadingScreen');
   if(loading)loading.classList.add('hidden');
@@ -382,6 +469,7 @@ function syncLoadingScreen(){
 function bootSync(){
   const stored=String(localStorage.getItem('velora_language')||'').toLowerCase();
   let code=isLocale(stored)?stored:'en';
+  installRenderCapture();
   rebuildReverse();
   prime(document);
   paintLocale(code);
