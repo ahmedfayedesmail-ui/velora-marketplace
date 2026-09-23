@@ -160,17 +160,6 @@
     document.head.appendChild(style);
   }
 
-  function bindRoutineAddAll() {
-    const button = document.getElementById('veloraRoutineAddAll');
-    if (!button || button.dataset.routineCartBound === '1') return;
-    button.dataset.routineCartBound = '1';
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void addAllRoutineItems();
-    });
-  }
-
   async function addAllRoutineItems() {
     const button = document.getElementById('veloraRoutineAddAll');
     const routine = window.__VELORA_CURRENT_ROUTINE;
@@ -354,16 +343,6 @@
     event.stopPropagation();
     void addAllRoutineItems();
   }, true);
-
-  const routineBindObserver = new MutationObserver(() => bindRoutineAddAll());
-  if (document.body) {
-    routineBindObserver.observe(document.body, { childList: true, subtree: true });
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindRoutineAddAll, { once: true });
-  } else {
-    bindRoutineAddAll();
-  }
 
   window.veloraRoutineCart = Object.freeze({
     addAll: addAllRoutineItems
