@@ -277,7 +277,7 @@
     button.addEventListener('click', () => {
       if (!window.veloraBeautyPassportV2 || typeof window.veloraBeautyPassportV2.open !== 'function') {
         if (typeof showToast === 'function') {
-          showToast(t('تعديل الإجابات غير متاح حاليًا.', 'Editing your answers is not available right now.'), 'warning');
+          showToast(t('Editing your answers is not available right now.', 'تعديل الإجابات غير متاح حاليًا.'), 'warning');
         }
         return;
       }
@@ -316,7 +316,7 @@
         '<div class="velora-routine-total"><span>', escapeHtml(t('Total', 'الإجمالي')), '</span><strong>', escapeHtml(formatMoney(data.total_cost || 0, data.currency || 'EGP')), '</strong></div>',
         '<div class="velora-routine-actions">',
         '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
-        escapeHtml(t('عدّلي إجاباتك', 'Edit my answers')),
+        escapeHtml(t('Edit my answers', 'عدّلي إجاباتك')),
         '</button>',
         '</div>'
       ].join('');
@@ -361,7 +361,7 @@
       '<div class="velora-routine-total"><span>', escapeHtml(t('Routine total', 'إجمالي الروتين')), '</span><strong>', escapeHtml(formatMoney(data.total_cost || 0, data.currency || 'EGP')), '</strong></div>',
       '<div class="velora-routine-actions">',
       '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
-      escapeHtml(t('عدّلي إجاباتك', 'Edit my answers')),
+      escapeHtml(t('Edit my answers', 'عدّلي إجاباتك')),
       '</button>',
       '<button type="button" class="btn btn-primary btn-lg" id="veloraRoutineAddAll">',
       escapeHtml(t('Order the whole routine', 'اطلبي الروتين كله')),
