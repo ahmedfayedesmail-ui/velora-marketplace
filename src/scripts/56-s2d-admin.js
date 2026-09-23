@@ -56,13 +56,15 @@
   function renderError(message){
     var c=document.getElementById('adminContent');
     if(!c) return;
-    c.innerHTML=window.VeloraI18n.html('<div class="v56-card"><div class="v56-head"><div><h2>Admin Dashboard</h2><div class="v56-muted">Operational overview</div></div></div><div class="v56-error">⚠️ '+esc(message||'Dashboard unavailable.')+'</div></div>');
+    c.innerHTML='<div class="v56-card"><div class="v56-head"><div><h2>Admin Dashboard</h2><div class="v56-muted">Operational overview</div></div></div><div class="v56-error">⚠️ '+esc(message||'Dashboard unavailable.')+'</div></div>';
+    try{window.VELORA_I18N_RENDER?.(c);}catch(_){};
   }
 
   function renderLoading(){
     var c=document.getElementById('adminContent');
     if(!c) return;
-    c.innerHTML=window.VeloraI18n.html('<div class="v56-card"><div class="v56-loading">⏳ Loading authoritative dashboard…</div></div>');
+    c.innerHTML='<div class="v56-card"><div class="v56-loading">⏳ Loading authoritative dashboard…</div></div>';
+    try{window.VELORA_I18N_RENDER?.(c);}catch(_){};
   }
 
   async function renderDashboard(){
@@ -99,7 +101,7 @@
 
       var valueKeys=Object.keys(values).sort();
 
-      c.innerHTML=window.VeloraI18n.html(
+      c.innerHTML=
         '<div class="v56-wrap">'+
           '<div class="v56-head">'+
             '<div><span class="v56-kicker">OPERATIONS</span><h2>Admin Dashboard</h2><div class="v56-muted">Supabase-authoritative read-only overview</div></div>'+
@@ -156,7 +158,9 @@
           '</section>'+
 
           '<div class="v56-footer-note">Generated '+esc(new Date(d.generated_at||Date.now()).toLocaleString())+' · Dashboard is read-only in S2-D; existing management sections retain their own controls.</div>'+
-        '</div>');
+        '</div>';
+      try{window.VELORA_I18N_RENDER?.(c);}catch(_){};
+
 
       var refresh=document.getElementById('v56Refresh');
       if(refresh) refresh.onclick=function(){renderDashboard();};
