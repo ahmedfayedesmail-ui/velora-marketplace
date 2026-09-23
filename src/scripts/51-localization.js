@@ -317,6 +317,57 @@ function refreshPickerUi(locale){
   }
 }
 
+let activeRefreshSeq=0;
+
+function scheduleActiveLocaleRefresh(locale){
+  const seq=++activeRefreshSeq;
+  const run=()=>{
+    if(seq!==activeRefreshSeq)return;
+    try{
+      const admin=document.getElementById('adminPlatform');
+      if(admin?.classList.contains('active')){
+        const active=admin.querySelector('.admin-nav-item.active[data-section]');
+        const section=active?.getAttribute('data-section')||'dashboard';
+        if(typeof window.VELORA_CANONICAL_ADMIN_SECTION==='function'){
+          void window.VELORA_CANONICAL_ADMIN_SECTION(section,active);
+        }else if(typeof window.showAdminSection==='function'){
+          void window.showAdminSection(section,active);
+        }else translateRoot(admin,locale);
+        return;
+      }
+
+      const seller=document.getElementById('sellerPlatform');
+      if(seller?.classList.contains('active')){
+        const active=seller.querySelector('.seller-nav-item.active[data-section]');
+        const section=active?.getAttribute('data-section')||'dashboard';
+        if(typeof window.VELORA_CANONICAL_SELLER_SECTION==='function'){
+          void window.VELORA_CANONICAL_SELLER_SECTION(section,active);
+        }else if(typeof window.showSellerSection==='function'){
+          window.showSellerSection(section,active);
+        }else translateRoot(seller,locale);
+        return;
+      }
+
+      const owner=document.getElementById('ownerPlatform');
+      if(owner?.classList.contains('active')){
+        const active=owner.querySelector('.owner-nav-item.active[data-section]');
+        const section=active?.getAttribute('data-section')||'dashboard';
+        if(typeof window.showOwnerSection==='function'){
+          void window.showOwnerSection(section,active);
+        }else translateRoot(owner,locale);
+        return;
+      }
+
+      const page=String(window.STATE?.currentPage||'home');
+      if(typeof window.loadPageContent==='function') window.loadPageContent(page);
+      else translateRoot(document,locale);
+    }catch(e){
+      try{console.warn('[Velora i18n] active surface refresh failed',e);}catch(_){}
+    }
+  };
+  queueMicrotask(run);
+}
+
 function paintLocale(locale){
   const code=String(locale||'en').toLowerCase();
   if(!isLocale(code))return false;
@@ -338,6 +389,7 @@ function paintLocale(locale){
   try{translateRoot(document,code);}catch(_){}
   try{window.dispatchEvent(new CustomEvent('velora:languagechange',{detail:{code}}));}catch(_){}
   try{window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale:code}}));}catch(_){}
+  scheduleActiveLocaleRefresh(code);
   return true;
 }
 
@@ -349,7 +401,10 @@ async function loadDbCatalog(locale){
     if(!r.error&&r.data&&typeof r.data==='object'){
       dbCatalog[locale]=r.data;
       rebuildReverse();
-      if(state.locale===locale)paintLocale(locale);
+      if(state.locale===locale){
+        translateRoot(document,locale);
+        scheduleActiveLocaleRefresh(locale);
+      }
     }
   }catch(_){}
 }
