@@ -158,6 +158,7 @@
           '<div class="v56-footer-note">Generated '+esc(new Date(d.generated_at||Date.now()).toLocaleString())+' · Dashboard is read-only in S2-D; existing management sections retain their own controls.</div>'+
         '</div>';
 
+      try{window.VELORA_I18N_RENDER?.(c);}catch(_){}
       var refresh=document.getElementById('v56Refresh');
       if(refresh) refresh.onclick=function(){renderDashboard();};
     }catch(err){
