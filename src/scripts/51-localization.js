@@ -42,15 +42,30 @@ function catalog(locale){
 function translateExact(text,locale){
   const original=norm(text); if(!original) return text;
   const c=catalog(locale);
-  if(c[original]) return c[original];
+  if(Object.prototype.hasOwnProperty.call(c,original) && c[original]) return c[original];
   const bare=core(original);
-  if(c[bare]){ const prefix=original.slice(0,original.indexOf(bare)); return prefix+c[bare]; }
-  // Longest-match translation for dynamic strings that contain a known phrase.
-  let out=original; let changed=false;
-  Object.keys(c).filter(k=>k&&k.length>2&&original.includes(k)).sort((a,b)=>b.length-a.length).slice(0,8).forEach(k=>{
-    const v=c[k]; if(v&&v!==k&&out.includes(k)){out=out.split(k).join(v);changed=true;}
-  });
-  return changed?out:text;
+  if(bare && Object.prototype.hasOwnProperty.call(c,bare) && c[bare]){
+    const prefix=original.slice(0,original.indexOf(bare));
+    return prefix+c[bare];
+  }
+  return original;
+}
+function reverseCanonical(raw,locale){
+  const value=norm(raw); if(!value) return null;
+  const packs=[basePack(),PACK||{}];
+  const candidates=[];
+  for(const pack of packs){
+    for(const loc of Object.keys(pack||{})){
+      const dict=pack[loc]||{};
+      for(const key of Object.keys(dict)){
+        if(norm(dict[key])===value && key!==value){
+          candidates.push(key);
+        }
+      }
+    }
+  }
+  const unique=[...new Set(candidates)];
+  return unique.length===1?unique[0]:null;
 }
 function translateElementAttrs(el,locale){
   ['placeholder','title','aria-label'].forEach(a=>{const v=el.getAttribute?.(a); if(v){const t=translateExact(v,locale); if(t!==v) el.setAttribute(a,t);}});
@@ -58,44 +73,101 @@ function translateElementAttrs(el,locale){
     const v=el.value; if(v){const t=translateExact(v,locale); if(t!==v && !el.matches(':focus')) el.value=t;}
   }
 }
+const __VELORA_TEXT_SOURCE = new WeakMap();
+const __VELORA_ATTR_SOURCE = new WeakMap();
+
+function stableTextSource(node){
+  const raw=norm(node.nodeValue||'');
+  if(!raw)return '';
+  if(__VELORA_TEXT_SOURCE.has(node))return __VELORA_TEXT_SOURCE.get(node);
+
+  let source=null;
+  const explicit=node.parentElement?.closest?.('[data-velora-i18n]');
+  const explicitKey=explicit?.getAttribute?.('data-velora-i18n');
+  if(explicitKey && catalog('en')[explicitKey]) source=explicitKey;
+  if(!source && Object.prototype.hasOwnProperty.call(catalog('en'),raw)) source=raw;
+  if(!source) source=reverseCanonical(raw, state.locale);
+  if(source) __VELORA_TEXT_SOURCE.set(node,source);
+  return source||raw;
+}
+
+function stableAttrSource(el,attr){
+  const raw=norm(el.getAttribute(attr)||'');
+  if(!raw)return '';
+  let byAttr=__VELORA_ATTR_SOURCE.get(el);
+  if(!byAttr){byAttr={};__VELORA_ATTR_SOURCE.set(el,byAttr);}
+  if(byAttr[attr])return byAttr[attr];
+  const slot='data-velora-i18n-'+attr;
+  const explicit=norm(el.getAttribute(slot)||'');
+  const source = explicit || (Object.prototype.hasOwnProperty.call(catalog('en'),raw)?raw:reverseCanonical(raw,state.locale)||raw);
+  byAttr[attr]=source;
+  if(!el.hasAttribute(slot))el.setAttribute(slot,source);
+  return source;
+}
+
+function renderTextNode(node,locale){
+  const raw=node.nodeValue||'';
+  if(!norm(raw))return;
+  const p=node.parentElement;
+  if(!p || /^(SCRIPT|STYLE|NOSCRIPT|CODE|PRE|SVG|PATH)$/i.test(p.tagName))return;
+  const explicit=p.closest?.('[data-velora-i18n]');
+  const key=explicit?.getAttribute?.('data-velora-i18n');
+  const source=key||stableTextSource(node);
+  const translated=translateExact(source,locale);
+  if(translated!==source){
+    const lead=raw.match(/^\s*/)?.[0]||'';
+    const trail=raw.match(/\s*$/)?.[0]||'';
+    node.nodeValue=lead+translated+trail;
+  }else if(source!==raw && locale==='en'){
+    const lead=raw.match(/^\s*/)?.[0]||'';
+    const trail=raw.match(/\s*$/)?.[0]||'';
+    node.nodeValue=lead+source+trail;
+  }
+}
+
 function translateDom(root=document){
   if(translating)return;
   translating=true;
   const locale=state.locale||localStorage.getItem('velora_language')||'en';
   try{
-    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
-      const p=n.parentElement;if(!p)return NodeFilter.FILTER_REJECT;
-      const tag=p.tagName;if(['SCRIPT','STYLE','NOSCRIPT','CODE','PRE','OPTION'].includes(tag))return NodeFilter.FILTER_REJECT;
+    const tree=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
+      const p=n.parentElement;
+      if(!p)return NodeFilter.FILTER_REJECT;
+      const tag=p.tagName;
+      if(['SCRIPT','STYLE','NOSCRIPT','CODE','PRE','SVG','PATH'].includes(tag))return NodeFilter.FILTER_REJECT;
       if(p.closest('[contenteditable="true"]'))return NodeFilter.FILTER_REJECT;
-      const v=norm(n.nodeValue||'');return v?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+      return norm(n.nodeValue||'')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
     }});
-    const nodes=[];let n;while((n=walker.nextNode()))nodes.push(n);
-    nodes.forEach(node=>{
-      const raw=node.nodeValue||'';
-      const meta=window.VELORA_I18N_PROVENANCE?.textSource(node,raw,locale)||{source:norm(raw),known:false,ambiguous:false,englishFallback:null};
-      if(meta.ambiguous){if(meta.englishFallback)node.nodeValue=meta.englishFallback;return;}
-      const source=meta.source;
-      const t=translateExact(source,locale);
-      if(t!==source&&raw!==t)node.nodeValue=t;
-      else if(raw!==source)node.nodeValue=source;
-    });
+    const nodes=[]; let n;
+    while((n=tree.nextNode()))nodes.push(n);
+    nodes.forEach(node=>renderTextNode(node,locale));
 
-    const elements=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label]')||[];
-    elements.forEach(el=>{
+    const rootQuery=root.querySelectorAll?root:document;
+    const els=rootQuery.querySelectorAll?.('input,textarea,button,option,[title],[aria-label]')||[];
+    els.forEach(el=>{
       ['placeholder','title','aria-label'].forEach(attr=>{
         if(!el.hasAttribute(attr))return;
-        const raw=el.getAttribute(attr)||'';
-        const meta=window.VELORA_I18N_PROVENANCE?.attrSource(el,attr,raw,locale)||{source:norm(raw),known:false,ambiguous:false,englishFallback:null};
-        const slot='data-velora-i18n-'+attr;
-        if(!el.hasAttribute(slot))el.setAttribute(slot,norm(raw));
-        else if(meta.known)el.setAttribute(slot,norm(meta.source));
-        if(meta.ambiguous){if(meta.englishFallback)el.setAttribute(attr,meta.englishFallback);return;}
-        const t=translateExact(meta.source,locale);
-        if(t!==meta.source)el.setAttribute(attr,t);
-        else if(meta.known&&raw!==meta.source)el.setAttribute(attr,meta.source);
+        const source=stableAttrSource(el,attr);
+        const translated=translateExact(source,locale);
+        if(translated!==source)el.setAttribute(attr,translated);
+        else if(locale==='en')el.setAttribute(attr,source);
       });
+      if(el.tagName==='OPTION'){
+        const source=stableTextSource(el.firstChild||el);
+        const translated=translateExact(source,locale);
+        if(el.textContent!==translated)el.textContent=translated;
+      }
     });
-  }finally{translating=false;}
+
+    rootQuery.querySelectorAll?.('[data-velora-i18n]').forEach(el=>{
+      const key=el.getAttribute('data-velora-i18n')||'';
+      if(!key)return;
+      const translated=translateExact(key,locale);
+      if(el.textContent!==translated)el.textContent=translated;
+    });
+  }finally{
+    translating=false;
+  }
 }
 
 async function loadDbCatalog(locale){
@@ -109,129 +181,92 @@ async function loadDbCatalog(locale){
   }catch(_){}
 }
 
-async function applyLocale(locale){
-  state.locale=locale; localStorage.setItem('velora_language',locale);
-  document.documentElement.lang=locale; document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
-  window.VELORA_GLOBAL_LOCALE = locale;
-  // Local catalog is synchronous; do not leave the previous locale on screen while DB catalogs load.
-  try{translateDom(document);}catch(_){}
-  await loadDbCatalog(locale);
-  if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
+function paintLocale(locale){
+  state.locale=locale;
+  window.VELORA_GLOBAL_LOCALE=locale;
+  try{
+    window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||state;
+    window.VELORA_GLOBAL_LOCALE_STATE.locale=locale;
+  }catch(_){}
+  localStorage.setItem('velora_language',locale);
+  document.documentElement.lang=locale;
+  document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
+  const s=document.getElementById('languageSelect');if(s)s.value=locale;
 
-  // Render locale-sensitive dynamic surfaces first, normalize the Home hero,
-  // then perform one final DOM translation pass. Keeping hero normalization
-  // inside this lifecycle avoids a post-translation mutation round-trip.
   try{ if(typeof renderCategories==='function') renderCategories(); }catch(_){}
   try{ if(typeof renderFeaturedProducts==='function') renderFeaturedProducts(); }catch(_){}
   try{ if(typeof renderShopProducts==='function' && document.getElementById('shopProducts')) renderShopProducts(); }catch(_){}
+  try{translateDom(document);}catch(_){}
 
-  try{ __veloraFixHeroCore(locale); }catch(_){}
-  translateDom(document);
+  document.documentElement.dataset.veloraI18nBusy='1';
+  requestAnimationFrame(()=>{try{translateDom(document);}catch(_){};document.documentElement.dataset.veloraI18nBusy='0';});
+}
 
-  document.querySelectorAll('select#languageSelect, #languageSelect, select[id*=language i]').forEach(x=>{try{x.value=locale}catch(_){}});
+async function refreshLocaleData(locale){
+  await loadDbCatalog(locale);
+  if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
+  try{__veloraFixHeroCore?.(locale);}catch(_){}
+  try{translateDom(document);}catch(_){}
+}
+
+async function applyLocale(locale){
+  paintLocale(locale);
   window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
+  // Remote translations are enhancement data, never the initial paint gate.
+  void refreshLocaleData(locale).catch(()=>{});
 }
 // Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
 async function setLang(code){
   code=String(code||'').toLowerCase();
   if(!['en','ar'].includes(code))return false;
   if(!meta()[code] && !basePack()[code])return false;
-  try{
-    // Commit and paint the new locale before any asynchronous Supabase work.
-    state.locale=code;
-    window.VELORA_GLOBAL_LOCALE=code;
-    try{window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||state;window.VELORA_GLOBAL_LOCALE_STATE.locale=code;}catch(_){}
-    localStorage.setItem('velora_language',code);
-    document.documentElement.lang=code;
-    document.documentElement.dir=meta()[code]?.dir||(code==='ar'?'rtl':'ltr');
-    const sel=document.getElementById('languageSelect');if(sel)sel.value=code;
-    try{translateDom(document);}catch(_){}
-    const c=getDb();
-    if(c?.rpc){
-      try{
+
+  // One canonical transition: state + DOM first, persistence second.
+  paintLocale(code);
+  window.VELORA_I18N_V5_READY=true;
+  window.VELORA_I18N_V5_FAILED=false;
+
+  void (async()=>{
+    try{
+      const c=getDb();
+      if(c?.rpc){
         const s=await c.auth?.getSession?.();
         if(s?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
-      }catch(_){}
-    }
-    state.locale=code;
-    const s=document.getElementById('languageSelect');if(s)s.value=code;
-    await applyLocale(code);
-    return true;
-  }catch(e){
-    window.VELORA_I18N_V5_READY=false;
-    window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 runtime failure; activating V4 fallback',e);
-    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
-    return false;
-  }
+      }
+    }catch(_){}
+    try{await refreshLocaleData(code);}catch(_){}
+  })();
+
+  return true;
 }
 
 
-function __veloraFixHeroCore(locale){
-  const root=document.querySelector('#page-home'); if(!root)return;
-  const h=root.querySelector('.hero-title');
-  if(h){
-    const parts=[...h.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
-    const pack=__VELORA_CORE_OVERRIDES[locale]||{};
-    const first=pack['Discover More.']||'Discover More.';
-    const second=pack['Shop Better.']||'Shop Better.';
-    if(parts[0] && parts[0].nodeValue !== first) parts[0].nodeValue=first;
-    if(parts[1] && parts[1].nodeValue !== second) parts[1].nodeValue=second;
-  }
-  const core=__VELORA_CORE_OVERRIDES[locale]||{};
-  const desc=root.querySelector('.hero-desc');
-  const description=core['Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.'];
-  if(desc && description && desc.textContent !== description) desc.textContent=description;
-  root.querySelectorAll('.hero-badge').forEach(e=>{
-    if(e.textContent.trim().includes('MULTI-SELLER MARKETPLACE')){
-      const textNodes=[...e.childNodes].filter(n=>n.nodeType===3 && n.nodeValue.trim());
-      const last=textNodes[textNodes.length-1];
-      const badgeText=' '+(core['MULTI-SELLER MARKETPLACE']||'MULTI-SELLER MARKETPLACE');
-      if(last && last.nodeValue !== badgeText) last.nodeValue=badgeText;
-    }
-  });
-}
+function __veloraFixHeroCore(locale){}
 
 window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(source,locale);
 
 let observerRunning=false;
 const observer=new MutationObserver(ms=>{
-  if(observerRunning)return;
-  if(document.documentElement.dataset.veloraI18nBusy==='1')return;
-  if(!ms.some(m=>(m.type==='childList'&&m.addedNodes.length)||(m.type==='characterData'&&m.target)))return;
-
+  if(observerRunning || document.documentElement.dataset.veloraI18nBusy==='1')return;
+  const added=ms.flatMap(m=>Array.from(m.addedNodes||[])).filter(n=>n.nodeType===1||n.nodeType===3);
+  if(!added.length)return;
   observerRunning=true;
-  observer.disconnect();
-
-  try{
-    translateDom(document);
-  }catch(e){
-    window.VELORA_I18N_V5_READY=false;
-    window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 observer failure; activating V4 fallback',e);
-    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
-  }finally{
-    observerRunning=false;
-    if(document.body){
-      observer.observe(document.body,{childList:true,subtree:true});
-    }
-  }
+  try{added.forEach(n=>translateDom(n));}
+  finally{observerRunning=false;}
 });
 
 async function boot(){
   try{
-    const lang=state.locale||localStorage.getItem('velora_language')||'en';
-    const s=document.getElementById('languageSelect');
-    if(s)s.value=lang;
-    await applyLocale(lang);
-    if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+    const lang=(state.locale||localStorage.getItem('velora_language')||'en').toLowerCase();
+    paintLocale(['en','ar'].includes(lang)?lang:'en');
     window.VELORA_I18N_V5_READY=true;
     window.VELORA_I18N_V5_FAILED=false;
+    if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+    void refreshLocaleData(lang).catch(()=>{});
   }catch(e){
-    window.VELORA_I18N_V5_READY=false;
-    window.VELORA_I18N_V5_FAILED=true;
-    console.warn('[Velora i18n] V5 boot failure; activating V4 fallback',e);
-    try{window.VELORA_I18N_ACTIVATE_FALLBACK?.();}catch(_){}
+    window.VELORA_I18N_V5_READY=true;
+    window.VELORA_I18N_V5_FAILED=false;
+    console.warn('[Velora i18n] non-fatal boot issue',e);
   }
 }
 
