@@ -5795,3 +5795,28 @@ ul { list-style: none; }
         display: none;
     }
 }
+
+/* ============================================================
+   VELORA BEAUTY-FIRST HOMEPAGE
+   ------------------------------------------------------------
+   Keeps the existing visual language while making the Beauty
+   Passport -> Routine -> Shop journey the primary home CTA.
+   ============================================================ */
+.velora-beauty-hero .hero-content{max-width:880px;}
+.velora-beauty-journey{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:1.25rem;margin:2rem auto 0;align-items:stretch;}
+.velora-beauty-journey-copy,.velora-beauty-journey-card{border:1px solid var(--border);border-radius:22px;background:var(--card);box-shadow:var(--shadow);padding:1.35rem;}
+.velora-beauty-journey-copy>p{color:var(--text-muted);line-height:1.7;max-width:760px;}
+.velora-beauty-journey-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:1.15rem;}
+.velora-beauty-journey-steps>div{padding:.95rem;border:1px solid var(--border);border-radius:16px;background:var(--bg-alt);min-width:0;}
+.velora-beauty-journey-steps span{display:block;font-size:.72rem;font-weight:900;letter-spacing:.08em;color:var(--primary);margin-bottom:.35rem;}
+.velora-beauty-journey-steps strong{display:block;line-height:1.35;}
+.velora-beauty-journey-steps small{display:block;color:var(--text-muted);margin-top:.3rem;line-height:1.45;}
+.velora-beauty-journey-card{display:flex;flex-direction:column;justify-content:center;}
+.velora-beauty-journey-icon{font-size:3rem;margin-bottom:.75rem;}
+.velora-beauty-journey-card strong{font-size:1.12rem;line-height:1.4;}
+.velora-beauty-journey-card p{color:var(--text-muted);line-height:1.65;margin:.55rem 0 1rem;}
+.velora-beauty-journey-card .btn{align-self:flex-start;}
+@media(max-width:800px){
+  .velora-beauty-journey{grid-template-columns:1fr;}
+  .velora-beauty-journey-steps{grid-template-columns:1fr;}
+}
