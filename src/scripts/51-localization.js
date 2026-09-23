@@ -1,285 +1,422 @@
 /* ================================================================
-   VELORA I18N V5 — GLOBAL UI TRANSLATION RUNTIME + LOCALIZATION CENTER
+   VELORA I18N KERNEL — SINGLE SOURCE OF TRUTH
+   ----------------------------------------------------------------
+   Rules:
+   1) Locale state changes synchronously in the browser.
+   2) Supabase persistence is asynchronous and can never overwrite a
+      newer client choice.
+   3) Translations resolve from stable canonical source messages.
+   4) Missing translations fall back to the whole canonical source;
+      partial English/Arabic mixtures are never synthesized.
+   5) Dynamic DOM is covered by a MutationObserver as a safety net.
    ================================================================ */
 (()=>{
 'use strict';
-/* V5_PRESENT is synchronous: V4 must remain dormant while V5 is available. */
+
 window.VELORA_I18N_V5_PRESENT=true;
 window.VELORA_I18N_V5_READY=false;
 window.VELORA_I18N_V5_FAILED=false;
+
 const getDb=()=>window.mahaSupabase||window.supabaseClient||window.sb||null;
-const __phase1StoredLocale=(localStorage.getItem('velora_language')||'en').toLowerCase();
-const state=window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||{locale:['en','ar'].includes(__phase1StoredLocale)?__phase1StoredLocale:'en'};
 const meta=()=>window.VELORA_CORE?.languages||{};
-const basePack=()=>window.__VELORA_PACK||{};
-const __VELORA_CORE_OVERRIDES = {
-  en:{'Discover More.':'Discover More.','Shop Better.':'Shop Better.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.','MULTI-SELLER MARKETPLACE':'MULTI-SELLER MARKETPLACE','Start Shopping':'Start Shopping','Become a Seller':'Become a Seller'},
-  ar:{'Discover More.':'اكتشف المزيد.','Shop Better.':'تسوق بشكل أفضل.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'كل ما تحتاجه، من متاجر يمكنك الوثوق بها. استكشف المنتجات واكتشف بائعين جدد وتسوق بذكاء — كل ذلك في سوق واحد.','MULTI-SELLER MARKETPLACE':'سوق متعدد البائعين','Start Shopping':'ابدأ التسوق','Become a Seller':'كن بائعًا','Dashboard':'لوحة التحكم','Protected':'محمي','Overview':'نظرة عامة','Operations':'العمليات','System':'النظام','Catalog Trust':'ثقة الكتالوج','Customers':'العملاء','Users':'المستخدمون','Sellers':'البائعون','Seller':'البائع','Products':'المنتجات','Orders':'الطلبات','Pending Reviews':'التقييمات المعلقة','Active Account Actions':'إجراءات الحساب النشطة','Pending Sellers':'البائعون المعلقون','Pending Products':'المنتجات المعلقة','Needs Attention':'تحتاج إلى مراجعة','Order Value by Currency':'قيمة الطلبات حسب العملة','Non-cancelled/refunded orders':'الطلبات غير الملغاة وغير المستردة','Operations Breakdown':'ملخص العمليات','Recent Orders':'أحدث الطلبات','Latest 10':'أحدث 10','Recent Audit Activity':'أحدث نشاط للتدقيق','Quick Actions':'إجراءات سريعة','Review Applications':'مراجعة الطلبات','Manage Sellers':'إدارة البائعين','Moderate Products':'مراجعة المنتجات','Audit Logs':'سجلات التدقيق','Applications':'الطلبات','Reviews':'التقييمات','Customer':'العميل','Payment':'الدفع','Total':'الإجمالي','Date':'التاريخ','Status':'الحالة','Order':'الطلب','Refresh':'تحديث','No orders found.':'لا توجد طلبات.','No order value recorded.':'لا توجد قيمة طلبات مسجلة.','No recent audit activity.':'لا يوجد نشاط تدقيق حديث.','Pending':'معلق','Paid':'مدفوع','Failed':'فشل','Refunded':'مسترد','Approved':'معتمد','Rejected':'مرفوض','Processing':'قيد المعالجة','Shipped':'تم الشحن','Delivered':'تم التسليم','Suspended':'موقوف','Global Preferences':'التفضيلات العامة','Language, country, currency, timezone and regional formatting are saved to your Velora account.':'يتم حفظ اللغة والدولة والعملة والمنطقة الزمنية والتنسيق الإقليمي في حساب Velora الخاص بك.','Country / Region':'الدولة / المنطقة','Currency':'العملة','Timezone':'المنطقة الزمنية','Date / Number Locale':'تنسيق التاريخ / الأرقام','Save Global Preferences':'حفظ التفضيلات العامة','Localization Center':'مركز الترجمة','Global Experience':'التجربة العامة','Seller Applications':'طلبات البائعين'},
-  es:{'Discover More.':'Descubre más.','Shop Better.':'Compra mejor.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Todo lo que necesitas, de tiendas en las que puedes confiar. Explora productos, descubre nuevos vendedores y compra de forma más inteligente, todo en un mismo marketplace.','MULTI-SELLER MARKETPLACE':'MERCADO MULTIVENDEDOR','Start Shopping':'Empezar a comprar','Become a Seller':'Conviértete en vendedor'},
-  fr:{'Discover More.':'Découvrez plus.','Shop Better.':'Achetez mieux.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Tout ce dont vous avez besoin, auprès de boutiques de confiance. Explorez les produits, découvrez de nouveaux vendeurs et achetez plus intelligemment, le tout sur une seule marketplace.','MULTI-SELLER MARKETPLACE':'MARKETPLACE MULTI-VENDEURS','Start Shopping':'Commencer les achats','Become a Seller':'Devenir vendeur'},
-  de:{'Discover More.':'Mehr entdecken.','Shop Better.':'Besser einkaufen.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Alles, was Sie brauchen, von vertrauenswürdigen Shops. Entdecken Sie Produkte, neue Verkäufer und kaufen Sie intelligenter ein – alles auf einem Marktplatz.','MULTI-SELLER MARKETPLACE':'MULTI-VENDEUR-MARKTPLATZ','Start Shopping':'Jetzt einkaufen','Become a Seller':'Verkäufer werden'},
-  it:{'Discover More.':'Scopri di più.','Shop Better.':'Acquista meglio.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Tutto ciò di cui hai bisogno, da negozi di fiducia. Scopri prodotti, nuovi venditori e acquista in modo più intelligente, tutto in un unico marketplace.','MULTI-SELLER MARKETPLACE':'MARKETPLACE MULTI-VENDITORE','Start Shopping':'Inizia a fare acquisti','Become a Seller':'Diventa venditore'},
-  pt:{'Discover More.':'Descubra mais.','Shop Better.':'Compre melhor.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'Tudo o que precisa, de lojas em que pode confiar. Explore produtos, descubra novos vendedores e compre de forma mais inteligente, tudo num só marketplace.','MULTI-SELLER MARKETPLACE':'MARKETPLACE MULTIVENDEDOR','Start Shopping':'Começar a comprar','Become a Seller':'Tornar-se vendedor'},
-  tr:{'Discover More.':'Daha fazlasını keşfet.','Shop Better.':'Daha iyi alışveriş yap.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'İhtiyacınız olan her şey, güvenebileceğiniz mağazalardan. Ürünleri keşfedin, yeni satıcıları bulun ve daha akıllı alışveriş yapın — hepsi tek bir pazaryerinde.','MULTI-SELLER MARKETPLACE':'ÇOKLU SATICILI PAZARYERİ','Start Shopping':'Alışverişe başla','Become a Seller':'Satıcı ol'},
-  zh:{'Discover More.':'发现更多。','Shop Better.':'更好地购物。','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'您需要的一切，来自值得信赖的商店。探索商品、发现新卖家并更聪明地购物——尽在一个市场。','MULTI-SELLER MARKETPLACE':'多卖家商城','Start Shopping':'开始购物','Become a Seller':'成为卖家'},
-  ja:{'Discover More.':'もっと発見。','Shop Better.':'もっと上手に買い物。','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'信頼できるショップから必要なものをすべて。商品や新しい販売者を見つけ、もっと賢くショッピングできます。すべてひとつのマーケットプレイスで。','MULTI-SELLER MARKETPLACE':'マルチセラーマーケットプレイス','Start Shopping':'ショッピングを始める','Become a Seller':'販売者になる'},
-  ko:{'Discover More.':'더 발견하세요.','Shop Better.':'더 현명하게 쇼핑하세요.','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'신뢰할 수 있는 스토어에서 필요한 모든 것을 만나보세요. 상품과 새로운 판매자를 발견하고 더 스마트하게 쇼핑하세요 — 하나의 마켓플레이스에서.','MULTI-SELLER MARKETPLACE':'멀티 셀러 마켓플레이스','Start Shopping':'쇼핑 시작','Become a Seller':'판매자 되기'},
-  hi:{'Discover More.':'और खोजें।','Shop Better.':'बेहतर खरीदारी करें।','Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.':'आपको जो भी चाहिए, भरोसेमंद स्टोर्स से। उत्पाद खोजें, नए विक्रेताओं को जानें और बेहतर तरीके से खरीदारी करें — सब एक ही मार्केटप्लेस में।','MULTI-SELLER MARKETPLACE':'मल्टी-सेलर मार्केटप्लेस','Start Shopping':'खरीदारी शुरू करें','Become a Seller':'विक्रेता बनें'}
+const state=window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||{
+  locale:(localStorage.getItem('velora_language')||'en').toLowerCase()
 };
-let dbCatalog={}; let translating=false;
-try{window.VELORA_I18N_PROVENANCE?.registerCatalog('en',__VELORA_CORE_OVERRIDES.en||{});}catch(_){}
-Object.keys(__VELORA_CORE_OVERRIDES).forEach(locale=>{
-  if(locale!=='en'){try{window.VELORA_I18N_PROVENANCE?.registerCatalog(locale,__VELORA_CORE_OVERRIDES[locale]||{});}catch(_){}}
-});
-const rxEmoji=/^[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D\\u2060\\u2022\\u25AA\\u25AB\\u25CF\\u25A0\\u25B6\\u25BC\\u25C6\\u2600-\\u27BF]+/u;
-const norm=v=>String(v??'').replace(/\\s+/g,' ').trim();
-const core=v=>norm(v).replace(rxEmoji,'').trim();
-const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DIR={ar:'rtl'};
+const dbCatalog={};
+const sourceByNode=new WeakMap();
+const sourceByAttr=new WeakMap();
+let rendering=false;
+let observerPaused=false;
+
+const norm=v=>String(v??'').replace(/\s+/g,' ').trim();
+const localeList=()=>Object.keys(window.__VELORA_PACK||meta()||{});
+const isLocale=code=>localeList().includes(String(code||'').toLowerCase());
+const langName=code=>meta()[code]?.name||meta()[code]?.native||code;
+
+const CORE_AR={
+  'Dashboard':'لوحة التحكم',
+  'Protected':'محمي',
+  'Protected 🔐':'محمي 🔐',
+  'Overview':'نظرة عامة',
+  'Operations':'العمليات',
+  'System':'النظام',
+  'Catalog Trust':'ثقة الكتالوج',
+  'Customers':'العملاء',
+  'Users':'المستخدمون',
+  'Sellers':'البائعون',
+  'Seller':'البائع',
+  'Products':'المنتجات',
+  'Orders':'الطلبات',
+  'Pending Reviews':'التقييمات المعلقة',
+  'Active Account Actions':'إجراءات الحساب النشطة',
+  'Pending Sellers':'البائعون المعلقون',
+  'Pending Products':'المنتجات المعلقة',
+  'Needs Attention':'تحتاج إلى مراجعة',
+  'Order Value by Currency':'قيمة الطلبات حسب العملة',
+  'Non-cancelled/refunded orders':'الطلبات غير الملغاة وغير المستردة',
+  'Operations Breakdown':'ملخص العمليات',
+  'Recent Orders':'أحدث الطلبات',
+  'Latest 10':'أحدث 10',
+  'Recent Audit Activity':'أحدث نشاط للتدقيق',
+  'Quick Actions':'إجراءات سريعة',
+  'Review Applications':'مراجعة الطلبات',
+  'Manage Sellers':'إدارة البائعين',
+  'Moderate Products':'مراجعة المنتجات',
+  'Audit Logs':'سجلات التدقيق',
+  'Applications':'طلبات البائعين',
+  'Reviews':'التقييمات',
+  'Customer':'العميل',
+  'Payment':'الدفع',
+  'Total':'الإجمالي',
+  'Date':'التاريخ',
+  'Status':'الحالة',
+  'Order':'الطلب',
+  'Refresh':'تحديث',
+  'No orders found.':'لا توجد طلبات.',
+  'No order value recorded.':'لا توجد قيمة طلبات مسجلة.',
+  'No recent audit activity.':'لا يوجد نشاط تدقيق حديث.',
+  'Pending':'معلق',
+  'Paid':'مدفوع',
+  'Failed':'فشل',
+  'Refunded':'مسترد',
+  'Approved':'معتمد',
+  'Rejected':'مرفوض',
+  'Processing':'قيد المعالجة',
+  'Shipped':'تم الشحن',
+  'Delivered':'تم التسليم',
+  'Suspended':'موقوف',
+  'Multi':'متعدد',
+  'Categories':'الفئات',
+  'Powered':'مدعوم',
+  'Global Preferences':'التفضيلات العامة',
+  'Language, country, currency, timezone and regional formatting are saved to your Velora account.':'يتم حفظ اللغة والدولة والعملة والمنطقة الزمنية والتنسيق الإقليمي في حساب Velora الخاص بك.',
+  'Country / Region':'الدولة / المنطقة',
+  'Currency':'العملة',
+  'Timezone':'المنطقة الزمنية',
+  'Date / Number Locale':'تنسيق التاريخ / الأرقام',
+  'Save Global Preferences':'حفظ التفضيلات العامة',
+  'Localization Center':'مركز الترجمة',
+  'Global Experience':'التجربة العامة',
+  'Seller Applications':'طلبات البائعين',
+  'Explore Velora':'استكشف Velora',
+  'Shop What You Love':'تسوق ما تحب',
+  'Recommended for you':'موصى به لك',
+  'Quick':'سريع',
+  'Recent':'أحدث',
+  'Review Applications':'مراجعة الطلبات',
+  'No sellers.':'لا يوجد بائعون.',
+  'No products.':'لا توجد منتجات.',
+  'No items recorded.':'لا توجد عناصر مسجلة.'
+};
+
 function catalog(locale){
-  const p=basePack()[locale]||{};
-  return Object.assign({},p,dbCatalog[locale]||{},__VELORA_CORE_OVERRIDES[locale]||{});
+  const code=String(locale||'en').toLowerCase();
+  const pack=(window.__VELORA_PACK||{})[code]||{};
+  const merged=Object.assign({},pack,dbCatalog[code]||{});
+  if(code==='ar')Object.assign(merged,CORE_AR);
+  return merged;
 }
-function translateExact(text,locale){
-  const original=norm(text); if(!original) return text;
-  const c=catalog(locale);
-  if(Object.prototype.hasOwnProperty.call(c,original) && c[original]) return c[original];
-  const bare=core(original);
-  if(bare && Object.prototype.hasOwnProperty.call(c,bare) && c[bare]){
-    const prefix=original.slice(0,original.indexOf(bare));
-    return prefix+c[bare];
+
+function resolveExact(source,locale){
+  const s=norm(source);
+  if(!s)return s;
+  const d=catalog(locale);
+  if(Object.prototype.hasOwnProperty.call(d,s) && norm(d[s]))return String(d[s]);
+
+  // Case-insensitive exact match is allowed; substring replacement is not.
+  const sl=s.toLowerCase();
+  for(const k of Object.keys(d)){
+    if(norm(k).toLowerCase()===sl && norm(d[k]))return String(d[k]);
   }
-  return original;
-}
-function reverseCanonical(raw,locale){
-  const value=norm(raw); if(!value) return null;
-  const packs=[basePack(),PACK||{}];
-  const candidates=[];
-  for(const pack of packs){
-    for(const loc of Object.keys(pack||{})){
-      const dict=pack[loc]||{};
-      for(const key of Object.keys(dict)){
-        if(norm(dict[key])===value && key!==value){
-          candidates.push(key);
-        }
-      }
+
+  const en=catalog('en');
+  if(locale==='en'){
+    if(Object.prototype.hasOwnProperty.call(en,s))return String(en[s]);
+    for(const k of Object.keys(en)){
+      if(norm(k).toLowerCase()===sl)return String(en[k]);
     }
   }
-  const unique=[...new Set(candidates)];
-  return unique.length===1?unique[0]:null;
+  return s;
 }
-function translateElementAttrs(el,locale){
-  ['placeholder','title','aria-label'].forEach(a=>{const v=el.getAttribute?.(a); if(v){const t=translateExact(v,locale); if(t!==v) el.setAttribute(a,t);}});
-  if(el.tagName==='INPUT' || el.tagName==='TEXTAREA') {
-    const v=el.value; if(v){const t=translateExact(v,locale); if(t!==v && !el.matches(':focus')) el.value=t;}
-  }
-}
-const __VELORA_TEXT_SOURCE = new WeakMap();
-const __VELORA_ATTR_SOURCE = new WeakMap();
 
-function stableTextSource(node){
+let reverseCache={};
+function rebuildReverse(){
+  const out={};
+  for(const locale of localeList()){
+    const d=catalog(locale);
+    for(const key of Object.keys(d)){
+      const source=norm(key);
+      const value=norm(d[key]);
+      if(!value||value===source)continue;
+      const bucket=out[value]||(out[value]=new Set());
+      bucket.add(source);
+      const lower=value.toLowerCase();
+      const lb=out[lower]||(out[lower]=new Set());
+      lb.add(source);
+    }
+  }
+  reverseCache=out;
+}
+function reverseSource(raw){
+  const v=norm(raw); if(!v)return null;
+  const exact=reverseCache[v];
+  if(exact&&exact.size===1)return [...exact][0];
+  const lower=reverseCache[v.toLowerCase()];
+  if(lower&&lower.size===1)return [...lower][0];
+  return null;
+}
+
+function sourceForNode(node){
+  if(sourceByNode.has(node))return sourceByNode.get(node);
   const raw=norm(node.nodeValue||'');
   if(!raw)return '';
-  if(__VELORA_TEXT_SOURCE.has(node))return __VELORA_TEXT_SOURCE.get(node);
-
+  const p=node.parentElement;
   let source=null;
-  const explicit=node.parentElement?.closest?.('[data-velora-i18n]');
-  const explicitKey=explicit?.getAttribute?.('data-velora-i18n');
-  if(explicitKey && catalog('en')[explicitKey]) source=explicitKey;
-  if(!source && Object.prototype.hasOwnProperty.call(catalog('en'),raw)) source=raw;
-  if(!source && Object.prototype.hasOwnProperty.call(catalog(state.locale),raw)) source=raw;
-  if(!source) source=reverseCanonical(raw, state.locale);
-  if(source) __VELORA_TEXT_SOURCE.set(node,source);
-  return source||raw;
+  const holder=(p&&p.hasAttribute?.('data-velora-i18n'))?p:null;
+  if(holder&&holder.childNodes.length===1){
+    const key=norm(holder.getAttribute('data-velora-i18n')||'');
+    if(key)source=key;
+  }
+  if(!source && Object.prototype.hasOwnProperty.call(catalog('en'),raw))source=raw;
+  if(!source)source=reverseSource(raw);
+  source=source||raw;
+  sourceByNode.set(node,source);
+  return source;
 }
 
-function stableAttrSource(el,attr){
-  const raw=norm(el.getAttribute(attr)||'');
-  if(!raw)return '';
-  let byAttr=__VELORA_ATTR_SOURCE.get(el);
-  if(!byAttr){byAttr={};__VELORA_ATTR_SOURCE.set(el,byAttr);}
-  if(byAttr[attr])return byAttr[attr];
+function sourceForAttr(el,attr){
+  let map=sourceByAttr.get(el);
+  if(!map){map=new Map();sourceByAttr.set(el,map);}
+  if(map.has(attr))return map.get(attr);
   const slot='data-velora-i18n-'+attr;
   const explicit=norm(el.getAttribute(slot)||'');
-  const source = explicit ||
-    (Object.prototype.hasOwnProperty.call(catalog('en'),raw)?raw:
-     Object.prototype.hasOwnProperty.call(catalog(state.locale),raw)?raw:
-     reverseCanonical(raw,state.locale)||raw);
-  byAttr[attr]=source;
+  const raw=norm(el.getAttribute(attr)||'');
+  const source=explicit||(
+    Object.prototype.hasOwnProperty.call(catalog('en'),raw)?raw:
+    reverseSource(raw)||raw
+  );
+  map.set(attr,source);
   if(!el.hasAttribute(slot))el.setAttribute(slot,source);
   return source;
 }
 
-function renderTextNode(node,locale){
-  const raw=node.nodeValue||'';
-  if(!norm(raw))return;
+function textEligible(node){
   const p=node.parentElement;
-  if(!p || /^(SCRIPT|STYLE|NOSCRIPT|CODE|PRE|SVG|PATH)$/i.test(p.tagName))return;
-  const explicit=p.closest?.('[data-velora-i18n]');
-  const key=explicit?.getAttribute?.('data-velora-i18n');
-  const source=key||stableTextSource(node);
-  const translated=translateExact(source,locale);
-  if(translated!==source){
+  if(!p)return false;
+  const tag=p.tagName;
+  if(['SCRIPT','STYLE','NOSCRIPT','CODE','PRE','SVG','PATH'].includes(tag))return false;
+  if(p.closest?.('[contenteditable="true"]'))return false;
+  return !!norm(node.nodeValue||'');
+}
+
+function translateRoot(root,locale){
+  if(!root)return;
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  const nodes=[];let n;
+  while((n=walker.nextNode()))nodes.push(n);
+  for(const node of nodes){
+    if(!textEligible(node))continue;
+    const raw=node.nodeValue||'';
+    const source=sourceForNode(node);
+    const translated=resolveExact(source,locale);
     const lead=raw.match(/^\s*/)?.[0]||'';
     const trail=raw.match(/\s*$/)?.[0]||'';
-    node.nodeValue=lead+translated+trail;
-  }else if(source!==raw && locale==='en'){
-    const lead=raw.match(/^\s*/)?.[0]||'';
-    const trail=raw.match(/\s*$/)?.[0]||'';
-    node.nodeValue=lead+source+trail;
+    if(translated!==source)node.nodeValue=lead+translated+trail;
+    else if(locale==='en' && source!==norm(raw))node.nodeValue=lead+source+trail;
+  }
+
+  const query=root.querySelectorAll?root:document;
+  const els=query.querySelectorAll?.('input,textarea,button,[title],[aria-label],option')||[];
+  els.forEach(el=>{
+    for(const attr of ['placeholder','title','aria-label']){
+      if(!el.hasAttribute(attr))continue;
+      const source=sourceForAttr(el,attr);
+      const translated=resolveExact(source,locale);
+      if(translated!==source)el.setAttribute(attr,translated);
+      else if(locale==='en')el.setAttribute(attr,source);
+    }
+    if(el.tagName==='OPTION'){
+      const node=el.firstChild;
+      if(node&&node.nodeType===3){
+        const source=sourceForNode(node);
+        const translated=resolveExact(source,locale);
+        if(translated!==source)node.nodeValue=translated;
+        else if(locale==='en'&&source!==norm(node.nodeValue||''))node.nodeValue=source;
+      }
+    }
+  });
+}
+
+function refreshPickerUi(locale){
+  const s=document.getElementById('languageSelect');
+  if(s)s.value=locale;
+  if(s?.nextElementSibling?.classList?.contains('velora-picker')){
+    const wrap=s.nextElementSibling;
+    const btn=wrap.querySelector('.velora-picker-btn');
+    const metaLang=meta()[locale]||{};
+    if(btn)btn.innerHTML='<span>'+String(metaLang.code||locale.toUpperCase())+'</span><span aria-hidden="true">▾</span>';
+    wrap.querySelectorAll('.velora-picker-option').forEach(o=>{
+      const active=o.dataset.value===locale;
+      o.classList.toggle('active',active);
+      o.setAttribute('aria-selected',active?'true':'false');
+    });
   }
 }
 
-function translateDom(root=document){
-  if(translating)return;
-  translating=true;
-  const locale=state.locale||localStorage.getItem('velora_language')||'en';
-  try{
-    const tree=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
-      const p=n.parentElement;
-      if(!p)return NodeFilter.FILTER_REJECT;
-      const tag=p.tagName;
-      if(['SCRIPT','STYLE','NOSCRIPT','CODE','PRE','SVG','PATH'].includes(tag))return NodeFilter.FILTER_REJECT;
-      if(p.closest('[contenteditable="true"]'))return NodeFilter.FILTER_REJECT;
-      return norm(n.nodeValue||'')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
-    }});
-    const nodes=[]; let n;
-    while((n=tree.nextNode()))nodes.push(n);
-    nodes.forEach(node=>renderTextNode(node,locale));
+function paintLocale(locale){
+  const code=String(locale||'en').toLowerCase();
+  if(!isLocale(code))return false;
 
-    const rootQuery=root.querySelectorAll?root:document;
-    const els=rootQuery.querySelectorAll?.('input,textarea,button,option,[title],[aria-label]')||[];
-    els.forEach(el=>{
-      ['placeholder','title','aria-label'].forEach(attr=>{
-        if(!el.hasAttribute(attr))return;
-        const source=stableAttrSource(el,attr);
-        const translated=translateExact(source,locale);
-        if(translated!==source)el.setAttribute(attr,translated);
-        else if(locale==='en')el.setAttribute(attr,source);
-      });
-      if(el.tagName==='OPTION'){
-        const source=stableTextSource(el.firstChild||el);
-        const translated=translateExact(source,locale);
-        if(el.textContent!==translated)el.textContent=translated;
-      }
-    });
+  state.locale=code;
+  window.VELORA_GLOBAL_LOCALE=code;
+  window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||state;
+  window.VELORA_GLOBAL_LOCALE_STATE.locale=code;
+  localStorage.setItem('velora_language',code);
+  document.documentElement.lang=code;
+  document.documentElement.dir=DIR[code]||'ltr';
+  refreshPickerUi(code);
 
-    rootQuery.querySelectorAll?.('[data-velora-i18n]').forEach(el=>{
-      const key=el.getAttribute('data-velora-i18n')||'';
-      if(!key)return;
-      const translated=translateExact(key,locale);
-      if(el.textContent!==translated)el.textContent=translated;
-    });
-  }finally{
-    translating=false;
-  }
+  rebuildReverse();
+  observerPaused=true;
+  try{translateRoot(document,code);}finally{observerPaused=false;}
+
+  // One last synchronous pass after DOM mutations triggered by translation.
+  try{translateRoot(document,code);}catch(_){}
+  try{window.dispatchEvent(new CustomEvent('velora:languagechange',{detail:{code}}));}catch(_){}
+  try{window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale:code}}));}catch(_){}
+  return true;
 }
 
 async function loadDbCatalog(locale){
   try{
-    const db=getDb();if(!db?.rpc)return;
+    const db=getDb();
+    if(!db?.rpc)return;
     const r=await db.rpc('velora_get_i18n_catalog',{p_locale:locale});
     if(!r.error&&r.data&&typeof r.data==='object'){
       dbCatalog[locale]=r.data;
-      try{window.VELORA_I18N_PROVENANCE?.registerCatalog(locale,r.data);}catch(_){}
+      rebuildReverse();
+      if(state.locale===locale)paintLocale(locale);
     }
   }catch(_){}
 }
 
-function paintLocale(locale){
-  state.locale=locale;
-  window.VELORA_GLOBAL_LOCALE=locale;
+async function persistLocale(locale){
   try{
-    window.VELORA_GLOBAL_LOCALE_STATE=window.VELORA_GLOBAL_LOCALE_STATE||state;
-    window.VELORA_GLOBAL_LOCALE_STATE.locale=locale;
+    const db=getDb();
+    if(!db?.rpc)return;
+    const session=await db.auth?.getSession?.();
+    if(session?.data?.session?.user){
+      await db.rpc('velora_set_language_preference',{p_locale:locale});
+    }
   }catch(_){}
-  localStorage.setItem('velora_language',locale);
-  document.documentElement.lang=locale;
-  document.documentElement.dir=meta()[locale]?.dir||(locale==='ar'?'rtl':'ltr');
-  const s=document.getElementById('languageSelect');if(s)s.value=locale;
-
-  try{ if(typeof renderCategories==='function') renderCategories(); }catch(_){}
-  try{ if(typeof renderFeaturedProducts==='function') renderFeaturedProducts(); }catch(_){}
-  try{ if(typeof renderShopProducts==='function' && document.getElementById('shopProducts')) renderShopProducts(); }catch(_){}
-  try{translateDom(document);}catch(_){}
-
-  document.documentElement.dataset.veloraI18nBusy='1';
-  requestAnimationFrame(()=>{try{translateDom(document);}catch(_){};document.documentElement.dataset.veloraI18nBusy='0';});
 }
 
-async function refreshLocaleData(locale){
-  await loadDbCatalog(locale);
-  if(typeof veloraLoadContentTranslations==='function') await veloraLoadContentTranslations(locale);
-  try{__veloraFixHeroCore?.(locale);}catch(_){}
-  try{translateDom(document);}catch(_){}
-}
+function setLang(code){
+  const locale=String(code||'').toLowerCase();
+  if(!isLocale(locale))return false;
 
-async function applyLocale(locale){
+  // Critical invariant: never await before changing what the user sees.
   paintLocale(locale);
-  window.dispatchEvent(new CustomEvent('velora:i18n-applied',{detail:{locale}}));
-  // Remote translations are enhancement data, never the initial paint gate.
-  void refreshLocaleData(locale).catch(()=>{});
-}
-// Preserve the existing language engine but make its DOM translation robust (emoji + dynamic content).
-async function setLang(code){
-  code=String(code||'').toLowerCase();
-  if(!['en','ar'].includes(code))return false;
-  if(!meta()[code] && !basePack()[code])return false;
-
-  // One canonical transition: state + DOM first, persistence second.
-  paintLocale(code);
-  window.VELORA_I18N_V5_READY=true;
-  window.VELORA_I18N_V5_FAILED=false;
-
-  void (async()=>{
-    try{
-      const c=getDb();
-      if(c?.rpc){
-        const s=await c.auth?.getSession?.();
-        if(s?.data?.session?.user) await c.rpc('velora_set_language_preference',{p_locale:code});
-      }
-    }catch(_){}
-    try{await refreshLocaleData(code);}catch(_){}
-  })();
-
+  void persistLocale(locale);
+  void loadDbCatalog(locale);
   return true;
 }
 
+async function applyLocale(locale){
+  const code=String(locale||'en').toLowerCase();
+  if(!isLocale(code))return false;
+  paintLocale(code);
+  await loadDbCatalog(code);
+  return true;
+}
 
-function __veloraFixHeroCore(locale){}
+function prime(root=document){
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  const nodes=[];let n;
+  while((n=walker.nextNode()))nodes.push(n);
+  for(const node of nodes){
+    if(!textEligible(node))continue;
+    sourceForNode(node);
+  }
+  const els=(root.querySelectorAll?root:document).querySelectorAll?.('input,textarea,button,[title],[aria-label],option')||[];
+  els.forEach(el=>{
+    for(const attr of ['placeholder','title','aria-label']){
+      if(el.hasAttribute(attr))sourceForAttr(el,attr);
+    }
+  });
+}
 
-window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>translateExact(source,locale);
-
-let observerRunning=false;
-const observer=new MutationObserver(ms=>{
-  if(observerRunning || document.documentElement.dataset.veloraI18nBusy==='1')return;
-  const added=ms.flatMap(m=>Array.from(m.addedNodes||[])).filter(n=>n.nodeType===1||n.nodeType===3);
+const observer=new MutationObserver(mutations=>{
+  if(observerPaused||rendering)return;
+  const added=[];
+  for(const m of mutations){
+    if(m.type==='childList'){
+      for(const n of Array.from(m.addedNodes||[]))if(n.nodeType===1||n.nodeType===3)added.push(n);
+    }else if(m.type==='characterData' && m.target?.nodeType===3){
+      added.push(m.target);
+    }
+  }
   if(!added.length)return;
-  observerRunning=true;
-  try{added.forEach(n=>translateDom(n));}
-  finally{observerRunning=false;}
+  rendering=true;
+  try{
+    rebuildReverse();
+    const locale=state.locale||localStorage.getItem('velora_language')||'en';
+    for(const n of added){
+      if(n.nodeType===3){
+        if(!sourceByNode.has(n))sourceForNode(n);
+        translateRoot(n.parentElement||document,locale);
+      }else{
+        prime(n);
+        translateRoot(n,locale);
+      }
+    }
+  }finally{rendering=false;}
 });
 
-async function boot(){
-  try{
-    const lang=(state.locale||localStorage.getItem('velora_language')||'en').toLowerCase();
-    paintLocale(['en','ar'].includes(lang)?lang:'en');
-    window.VELORA_I18N_V5_READY=true;
-    window.VELORA_I18N_V5_FAILED=false;
-    if(document.body)observer.observe(document.body,{childList:true,subtree:true});
-    void refreshLocaleData(lang).catch(()=>{});
-  }catch(e){
-    window.VELORA_I18N_V5_READY=true;
-    window.VELORA_I18N_V5_FAILED=false;
-    console.warn('[Velora i18n] non-fatal boot issue',e);
+function syncLoadingScreen(){
+  const loading=document.getElementById('loadingScreen');
+  if(loading)loading.classList.add('hidden');
+}
+
+function bootSync(){
+  const stored=String(localStorage.getItem('velora_language')||'').toLowerCase();
+  let code=isLocale(stored)?stored:'en';
+  rebuildReverse();
+  prime(document);
+  paintLocale(code);
+  if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+  window.VELORA_I18N_V5_READY=true;
+  window.VELORA_I18N_V5_FAILED=false;
+  syncLoadingScreen();
+
+  if(!stored){
+    void (async()=>{
+      try{
+        const db=getDb();
+        const r=await db?.rpc?.('velora_get_language_preference');
+        const server=String(r?.data||'').toLowerCase();
+        if(isLocale(server)&&server!==state.locale)paintLocale(server);
+      }catch(_){}
+    })();
   }
 }
 
 window.VELORA_V5_SET_LANGUAGE=setLang;
 window.VELORA_I18N_SET_LANGUAGE=setLang;
-window.VELORA_I18N_RENDER=translateDom;
-window.VELORA_TRANSLATE_ALL=()=>translateDom(document);
+window.VELORA_I18N_RENDER=(root)=>translateRoot(root||document,state.locale||'en');
+window.VELORA_TRANSLATE_ALL=()=>translateRoot(document,state.locale||'en');
+window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>resolveExact(source,locale);
+window.setVeloraLanguage=setLang;
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+/* Keep the compatibility fallback API inert while V5 is healthy. */
+window.VELORA_I18N_ACTIVATE_FALLBACK=()=>false;
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',bootSync,{once:true});
+}else{
+  bootSync();
+}
 
 /* ---------- Global Content Localization editor ---------- */
 (function(){try{if(document.getElementById('velora-content-loc-style'))return;const s=document.createElement('style');s.id='velora-content-loc-style';s.textContent='.velora-loc-editor{margin:14px 0;padding:14px;border:1px solid rgba(255,255,255,.09);border-radius:16px;background:rgba(255,255,255,.025)}.velora-loc-editor-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap}.velora-loc-editor-item{border-top:1px solid rgba(255,255,255,.08);padding:10px 0}.velora-loc-editor-item summary{cursor:pointer;font-weight:800;list-style:none}.velora-loc-editor-item summary::-webkit-details-marker{display:none}';document.head.appendChild(s)}catch(_){}})();
