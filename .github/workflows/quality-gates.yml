@@ -1,0 +1,113 @@
+name: Velora RC2 Quality Gates
+
+on:
+  pull_request:
+    branches: [velora-baseline]
+  push:
+    branches: [velora-baseline, rc2-dod-remediation]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Static audit
+        run: python3 tools/static_audit.py --json
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Current-tree secrets scan
+        run: python3 tools/security_scan.py --json
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Full-history Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: 'true'
+          GITLEAKS_ENABLE_SUMMARY: 'true'
+
+  i18n-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Playwright Chromium
+        run: |
+          python3 -m pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+      - name: I18N dashboard
+        run: python3 tools/i18n_dashboard.py --json
+      - name: I18N integrity
+        run: python3 tools/i18n_integrity_check.py --json
+      - name: I18N burn-down gate
+        run: python3 tools/i18n_burndown_gate.py --json
+
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Playwright Chromium
+        run: |
+          python3 -m pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+      - name: Browser i18n smoke
+        run: python3 tests/browser_i18n_smoke.py
+      - name: Browser i18n acceptance
+        run: python3 tests/browser_i18n_acceptance.py
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-browser-i18n-screenshots
+          path: docs/*.png
+          if-no-files-found: warn
+
+  gate:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [static-audit, security-scan, gitleaks, i18n-check, playwright]
+    steps:
+      - name: Check all quality gates
+        env:
+          STATIC: ${{ needs.static-audit.result }}
+          SECURITY: ${{ needs.security-scan.result }}
+          GITLEAKS: ${{ needs.gitleaks.result }}
+          I18N: ${{ needs.i18n-check.result }}
+          PLAYWRIGHT: ${{ needs.playwright.result }}
+        run: |
+          printf '{"static_audit":"%s","security_scan":"%s","gitleaks":"%s","i18n":"%s","playwright":"%s"}\n' "$STATIC" "$SECURITY" "$GITLEAKS" "$I18N" "$PLAYWRIGHT"
+          if [[ "$STATIC" != "success" || "$SECURITY" != "success" || "$GITLEAKS" != "success" || "$I18N" != "success" || "$PLAYWRIGHT" != "success" ]]; then
+            exit 1
+          fi
+          echo 'All Velora RC2 quality gates passed.'
