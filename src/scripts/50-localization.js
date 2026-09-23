@@ -150,6 +150,7 @@
           <button class="btn btn-primary btn-block" style="margin-top:.5rem">💾 Save Global Preferences</button>
         </form>
       </div>`;
+    try{window.VELORA_I18N_RENDER?.(host);}catch(_){}
   }
 
   window.VELORA_SAVE_GLOBAL_PREFERENCES = savePreferences;
