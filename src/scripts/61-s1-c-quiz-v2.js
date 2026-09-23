@@ -349,39 +349,31 @@
   }
 
   async function handleEntryClick(button) {
-    try {
-      // Check the Auth session first. Do not query beauty_profiles for a guest;
-      // the entry point must resolve cleanly to the existing Auth UI.
-      const client = getClient();
-      const { data: sessionData, error: sessionError } = await client.auth.getSession();
-      if (sessionError) throw sessionError;
-
-      const session = sessionData && sessionData.session;
-      if (!session || !session.user) {
-        if (typeof openAuthModal === 'function') {
-          openAuthModal('login');
-        } else if (typeof handleAccountClick === 'function') {
-          handleAccountClick();
-        } else {
-          throw new Error('AUTH_UI_NOT_AVAILABLE');
-        }
+    // Keep Guest entry instant: opening Auth is a local UI action and must not
+    // wait on Supabase before the modal appears.
+    if (!STATE?.user) {
+      if (typeof openAuthModal === 'function') {
+        openAuthModal('login');
         return;
       }
-
-      const state = await readV2PassportState();
-
-      if (state.complete) {
-        if (!window.veloraRoutineUX || typeof window.veloraRoutineUX.open !== 'function') {
-          throw new Error('ROUTINE_UX_NOT_AVAILABLE');
-        }
-        await window.veloraRoutineUX.open();
+      if (typeof handleAccountClick === 'function') {
+        handleAccountClick();
         return;
       }
-
-      await open();
-    } finally {
-      refreshEntryPoint();
+      throw new Error('AUTH_UI_NOT_AVAILABLE');
     }
+
+    const state = await readV2PassportState();
+
+    if (state.complete) {
+      if (!window.veloraRoutineUX || typeof window.veloraRoutineUX.open !== 'function') {
+        throw new Error('ROUTINE_UX_NOT_AVAILABLE');
+      }
+      await window.veloraRoutineUX.open();
+      return;
+    }
+
+    await open();
   }
 
   function installEntryPoint() {
