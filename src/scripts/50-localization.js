@@ -158,6 +158,123 @@
     }
   }
 
+  async function renderBeautyPassportCard() {
+    const host = document.getElementById('veloraBeautyPassportCard');
+    if (!host) return;
+
+    const client = db();
+    if (!client?.from || !STATE?.user) {
+      host.innerHTML = '';
+      return;
+    }
+
+    const locale = String(state.locale || document.documentElement.lang || 'en').toLowerCase();
+    const tr = (source) => {
+      try {
+        const translated = window.VELORA_GET_TRANSLATION?.(source, locale);
+        return translated || source;
+      } catch (_) {
+        return source;
+      }
+    };
+    const valueLabels = {
+      skin_type: {
+        oily: ['Oily','دهنية'],
+        dry: ['Dry','جافة'],
+        combination: ['Combination','مختلطة'],
+        normal: ['Normal','عادية'],
+        unknown: ["I don't know",'مش عارفة']
+      },
+      goal: {
+        brightening: ['Brightening & even-looking skin','إشراقة وتوحيد مظهر البشرة'],
+        hydration: ['Hydration','ترطيب البشرة'],
+        acne: ['Blemish-prone skin care','العناية بالبشرة المعرضة للحبوب'],
+        'anti-aging': ['Improve the look of lines & signs of aging','تحسين مظهر الخطوط والعلامات'],
+        oil: ['Reduce excess oil & shine','تقليل اللمعان والزيوت الزائدة']
+      },
+      routine_budget: {
+        under_500: ['Under EGP 500','أقل من 500 جنيه'],
+        '500_1000': ['EGP 500–1,000','من 500 لـ 1000 جنيه'],
+        '1000_2000': ['EGP 1,000–2,000','من 1000 لـ 2000 جنيه'],
+        over_2000: ['Over EGP 2,000','أكتر من 2000 جنيه'],
+        unknown: ["I don't know",'مش عارفة']
+      }
+    };
+
+    const label = (source, arFallback) => {
+      const translated = tr(source);
+      if (translated !== source) return translated;
+      return locale === 'ar' ? arFallback : source;
+    };
+    const value = (group, key) => {
+      const pair = valueLabels[group]?.[key];
+      if (!pair) return String(key || '—');
+      return locale === 'ar' ? pair[1] : pair[0];
+    };
+
+    host.innerHTML = '<div class="form-section velora-passport-card">'
+      + '<div class="velora-passport-card-head"><div><div class="velora-passport-kicker">YOUR BEAUTY PASSPORT</div>'
+      + '<h3>'+label('My Beauty Passport','Beauty Passport الخاص بيكي')+'</h3>'
+      + '<p class="velora-passport-muted">'+label('Your saved skin profile and routine preferences.','بيانات بشرتك وتفضيلات الروتين المحفوظة.')+'</p></div>'
+      + '<span class="velora-passport-badge">V2</span></div>'
+      + '<div id="veloraPassportCardBody" class="velora-passport-card-body"><p class="velora-passport-muted">'+label('Loading your Beauty Passport…','بنحمّل Beauty Passport بتاعك…')+'</p></div>'
+      + '</div>';
+
+    const body = document.getElementById('veloraPassportCardBody');
+    try {
+      const {data: authData, error: authError} = await client.auth.getUser();
+      if (authError || !authData?.user) {
+        body.innerHTML = '<p class="velora-passport-muted">'+label('Sign in to view your Beauty Passport.','سجّلي الدخول عشان تشوفي Beauty Passport بتاعك.')+'</p>';
+        return;
+      }
+      const {data, error} = await client
+        .from('beauty_profiles')
+        .select('quiz_version,skin_type,goal,routine_budget')
+        .maybeSingle();
+      if (error) throw error;
+
+      const complete = data?.quiz_version === 'beauty-quiz.v2'
+        && data?.skin_type && data?.goal && data?.routine_budget;
+
+      if (!complete) {
+        body.innerHTML = '<div class="velora-passport-empty"><p>'+label('Your Beauty Passport is not complete yet.','Beauty Passport بتاعك لسه مش مكتمل.')+'</p>'
+          + '<button type="button" class="btn btn-primary" id="veloraPassportStart">'+label('Build my routine','اعملي روتيني')+'</button></div>';
+        document.getElementById('veloraPassportStart')?.addEventListener('click', () => window.veloraQuizV2?.open?.());
+        return;
+      }
+
+      body.innerHTML = '<div class="velora-passport-grid">'
+        + '<div class="velora-passport-field"><span>'+label('Skin type','نوع البشرة')+'</span><strong>'+value('skin_type',data.skin_type)+'</strong></div>'
+        + '<div class="velora-passport-field"><span>'+label('Goal','الهدف')+'</span><strong>'+value('goal',data.goal)+'</strong></div>'
+        + '<div class="velora-passport-field"><span>'+label('Routine budget','ميزانية الروتين')+'</span><strong>'+value('routine_budget',data.routine_budget)+'</strong></div>'
+        + '</div>'
+        + '<div class="velora-passport-actions"><button type="button" class="btn btn-outline" id="veloraPassportUpdate">'+label('Update my answers','عدّلي إجاباتك')+'</button></div>';
+      document.getElementById('veloraPassportUpdate')?.addEventListener('click', () => window.veloraQuizV2?.open?.());
+    } catch (error) {
+      body.innerHTML = '<p class="velora-passport-muted">'+label('We could not load your Beauty Passport right now.','مش قادرين نحمّل Beauty Passport دلوقتي.')+'</p>';
+      try { console.warn('[Velora Passport] account card load failed', error); } catch (_) {}
+    }
+  }
+
+  function ensureBeautyPassportHost(container) {
+    let host = document.getElementById('veloraBeautyPassportCard');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'veloraBeautyPassportCard';
+      container.appendChild(host);
+    }
+    return host;
+  }
+
+  function refreshBeautyPassportCard() {
+    const container = document.getElementById('accountContent');
+    if (!container || !STATE?.user) return;
+    ensureBeautyPassportHost(container);
+    void renderBeautyPassportCard();
+  }
+
+  // Inject the persistent Passport card through the same Account wrapper chain
+  // used by Global Preferences; do not replace or bypass the original renderer.
   function renderGlobalPreferences() {
     const host = document.getElementById('veloraGlobalPreferences');
     if (!host) return;
@@ -186,6 +303,29 @@
     try{window.VELORA_I18N_RENDER?.(host);}catch(_){}
   }
 
+  function ensureBeautyPassportStyle() {
+    if (document.getElementById('veloraBeautyPassportStyle')) return;
+    const style = document.createElement('style');
+    style.id = 'veloraBeautyPassportStyle';
+    style.textContent = [
+      '.velora-passport-card{margin-top:1.25rem;border:1px solid rgba(255,255,255,.08);}',
+      '.velora-passport-card-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;}',
+      '.velora-passport-kicker{font-size:.72rem;font-weight:800;letter-spacing:.08em;color:var(--primary);}',
+      '.velora-passport-card-head h3{margin:.25rem 0 .2rem;}',
+      '.velora-passport-muted{color:var(--text-muted);margin:.25rem 0 0;}',
+      '.velora-passport-badge{border:1px solid var(--border);border-radius:999px;padding:.25rem .55rem;font-size:.72rem;font-weight:800;}',
+      '.velora-passport-card-body{margin-top:1rem;}',
+      '.velora-passport-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;}',
+      '.velora-passport-field{padding:.8rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);min-width:0;}',
+      '.velora-passport-field span{display:block;color:var(--text-muted);font-size:.78rem;margin-bottom:.25rem;}',
+      '.velora-passport-field strong{display:block;line-height:1.35;overflow-wrap:anywhere;}',
+      '.velora-passport-actions{display:flex;justify-content:flex-end;margin-top:.9rem;}',
+      '@media(max-width:700px){.velora-passport-grid{grid-template-columns:1fr 1fr}.velora-passport-field:last-child{grid-column:1/-1}.velora-passport-actions .btn{width:100%}}',
+      '@media(max-width:420px){.velora-passport-grid{grid-template-columns:1fr}.velora-passport-field:last-child{grid-column:auto}.velora-passport-card-head{gap:.6rem}.velora-passport-badge{flex:0 0 auto}}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
   window.VELORA_SAVE_GLOBAL_PREFERENCES = savePreferences;
   window.renderGlobalPreferences = renderGlobalPreferences;
 
@@ -199,15 +339,25 @@
       let host = document.getElementById('veloraGlobalPreferences');
       if (!host) { host = document.createElement('div'); host.id = 'veloraGlobalPreferences'; container.appendChild(host); }
       renderGlobalPreferences();
+      ensureBeautyPassportStyle();
+      ensureBeautyPassportHost(container);
+      void renderBeautyPassportCard();
     };
   }
 
-  window.addEventListener('velora:languagechange', () => queueMicrotask(() => renderGlobalPreferences()));
-  window.addEventListener('velora:global-locale-change', () => queueMicrotask(() => renderGlobalPreferences()));
-
+  window.addEventListener('velora:languagechange', () => queueMicrotask(() => {
+    renderGlobalPreferences();
+    refreshBeautyPassportCard();
+  }));
+  window.addEventListener('velora:global-locale-change', () => queueMicrotask(() => refreshBeautyPassportCard()));
+  window.addEventListener('velora:passport-v2-updated', () => queueMicrotask(() => refreshBeautyPassportCard()));
   async function bootGlobalLocale() {
     await loadContext();
-    try { renderGlobalPreferences(); } catch (_) {}
+    try {
+      ensureBeautyPassportStyle();
+      renderGlobalPreferences();
+      refreshBeautyPassportCard();
+    } catch (_) {}
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootGlobalLocale, {once:true});
