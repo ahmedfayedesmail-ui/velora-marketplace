@@ -42,7 +42,7 @@
       item.classList.toggle('active',item===btn || (!btn && item.dataset.section==='dashboard'));
     });
     var title=document.getElementById('adminHeaderTitle');
-    if(title) title.textContent=window.VeloraI18n.t('Dashboard','Dashboard');
+    if(title) title.textContent='Dashboard';
   }
 
   function statusClass(value){
@@ -57,14 +57,12 @@
     var c=document.getElementById('adminContent');
     if(!c) return;
     c.innerHTML='<div class="v56-card"><div class="v56-head"><div><h2>Admin Dashboard</h2><div class="v56-muted">Operational overview</div></div></div><div class="v56-error">⚠️ '+esc(message||'Dashboard unavailable.')+'</div></div>';
-    try{window.VELORA_I18N_RENDER?.(c);}catch(_){};
   }
 
   function renderLoading(){
     var c=document.getElementById('adminContent');
     if(!c) return;
     c.innerHTML='<div class="v56-card"><div class="v56-loading">⏳ Loading authoritative dashboard…</div></div>';
-    try{window.VELORA_I18N_RENDER?.(c);}catch(_){};
   }
 
   async function renderDashboard(){
@@ -159,8 +157,6 @@
 
           '<div class="v56-footer-note">Generated '+esc(new Date(d.generated_at||Date.now()).toLocaleString())+' · Dashboard is read-only in S2-D; existing management sections retain their own controls.</div>'+
         '</div>';
-      try{window.VELORA_I18N_RENDER?.(c);}catch(_){};
-
 
       var refresh=document.getElementById('v56Refresh');
       if(refresh) refresh.onclick=function(){renderDashboard();};
