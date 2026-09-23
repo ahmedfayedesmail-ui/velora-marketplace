@@ -71,6 +71,12 @@
     date_locale: localStorage.getItem('velora_date_locale') || (navigator.language || 'en-US')
   };
   let localeMutationSeq = 0;
+  // V5 owns the public language setter. Expose one synchronous mutation hook
+  // so async context reads in this module cannot overwrite a newer user choice.
+  window.__VELORA_LOCALE_MUTATION__ = function(){
+    localeMutationSeq += 1;
+    return localeMutationSeq;
+  };
 
   function localeDiagnosticSnapshot(){
     const languageSelect=document.getElementById('languageSelect');
@@ -244,7 +250,9 @@
     if (!host) return;
     const languages = ['en','ar'].filter(k => LANG_META[k]).map(k => `<option value="${k}" ${k===state.locale?'selected':''}>${esc(LANG_META[k].name || k)}</option>`).join('');
     const currencies = Object.keys(CURRENCIES).map(k => `<option value="${k}" ${k===state.currency_code?'selected':''}>${k} — ${esc(CURRENCIES[k].symbol || '')}</option>`).join('');
-    host.innerHTML = window.VeloraI18n.html(`
+    // Mount the raw structure first. V5 translates the live DOM afterward,
+    // so the rendered controls always use the same authoritative locale.
+    host.innerHTML = `
       <div class="form-section" style="margin-top:1.25rem;border:1px solid rgba(255,255,255,.08);">
         <h3>🌍 Global Preferences</h3>
         <p style="color:var(--text-muted);margin:.35rem 0 1rem">Language, country, currency, timezone and regional formatting are saved to your Velora account.</p>
@@ -260,7 +268,8 @@
           <div class="form-group"><label>Date / Number Locale</label><input id="vlpDateLocale" class="form-input" value="${esc(state.date_locale)}" readonly aria-readonly="true"></div>
           <button class="btn btn-primary btn-block" style="margin-top:.5rem">💾 Save Global Preferences</button>
         </form>
-      </div>`);
+      </div>`;
+    try{window.VELORA_I18N_RENDER?.(host);}catch(_){}
   }
 
   window.VELORA_SAVE_GLOBAL_PREFERENCES = savePreferences;
