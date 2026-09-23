@@ -1,15 +1,4 @@
 // ============================================================
-    // VELORA — EARLY I18N FACADE
-    // Must exist before any numbered module can call VeloraI18n.html().
-    // 51-localization.js upgrades this facade with the real V5 engine.
-    window.VeloraI18n = window.VeloraI18n || {
-        _isStub: true,
-        locale: (localStorage.getItem('velora_language') || 'en').toLowerCase() === 'ar' ? 'ar' : 'en',
-        t: function(key, fallback) { return String(fallback ?? key ?? ''); },
-        html: function(markup) { return String(markup ?? ''); }
-    };
-
-// ============================================================
     // VELORA — SUPABASE CONNECTION
     // ============================================================
 
@@ -2435,7 +2424,7 @@ function setVeloraCurrency(code) {
     if (!VELORA_CURRENCY_META[code]) return false;
     VELORA_CURRENCY = code;
     saveToStorage('velora_currency', code);
-    if (typeof renderSellerDashboard==='function' && SELLER_STATE?.currentSeller && SELLER_STATE.currentSection==='dashboard') { const c=document.getElementById('sellerContent'); if(c) c.innerHTML=window.VeloraI18n.html(renderSellerDashboard(SELLER_STATE.currentSeller)); }
+    if (typeof renderSellerDashboard==='function' && SELLER_STATE?.currentSeller && SELLER_STATE.currentSection==='dashboard') { const c=document.getElementById('sellerContent'); if(c) c.innerHTML=renderSellerDashboard(SELLER_STATE.currentSeller); }
     if (typeof updateAccountButton==='function') updateAccountButton();
     return true;
 }
@@ -2498,7 +2487,7 @@ async function renderMarketplaceStores() {
     try {
         const db = window.mahaSupabase || window.supabaseClient || window.sb || null;
         if (!db?.rpc) throw new Error('marketplace_rpc_unavailable');
-        const locale = typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en';
+        const locale = String(localStorage.getItem('velora_language') || 'en').toLowerCase();
         const currency = String(localStorage.getItem('velora_currency') || 'EGP').toUpperCase();
         const country = String(localStorage.getItem('velora_country') || '*').toUpperCase();
         const r = await db.rpc('velora_get_marketplace_catalog', { p_country_code: country === '*' ? null : country, p_currency_code: currency, p_category_slug: null, p_search: null, p_limit: 100, p_offset: 0 });
@@ -2567,11 +2556,6 @@ function navigateTo(page) {
 
     // Load page content
     loadPageContent(page);
-
-    // Re-run the authoritative two-locale renderer after page-specific DOM
-    // generation. Legacy renderers mostly use innerHTML and bypass initial boot.
-    try{window.VELORA_I18N_RENDER?.(document);}catch(_){}
-    setTimeout(()=>{try{window.VELORA_I18N_RENDER?.(document);}catch(_){}},0);
 
     console.log('📍 Navigate:', page);
 }
@@ -2700,10 +2684,7 @@ function filterByCategory(category) {
 /* ============ PRODUCT RENDERING ============ */
 function veloraLocalizedProduct(input){
     const product = input || {};
-    const rawLocale = String(window.VELORA_GLOBAL_LOCALE || '').toLowerCase();
-    const loc = ['en','ar'].includes(rawLocale)
-      ? rawLocale
-      : (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en');
+    const loc = (window.VELORA_GLOBAL_LOCALE || localStorage.getItem('velora_language') || 'en').toLowerCase();
     if(loc==='en') return product;
     const row = window.VELORA_LOCALIZED_CONTENT?.products?.[String(product.id)] || null;
     if(!row) return product;
@@ -3596,7 +3577,7 @@ function renderAccountPage() {
         return;
     }
 
-    container.innerHTML = window.VeloraI18n.html(`
+    container.innerHTML = `
         <div class="form-section" style="max-width: 600px; margin: 0 auto;">
             <h3>👤 Profile</h3>
             <div class="form-group" style="margin-bottom: 1rem;">
@@ -3615,7 +3596,7 @@ function renderAccountPage() {
                 Logout
             </button>
         </div>
-    `);
+    `;
 }
 
 /* ============ ORDERS ============ */
@@ -4194,19 +4175,10 @@ function initApp() {
         if (loading) loading.classList.add('hidden');
     };
 
-    // i18n readiness must never deadlock application boot. V5 may continue
-    // hydrating translations after the shell is visible, but the splash has a
-    // hard upper bound so one bad/slow localization path cannot blank the app.
     if (window.VELORA_I18N_V5_PRESENT === true) {
-        let i18nWaitStarted = Date.now();
         const waitForI18n = () => {
             if (window.VELORA_I18N_V5_READY === true ||
-                window.VELORA_I18N_V5_FAILED === true ||
-                Date.now() - i18nWaitStarted >= 2500) {
-                if (Date.now() - i18nWaitStarted >= 2500 &&
-                    window.VELORA_I18N_V5_READY !== true) {
-                    console.warn('[Velora boot] i18n readiness timed out; continuing with app shell.');
-                }
+                window.VELORA_I18N_V5_FAILED === true) {
                 hideLoading();
             } else {
                 setTimeout(waitForI18n, 50);
@@ -5330,18 +5302,9 @@ function persistVeloraUser(){
   if(i>=0){users[i]={...users[i],roles:user.roles,role:user.role,sellerId:user.sellerId||getSellerByUserId(user.uid)?.id||null};saveUsers(users);}
   return user;
 }
-const VELORA_ACTIVE_LANGUAGES = Object.freeze(['en','ar']);
-function getVeloraLanguage(){
-  const canonical=String(window.VELORA_GLOBAL_LOCALE_STATE?.locale||'').toLowerCase();
-  if(VELORA_ACTIVE_LANGUAGES.includes(canonical)) return canonical;
-  const stored=String(getFromStorage('velora_language',null)||'').toLowerCase();
-  if(VELORA_ACTIVE_LANGUAGES.includes(stored)) return stored;
-  const browser=String(navigator.language||'en').slice(0,2).toLowerCase();
-  return VELORA_ACTIVE_LANGUAGES.includes(browser) ? browser : 'en';
-}
+function getVeloraLanguage(){ const code=getFromStorage('velora_language',null); return VELORA_CORE.languages[code]?code: String(navigator.language||'en').slice(0,2).toLowerCase() in VELORA_CORE.languages ? String(navigator.language||'en').slice(0,2).toLowerCase() : 'en'; }
 function setVeloraLanguage(code){
-  code=String(code||'').toLowerCase();
-  if(!VELORA_ACTIVE_LANGUAGES.includes(code)) return false;
+  if(!VELORA_CORE.languages[code]) return false;
   saveToStorage('velora_language',code);
   document.documentElement.lang=code;
   document.documentElement.dir=VELORA_CORE.languages[code].dir;
@@ -5355,18 +5318,12 @@ function setVeloraLanguage(code){
 (function(){
 'use strict';
 const PACK={"en":{"20% off with code":"20% off with code","Account":"Account","Actions":"Actions","Add to Cart":"Add to Cart","All Products":"All Products","All rights reserved.":"All rights reserved.","Apply":"Apply","Back":"Back","Beauty":"Beauty","Become a Seller":"Become a Seller","Blog":"Blog","Build your store. Reach more customers.":"Build your store. Reach more customers.","Buy Now":"Buy Now","Cancel":"Cancel","Cart":"Cart","Categories":"Categories","Checkout":"Checkout","Choose any number of products and compare them in all details":"Choose any number of products and compare them in all details","Clear":"Clear","Close":"Close","Compare":"Compare","Complete Guide":"Complete Guide","Complete your order":"Complete your order","Confirm":"Confirm","Contact Us":"Contact Us","Continue":"Continue","Continue Shopping":"Continue Shopping","Copy Code":"Copy Code","Customer":"Customer","Customer Service":"Customer Service","Deals":"Deals","Delete":"Delete","Discount":"Discount","Discover More.":"Discover More.","Discover independent sellers and growing brands in one marketplace.":"Discover independent sellers and growing brands in one marketplace.","Electronics":"Electronics","Enforced":"Enforced","Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.":"Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.","Explore Velora":"Explore Velora","Explore everything":"Explore everything","Explore popular products and marketplace offers from stores you can trust.":"Explore popular products and marketplace offers from stores you can trust.","Explore products across multiple categories and growing stores.":"Explore products across multiple categories and growing stores.","FAQ":"FAQ","Fashion":"Fashion","Featured":"Featured","Featured Products":"Featured Products","Filters":"Filters","First Order Gift!":"First Order Gift!","Flash Sale":"Flash Sale","For your space":"For your space","Guide":"Guide","Home":"Home","Home & Living":"Home & Living","How to shop, sell, manage orders, and get the most from Velora.":"How to shop, sell, manage orders, and get the most from Velora.","Language":"Language","Limited-Time Offers":"Limited-Time Offers","Login":"Login","Manage your profile and preferences":"Manage your profile and preferences","Marketplace Categories":"Marketplace Categories","Marketplace stories, shopping tips, and seller insights.":"Marketplace stories, shopping tips, and seller insights.","Move & play":"Move & play","My Account":"My Account","My Orders":"My Orders","My Wishlist":"My Wishlist","Name (A-Z)":"Name (A-Z)","Newsletter":"Newsletter","No consent → contextual mode":"No consent → contextual mode","No orders yet":"No orders yet","No results":"No results","Open Your Store":"Open Your Store","Orders":"Orders","Payment":"Payment","Phones & tech":"Phones & tech","Popular on Velora":"Popular on Velora","Powered":"Powered","Price: High to Low":"Price: High to Low","Price: Low to High":"Price: Low to High","Product":"Product","Products":"Products","Products you loved are saved here":"Products you loved are saved here","Quick Links":"Quick Links","Read real experiences and share yours":"Read real experiences and share yours","Ready.":"Ready.","Real Reviews":"Real Reviews","Register":"Register","Remove":"Remove","Required":"Required","Restricted":"Restricted","Return Policy":"Return Policy","Review your items and proceed to checkout":"Review your items and proceed to checkout","Save":"Save","Search":"Search","Search for a product above and add it":"Search for a product above and add it","Sell on Velora":"Sell on Velora","Seller":"Seller","Shipping":"Shipping","Shipping Policy":"Shipping Policy","Shop":"Shop","Shop Better.":"Shop Better.","Shop Now":"Shop Now","Shop What You Love":"Shop What You Love","Shopping Cart":"Shopping Cart","Shops":"Shops","Shops on Velora":"Shops on Velora","Skincare & more":"Skincare & more","Smart Comparison":"Smart Comparison","Sports":"Sports","Start Comparison":"Start Comparison","Start Shopping":"Start Shopping","Start shopping to add products":"Start shopping to add products","Status":"Status","Style & accessories":"Style & accessories","Subscribe":"Subscribe","Subscribe for latest offers":"Subscribe for latest offers","Subtotal":"Subtotal","Theme":"Theme","Top Rated":"Top Rated","Total":"Total","Track your orders":"Track your orders","Tracked":"Tracked","Trending Now":"Trending Now","Try different keywords":"Try different keywords","Velora Deals":"Velora Deals","Velora brings products, sellers, discovery and shopping together in one growing marketplace.":"Velora brings products, sellers, discovery and shopping together in one growing marketplace.","Velora is built for every kind of store — not just one category.":"Velora is built for every kind of store — not just one category.","View All Products":"View All Products","View Details":"View Details","Wishlist":"Wishlist","You haven't placed any orders":"You haven't placed any orders","Your cart is empty":"Your cart is empty","on selected products":"on selected products","products":"products"},"es":{"Home":"Inicio","Categories":"Categorías","Shops":"Tiendas","Deals":"Ofertas","Sell on Velora":"Vender en Velora","Wishlist":"Favoritos","Orders":"Pedidos","Cart":"Carrito","Account":"Cuenta","Theme":"Tema","Language":"Idioma","Search":"Buscar","Shopping Cart":"Carrito","Discover More.":"Descubre más.","Shop Better.":"Compra mejor.","Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.":"Todo lo que necesitas, de tiendas en las que puedes confiar. Explora productos, descubre nuevos vendedores y compra de forma más inteligente, todo en un mismo marketplace.","Start Shopping":"Empezar a comprar","Become a Seller":"Conviértete en vendedor","Products":"Productos","Seller":"Vendedor","Powered":"Impulsado","Marketplace Categories":"Categorías del marketplace","Explore Velora":"Explora Velora","Shop What You Love":"Compra lo que te gusta","Velora is built for every kind of store — not just one category.":"Velora está creada para todo tipo de tiendas, no solo para una categoría.","All Products":"Todos los productos","Explore everything":"Explora todo","Electronics":"Electrónica","Phones & tech":"Móviles y tecnología","Fashion":"Moda","Style & accessories":"Estilo y accesorios","Beauty":"Belleza","Skincare & more":"Cuidado de la piel y más","Home & Living":"Hogar y vida","For your space":"Para tu espacio","Sports":"Deportes","Move & play":"Muévete y juega","Featured Products":"Productos destacados","Trending Now":"Tendencias","Popular on Velora":"Popular en Velora","View All Products":"Ver todos los productos","Build your store. Reach more customers.":"Construye tu tienda. Llega a más clientes.","Velora brings products, sellers, discovery and shopping together in one growing marketplace.":"Velora reúne productos, vendedores, descubrimiento y compras en un marketplace en crecimiento.","Open Your Store":"Abre tu tienda","Explore products across multiple categories and growing stores.":"Explora productos de varias categorías y tiendas en crecimiento.","Filters":"Filtros","Featured":"Destacados","Price: Low to High":"Precio: de menor a mayor","Price: High to Low":"Precio: de mayor a menor","Top Rated":"Mejor valorados","Name (A-Z)":"Nombre (A-Z)","products":"productos","Discover independent sellers and growing brands in one marketplace.":"Descubre vendedores independientes y marcas en crecimiento en un solo marketplace.","Shops on Velora":"Tiendas en Velora","Velora Deals":"Ofertas de Velora","Explore popular products and marketplace offers from stores you can trust.":"Explora productos populares y ofertas del marketplace de tiendas en las que puedes confiar.","Complete Guide":"Guía completa","How to shop, sell, manage orders, and get the most from Velora.":"Cómo comprar, vender, gestionar pedidos y aprovechar Velora al máximo.","Blog":"Blog","Marketplace stories, shopping tips, and seller insights.":"Historias del marketplace, consejos de compra y novedades para vendedores.","Smart Comparison":"Comparación inteligente","Choose any number of products and compare them in all details":"Elige varios productos y compáralos en todos sus detalles","Start Comparison":"Iniciar comparación","Search for a product above and add it":"Busca un producto arriba y añádelo","Real Reviews":"Opiniones reales","Read real experiences and share yours":"Lee experiencias reales y comparte la tuya","My Wishlist":"Mi lista de deseos","Products you loved are saved here":"Aquí se guardan tus productos favoritos","Review your items and proceed to checkout":"Revisa tus artículos y continúa al pago","Checkout":"Finalizar compra","Complete your order":"Completa tu pedido","My Orders":"Mis pedidos","Track your orders":"Sigue tus pedidos","My Account":"Mi cuenta","Manage your profile and preferences":"Gestiona tu perfil y tus preferencias","Quick Links":"Enlaces rápidos","Shop":"Tienda","Guide":"Guía","Compare":"Comparar","Customer Service":"Atención al cliente","Return Policy":"Política de devoluciones","Shipping Policy":"Política de envíos","FAQ":"Preguntas frecuentes","Contact Us":"Contáctanos","Newsletter":"Boletín","Subscribe for latest offers":"Suscríbete para recibir las últimas ofertas","Subscribe":"Suscribirse","All rights reserved.":"Todos los derechos reservados.","Your cart is empty":"Tu carrito está vacío","Start shopping to add products":"Empieza a comprar para añadir productos","Continue Shopping":"Continuar comprando","Shop Now":"Comprar ahora","Subtotal":"Subtotal","Discount":"Descuento","Shipping":"Envío","Total":"Total","No orders yet":"Aún no hay pedidos","You haven't placed any orders":"Aún no has realizado ningún pedido","Payment":"Pago","Status":"Estado","Product":"Producto","Customer":"Cliente","Actions":"Acciones","Add to Cart":"Añadir al carrito","Buy Now":"Comprar ahora","View Details":"Ver detalles","Back":"Atrás","Continue":"Continuar","Cancel":"Cancelar","Save":"Guardar","Delete":"Eliminar","Confirm":"Confirmar","Close":"Cerrar","Apply":"Aplicar","Remove":"Eliminar","Clear":"Borrar","No results":"Sin resultados","Try different keywords":"Prueba otras palabras","First Order Gift!":"¡Regalo por tu primer pedido!","20% off with code":"20 % de descuento con el código","Copy Code":"Copiar código","Flash Sale":"Oferta flash","Limited-Time Offers":"Ofertas por tiempo limitado","on selected products":"en productos seleccionados","Login":"Iniciar sesión","Register":"Registrarse","No consent → contextual mode":"Sin consentimiento → modo contextual","Required":"Requerido","Restricted":"Restringido","Enforced":"Aplicado","Tracked":"Registrado","Ready.":"Listo.","MULTI-SELLER MARKETPLACE":"MARKETPLACE MULTIVENDEDOR","MARKETPLACE CATEGORIES":"CATEGORÍAS DEL MARKETPLACE","EXPLORE VELORA":"EXPLORA VELORA","FEATURED PRODUCTS":"PRODUCTOS DESTACADOS","TRENDING NOW":"TENDENCIAS","SELL ON VELORA":"VENDE EN VELORA","LIMITED-TIME OFFERS":"OFERTAS POR TIEMPO LIMITADO","DISCOVER STORES":"DESCUBRE TIENDAS","LEARN":"APRENDE","ARTICLES":"ARTÍCULOS","COMPARE SMARTLY":"COMPARA DE FORMA INTELIGENTE","REAL EXPERIENCES":"EXPERIENCIAS REALES","Recommended for you":"Recomendado para ti","Quality-first discovery using Velora catalog signals. Personalized recommendations are only used when the relevant consent allows them.":"Descubrimiento centrado en la calidad mediante señales del catálogo de Velora. Las recomendaciones personalizadas solo se usan cuando existe el consentimiento correspondiente.","Continue exploring":"Continúa explorando","Pick up where you left off with products you viewed recently.":"Continúa desde donde lo dejaste con los productos que viste recientemente.","Explore all →":"Explorar todo →","VELORA DISCOVERY":"DESCUBRIMIENTO VELORA","Protected checkout":"Pago seguro","Payment attempts and order creation use governed backend flows.":"Los intentos de pago y la creación de pedidos utilizan flujos backend gobernados.","Multi-seller":"Multi-vendedor","Shop multiple stores from one marketplace experience.":"Compra en varias tiendas desde una sola experiencia de marketplace.","Track your order":"Sigue tu pedido","Shipping status and delivery evidence can follow the order lifecycle.":"El estado del envío y las pruebas de entrega siguen el ciclo de vida del pedido.","Trust & Safety":"Confianza y seguridad","Returns, disputes, fraud controls, and account enforcement are governed.":"Las devoluciones, disputas, controles contra el fraude y medidas sobre cuentas están regulados.","Email":"Correo electrónico","Password":"Contraseña","Create Account":"Crear cuenta","Don't have an account? Create one":"¿No tienes una cuenta? Crea una"},"ar":{"Home":"الرئيسية","Categories":"الفئات","Shops":"المتاجر","Deals":"العروض","Sell on Velora":"البيع على Velora","Wishlist":"المفضلة","Orders":"الطلبات","Cart":"السلة","Account":"الحساب","Theme":"المظهر","Language":"اللغة","Search":"بحث","Shopping Cart":"سلة التسوق","Discover More.":"اكتشف المزيد.","Shop Better.":"تسوق بشكل أفضل.","Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.":"كل ما تحتاجه من متاجر يمكنك الوثوق بها. استكشف المنتجات واكتشف البائعين الجدد وتسوق بذكاء — كل ذلك في سوق واحد.","Start Shopping":"ابدأ التسوق","Become a Seller":"كن بائعًا","Products":"المنتجات","Seller":"البائع","Powered":"مدعوم","Marketplace Categories":"فئات السوق","Explore Velora":"استكشف Velora","Shop What You Love":"تسوق ما تحب","Velora is built for every kind of store — not just one category.":"تم تصميم Velora لكل أنواع المتاجر، وليس لفئة واحدة فقط.","All Products":"كل المنتجات","Explore everything":"استكشف كل شيء","Electronics":"الإلكترونيات","Phones & tech":"الهواتف والتقنية","Fashion":"الأزياء","Style & accessories":"الأناقة والإكسسوارات","Beauty":"الجمال","Skincare & more":"العناية بالبشرة والمزيد","Home & Living":"المنزل والمعيشة","For your space":"للمساحة الخاصة بك","Sports":"الرياضة","Move & play":"تحرك والعب","Featured Products":"منتجات مميزة","Trending Now":"الرائج الآن","Popular on Velora":"الأكثر شعبية على Velora","View All Products":"عرض كل المنتجات","Build your store. Reach more customers.":"ابنِ متجرك ووصل إلى المزيد من العملاء.","Velora brings products, sellers, discovery and shopping together in one growing marketplace.":"تجمع Velora المنتجات والبائعين والاكتشاف والتسوق في سوق واحد متنامٍ.","Open Your Store":"افتح متجرك","Explore products across multiple categories and growing stores.":"استكشف المنتجات عبر فئات متعددة ومتاجر متنامية.","Filters":"الفلاتر","Featured":"مميزة","Price: Low to High":"السعر: من الأقل إلى الأعلى","Price: High to Low":"السعر: من الأعلى إلى الأقل","Top Rated":"الأعلى تقييمًا","Name (A-Z)":"الاسم (أ-ي)","products":"منتجات","Discover independent sellers and growing brands in one marketplace.":"اكتشف البائعين المستقلين والعلامات التجارية المتنامية في سوق واحد.","Shops on Velora":"المتاجر على Velora","Velora Deals":"عروض Velora","Explore popular products and marketplace offers from stores you can trust.":"استكشف المنتجات الشائعة وعروض السوق من متاجر يمكنك الوثوق بها.","Complete Guide":"الدليل الكامل","How to shop, sell, manage orders, and get the most from Velora.":"تعرف على كيفية التسوق والبيع وإدارة الطلبات والاستفادة القصوى من Velora.","Blog":"المدونة","Marketplace stories, shopping tips, and seller insights.":"قصص السوق ونصائح التسوق ورؤى البائعين.","Smart Comparison":"مقارنة ذكية","Choose any number of products and compare them in all details":"اختر أي عدد من المنتجات وقارن بينها في جميع التفاصيل","Start Comparison":"ابدأ المقارنة","Search for a product above and add it":"ابحث عن منتج أعلاه وأضفه","Real Reviews":"تقييمات حقيقية","Read real experiences and share yours":"اقرأ تجارب حقيقية وشارك تجربتك","My Wishlist":"قائمتي المفضلة","Products you loved are saved here":"يتم حفظ المنتجات التي أعجبتك هنا","Review your items and proceed to checkout":"راجع منتجاتك وانتقل إلى الدفع","Checkout":"إتمام الطلب","Complete your order":"أكمل طلبك","My Orders":"طلباتي","Track your orders":"تتبع طلباتك","My Account":"حسابي","Manage your profile and preferences":"أدر ملفك الشخصي وتفضيلاتك","Quick Links":"روابط سريعة","Shop":"المتجر","Guide":"الدليل","Compare":"مقارنة","Customer Service":"خدمة العملاء","Return Policy":"سياسة الإرجاع","Shipping Policy":"سياسة الشحن","FAQ":"الأسئلة الشائعة","Contact Us":"اتصل بنا","Newsletter":"النشرة البريدية","Subscribe for latest offers":"اشترك للحصول على أحدث العروض","Subscribe":"اشتراك","All rights reserved.":"جميع الحقوق محفوظة.","Your cart is empty":"سلة التسوق فارغة","Start shopping to add products":"ابدأ التسوق لإضافة المنتجات","Continue Shopping":"متابعة التسوق","Shop Now":"تسوق الآن","Subtotal":"المجموع الفرعي","Discount":"الخصم","Shipping":"الشحن","Total":"الإجمالي","No orders yet":"لا توجد طلبات بعد","You haven't placed any orders":"لم تقم بإنشاء أي طلبات بعد","Payment":"الدفع","Status":"الحالة","Product":"المنتج","Customer":"العميل","Actions":"الإجراءات","Add to Cart":"أضف إلى السلة","Buy Now":"اشترِ الآن","View Details":"عرض التفاصيل","Back":"رجوع","Continue":"متابعة","Cancel":"إلغاء","Save":"حفظ","Delete":"حذف","Confirm":"تأكيد","Close":"إغلاق","Apply":"تطبيق","Remove":"إزالة","Clear":"مسح","No results":"لا توجد نتائج","Try different keywords":"جرّب كلمات مختلفة","First Order Gift!":"هدية الطلب الأول!","20% off with code":"خصم 20% باستخدام الكود","Copy Code":"نسخ الكود","Flash Sale":"عرض سريع","Limited-Time Offers":"عروض لفترة محدودة","on selected products":"على منتجات مختارة","Login":"تسجيل الدخول","Register":"إنشاء حساب","No consent → contextual mode":"بدون موافقة ← وضع سياقي","Required":"مطلوب","Restricted":"مقيّد","Enforced":"مُطبّق","Tracked":"متتبع","Ready.":"جاهز.","MULTI-SELLER MARKETPLACE":"سوق متعدد البائعين","MARKETPLACE CATEGORIES":"فئات السوق","EXPLORE VELORA":"استكشف Velora","FEATURED PRODUCTS":"منتجات مميزة","TRENDING NOW":"الرائج الآن","SELL ON VELORA":"البيع على Velora","LIMITED-TIME OFFERS":"عروض لفترة محدودة","DISCOVER STORES":"اكتشف المتاجر","LEARN":"تعلّم","ARTICLES":"مقالات","COMPARE SMARTLY":"قارن بذكاء","REAL EXPERIENCES":"تجارب حقيقية","Recommended for you":"موصى به لك","Quality-first discovery using Velora catalog signals. Personalized recommendations are only used when the relevant consent allows them.":"اكتشاف يركز على الجودة باستخدام إشارات كتالوج Velora. لا تُستخدم التوصيات المخصصة إلا عند توفر الموافقة المناسبة.","Continue exploring":"تابع الاستكشاف","Pick up where you left off with products you viewed recently.":"تابع من حيث توقفت مع المنتجات التي شاهدتها مؤخرًا.","Explore all →":"استكشف الكل →","VELORA DISCOVERY":"اكتشاف فيلورا","Protected checkout":"دفع آمن","Payment attempts and order creation use governed backend flows.":"تتم محاولات الدفع وإنشاء الطلبات عبر تدفقات خلفية محكومة.","Multi-seller":"متعدد البائعين","Shop multiple stores from one marketplace experience.":"تسوّق من عدة متاجر ضمن تجربة سوق واحدة.","Track your order":"تتبّع طلبك","Shipping status and delivery evidence can follow the order lifecycle.":"يمكن متابعة حالة الشحن وإثباتات التسليم ضمن دورة حياة الطلب.","Trust & Safety":"الثقة والأمان","Returns, disputes, fraud controls, and account enforcement are governed.":"تخضع عمليات الإرجاع والنزاعات وضوابط الاحتيال وإجراءات الحساب للحوكمة.","A global multi-vendor marketplace connecting customers with independent stores and brands.":"سوق عالمي متعدد البائعين يربط العملاء بالمتاجر والعلامات التجارية المستقلة.","Your email":"بريدك الإلكتروني","Email":"البريد الإلكتروني","Password":"كلمة المرور","Create Account":"إنشاء حساب","Don't have an account? Create one":"ليس لديك حساب؟ أنشئ حسابًا"},"fr":{"Home":"Accueil","Categories":"Catégories","Shops":"Boutiques","Deals":"Offres","Sell on Velora":"Vendre sur Velora","Wishlist":"Favoris","Orders":"Commandes","Cart":"Panier","Account":"Compte","Theme":"Thème","Language":"Langue","Search":"Rechercher","Shopping Cart":"Panier","Discover More.":"Découvrez plus.","Shop Better.":"Achetez mieux.","Everything you need, from stores you can trust. Explore products, discover new sellers, and shop smarter — all in one marketplace.":"Tout ce dont vous avez besoin, auprès de boutiques de confiance. Explorez les produits, découvrez de nouveaux vendeurs et achetez plus intelligemment, le tout sur une seule marketplace.","Start Shopping":"Commencer les achats","Become a Seller":"Devenir vendeur","Products":"Produits","Seller":"Vendeur","Powered":"Propulsé","Marketplace Categories":"Catégories du marketplace","Explore Velora":"Découvrez Velora","Shop What You Love":"Achetez ce que vous aimez","Velora is built for every kind of store — not just one category.":"Velora est conçue pour tous les types de boutiques — pas seulement une catégorie.","All Products":"Tous les produits","Explore everything":"Tout explorer","Electronics":"Électronique","Phones & tech":"Téléphones et technologie","Fashion":"Mode","Style & accessories":"Style et accessoires","Beauty":"Beauté","Skincare & more":"Soins de la peau et plus","Home & Living":"Maison et quotidien","For your space":"Pour votre intérieur","Sports":"Sports","Move & play":"Bougez et jouez","Featured Products":"Produits en vedette","Trending Now":"Tendances","Popular on Velora":"Populaire sur Velora","View All Products":"Voir tous les produits","Build your store. Reach more customers.":"Développez votre boutique. Touchez plus de clients.","Velora brings products, sellers, discovery and shopping together in one growing marketplace.":"Velora réunit produits, vendeurs, découverte et achats dans une marketplace en pleine croissance.","Open Your Store":"Ouvrez votre boutique","Explore products across multiple categories and growing stores.":"Explorez des produits dans plusieurs catégories et des boutiques en croissance.","Filters":"Filtres","Featured":"En vedette","Price: Low to High":"Prix : croissant","Price: High to Low":"Prix : décroissant","Top Rated":"Mieux notés","Name (A-Z)":"Nom (A-Z)","products":"produits","Discover independent sellers and growing brands in one marketplace.":"Découvrez des vendeurs indépendants et des marques en croissance sur une seule marketplace.","Shops on Velora":"Boutiques sur Velora","Velora Deals":"Offres Velora","Explore popular products and marketplace offers from stores you can trust.":"Explorez les produits populaires et les offres de la marketplace auprès de boutiques de confiance.","Complete Guide":"Guide complet","How to shop, sell, manage orders, and get the most from Velora.":"Comment acheter, vendre, gérer vos commandes et profiter pleinement de Velora.","Blog":"Blog","Marketplace stories, shopping tips, and seller insights.":"Actualités de la marketplace, conseils d'achat et informations pour les vendeurs.","Smart Comparison":"Comparaison intelligente","Choose any number of products and compare them in all details":"Choisissez autant de produits que vous le souhaitez et comparez-les dans tous leurs détails","Start Comparison":"Commencer la comparaison","Search for a product above and add it":"Recherchez un produit ci-dessus et ajoutez-le","Real Reviews":"Avis réels","Read real experiences and share yours":"Lisez de vraies expériences et partagez la vôtre","My Wishlist":"Ma liste de souhaits","Products you loved are saved here":"Vos produits préférés sont enregistrés ici","Review your items and proceed to checkout":"Vérifiez vos articles et passez au paiement","Checkout":"Passer la commande","Complete your order":"Finalisez votre commande","My Orders":"Mes commandes","Track your orders":"Suivez vos commandes","My Account":"Mon compte","Manage your profile and preferences":"Gérez votre profil et vos préférences","Quick Links":"Liens rapides","Shop":"Boutique","Guide":"Guide","Compare":"Comparer","Customer Service":"Service client","Return Policy":"Politique de retour","Shipping Policy":"Politique d’expédition","FAQ":"FAQ","Contact Us":"Nous contacter","Newsletter":"Newsletter","Subscribe for latest offers":"Abonnez-vous pour recevoir les dernières offres","Subscribe":"S’abonner","All rights reserved.":"Tous droits réservés.","Your cart is empty":"Votre panier est vide","Start shopping to add products":"Commencez vos achats pour ajouter des produits","Continue Shopping":"Continuer les achats","Shop Now":"Acheter maintenant","Subtotal":"Sous-total","Discount":"Réduction","Shipping":"Livraison","Total":"Total","No orders yet":"Aucune commande","You haven't placed any orders":"Vous n'avez passé aucune commande","Payment":"Paiement","Status":"Statut","Product":"Produit","Customer":"Client","Actions":"Actions","Add to Cart":"Ajouter au panier","Buy Now":"Acheter maintenant","View Details":"Voir les détails","Back":"Retour","Continue":"Continuer","Cancel":"Annuler","Save":"Enregistrer","Delete":"Supprimer","Confirm":"Confirmer","Close":"Fermer","Apply":"Appliquer","Remove":"Supprimer","Clear":"Effacer","No results":"Aucun résultat","Try different keywords":"Essayez d’autres mots-clés","First Order Gift!":"Cadeau pour votre première commande !","20% off with code":"20 % de réduction avec le code","Copy Code":"Copier le code","Flash Sale":"Vente flash","Limited-Time Offers":"Offres à durée limitée","on selected products":"sur une sélection de produits","Login":"Connexion","Register":"Inscription","No consent → contextual mode":"Sans consentement → mode contextuel","Required":"Requis","Restricted":"Restreint","Enforced":"Appliqué","Tracked":"Suivi","Ready.":"Prêt.","MULTI-SELLER MARKETPLACE":"MARKETPLACE MULTI-VENDEURS","MARKETPLACE CATEGORIES":"CATÉGORIES DU MARKETPLACE","EXPLORE VELORA":"EXPLORER VELORA","FEATURED PRODUCTS":"PRODUITS EN VEDETTE","TRENDING NOW":"TENDANCES","SELL ON VELORA":"VENDRE SUR VELORA","LIMITED-TIME OFFERS":"OFFRES À DURÉE LIMITÉE","DISCOVER STORES":"DÉCOUVRIR LES BOUTIQUES","LEARN":"APPRENDRE","ARTICLES":"ARTICLES","COMPARE SMARTLY":"COMPARER INTELLIGEMMENT","REAL EXPERIENCES":"EXPÉRIENCES RÉELLES","Recommended for you":"Recommandé pour vous","Quality-first discovery using Velora catalog signals. Personalized recommendations are only used when the relevant consent allows them.":"Découverte axée sur la qualité grâce aux signaux du catalogue Velora. Les recommandations personnalisées ne sont utilisées qu'avec le consentement approprié.","Continue exploring":"Continuez votre exploration","Pick up where you left off with products you viewed recently.":"Reprenez là où vous vous êtes arrêté avec les produits que vous avez consultés récemment.","Explore all →":"Tout explorer →","VELORA DISCOVERY":"DÉCOUVERTE VELORA","Protected checkout":"Paiement sécurisé","Payment attempts and order creation use governed backend flows.":"Les tentatives de paiement et la création de commandes utilisent des flux backend gouvernés.","Multi-seller":"Multi-vendeurs","Shop multiple stores from one marketplace experience.":"Achetez auprès de plusieurs boutiques dans une seule expérience marketplace.","Track your order":"Suivez votre commande","Shipping status and delivery evidence can follow the order lifecycle.":"Le statut d'expédition et les preuves de livraison suivent le cycle de vie de la commande.","Trust & Safety":"Confiance et sécurité","Returns, disputes, fraud controls, and account enforcement are governed.":"Les retours, litiges, contrôles anti-fraude et mesures d'application des règles sont encadrés.","Velora Marketplace Protection":"Protection de la marketplace Velora","Secure checkout":"Paiement sécurisé","Order tracking":"Suivi de commande","Delivery proof":"Preuve de livraison","Returns & disputes":"Retours et litiges","Seller and order data remain governed by Velora access controls. Delivery proof and dispute workflows are available where enabled for the order.":"Les données des vendeurs et des commandes restent soumises aux contrôles d'accès de Velora. Les preuves de livraison et les workflows de litige sont disponibles lorsqu'ils sont activés pour la commande.","Search results are ranked with catalog quality, relevance, stock, rating and marketplace fairness signals.":"Les résultats de recherche sont classés selon la qualité du catalogue, la pertinence, le stock, les évaluations et des signaux d'équité de la marketplace.","Seller Operations":"Opérations vendeur","Orders unavailable":"Commandes indisponibles","AUTH REQUIRED":"AUTHENTIFICATION REQUISE","A global multi-vendor marketplace connecting customers with independent stores and brands.":"Une marketplace mondiale multi-vendeurs qui met en relation les clients avec des boutiques et des marques indépendantes.","Your email":"Votre e-mail","Email":"E-mail","Password":"Mot de passe","Create Account":"Créer un compte","Don't have an account? Create one":"Vous n'avez pas de compte ? Créez-en un"},"de":{"Home":"Startseite","Categories":"Kategorien","Shops":"Shops","Deals":"Angebote","Sell on Velora":"Auf Velora verkaufen","Wishlist":"Wunschliste","Orders":"Bestellungen","Cart":"Warenkorb","Account":"Konto","Theme":"Design","Language":"Sprache","Search":"Suchen","Start Shopping":"Jetzt einkaufen","Become a Seller":"Verkäufer werden","Products":"Produkte","Seller":"Verkäufer","All Products":"Alle Produkte","Electronics":"Elektronik","Beauty":"Beauty","Home & Living":"Wohnen & Leben","Sports":"Sport","Featured Products":"Empfohlene Produkte","Trending Now":"Jetzt im Trend","Popular on Velora":"Beliebt auf Velora","View All Products":"Alle Produkte ansehen","Filters":"Filter","Featured":"Empfohlen","Price: Low to High":"Preis: aufsteigend","Price: High to Low":"Preis: absteigend","Top Rated":"Bestbewertet","Name (A-Z)":"Name (A-Z)","products":"Produkte","Shops on Velora":"Shops auf Velora","Complete Guide":"Kompletter Leitfaden","Smart Comparison":"Intelligenter Vergleich","Start Comparison":"Vergleich starten","Real Reviews":"Echte Bewertungen","My Wishlist":"Meine Wunschliste","Checkout":"Kasse","My Orders":"Meine Bestellungen","My Account":"Mein Konto","Quick Links":"Schnelllinks","Shop":"Shop","Compare":"Vergleichen","Customer Service":"Kundenservice","Return Policy":"Rückgaberichtlinie","Shipping Policy":"Versandrichtlinie","Contact Us":"Kontakt","Subscribe":"Abonnieren","All rights reserved.":"Alle Rechte vorbehalten.","Your cart is empty":"Ihr Warenkorb ist leer","Continue Shopping":"Weiter einkaufen","Shop Now":"Jetzt einkaufen","Subtotal":"Zwischensumme","Discount":"Rabatt","Shipping":"Versand","Total":"Gesamt","No orders yet":"Noch keine Bestellungen","Payment":"Zahlung","Status":"Status","Product":"Produkt","Customer":"Kunde","Actions":"Aktionen","Add to Cart":"In den Warenkorb","Buy Now":"Jetzt kaufen","View Details":"Details ansehen","Back":"Zurück","Continue":"Weiter","Cancel":"Abbrechen","Save":"Speichern","Delete":"Löschen","Confirm":"Bestätigen","Close":"Schließen","Apply":"Anwenden","Remove":"Entfernen","Clear":"Löschen","No results":"Keine Ergebnisse","Try different keywords":"Probieren Sie andere Suchbegriffe","Login":"Anmelden","Register":"Registrieren","Required":"Erforderlich","Restricted":"Eingeschränkt","Enforced":"Erzwungen","Tracked":"Erfasst","Ready.":"Bereit.","MULTI-SELLER MARKETPLACE":"MARKTPLATZ MIT MEHREREN VERKÄUFERN","MARKETPLACE CATEGORIES":"MARKTPLATZ-KATEGORIEN","EXPLORE VELORA":"VELORA ENTDECKEN","FEATURED PRODUCTS":"EMPFOHLENE PRODUKTE","TRENDING NOW":"JETZT IM TREND","SELL ON VELORA":"AUF VELORA VERKAUFEN","LIMITED-TIME OFFERS":"ANGEBOTE FÜR KURZE ZEIT","DISCOVER STORES":"SHOPS ENTDECKEN","LEARN":"LERNEN","ARTICLES":"ARTIKEL","COMPARE SMARTLY":"INTELLIGENT VERGLEICHEN","REAL EXPERIENCES":"ECHTE ERFAHRUNGEN"},"it":{"Home":"Home","Categories":"Categorie","Shops":"Negozi","Deals":"Offerte","Sell on Velora":"Vendi su Velora","Wishlist":"Preferiti","Orders":"Ordini","Cart":"Carrello","Account":"Account","Theme":"Tema","Language":"Lingua","Search":"Cerca","Start Shopping":"Inizia a fare acquisti","Become a Seller":"Diventa venditore","Products":"Prodotti","Seller":"Venditore","All Products":"Tutti i prodotti","Electronics":"Elettronica","Fashion":"Moda","Beauty":"Bellezza","Home & Living":"Casa e vita","Featured Products":"Prodotti in evidenza","Trending Now":"Di tendenza","Popular on Velora":"Popolare su Velora","View All Products":"Vedi tutti i prodotti","Filters":"Filtri","Featured":"In evidenza","Price: Low to High":"Prezzo: dal più basso","Price: High to Low":"Prezzo: dal più alto","Top Rated":"Più votati","Name (A-Z)":"Nome (A-Z)","products":"prodotti","Shops on Velora":"Negozi su Velora","Complete Guide":"Guida completa","Smart Comparison":"Confronto intelligente","Start Comparison":"Inizia confronto","Real Reviews":"Recensioni reali","My Wishlist":"La mia lista dei desideri","Checkout":"Checkout","My Orders":"I miei ordini","My Account":"Il mio account","Quick Links":"Link rapidi","Customer Service":"Servizio clienti","Return Policy":"Politica di reso","Shipping Policy":"Politica di spedizione","Contact Us":"Contattaci","Subscribe":"Iscriviti","All rights reserved.":"Tutti i diritti riservati.","Your cart is empty":"Il carrello è vuoto","Continue Shopping":"Continua gli acquisti","Shop Now":"Acquista ora","Subtotal":"Subtotale","Discount":"Sconto","Shipping":"Spedizione","Total":"Totale","No orders yet":"Nessun ordine","Payment":"Pagamento","Status":"Stato","Product":"Prodotto","Customer":"Cliente","Actions":"Azioni","Add to Cart":"Aggiungi al carrello","Buy Now":"Acquista ora","View Details":"Vedi dettagli","Back":"Indietro","Continue":"Continua","Cancel":"Annulla","Save":"Salva","Delete":"Elimina","Confirm":"Conferma","Close":"Chiudi","Apply":"Applica","Remove":"Rimuovi","Clear":"Cancella","No results":"Nessun risultato","Try different keywords":"Prova altre parole chiave","Login":"Accedi","Register":"Registrati","Required":"Richiesto","Restricted":"Limitato","Enforced":"Applicato","Tracked":"Tracciato","Ready.":"Pronto.","MULTI-SELLER MARKETPLACE":"MARKETPLACE MULTIVENDITORE","MARKETPLACE CATEGORIES":"CATEGORIE DEL MARKETPLACE","EXPLORE VELORA":"ESPLORA VELORA","FEATURED PRODUCTS":"PRODOTTI IN EVIDENZA","TRENDING NOW":"DI TENDENZA","SELL ON VELORA":"VENDI SU VELORA","LIMITED-TIME OFFERS":"OFFERTE A TEMPO LIMITATO","DISCOVER STORES":"SCOPRI I NEGOZI","LEARN":"IMPARA","ARTICLES":"ARTICOLI","COMPARE SMARTLY":"CONFRONTA IN MODO INTELLIGENTE","REAL EXPERIENCES":"ESPERIENZE REALI"},"pt":{"Home":"Início","Categories":"Categorias","Shops":"Lojas","Deals":"Ofertas","Sell on Velora":"Vender na Velora","Wishlist":"Favoritos","Orders":"Pedidos","Cart":"Carrinho","Account":"Conta","Language":"Idioma","Search":"Pesquisar","Start Shopping":"Começar a comprar","Become a Seller":"Tornar-se vendedor","Products":"Produtos","Seller":"Vendedor","All Products":"Todos os produtos","Electronics":"Eletrónica","Beauty":"Beleza","Home & Living":"Casa e vida","Sports":"Desporto","Featured Products":"Produtos em destaque","Trending Now":"Tendências","Popular on Velora":"Popular na Velora","View All Products":"Ver todos os produtos","Filters":"Filtros","Featured":"Em destaque","Price: Low to High":"Preço: menor para maior","Price: High to Low":"Preço: maior para menor","Top Rated":"Mais bem avaliados","products":"produtos","Shops on Velora":"Lojas na Velora","Complete Guide":"Guia completo","Smart Comparison":"Comparação inteligente","Start Comparison":"Iniciar comparação","Real Reviews":"Avaliações reais","My Wishlist":"A minha lista de desejos","Checkout":"Finalizar compra","My Orders":"Os meus pedidos","My Account":"A minha conta","Quick Links":"Links rápidos","Customer Service":"Serviço ao cliente","Return Policy":"Política de devoluções","Shipping Policy":"Política de envio","Contact Us":"Contacte-nos","Subscribe":"Subscrever","All rights reserved.":"Todos os direitos reservados.","Your cart is empty":"O seu carrinho está vazio","Continue Shopping":"Continuar a comprar","Shop Now":"Comprar agora","Subtotal":"Subtotal","Discount":"Desconto","Shipping":"Envio","Total":"Total","No orders yet":"Ainda não há pedidos","Status":"Estado","Product":"Produto","Actions":"Ações","Add to Cart":"Adicionar ao carrinho","Buy Now":"Comprar agora","View Details":"Ver detalhes","Back":"Voltar","Continue":"Continuar","Cancel":"Cancelar","Save":"Guardar","Delete":"Eliminar","Confirm":"Confirmar","Close":"Fechar","Apply":"Aplicar","Remove":"Remover","Clear":"Limpar","No results":"Sem resultados","Try different keywords":"Tente outras palavras-chave","Login":"Iniciar sessão","Register":"Registar","Required":"Obrigatório","Restricted":"Restrito","Enforced":"Aplicado","Tracked":"Registado","MULTI-SELLER MARKETPLACE":"MARKETPLACE MULTIVENDEDOR","MARKETPLACE CATEGORIES":"CATEGORIAS DO MARKETPLACE","EXPLORE VELORA":"EXPLORAR A VELORA","FEATURED PRODUCTS":"PRODUTOS EM DESTAQUE","TRENDING NOW":"TENDÊNCIAS","SELL ON VELORA":"VENDER NA VELORA","LIMITED-TIME OFFERS":"OFERTAS POR TEMPO LIMITADO","DISCOVER STORES":"DESCOBRIR LOJAS","LEARN":"APRENDER","ARTICLES":"ARTIGOS","COMPARE SMARTLY":"COMPARAR COM INTELIGÊNCIA","REAL EXPERIENCES":"EXPERIÊNCIAS REAIS"},"tr":{"Home":"Ana Sayfa","Categories":"Kategoriler","Shops":"Mağazalar","Deals":"Fırsatlar","Sell on Velora":"Velora’da Sat","Wishlist":"Favoriler","Orders":"Siparişler","Cart":"Sepet","Account":"Hesap","Language":"Dil","Search":"Ara","Start Shopping":"Alışverişe Başla","Become a Seller":"Satıcı Ol","Products":"Ürünler","Seller":"Satıcı","All Products":"Tüm Ürünler","Electronics":"Elektronik","Beauty":"Güzellik","Home & Living":"Ev ve Yaşam","Sports":"Spor","Featured Products":"Öne Çıkan Ürünler","Trending Now":"Şimdi Trend","Popular on Velora":"Velora’da Popüler","View All Products":"Tüm Ürünleri Gör","Filters":"Filtreler","Featured":"Öne Çıkan","Price: Low to High":"Fiyat: Düşükten Yükseğe","Price: High to Low":"Fiyat: Yüksekten Düşüğe","Top Rated":"En Çok Puan Alan","products":"ürün","Shops on Velora":"Velora Mağazaları","Complete Guide":"Tam Rehber","Smart Comparison":"Akıllı Karşılaştırma","Start Comparison":"Karşılaştırmayı Başlat","Real Reviews":"Gerçek Yorumlar","My Wishlist":"Favorilerim","Checkout":"Ödeme","My Orders":"Siparişlerim","My Account":"Hesabım","Quick Links":"Hızlı Bağlantılar","Customer Service":"Müşteri Hizmetleri","Return Policy":"İade Politikası","Shipping Policy":"Kargo Politikası","Contact Us":"İletişim","Subscribe":"Abone Ol","All rights reserved.":"Tüm hakları saklıdır.","Your cart is empty":"Sepetiniz boş","Continue Shopping":"Alışverişe devam et","Shop Now":"Şimdi alışveriş yap","Subtotal":"Ara toplam","Discount":"İndirim","Shipping":"Kargo","Total":"Toplam","No orders yet":"Henüz sipariş yok","Payment":"Ödeme","Status":"Durum","Product":"Ürün","Customer":"Müşteri","Actions":"İşlemler","Add to Cart":"Sepete ekle","Buy Now":"Hemen al","View Details":"Detayları görüntüle","Back":"Geri","Continue":"Devam et","Cancel":"İptal","Save":"Kaydet","Delete":"Sil","Confirm":"Onayla","Close":"Kapat","Apply":"Uygula","Remove":"Kaldır","Clear":"Temizle","No results":"Sonuç yok","Try different keywords":"Farklı anahtar kelimeler deneyin","Login":"Giriş yap","Register":"Kayıt ol","Required":"Gerekli","Restricted":"Kısıtlı","Enforced":"Uygulandı","Tracked":"Takip ediliyor","Ready.":"Hazır.","MULTI-SELLER MARKETPLACE":"ÇOK SATICILI PAZAR YERİ","MARKETPLACE CATEGORIES":"PAZAR YERİ KATEGORİLERİ","EXPLORE VELORA":"VELORA’YI KEŞFET","FEATURED PRODUCTS":"ÖNE ÇIKAN ÜRÜNLER","TRENDING NOW":"ŞİMDİ TREND","SELL ON VELORA":"VELORA’DA SAT","LIMITED-TIME OFFERS":"SINIRLI SÜRELİ TEKLİFLER","DISCOVER STORES":"MAĞAZALARI KEŞFET","LEARN":"ÖĞREN","ARTICLES":"MAKALELER","COMPARE SMARTLY":"AKILLI KARŞILAŞTIR","REAL EXPERIENCES":"GERÇEK DENEYİMLER"},"zh":{"Home":"首页","Categories":"分类","Shops":"商店","Deals":"优惠","Sell on Velora":"在 Velora 上销售","Wishlist":"收藏","Orders":"订单","Cart":"购物车","Account":"账户","Theme":"主题","Language":"语言","Search":"搜索","Start Shopping":"开始购物","Become a Seller":"成为卖家","Products":"商品","Seller":"卖家","All Products":"全部商品","Electronics":"电子产品","Fashion":"时尚","Beauty":"美妆","Home & Living":"家居生活","Sports":"运动","Featured Products":"精选商品","Trending Now":"当前热门","Popular on Velora":"Velora 热门","View All Products":"查看全部商品","Filters":"筛选","Featured":"精选","Price: Low to High":"价格：从低到高","Price: High to Low":"价格：从高到低","Top Rated":"评分最高","Name (A-Z)":"名称 (A-Z)","products":"件商品","Shops on Velora":"Velora 商店","Complete Guide":"完整指南","Smart Comparison":"智能比较","Start Comparison":"开始比较","Real Reviews":"真实评价","My Wishlist":"我的收藏","Checkout":"结账","My Orders":"我的订单","My Account":"我的账户","Quick Links":"快捷链接","Customer Service":"客户服务","Return Policy":"退货政策","Shipping Policy":"配送政策","Contact Us":"联系我们","Subscribe":"订阅","All rights reserved.":"保留所有权利。","Your cart is empty":"购物车为空","Continue Shopping":"继续购物","Shop Now":"立即购买","Subtotal":"小计","Discount":"折扣","Shipping":"运费","Total":"总计","No orders yet":"暂无订单","Payment":"付款","Status":"状态","Product":"商品","Customer":"客户","Actions":"操作","Add to Cart":"加入购物车","Buy Now":"立即购买","View Details":"查看详情","Back":"返回","Continue":"继续","Cancel":"取消","Save":"保存","Delete":"删除","Confirm":"确认","Close":"关闭","Apply":"应用","Remove":"移除","Clear":"清除","No results":"没有结果","Try different keywords":"请尝试其他关键词","Login":"登录","Register":"注册","Required":"必需","Restricted":"受限","Enforced":"已执行","Tracked":"已跟踪","Ready.":"就绪。","MULTI-SELLER MARKETPLACE":"多卖家购物平台","MARKETPLACE CATEGORIES":"平台分类","EXPLORE VELORA":"探索 Velora","FEATURED PRODUCTS":"精选商品","TRENDING NOW":"热门趋势","SELL ON VELORA":"在 Velora 上销售","LIMITED-TIME OFFERS":"限时优惠","DISCOVER STORES":"发现商店","LEARN":"学习","ARTICLES":"文章","COMPARE SMARTLY":"智能比较","REAL EXPERIENCES":"真实体验","Recommended for you":"为你推荐","Quality-first discovery using Velora catalog signals. Personalized recommendations are only used when the relevant consent allows them.":"基于 Velora 目录信号进行高质量发现。仅在获得相应同意时使用个性化推荐。","Continue exploring":"继续探索","Pick up where you left off with products you viewed recently.":"继续浏览你最近查看过的商品。","Explore all →":"查看全部 →","VELORA DISCOVERY":"VELORA 探索","Protected checkout":"安全结账","Payment attempts and order creation use governed backend flows.":"支付尝试和订单创建使用受治理的后端流程。","Multi-seller":"多卖家","Shop multiple stores from one marketplace experience.":"在一个市场体验中购买来自多家商店的商品。","Track your order":"跟踪你的订单","Shipping status and delivery evidence can follow the order lifecycle.":"可根据订单生命周期查看配送状态和送达凭证。","Trust & Safety":"信任与安全","Returns, disputes, fraud controls, and account enforcement are governed.":"退货、争议、欺诈控制和账户处置均受到治理。","Email":"电子邮箱","Password":"密码","Create Account":"创建账户","Don't have an account? Create one":"还没有账户？创建一个","Build your store. Reach more customers.":"建设你的店铺，触达更多客户。","Velora brings products, sellers, discovery and shopping together in one growing marketplace.":"Velora 将商品、卖家、探索和购物汇聚于一个不断发展的市场。","Open Your Store":"开设你的店铺","A global multi-vendor marketplace connecting customers with independent stores and brands.":"连接客户与独立商店和品牌的全球多卖家市场。","Your email":"你的邮箱","Shop":"商店","Guide":"指南","Compare":"比较","Newsletter":"订阅资讯","Subscribe for latest offers":"订阅以获取最新优惠","Shop What You Love":"购买你喜欢的商品","Velora is built for every kind of store — not just one category.":"Velora 为各种类型的商店而打造，而不仅仅是一个品类。","Seller Operations":"卖家运营","Orders unavailable":"订单不可用","AUTH REQUIRED":"需要登录","AUTH_REQUIRED":"需要登录","Transaction loop unavailable":"交易流程不可用","Integration Control":"集成控制","STAGE 57 Operations":"阶段 57 运营","Operations":"运营"},"ja":{"Home":"ホーム","Categories":"カテゴリー","Shops":"ショップ","Deals":"お得情報","Sell on Velora":"Veloraで販売","Wishlist":"お気に入り","Orders":"注文","Cart":"カート","Account":"アカウント","Theme":"テーマ","Language":"言語","Search":"検索","Start Shopping":"ショッピングを始める","Become a Seller":"販売者になる","Seller":"販売者","All Products":"すべての商品","Electronics":"電子機器","Fashion":"ファッション","Beauty":"ビューティー","Home & Living":"ホーム＆ライフ","Sports":"スポーツ","Featured Products":"おすすめ商品","Trending Now":"トレンド","Popular on Velora":"Veloraで人気","View All Products":"すべての商品を見る","Filters":"フィルター","Featured":"おすすめ","Price: Low to High":"価格：安い順","Price: High to Low":"価格：高い順","Top Rated":"高評価","products":"商品","Shops on Velora":"Veloraのショップ","Complete Guide":"完全ガイド","Smart Comparison":"スマート比較","Start Comparison":"比較を開始","Real Reviews":"実際のレビュー","My Wishlist":"お気に入り一覧","Checkout":"チェックアウト","My Orders":"注文履歴","My Account":"マイアカウント","Quick Links":"クイックリンク","Customer Service":"カスタマーサービス","Return Policy":"返品ポリシー","Shipping Policy":"配送ポリシー","Contact Us":"お問い合わせ","Subscribe":"購読する","All rights reserved.":"無断転載を禁じます。","Your cart is empty":"カートは空です","Continue Shopping":"買い物を続ける","Shop Now":"今すぐ購入","Subtotal":"小計","Discount":"割引","Shipping":"送料","Total":"合計","No orders yet":"注文はまだありません","Payment":"支払い","Status":"ステータス","Customer":"顧客","Add to Cart":"カートに追加","Buy Now":"今すぐ購入","View Details":"詳細を見る","Back":"戻る","Continue":"続ける","Cancel":"キャンセル","Delete":"削除","Confirm":"確認","Close":"閉じる","Apply":"適用","Remove":"削除","Clear":"クリア","No results":"結果なし","Try different keywords":"別のキーワードを試してください","Login":"ログイン","Register":"登録","Required":"必須","Restricted":"制限あり","Enforced":"適用済み","Tracked":"追跡済み","Ready.":"準備完了。","MULTI-SELLER MARKETPLACE":"マルチセラーマーケットプレイス","MARKETPLACE CATEGORIES":"マーケットプレイスのカテゴリー","EXPLORE VELORA":"Veloraを探索","FEATURED PRODUCTS":"おすすめ商品","TRENDING NOW":"トレンド","SELL ON VELORA":"Veloraで販売","LIMITED-TIME OFFERS":"期間限定オファー","DISCOVER STORES":"ショップを探す","LEARN":"学ぶ","ARTICLES":"記事","COMPARE SMARTLY":"スマートに比較","REAL EXPERIENCES":"リアルな体験"},"ko":{"Home":"홈","Categories":"카테고리","Shops":"상점","Deals":"특가","Sell on Velora":"Velora에서 판매","Wishlist":"찜","Orders":"주문","Cart":"장바구니","Account":"계정","Theme":"테마","Language":"언어","Search":"검색","Start Shopping":"쇼핑 시작","Become a Seller":"판매자 되기","Products":"상품","Seller":"판매자","All Products":"모든 상품","Electronics":"전자제품","Fashion":"패션","Beauty":"뷰티","Home & Living":"홈 & 리빙","Sports":"스포츠","Featured Products":"추천 상품","Trending Now":"지금 인기","Popular on Velora":"Velora 인기 상품","View All Products":"모든 상품 보기","Filters":"필터","Featured":"추천","Price: Low to High":"가격 낮은순","Price: High to Low":"가격 높은순","Top Rated":"평점순","products":"상품","Shops on Velora":"Velora 상점","Complete Guide":"전체 가이드","Smart Comparison":"스마트 비교","Start Comparison":"비교 시작","Real Reviews":"실제 리뷰","My Wishlist":"내 찜 목록","Checkout":"결제","My Orders":"내 주문","My Account":"내 계정","Quick Links":"빠른 링크","Customer Service":"고객 서비스","Return Policy":"반품 정책","Shipping Policy":"배송 정책","Contact Us":"문의하기","Subscribe":"구독","All rights reserved.":"모든 권리 보유.","Your cart is empty":"장바구니가 비어 있습니다","Continue Shopping":"쇼핑 계속하기","Shop Now":"지금 쇼핑하기","Subtotal":"소계","Discount":"할인","Shipping":"배송","Total":"총액","No orders yet":"아직 주문이 없습니다","Payment":"결제","Status":"상태","Product":"상품","Customer":"고객","Actions":"작업","Add to Cart":"장바구니에 담기","Buy Now":"지금 구매","View Details":"상세 보기","Back":"뒤로","Continue":"계속","Cancel":"취소","Save":"저장","Delete":"삭제","Confirm":"확인","Close":"닫기","Apply":"적용","Remove":"제거","Clear":"지우기","No results":"결과 없음","Try different keywords":"다른 키워드를 입력해 보세요","Login":"로그인","Register":"회원가입","Required":"필수","Restricted":"제한됨","Enforced":"적용됨","Tracked":"추적됨","Ready.":"준비 완료.","MULTI-SELLER MARKETPLACE":"멀티 셀러 마켓플레이스","MARKETPLACE CATEGORIES":"마켓플레이스 카테고리","EXPLORE VELORA":"Velora 둘러보기","FEATURED PRODUCTS":"추천 상품","TRENDING NOW":"지금 인기","SELL ON VELORA":"Velora에서 판매","LIMITED-TIME OFFERS":"기간 한정 혜택","DISCOVER STORES":"상점 둘러보기","LEARN":"배우기","ARTICLES":"기사","COMPARE SMARTLY":"스마트 비교","REAL EXPERIENCES":"실제 경험"},"hi":{"Home":"होम","Categories":"श्रेणियाँ","Shops":"दुकानें","Deals":"ऑफ़र","Sell on Velora":"Velora पर बेचें","Wishlist":"पसंदीदा","Orders":"ऑर्डर","Cart":"कार्ट","Account":"खाता","Theme":"थीम","Language":"भाषा","Search":"खोजें","Start Shopping":"खरीदारी शुरू करें","Become a Seller":"विक्रेता बनें","Products":"उत्पाद","Seller":"विक्रेता","All Products":"सभी उत्पाद","Electronics":"इलेक्ट्रॉनिक्स","Fashion":"फ़ैशन","Beauty":"ब्यूटी","Home & Living":"घर और जीवन","Sports":"खेल","Featured Products":"विशेष उत्पाद","Trending Now":"अभी ट्रेंडिंग","Popular on Velora":"Velora पर लोकप्रिय","View All Products":"सभी उत्पाद देखें","Filters":"फ़िल्टर","Featured":"विशेष","Price: Low to High":"कीमत: कम से अधिक","Price: High to Low":"कीमत: अधिक से कम","Top Rated":"सर्वोच्च रेटेड","products":"उत्पाद","Shops on Velora":"Velora पर दुकानें","Complete Guide":"पूरी गाइड","Smart Comparison":"स्मार्ट तुलना","Start Comparison":"तुलना शुरू करें","Real Reviews":"वास्तविक समीक्षाएँ","My Wishlist":"मेरी पसंदीदा सूची","Checkout":"चेकआउट","My Orders":"मेरे ऑर्डर","My Account":"मेरा खाता","Quick Links":"त्वरित लिंक","Customer Service":"ग्राहक सेवा","Return Policy":"वापसी नीति","Shipping Policy":"शिपिंग नीति","Contact Us":"संपर्क करें","Subscribe":"सदस्यता लें","All rights reserved.":"सर्वाधिकार सुरक्षित।","Your cart is empty":"आपकी कार्ट खाली है","Continue Shopping":"खरीदारी जारी रखें","Shop Now":"अभी खरीदें","Subtotal":"उप-योग","Discount":"छूट","Shipping":"शिपिंग","Total":"कुल","No orders yet":"अभी कोई ऑर्डर नहीं","Payment":"भुगतान","Status":"स्थिति","Product":"उत्पाद","Customer":"ग्राहक","Actions":"क्रियाएँ","Add to Cart":"कार्ट में जोड़ें","Buy Now":"अभी खरीदें","View Details":"विवरण देखें","Back":"वापस","Continue":"जारी रखें","Cancel":"रद्द करें","Save":"सहेजें","Delete":"हटाएँ","Confirm":"पुष्टि करें","Close":"बंद करें","Apply":"लागू करें","Remove":"हटाएँ","Clear":"साफ़ करें","No results":"कोई परिणाम नहीं","Try different keywords":"अन्य कीवर्ड आज़माएँ","Login":"लॉग इन","Register":"पंजीकरण","Required":"आवश्यक","Restricted":"सीमित","Enforced":"लागू","Tracked":"ट्रैक किया गया","Ready.":"तैयार।","MULTI-SELLER MARKETPLACE":"मल्टी-सेलर मार्केटप्लेस","MARKETPLACE CATEGORIES":"मार्केटप्लेस श्रेणियाँ","EXPLORE VELORA":"Velora देखें","FEATURED PRODUCTS":"विशेष उत्पाद","TRENDING NOW":"अभी ट्रेंडिंग","SELL ON VELORA":"Velora पर बेचें","LIMITED-TIME OFFERS":"सीमित समय के ऑफ़र","DISCOVER STORES":"दुकानें खोजें","LEARN":"सीखें","ARTICLES":"लेख","COMPARE SMARTLY":"स्मार्ट तुलना","REAL EXPERIENCES":"वास्तविक अनुभव"}};
-window.__VELORA_PACK={en:PACK.en,ar:PACK.ar};
+window.__VELORA_PACK=PACK;
 ;
 const DIR={en:'ltr',es:'ltr',ar:'rtl',fr:'ltr',de:'ltr',it:'ltr',pt:'ltr',tr:'ltr',zh:'ltr',ja:'ltr',ko:'ltr',hi:'ltr'};
 const LANGS=new Set(Object.keys(PACK));
-const ACTIVE_MVP_LANGS=new Set(['en','ar']);
 const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
-const current=()=>{
-    const global=String(window.VELORA_GLOBAL_LOCALE_STATE?.locale||'').toLowerCase();
-    if(ACTIVE_MVP_LANGS.has(global))return global;
-    const x=String(localStorage.getItem('velora_language')||'').toLowerCase();
-    return ACTIVE_MVP_LANGS.has(x)?x:'en';
-};
+const current=()=>{const x=localStorage.getItem('velora_language');return LANGS.has(x)?x:'en';};
 const splitPrefix=s=>{const x=String(s);let i=0;while(i<x.length){const c=x.codePointAt(i);const ch=String.fromCodePoint(c);if(/[\p{L}\p{N}]/u.test(ch))break;i+=ch.length;}return [x.slice(0,i),x.slice(i)];};
 const keyOf=s=>norm(splitPrefix(norm(s))[1]);
 if(!window.VELORA_I18N_PROVENANCE){
@@ -5548,22 +5505,10 @@ function render(root=document){
 }
 
 async function client(){return window.mahaSupabase||window.supabaseClient||window.sb||null;}
-async function pref(){
-    try{
-        const c=await client();if(!c?.rpc)return null;
-        const r=await c.rpc('velora_get_language_preference');
-        const v=String(r?.data||'').toLowerCase();
-        if(ACTIVE_MVP_LANGS.has(v)){
-            localStorage.setItem('velora_language',v);
-            return v;
-        }
-    }catch(_){}
-    return null;
-}
+async function pref(){try{const c=await client();if(!c?.rpc)return null;const r=await c.rpc('velora_get_language_preference');const v=String(r?.data||'');if(LANGS.has(v)){localStorage.setItem('velora_language',v);return v;}}catch(_){ }return null;}
 async function overrides(lang){try{const c=await client();if(!c?.from)return {};const r=await c.from('velora_translation_overrides').select('source_text,translated_text').eq('locale',lang).eq('is_active',true);if(r.error||!Array.isArray(r.data))return {};const o={};r.data.forEach(x=>{if(x?.source_text&&x?.translated_text)o[norm(x.source_text)]=x.translated_text;});return o;}catch(_){return {};}}
 async function setLang(code){
-    code=String(code||'').toLowerCase();
-    if(!ACTIVE_MVP_LANGS.has(code))return false;
+    if(!LANGS.has(code))return false;
     if(window.VELORA_I18N_V5_PRESENT===true&&window.VELORA_I18N_V5_FAILED!==true)return false;
     localStorage.setItem('velora_language',code);
     try{
@@ -5663,11 +5608,7 @@ window.setVeloraLanguage = async function(code){
   }catch(_){return false;}
 };
 
-function getVeloraDisplayCurrency(){
-  const canonical=String(window.VELORA_GLOBAL_LOCALE_STATE?.currency_code||'').toUpperCase();
-  if(canonical && VELORA_CURRENCY_META[canonical]) return canonical;
-  return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD';
-}
+function getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
 function getSellerCurrency(seller){ return (seller && VELORA_CURRENCY_META[seller.currency]) ? seller.currency : getVeloraDisplayCurrency(); }
 function formatSellerPrice(value,seller){ return formatPrice(value,getSellerCurrency(seller)); }
 function saveSeller(seller){
@@ -6601,7 +6542,7 @@ function openSellerPlatformCore() {
         document.body.appendChild(platform);
     }
 
-    platform.innerHTML = window.VeloraI18n.html(renderSellerLayout(seller));
+    platform.innerHTML = renderSellerLayout(seller);
     platform.hidden = false;
     platform.setAttribute('aria-hidden', 'false');
     platform.classList.add('active');
@@ -6779,7 +6720,7 @@ function showSellerSection(section, btn) {
     };
 
     const titleEl = document.getElementById('sellerHeaderTitle');
-    if (titleEl) titleEl.textContent = window.VeloraI18n.t(titles[section] || section, titles[section] || section);
+    if (titleEl) titleEl.textContent = titles[section] || section;
 
     const content = document.getElementById('sellerContent');
     if (!content) return;
@@ -6788,25 +6729,25 @@ function showSellerSection(section, btn) {
 
     switch(section) {
         case 'dashboard':
-            content.innerHTML = window.VeloraI18n.html(renderSellerDashboard(seller));
+            content.innerHTML = renderSellerDashboard(seller);
             break;
         case 'orders':
-            content.innerHTML = window.VeloraI18n.html(renderSellerOrders(seller));
+            content.innerHTML = renderSellerOrders(seller);
             break;
         case 'products':
-            content.innerHTML = window.VeloraI18n.html(renderSellerProducts(seller));
+            content.innerHTML = renderSellerProducts(seller);
             break;
         case 'inventory':
-            content.innerHTML = window.VeloraI18n.html(renderSellerInventory(seller));
+            content.innerHTML = renderSellerInventory(seller);
             break;
         case 'analytics':
-            content.innerHTML = window.VeloraI18n.html(renderSellerAnalytics(seller));
+            content.innerHTML = renderSellerAnalytics(seller);
             break;
         case 'earnings':
-            content.innerHTML = window.VeloraI18n.html(renderSellerEarnings(seller));
+            content.innerHTML = renderSellerEarnings(seller);
             break;
         case 'settings':
-            content.innerHTML = window.VeloraI18n.html(renderSellerSettings(seller));
+            content.innerHTML = renderSellerSettings(seller);
             break;
     }
 }
@@ -7398,7 +7339,7 @@ function openAdminPlatform() {
         document.body.appendChild(platform);
     }
 
-    platform.innerHTML = window.VeloraI18n.html(renderAdminLayout());
+    platform.innerHTML = renderAdminLayout();
     platform.hidden = false;
     platform.setAttribute('aria-hidden', 'false');
     platform.classList.add('active');
@@ -7550,32 +7491,32 @@ function showAdminSection(section, btn) {
     };
 
     const titleEl = document.getElementById('adminHeaderTitle');
-    if (titleEl) titleEl.textContent = window.VeloraI18n.t(titles[section] || section, titles[section] || section);
+    if (titleEl) titleEl.textContent = titles[section] || section;
 
     const content = document.getElementById('adminContent');
     if (!content) return;
 
     switch(section) {
         case 'dashboard':
-            content.innerHTML = window.VeloraI18n.html(renderAdminDashboard());
+            content.innerHTML = renderAdminDashboard();
             break;
         case 'sellers':
-            content.innerHTML = window.VeloraI18n.html(renderAdminSellers());
+            content.innerHTML = renderAdminSellers();
             break;
         case 'products':
-            content.innerHTML = window.VeloraI18n.html(renderAdminProducts());
+            content.innerHTML = renderAdminProducts();
             break;
         case 'orders':
-            content.innerHTML = window.VeloraI18n.html(renderAdminOrders());
+            content.innerHTML = renderAdminOrders();
             break;
         case 'users':
-            content.innerHTML = window.VeloraI18n.html(renderAdminUsers());
+            content.innerHTML = renderAdminUsers();
             break;
         case 'coupons':
-            content.innerHTML = window.VeloraI18n.html(renderAdminCoupons());
+            content.innerHTML = renderAdminCoupons();
             break;
         case 'settings':
-            content.innerHTML = window.VeloraI18n.html(renderAdminSettings());
+            content.innerHTML = renderAdminSettings();
             break;
     }
 }
@@ -8179,7 +8120,7 @@ async function openAdminOrderDetails(orderRef) {
     window.__VELORA_ADMIN_ORDER_CONTEXT = { order, orderRef, dbId: order.id };
     const title = document.getElementById('adminOrderDetailsTitle');
     if (title) title.textContent = `🛒 Order #${adminOrderDisplayId(order)}`;
-    content.innerHTML = window.VeloraI18n.html(renderAdminOrderDetailsContent(order));
+    content.innerHTML = renderAdminOrderDetailsContent(order);
 }
 
 function openAdminOrderStatusConfirmation(orderRef, newStatus) {
@@ -9291,7 +9232,7 @@ function openOwnerPlatform() {
         document.body.appendChild(platform);
     }
 
-    platform.innerHTML = window.VeloraI18n.html(renderOwnerLayout());
+    platform.innerHTML = renderOwnerLayout();
     platform.classList.add('active');
     document.body.style.overflow = 'hidden';
 
@@ -9442,20 +9383,20 @@ function showOwnerSection(section, btn) {
     if (!content) return;
 
     switch(section) {
-        case 'dashboard': content.innerHTML = window.VeloraI18n.html(renderOwnerDashboard()); break;
-        case 'live': content.innerHTML = window.VeloraI18n.html(renderOwnerLive()); break;
-        case 'revenue': content.innerHTML = window.VeloraI18n.html(renderOwnerRevenue()); break;
-        case 'customers': content.innerHTML = window.VeloraI18n.html(renderOwnerCustomers()); break;
-        case 'sellers': content.innerHTML = window.VeloraI18n.html(renderOwnerSellers()); break;
-        case 'products': content.innerHTML = window.VeloraI18n.html(renderOwnerProducts()); break;
-        case 'orders': content.innerHTML = window.VeloraI18n.html(renderOwnerOrders()); break;
-        case 'search': content.innerHTML = window.VeloraI18n.html(renderOwnerSearch()); break;
-        case 'funnel': content.innerHTML = window.VeloraI18n.html(renderOwnerFunnel()); break;
-        case 'bi': content.innerHTML = window.VeloraI18n.html(renderOwnerBI()); break;
-        case 'risk': content.innerHTML = window.VeloraI18n.html(renderOwnerRisk()); break;
-        case 'security': content.innerHTML = window.VeloraI18n.html(renderOwnerSecurity()); break;
-        case 'admins': content.innerHTML = window.VeloraI18n.html(renderOwnerAdmins()); break;
-        case 'settings': content.innerHTML = window.VeloraI18n.html(renderOwnerSettings()); break;
+        case 'dashboard': content.innerHTML = renderOwnerDashboard(); break;
+        case 'live': content.innerHTML = renderOwnerLive(); break;
+        case 'revenue': content.innerHTML = renderOwnerRevenue(); break;
+        case 'customers': content.innerHTML = renderOwnerCustomers(); break;
+        case 'sellers': content.innerHTML = renderOwnerSellers(); break;
+        case 'products': content.innerHTML = renderOwnerProducts(); break;
+        case 'orders': content.innerHTML = renderOwnerOrders(); break;
+        case 'search': content.innerHTML = renderOwnerSearch(); break;
+        case 'funnel': content.innerHTML = renderOwnerFunnel(); break;
+        case 'bi': content.innerHTML = renderOwnerBI(); break;
+        case 'risk': content.innerHTML = renderOwnerRisk(); break;
+        case 'security': content.innerHTML = renderOwnerSecurity(); break;
+        case 'admins': content.innerHTML = renderOwnerAdmins(); break;
+        case 'settings': content.innerHTML = renderOwnerSettings(); break;
     }
 }
 
@@ -10100,7 +10041,7 @@ function renderPlatformSwitcher() {
                 ${platforms.map(p => `
                     <div class="platform-switcher-item" 
                         style="border-left-color: ${p.color};"
-                        onclick="window.switchPlatform('${p.id}')">
+                        onclick="switchPlatform('${p.id}')">
                         <span>${p.icon}</span>
                         <span>${p.name}</span>
                     </div>
@@ -10349,7 +10290,7 @@ function injectNotificationBell() {
     const accountBtn = document.getElementById('accountBtn');
     if (accountBtn && accountBtn.parentNode === headerActions) {
         const wrapper = document.createElement('div');
-        wrapper.innerHTML = window.VeloraI18n.html(renderNotificationBell());
+        wrapper.innerHTML = renderNotificationBell();
         headerActions.insertBefore(wrapper.firstElementChild, accountBtn);
     }
 }
@@ -11278,7 +11219,7 @@ showOwnerSection = function(section, btn) {
         if (titleEl) titleEl.textContent = 'Audit Logs';
 
         const content = document.getElementById('ownerContent');
-        if (content) content.innerHTML = window.VeloraI18n.html(renderOwnerAuditLogs());
+        if (content) content.innerHTML = renderOwnerAuditLogs();
 
         return;
     }
@@ -11293,7 +11234,7 @@ showOwnerSection = function(section, btn) {
         if (titleEl) titleEl.textContent = 'Search Intelligence';
 
         const content = document.getElementById('ownerContent');
-        if (content) content.innerHTML = window.VeloraI18n.html(renderOwnerSearchIntelligence());
+        if (content) content.innerHTML = renderOwnerSearchIntelligence();
 
         return;
     }
@@ -11525,9 +11466,8 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function loadMarketContext(){
     const auth = await getAuthenticatedProfile();
     const profile = auth?.profile || {};
-    const globalState=window.VELORA_GLOBAL_LOCALE_STATE;
-    const countryCode = (globalState?.country_code || profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
-    let currencyCode = (globalState?.currency_code || profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
+    const countryCode = (profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
+    let currencyCode = (profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
 
     if (countryCode) {
       try {
@@ -11544,11 +11484,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     window.VELORA_MARKET_CONTEXT = {
       countryCode,
       currencyCode,
-      languageCode: (['en','ar'].includes(String(globalState?.locale || '').toLowerCase())
-        ? String(globalState.locale).toLowerCase()
-        : (['en','ar'].includes(String(profile.preferred_language || '').toLowerCase())
-          ? String(profile.preferred_language).toLowerCase()
-          : (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en')))
+      languageCode: profile.preferred_language || (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en')
     };
     return window.VELORA_MARKET_CONTEXT;
   }
@@ -11566,13 +11502,12 @@ console.log('✅ Analytics + Events + Audit loaded!');
     if (select && data.length) {
       const uiCurrencies = data.filter(c => !window.VELORA_CURRENCY_META || window.VELORA_CURRENCY_META[c.code]);
       const visible = uiCurrencies.length ? uiCurrencies : data;
-      const current = window.VELORA_GLOBAL_LOCALE_STATE?.currency_code || ctx.currencyCode || select.value || visible[0].code;
+      const current = select.value || ctx.currencyCode || visible[0].code;
       select.innerHTML = visible.map(c => `<option value=\"${escapeHtml(String(c.code))}\">${escapeHtml(String(c.code))}</option>`).join('');
       const selected = visible.some(c => c.code === current) ? current : visible[0].code;
       select.value = selected;
       if (typeof setVeloraCurrency === 'function') setVeloraCurrency(selected);
       window.VELORA_MARKET_CONTEXT.currencyCode = selected;
-      if(window.VELORA_GLOBAL_LOCALE_STATE) window.VELORA_GLOBAL_LOCALE_STATE.currency_code=selected;
     }
     return data;
   }
