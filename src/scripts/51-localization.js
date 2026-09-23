@@ -395,6 +395,10 @@ async function setLang(code){
   if(!['en','ar'].includes(code))return false;
 
   const requestId=++localeEpoch;
+  // Invalidate any in-flight global-context read in Stage 50 before the
+  // language mutation performs network work. This makes V5 and Stage 50
+  // share one authoritative locale mutation boundary.
+  try{window.__VELORA_LOCALE_MUTATION__?.();}catch(_){}
   const startedAt=Date.now();
   try{window.__VELORA_LOCALE_TRACE__?.('51 setLang start',{code,requestId,localeEpoch});}catch(_){}
 
