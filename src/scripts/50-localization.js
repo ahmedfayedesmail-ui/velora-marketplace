@@ -281,8 +281,12 @@
     };
   }
 
-  window.addEventListener('velora:languagechange', () => setTimeout(renderGlobalPreferences, 0));
-  window.addEventListener('velora:global-locale-change', () => setTimeout(renderGlobalPreferences, 0));
+  function renderGlobalPreferencesLocalized(){
+    renderGlobalPreferences();
+    try{window.VELORA_I18N_RENDER?.(document.getElementById('veloraGlobalPreferences'));}catch(_){}
+  }
+  window.addEventListener('velora:languagechange', () => setTimeout(renderGlobalPreferencesLocalized, 0));
+  window.addEventListener('velora:global-locale-change', () => setTimeout(renderGlobalPreferencesLocalized, 0));
   // V5 emits this event after the authoritative locale application. Keep the
   // account preference surface synchronized with that same locale so it cannot
   // retain a stale language selection after an async translation pass.
@@ -291,7 +295,7 @@
     state.locale = locale;
     state.date_locale = canonicalDateLocale(state.locale, state.country_code);
     syncLocaleUi();
-    setTimeout(renderGlobalPreferences, 0);
+    setTimeout(renderGlobalPreferencesLocalized, 0);
   });
 
   async function bootGlobalLocale() {

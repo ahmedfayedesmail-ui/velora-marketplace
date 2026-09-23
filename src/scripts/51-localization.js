@@ -346,6 +346,7 @@ async function applyLocale(locale,requestId){
   state.locale=locale;
   const model=window.VELORA_GLOBAL_LOCALE_STATE||state;
   model.locale=locale;
+  model.date_locale=locale+'-'+String(model.country_code||'EG').toUpperCase();
   window.VELORA_GLOBAL_LOCALE = locale;
   localStorage.setItem('velora_language',locale);
   document.documentElement.lang=locale;
@@ -399,6 +400,11 @@ async function setLang(code){
 
   // Commit the authoritative locale synchronously before any network/DOM await.
   state.locale=code;
+  if(window.VELORA_GLOBAL_LOCALE_STATE){
+    window.VELORA_GLOBAL_LOCALE_STATE.locale=code;
+    const country=String(window.VELORA_GLOBAL_LOCALE_STATE.country_code||'EG').toUpperCase();
+    window.VELORA_GLOBAL_LOCALE_STATE.date_locale=code+'-'+country;
+  }
   window.VELORA_GLOBAL_LOCALE_STATE=state;
   window.VELORA_GLOBAL_LOCALE=code;
   localStorage.setItem('velora_language',code);
