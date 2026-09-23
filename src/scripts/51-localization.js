@@ -86,6 +86,7 @@ function stableTextSource(node){
   const explicitKey=explicit?.getAttribute?.('data-velora-i18n');
   if(explicitKey && catalog('en')[explicitKey]) source=explicitKey;
   if(!source && Object.prototype.hasOwnProperty.call(catalog('en'),raw)) source=raw;
+  if(!source && Object.prototype.hasOwnProperty.call(catalog(state.locale),raw)) source=raw;
   if(!source) source=reverseCanonical(raw, state.locale);
   if(source) __VELORA_TEXT_SOURCE.set(node,source);
   return source||raw;
@@ -99,7 +100,10 @@ function stableAttrSource(el,attr){
   if(byAttr[attr])return byAttr[attr];
   const slot='data-velora-i18n-'+attr;
   const explicit=norm(el.getAttribute(slot)||'');
-  const source = explicit || (Object.prototype.hasOwnProperty.call(catalog('en'),raw)?raw:reverseCanonical(raw,state.locale)||raw);
+  const source = explicit ||
+    (Object.prototype.hasOwnProperty.call(catalog('en'),raw)?raw:
+     Object.prototype.hasOwnProperty.call(catalog(state.locale),raw)?raw:
+     reverseCanonical(raw,state.locale)||raw);
   byAttr[attr]=source;
   if(!el.hasAttribute(slot))el.setAttribute(slot,source);
   return source;
