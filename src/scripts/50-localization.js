@@ -10,59 +10,9 @@
   const LANG_META = (window.VELORA_CORE && window.VELORA_CORE.languages) || {};
   const CURRENCIES = window.VELORA_CURRENCY_META || {};
   const initialCountry = (localStorage.getItem('velora_country') || 'EG').toUpperCase();
-  const rawStoredLanguage = (localStorage.getItem('velora_language') || 'en').toLowerCase();
-  const storedLanguage = ['en','ar'].includes(rawStoredLanguage) ? rawStoredLanguage : 'en';
+  const storedLanguage = ['en','ar'].includes((localStorage.getItem('velora_language') || 'en').toLowerCase()) ? (localStorage.getItem('velora_language') || 'en').toLowerCase() : 'en';
   const storedCurrency = (localStorage.getItem('velora_currency') || '').toUpperCase();
   const initialCurrency = initialCountry === 'EG' ? 'EGP' : (storedCurrency || 'USD');
-  // Canonical global-locale helpers are defined below; all persisted locale state is normalized through them.
-  function canonicalLocale(value){
-    value=String(value||'').toLowerCase();
-    return value==='ar'?'ar':'en';
-  }
-  function canonicalCountry(value){
-    value=String(value||'').trim().toUpperCase();
-    return /^[A-Z]{2}$/.test(value)?value:'EG';
-  }
-  function canonicalCurrency(value,country){
-    value=String(value||'').trim().toUpperCase();
-    if(CURRENCIES[value]) return value;
-    return country==='EG'?'EGP':'USD';
-  }
-  function canonicalDateLocale(locale,country){
-    return canonicalLocale(locale)+'-'+canonicalCountry(country);
-  }
-  function normalizeState(){
-    state.locale=canonicalLocale(state.locale);
-    state.country_code=canonicalCountry(state.country_code);
-    state.currency_code=canonicalCurrency(state.currency_code,state.country_code);
-    state.timezone=String(state.timezone||'UTC')||'UTC';
-    state.date_locale=canonicalDateLocale(state.locale,state.country_code);
-    return state;
-  }
-  function persistState(){
-    localStorage.setItem('velora_language',state.locale);
-    localStorage.setItem('velora_country',state.country_code);
-    localStorage.setItem('velora_currency',state.currency_code);
-    localStorage.setItem('velora_date_locale',state.date_locale);
-  }
-  function syncLocaleUi(){
-    normalizeState();
-    VELORA_CURRENCY=state.currency_code;
-    const currencySelect=document.getElementById('currencySelect');
-    if(currencySelect) currencySelect.value=state.currency_code;
-    const languageSelect=document.getElementById('languageSelect');
-    if(languageSelect) languageSelect.value=state.locale;
-    document.documentElement.lang=state.locale;
-    document.documentElement.dir=LANG_META[state.locale]?.dir||(state.locale==='ar'?'rtl':'ltr');
-    window.VELORA_GLOBAL_LOCALE=state.locale;
-    if(window.VELORA_MARKET_CONTEXT){
-      window.VELORA_MARKET_CONTEXT.countryCode=state.country_code;
-      window.VELORA_MARKET_CONTEXT.currencyCode=state.currency_code;
-      window.VELORA_MARKET_CONTEXT.languageCode=state.locale;
-    }
-    try{ if(typeof updateCurrencyDisplay==='function') updateCurrencyDisplay(); }catch(_){}
-    persistState();
-  }
   const state = window.VELORA_GLOBAL_LOCALE_STATE = window.VELORA_GLOBAL_LOCALE_STATE || {
     locale: storedLanguage,
     country_code: initialCountry,
@@ -70,101 +20,42 @@
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     date_locale: localStorage.getItem('velora_date_locale') || (navigator.language || 'en-US')
   };
-  let localeMutationSeq = 0;
-  // V5 owns the public language setter. Expose one synchronous mutation hook
-  // so async context reads in this module cannot overwrite a newer user choice.
-  window.__VELORA_LOCALE_MUTATION__ = function(){
-    localeMutationSeq += 1;
-    return localeMutationSeq;
-  };
-
-  function localeDiagnosticSnapshot(){
-    const languageSelect=document.getElementById('languageSelect');
-    return {
-      stateLocale:state?.locale,
-      globalLocale:window.VELORA_GLOBAL_LOCALE,
-      globalStateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale,
-      documentLang:document.documentElement?.lang,
-      languageSelect:languageSelect?.value||null,
-      dateLocale:state?.date_locale,
-      country:state?.country_code,
-      currency:state?.currency_code
-    };
-  }
-  function localeDiagnosticLog(label,extra){
-    const payload=Object.assign({snapshot:localeDiagnosticSnapshot()},extra||{});
-    try{console.log('[LOCALE TRACE] '+label,payload);}catch(_){}
-    try{window.__VELORA_PLATFORM_TRACE__?.('LOCALE '+label,payload);}catch(_){}
-  }
-  window.__VELORA_LOCALE_TRACE__=localeDiagnosticLog;
 
   const db = () => window.mahaSupabase || window.supabaseClient || window.sb || null;
   const esc = (v) => typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   async function loadContext() {
-    const requestSeq = localeMutationSeq;
-    const localeBeforeRequest = state.locale;
-    localeDiagnosticLog('50 loadContext start',{requestSeq,localeBeforeRequest});
     try {
       const c = db();
-      normalizeState();
-      if (!c?.rpc || !STATE?.user) {
-        syncLocaleUi();
-        localeDiagnosticLog('50 loadContext end',{reason:'no-rpc-or-user'});
-        return state;
-      }
+      if (!c?.rpc || !STATE?.user) return state;
       const r = await c.rpc('velora_get_global_locale_context');
-      localeDiagnosticLog('50 loadContext rpc returned',{
-        hasData:!!r?.data,
-        hasError:!!r?.error,
-        returnedLocale:r?.data?.locale??null,
-        returnedDateLocale:r?.data?.date_locale??null,
-        returnedCountry:r?.data?.country_code??null,
-        returnedCurrency:r?.data?.currency_code??null
-      });
-      if (r?.error || !r?.data) {
-        syncLocaleUi();
-        localeDiagnosticLog('50 loadContext end',{reason:'rpc-error-or-empty'});
-        return state;
-      }
-      const previousLocale = canonicalLocale(window.VELORA_GLOBAL_LOCALE);
+      if (r?.error || !r?.data) return state;
       Object.assign(state, r.data);
-      localeDiagnosticLog('50 loadContext after Object.assign',{
-        requestSeq,
-        currentMutationSeq:localeMutationSeq,
-        staleRequest:requestSeq!==localeMutationSeq
-      });
-      if (requestSeq !== localeMutationSeq) {
-        state.locale = canonicalLocale(localeBeforeRequest);
+      // An empty/invalid server currency must never blank the selector.
+      if (!CURRENCIES[state.currency_code]) state.currency_code = initialCurrency;
+      localStorage.setItem('velora_language', state.locale);
+      localStorage.setItem('velora_country', state.country_code);
+      localStorage.setItem('velora_currency', state.currency_code);
+      localStorage.setItem('velora_date_locale', state.date_locale || state.locale);
+      if (CURRENCIES[state.currency_code]) VELORA_CURRENCY = state.currency_code;
+      if (typeof window.setVeloraLanguage === 'function') await window.setVeloraLanguage(state.locale);
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = state.locale;
+        document.documentElement.dir = LANG_META[state.locale]?.dir || (state.locale === 'ar' ? 'rtl' : 'ltr');
       }
-      normalizeState();
-      const localeChanged = previousLocale !== state.locale;
-      syncLocaleUi();
-      if (localeChanged && typeof window.setVeloraLanguage === 'function') {
-        await window.setVeloraLanguage(state.locale);
-      } else if (typeof window.VELORA_I18N_RENDER === 'function') {
-        window.VELORA_I18N_RENDER(document);
-      }
-      syncLocaleUi();
-      localeDiagnosticLog('50 loadContext end',{localeChanged});
-    } catch (error) {
-      localeDiagnosticLog('50 loadContext caught',{message:error?.message||String(error),name:error?.name||null});
-      normalizeState();
-      syncLocaleUi();
-    }
+    } catch (_) {}
     return state;
   }
 
   const previousSetLanguage = window.setVeloraLanguage;
   window.setVeloraLanguage = async function(code) {
-    code = canonicalLocale(code);
     if (!LANG_META[code]) return false;
-    localeMutationSeq += 1;
     const ok = typeof previousSetLanguage === 'function' ? await previousSetLanguage(code) : true;
     if (!ok) return false;
     state.locale = code;
-    state.date_locale = canonicalDateLocale(state.locale,state.country_code);
-    syncLocaleUi();
+    localStorage.setItem('velora_language', code);
+    document.documentElement.lang = code;
+    document.documentElement.dir = LANG_META[code]?.dir || (code === 'ar' ? 'rtl' : 'ltr');
     try {
       const c = db();
       if (c?.rpc && STATE?.user) {
@@ -183,20 +74,18 @@
 
   const previousSetCurrency = window.setVeloraCurrency;
   window.setVeloraCurrency = async function(code) {
-    code=String(code||'').toUpperCase();
     if (!CURRENCIES[code]) return false;
     const ok = typeof previousSetCurrency === 'function' ? previousSetCurrency(code) : true;
     if (!ok) return false;
     state.currency_code = code;
-    normalizeState();
-    syncLocaleUi();
+    localStorage.setItem('velora_currency', code);
     try {
       const c = db();
       if (c?.rpc && STATE?.user) {
         await c.rpc('velora_set_global_locale_context', {
           p_locale: state.locale || 'en',
           p_country_code: state.country_code || null,
-          p_currency_code: state.currency_code,
+          p_currency_code: code,
           p_timezone: state.timezone || null,
           p_date_locale: state.date_locale || null
         });
@@ -208,13 +97,11 @@
 
   async function savePreferences(e) {
     e.preventDefault();
-    const locale = ['en','ar'].includes(document.getElementById('vlpLanguage')?.value || state.locale)
-      ? (document.getElementById('vlpLanguage')?.value || state.locale)
-      : 'en';
+    const locale = document.getElementById('vlpLanguage')?.value || state.locale;
     const country = (document.getElementById('vlpCountry')?.value || state.country_code).trim().toUpperCase();
     const currency = document.getElementById('vlpCurrency')?.value || state.currency_code;
     const timezone = document.getElementById('vlpTimezone')?.value || state.timezone;
-    const dateLocale = canonicalDateLocale(locale,country);
+    const dateLocale = document.getElementById('vlpDateLocale')?.value || state.date_locale;
     try {
       const c = db();
       if (!c?.rpc || !STATE?.user) throw new Error('Please login first');
@@ -226,15 +113,11 @@
         p_date_locale: dateLocale
       });
       if (r?.error) throw r.error;
-      Object.assign(state, r.data || {}, {
-        locale:canonicalLocale(locale),
-        country_code:canonicalCountry(country),
-        currency_code:canonicalCurrency(currency,canonicalCountry(country)),
-        timezone,
-        date_locale:canonicalDateLocale(locale,country)
-      });
-      normalizeState();
-      persistState();
+      Object.assign(state, r.data || {}, {locale, country_code:country, currency_code:currency, timezone, date_locale:dateLocale});
+      localStorage.setItem('velora_language', locale);
+      localStorage.setItem('velora_country', country);
+      localStorage.setItem('velora_currency', currency);
+      localStorage.setItem('velora_date_locale', dateLocale);
       if (typeof window.setVeloraLanguage === 'function') await window.setVeloraLanguage(locale);
       if (CURRENCIES[currency]) VELORA_CURRENCY = currency;
       if (typeof updateCurrencyDisplay === 'function') updateCurrencyDisplay();
@@ -250,8 +133,6 @@
     if (!host) return;
     const languages = ['en','ar'].filter(k => LANG_META[k]).map(k => `<option value="${k}" ${k===state.locale?'selected':''}>${esc(LANG_META[k].name || k)}</option>`).join('');
     const currencies = Object.keys(CURRENCIES).map(k => `<option value="${k}" ${k===state.currency_code?'selected':''}>${k} — ${esc(CURRENCIES[k].symbol || '')}</option>`).join('');
-    // Mount the raw structure first. V5 translates the live DOM afterward,
-    // so the rendered controls always use the same authoritative locale.
     host.innerHTML = `
       <div class="form-section" style="margin-top:1.25rem;border:1px solid rgba(255,255,255,.08);">
         <h3>🌍 Global Preferences</h3>
@@ -265,11 +146,10 @@
             <div class="form-group"><label>Currency</label><select id="vlpCurrency" class="form-input">${currencies}</select></div>
             <div class="form-group"><label>Timezone</label><input id="vlpTimezone" class="form-input" value="${esc(state.timezone || 'UTC')}"></div>
           </div>
-          <div class="form-group"><label>Date / Number Locale</label><input id="vlpDateLocale" class="form-input" value="${esc(state.date_locale)}" readonly aria-readonly="true"></div>
+          <div class="form-group"><label>Date / Number Locale</label><input id="vlpDateLocale" class="form-input" value="${esc(state.date_locale || state.locale || 'en-US')}" placeholder="en-US"></div>
           <button class="btn btn-primary btn-block" style="margin-top:.5rem">💾 Save Global Preferences</button>
         </form>
       </div>`;
-    try{window.VELORA_I18N_RENDER?.(host);}catch(_){}
   }
 
   window.VELORA_SAVE_GLOBAL_PREFERENCES = savePreferences;
@@ -285,36 +165,21 @@
       let host = document.getElementById('veloraGlobalPreferences');
       if (!host) { host = document.createElement('div'); host.id = 'veloraGlobalPreferences'; container.appendChild(host); }
       renderGlobalPreferences();
-      try{window.VELORA_I18N_RENDER?.(container);}catch(_){}
-      setTimeout(()=>{try{window.VELORA_I18N_RENDER?.(container);}catch(_){}},0);
     };
   }
 
-  function renderGlobalPreferencesLocalized(){
-    renderGlobalPreferences();
-    try{window.VELORA_I18N_RENDER?.(document.getElementById('veloraGlobalPreferences'));}catch(_){}
-  }
-  window.addEventListener('velora:languagechange', () => setTimeout(renderGlobalPreferencesLocalized, 0));
-  window.addEventListener('velora:global-locale-change', () => setTimeout(renderGlobalPreferencesLocalized, 0));
-  // V5 emits this event after the authoritative locale application. Keep the
-  // account preference surface synchronized with that same locale so it cannot
-  // retain a stale language selection after an async translation pass.
-  window.addEventListener('velora:i18n-applied', (event) => {
-    const locale = canonicalLocale(event?.detail?.locale || state.locale);
-    state.locale = locale;
-    state.date_locale = canonicalDateLocale(state.locale, state.country_code);
-    syncLocaleUi();
-    setTimeout(renderGlobalPreferencesLocalized, 0);
-  });
+  window.addEventListener('velora:languagechange', () => setTimeout(renderGlobalPreferences, 0));
+  window.addEventListener('velora:global-locale-change', () => setTimeout(renderGlobalPreferences, 0));
 
   async function bootGlobalLocale() {
-    normalizeState();
-    syncLocaleUi();
     await loadContext();
     const c = db();
-    if (c?.auth?.onAuthStateChange && !window.__VELORA_GLOBAL_LOCALE_AUTH_BOUND) {
-      window.__VELORA_GLOBAL_LOCALE_AUTH_BOUND=true;
-      c.auth.onAuthStateChange(() => setTimeout(() => loadContext(),0));
+    if (c && STATE?.user) {
+      // Keep the first logged-in session synchronized with the server-side context.
+      try {
+        const r = await c.rpc('velora_get_global_locale_context');
+        if (!r?.error && r?.data) Object.assign(state, r.data);
+      } catch (_) {}
     }
   }
 
