@@ -4059,83 +4059,88 @@ function registerAuthListenerOnce() {
 
     __mahaAuthListenerRegistered = true;
 
-    window.mahaSupabase.auth.onAuthStateChange(async (event, session) => {
-        try {
-            if (event === 'SIGNED_OUT') {
-                STATE.user = null;
-                try { localStorage.removeItem(KEYS.USER); } catch (e) {}
-                updateAccountButton();
-                if (typeof updatePlatformSwitcher === 'function') {
-                    updatePlatformSwitcher();
-                }
-                return;
-            }
-
-            if (
-                (event === 'SIGNED_IN' ||
-                 event === 'INITIAL_SESSION' ||
-                 event === 'TOKEN_REFRESHED') &&
-                session &&
-                session.user
-            ) {
-                const authUser = session.user;
-
-                let profile = null;
-                try {
-                    const { data: profileData } = await window.mahaSupabase
-                        .from('users')
-                        .select('id, name, email, phone, role')
-                        .eq('id', authUser.id)
-                        .single();
-                    profile = profileData || null;
-                } catch (e) {
-                    profile = null;
-                }
-
-                if (!profile) {
-                    // Do not clobber a valid login state because this async listener
-                    // lost a race with the explicit login/profile-loading flow.
-                    // The login handler already validates profile access and owns
-                    // the user-facing failure path.
-                    console.warn('⚠️ Supabase auth listener: profile unavailable; preserving current STATE.user.');
+    // Supabase auth callbacks must stay synchronous around the auth lock.
+    // Defer any follow-up database/RPC calls so SIGNED_IN cannot deadlock
+    // the next Supabase request (e.g. the login handler itself).
+    window.mahaSupabase.auth.onAuthStateChange((event, session) => {
+        setTimeout(async () => {
+            try {
+                if (event === 'SIGNED_OUT') {
+                    STATE.user = null;
+                    try { localStorage.removeItem(KEYS.USER); } catch (e) {}
+                    updateAccountButton();
+                    if (typeof updatePlatformSwitcher === 'function') {
+                        updatePlatformSwitcher();
+                    }
                     return;
                 }
 
-                let sellerId = null;
-                try {
-                    const { data: sellerRows, error: sellerLookupError } = await window.mahaSupabase
-                        .rpc('velora_get_own_seller');
-                    if (sellerLookupError) throw sellerLookupError;
-                    const sellerRow = Array.isArray(sellerRows) ? sellerRows[0] : sellerRows;
-                    if (sellerRow && sellerRow.id) sellerId = sellerRow.id;
-                } catch (e) {
-                    sellerId = null;
+                if (
+                    (event === 'SIGNED_IN' ||
+                     event === 'INITIAL_SESSION' ||
+                     event === 'TOKEN_REFRESHED') &&
+                    session &&
+                    session.user
+                ) {
+                    const authUser = session.user;
+
+                    let profile = null;
+                    try {
+                        const { data: profileData } = await window.mahaSupabase
+                            .from('users')
+                            .select('id, name, email, phone, role')
+                            .eq('id', authUser.id)
+                            .single();
+                        profile = profileData || null;
+                    } catch (e) {
+                        profile = null;
+                    }
+
+                    if (!profile) {
+                        // Do not clobber a valid login state because this async listener
+                        // lost a race with the explicit login/profile-loading flow.
+                        // The login handler already validates profile access and owns
+                        // the user-facing failure path.
+                        console.warn('⚠️ Supabase auth listener: profile unavailable; preserving current STATE.user.');
+                        return;
+                    }
+
+                    let sellerId = null;
+                    try {
+                        const { data: sellerRows, error: sellerLookupError } = await window.mahaSupabase
+                            .rpc('velora_get_own_seller');
+                        if (sellerLookupError) throw sellerLookupError;
+                        const sellerRow = Array.isArray(sellerRows) ? sellerRows[0] : sellerRows;
+                        if (sellerRow && sellerRow.id) sellerId = sellerRow.id;
+                    } catch (e) {
+                        sellerId = null;
+                    }
+
+                    const safeRole = (typeof ROLES !== 'undefined' && ROLES && ROLES.CUSTOMER)
+                        ? (profile.role || ROLES.CUSTOMER)
+                        : (profile.role || 'customer');
+
+                    STATE.user = {
+                        uid: profile.id,
+                        name: profile.name || (authUser.user_metadata && authUser.user_metadata.name) || profile.email || authUser.email,
+                        email: profile.email || authUser.email,
+                        role: safeRole,
+                        sellerId: sellerId || null
+                    };
+
+                    try {
+                        saveToStorage(KEYS.USER, STATE.user);
+                    } catch (e) {}
+
+                    updateAccountButton();
+                    if (typeof updatePlatformSwitcher === 'function') {
+                        updatePlatformSwitcher();
+                    }
                 }
-
-                const safeRole = (typeof ROLES !== 'undefined' && ROLES && ROLES.CUSTOMER)
-                    ? (profile.role || ROLES.CUSTOMER)
-                    : (profile.role || 'customer');
-
-                STATE.user = {
-                    uid: profile.id,
-                    name: profile.name || (authUser.user_metadata && authUser.user_metadata.name) || profile.email || authUser.email,
-                    email: profile.email || authUser.email,
-                    role: safeRole,
-                    sellerId: sellerId || null
-                };
-
-                try {
-                    saveToStorage(KEYS.USER, STATE.user);
-                } catch (e) {}
-
-                updateAccountButton();
-                if (typeof updatePlatformSwitcher === 'function') {
-                    updatePlatformSwitcher();
-                }
+            } catch (e) {
+                console.error('❌ deferred onAuthStateChange handler error:', e);
             }
-        } catch (e) {
-            console.error('❌ onAuthStateChange handler error:', e);
-        }
+        }, 0);
     });
 }
 
