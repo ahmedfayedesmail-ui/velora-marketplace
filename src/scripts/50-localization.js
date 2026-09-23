@@ -1,4 +1,6 @@
 /* ================================================================
+   ACCOUNT BEAUTY PASSPORT EXTENSION — V2
+   
    VELORA GLOBAL LOCALE & COMMERCE CONTEXT — STAGE 59
    ----------------------------------------------------------------
    One persistent context for language + country + currency + timezone.
