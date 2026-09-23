@@ -363,7 +363,7 @@
       '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
       escapeHtml(t('Edit my answers', 'عدّلي إجاباتك')),
       '</button>',
-      '<button type="button" class="btn btn-primary btn-lg" id="veloraRoutineAddAll">',
+      '<button type="button" class="btn btn-primary btn-lg" id="veloraRoutineAddAll" onclick="event.preventDefault(); event.stopPropagation(); if (window.veloraRoutineCart && typeof window.veloraRoutineCart.addAll === \'function\') { void window.veloraRoutineCart.addAll(); } else { console.error(\'[Routine→Cart] public adapter is unavailable\'); }">',
       escapeHtml(t('Order the whole routine', 'اطلبي الروتين كله')),
       '</button>',
       '</div>'
