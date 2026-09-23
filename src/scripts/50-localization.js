@@ -213,7 +213,7 @@
     };
 
     host.innerHTML = '<div class="form-section velora-passport-card">'
-      + '<div class="velora-passport-card-head"><div><div class="velora-passport-kicker>'+label("YOUR BEAUTY PASSPORT","Beauty Passport الخاص بيكي")+'</div>'
+      + '<div class="velora-passport-card-head"><div><div class="velora-passport-kicker">'+label("YOUR BEAUTY PASSPORT","Beauty Passport الخاص بيكي")+'</div>'
       + '<h3>'+label('My Beauty Passport','Beauty Passport الخاص بيكي')+'</h3>'
       + '<p class="velora-passport-muted">'+label('Your saved skin profile and routine preferences.','بيانات بشرتك وتفضيلات الروتين المحفوظة.')+'</p></div>'
       + '<span class="velora-passport-badge">V2</span></div>'
