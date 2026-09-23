@@ -363,12 +363,36 @@
       '<button type="button" class="btn btn-outline" id="veloraRoutineEditPassport">',
       escapeHtml(t('Edit my answers', 'عدّلي إجاباتك')),
       '</button>',
-      '<button type="button" class="btn btn-primary btn-lg" id="veloraRoutineAddAll" onclick="event.preventDefault(); event.stopPropagation(); if (window.veloraRoutineCart && typeof window.veloraRoutineCart.addAll === \'function\') { void window.veloraRoutineCart.addAll(); } else { console.error(\'[Routine→Cart] public adapter is unavailable\'); }">',
+      '<button type="button" class="btn btn-primary btn-lg" id="veloraRoutineAddAll">',
       escapeHtml(t('Order the whole routine', 'اطلبي الروتين كله')),
       '</button>',
       '</div>'
     ].join('');
     bindEditPassport();
+    bindAddAll();
+  }
+
+  function bindAddAll() {
+    const button = document.getElementById('veloraRoutineAddAll');
+    if (!button || button.dataset.bound === '1') return;
+    button.dataset.bound = '1';
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const adapter = window.veloraRoutineCart;
+      if (!adapter || typeof adapter.addAll !== 'function') {
+        console.error('[Routine→Cart] public adapter is unavailable');
+        if (typeof showToast === 'function') {
+          showToast(t('Cart adapter is still loading. Please try again.', 'لسه مكوّن الـCart بيحمّل. جرّبي تاني.'), 'warning');
+        }
+        return;
+      }
+
+      void adapter.addAll().catch((error) => {
+        console.error('[Routine→Cart] unhandled add-all error', error);
+      });
+    });
   }
 
   async function generate() {
