@@ -3,7 +3,6 @@
    Customer-facing 3-question Routine Discovery flow.
    Persists only through velora_save_beauty_passport_v2.
    ============================================================ */
-// Vercel preview trigger: no runtime behavior change.
 (function () {
   'use strict';
 
@@ -237,6 +236,9 @@
       if (error) throw error;
       if (!data) throw new Error('PASSPORT_SAVE_EMPTY');
 
+      // Notify persistent account surfaces with the authoritative V2 state.
+      // Fire before opening Routine UX so the Passport UI stays current even
+      // if the next surface fails to open.
       try {
         window.dispatchEvent(new CustomEvent('velora:passport-v2-updated', {
           detail: {
