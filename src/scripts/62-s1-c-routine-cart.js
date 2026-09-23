@@ -48,11 +48,15 @@
   }
 
   async function getAuthenticatedUser() {
+    if (typeof STATE !== 'undefined' && STATE?.user?.id) {
+      return STATE.user;
+    }
+
     const client = getClient();
-    const { data, error } = await client.auth.getUser();
+    const { data, error } = await client.auth.getSession();
     if (error) throw error;
-    if (!data?.user) throw new Error('AUTH_REQUIRED');
-    return data.user;
+    if (!data?.session?.user) throw new Error('AUTH_REQUIRED');
+    return data.session.user;
   }
 
   async function readServerCartKeys(userId) {
@@ -254,84 +258,23 @@
         return result;
       }
 
-      const serverKeys = await readServerCartKeys(user.id);
-      const productIds = selectedSteps.map((step) => String(step.product.id));
-      const catalog = await readLiveCatalog(productIds);
-
       for (const step of selectedSteps) {
-        const productId = String(step.product.id);
-        const requestedVariantId = step.variant?.id ? String(step.variant.id) : null;
-        const key = lineKey(productId, requestedVariantId);
-        const label = String(
-          catalog.products.get(productId)?.name ||
-          step.product.name ||
-          'Product'
-        );
+        const product = step.product;
+        const variant = step.variant?.id ? step.variant : null;
+        const productId = String(product.id);
+        const requestedVariantId = variant ? String(variant.id) : null;
+        const label = String(product.name || 'Product');
 
-        const product = catalog.products.get(productId);
-
-        if (serverKeys.has(key)) {
-          result.alreadyInCart += 1;
-
-          if (product && String(product.status || '') === 'approved') {
-            const serverVariant = requestedVariantId
-              ? (catalog.variants.get(productId) || []).find((candidate) =>
-                  candidate.is_active === true && String(candidate.id) === requestedVariantId
-                ) || null
-              : null;
-            syncLocalCartLine(product, serverVariant, serverKeys.get(key));
-          }
-
-          continue;
-        }
-
-        if (!product || String(product.status || '') !== 'approved') {
-          result.skipped.push({
-            label,
-            reason: t('Product is no longer available.', 'المنتج مبقاش متاح.')
-          });
-          continue;
-        }
-
-        const activeVariants = (catalog.variants.get(productId) || [])
-          .filter((variant) => variant.is_active === true);
-
-        let variant = null;
-        if (requestedVariantId) {
-          variant = activeVariants.find((candidate) => String(candidate.id) === requestedVariantId) || null;
-          if (!variant) {
-            result.skipped.push({
-              label,
-              reason: t('Selected variant is no longer available.', 'الـVariant المختار مبقاش متاح.')
-            });
-            continue;
-          }
-          if (Number(variant.stock_quantity || 0) < 1) {
-            result.skipped.push({
-              label + ' · ' + String(variant.name || t('Variant', 'الاختيار')),
-              reason: t('This option is out of stock.', 'الاختيار ده خلص من المخزون.')
-            });
-            continue;
-          }
-        } else {
-          if (activeVariants.length) {
-            result.skipped.push({
-              label,
-              reason: t('A variant selection is required for this product.', 'المنتج ده محتاج اختيار Variant.')
-            });
-            continue;
-          }
-          if (Number(product.stock || 0) < 1) {
-            result.skipped.push({
-              label,
-              reason: t('Product is out of stock.', 'المنتج خلص من المخزون.')
-            });
-            continue;
-          }
-        }
-
+        // The routine engine has already selected these products. Cart RPCs are
+        // the final authority for approval, seller state, stock and variant validity.
         try {
-          const currency = String(product.currency_code || routine.currency || 'EGP').toUpperCase();
+          const currency = String(
+            product.currency_code ||
+            product.currency ||
+            routine.currency ||
+            'EGP'
+          ).toUpperCase();
+
           const rpcResult = variant
             ? await client.rpc('velora_upsert_cart_item_variant', {
                 p_product_id: productId,
@@ -348,7 +291,6 @@
           if (rpcResult.error) throw rpcResult.error;
 
           result.added += 1;
-          serverKeys.set(key, 1);
           syncLocalCartLine(product, variant, 1);
         } catch (error) {
           const code = errorCode(error);
@@ -410,14 +352,6 @@
       button.textContent = originalText;
     }
   }
-
-  document.addEventListener('click', (event) => {
-    const button = event.target?.closest?.('#veloraRoutineAddAll');
-    if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
-    void addAllRoutineItems();
-  }, true);
 
   window.veloraRoutineCart = Object.freeze({
     addAll: addAllRoutineItems
