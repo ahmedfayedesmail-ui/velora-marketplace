@@ -508,29 +508,38 @@ function prime(root=document){
 
 const observer=new MutationObserver(mutations=>{
   if(observerPaused||rendering)return;
-  const added=[];
+
+  const locale=state.locale||localStorage.getItem('velora_language')||'en';
+
+  // English is the canonical source locale. There is nothing to translate,
+  // so dynamic DOM mutations must not trigger expensive tree walks on the
+  // main thread (especially product-grid bulk renders on mobile).
+  if(locale==='en')return;
+
+  const roots=new Set();
+
   for(const m of mutations){
-    if(m.type==='childList'){
-      for(const n of Array.from(m.addedNodes||[]))if(n.nodeType===1||n.nodeType===3)added.push(n);
+    if(m.type==='childList' && m.addedNodes?.length){
+      const target=m.target;
+      // Bulk UI renders should be translated once at their nearest meaningful
+      // surface, not once per added child node.
+      const root=target?.closest?.('.products-grid,.page,.modal-content,.form-section') || target;
+      if(root)roots.add(root);
     }else if(m.type==='characterData' && m.target?.nodeType===3){
-      added.push(m.target);
+      roots.add(m.target.parentElement||document);
     }
   }
-  if(!added.length)return;
+
+  if(!roots.size)return;
+
   rendering=true;
   try{
-    rebuildReverse();
-    const locale=state.locale||localStorage.getItem('velora_language')||'en';
-    for(const n of added){
-      if(n.nodeType===3){
-        if(!sourceByNode.has(n))sourceForNode(n);
-        translateRoot(n.parentElement||document,locale);
-      }else{
-        prime(n);
-        translateRoot(n,locale);
-      }
-    }
-  }finally{rendering=false;}
+    // Translation dictionaries are stable between locale changes, so do not
+    // rebuild the reverse index for every DOM mutation.
+    roots.forEach(root=>translateRoot(root,locale));
+  }finally{
+    rendering=false;
+  }
 });
 
 
