@@ -135,8 +135,8 @@ function catalog(locale){
 
 function splitDecorations(value){
   const s=String(value??'');
-  const lead=(s.match(/^[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D]+/u)||[''])[0];
-  const tail=(s.match(/[\\s\\p{Extended_Pictographic}\\uFE0F\\u200D]+$/u)||[''])[0];
+  const lead=(s.match(/^[\s\p{Extended_Pictographic}\uFE0F\u200D]+/u)||[''])[0];
+  const tail=(s.match(/[\s\p{Extended_Pictographic}\uFE0F\u200D]+$/u)||[''])[0];
   const body=s.slice(lead.length, tail.length?s.length-tail.length:undefined).trim();
   return {lead,body,tail};
 }
@@ -264,8 +264,11 @@ function translateRoot(root,locale){
   for(const node of nodes){
     if(!textEligible(node))continue;
     const raw=node.nodeValue||'';
-    const source=sourceForNode(node);
-    const translated=resolveExact(source,locale);
+    // First try the live text itself. This handles renderer replacements and
+    // prevents stale provenance from blocking an exact catalog translation.
+    const direct=resolveExact(raw,locale);
+    const source=(direct!==norm(raw))?raw:sourceForNode(node);
+    const translated=(direct!==norm(raw))?direct:resolveExact(source,locale);
     const lead=raw.match(/^\s*/)?.[0]||'';
     const trail=raw.match(/\s*$/)?.[0]||'';
     if(translated!==source)node.nodeValue=lead+translated+trail;
@@ -277,16 +280,20 @@ function translateRoot(root,locale){
   els.forEach(el=>{
     for(const attr of ['placeholder','title','aria-label']){
       if(!el.hasAttribute(attr))continue;
-      const source=sourceForAttr(el,attr);
-      const translated=resolveExact(source,locale);
+      const rawAttr=el.getAttribute(attr)||'';
+      const directAttr=resolveExact(rawAttr,locale);
+      const source=(directAttr!==norm(rawAttr))?rawAttr:sourceForAttr(el,attr);
+      const translated=(directAttr!==norm(rawAttr))?directAttr:resolveExact(source,locale);
       if(translated!==source)el.setAttribute(attr,translated);
       else if(locale==='en')el.setAttribute(attr,source);
     }
     if(el.tagName==='OPTION'){
       const node=el.firstChild;
       if(node&&node.nodeType===3){
-        const source=sourceForNode(node);
-        const translated=resolveExact(source,locale);
+        const rawOpt=node.nodeValue||'';
+        const directOpt=resolveExact(rawOpt,locale);
+        const source=(directOpt!==norm(rawOpt))?rawOpt:sourceForNode(node);
+        const translated=(directOpt!==norm(rawOpt))?directOpt:resolveExact(source,locale);
         if(translated!==source)node.nodeValue=translated;
         else if(locale==='en'&&source!==norm(node.nodeValue||''))node.nodeValue=source;
       }
