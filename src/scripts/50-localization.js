@@ -213,7 +213,7 @@
     };
 
     host.innerHTML = '<div class="form-section velora-passport-card">'
-      + '<div class="velora-passport-card-head"><div><div class="velora-passport-kicker">YOUR BEAUTY PASSPORT</div>'
+      + '<div class="velora-passport-card-head"><div><div class="velora-passport-kicker>'+label("YOUR BEAUTY PASSPORT","Beauty Passport الخاص بيكي")+'</div>'
       + '<h3>'+label('My Beauty Passport','Beauty Passport الخاص بيكي')+'</h3>'
       + '<p class="velora-passport-muted">'+label('Your saved skin profile and routine preferences.','بيانات بشرتك وتفضيلات الروتين المحفوظة.')+'</p></div>'
       + '<span class="velora-passport-badge">V2</span></div>'
@@ -239,7 +239,7 @@
       if (!complete) {
         body.innerHTML = '<div class="velora-passport-empty"><p>'+label('Your Beauty Passport is not complete yet.','Beauty Passport بتاعك لسه مش مكتمل.')+'</p>'
           + '<button type="button" class="btn btn-primary" id="veloraPassportStart">'+label('Build my routine','اعملي روتيني')+'</button></div>';
-        document.getElementById('veloraPassportStart')?.addEventListener('click', () => window.veloraQuizV2?.open?.());
+        document.getElementById('veloraPassportStart')?.addEventListener('click', () => window.veloraBeautyPassportV2?.open?.());
         return;
       }
 
