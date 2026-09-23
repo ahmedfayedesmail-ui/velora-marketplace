@@ -236,6 +236,20 @@
       if (error) throw error;
       if (!data) throw new Error('PASSPORT_SAVE_EMPTY');
 
+      // Notify persistent account surfaces with the authoritative V2 state.
+      // Fire before opening Routine UX so the Passport UI stays current even
+      // if the next surface fails to open.
+      try {
+        window.dispatchEvent(new CustomEvent('velora:passport-v2-updated', {
+          detail: {
+            quiz_version: QUIZ_VERSION,
+            skin_type: state.answers.skin_type,
+            goal: state.answers.goal,
+            routine_budget: state.answers.routine_budget
+          }
+        }));
+      } catch (_) {}
+
       const modal = document.getElementById(ROOT_ID);
       if (modal) {
         modal.classList.remove('active');
