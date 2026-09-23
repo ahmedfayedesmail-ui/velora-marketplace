@@ -122,7 +122,7 @@
     const country = (document.getElementById('vlpCountry')?.value || state.country_code).trim().toUpperCase();
     const currency = document.getElementById('vlpCurrency')?.value || state.currency_code;
     const timezone = document.getElementById('vlpTimezone')?.value || state.timezone;
-    const dateLocale = document.getElementById('vlpDateLocale')?.value || state.date_locale;
+    const dateLocale = canonicalDateLocale(locale, country);
     try {
       // User choice is committed locally before network persistence.
       state.locale = locale;
@@ -142,12 +142,13 @@
         p_date_locale: dateLocale
       });
       if (r?.error) throw r.error;
-      Object.assign(state, r.data || {}, {locale, country_code:country, currency_code:currency, timezone, date_locale:dateLocale});
+      Object.assign(state, r.data || {}, {locale, country_code:country, currency_code:currency, timezone, date_locale:canonicalDateLocale(locale,country)});
       localStorage.setItem('velora_language', locale);
       localStorage.setItem('velora_country', country);
       localStorage.setItem('velora_currency', currency);
-      localStorage.setItem('velora_date_locale', dateLocale);
+      localStorage.setItem('velora_date_locale', state.date_locale);
       if (typeof window.setVeloraLanguage === 'function') await window.setVeloraLanguage(locale);
+      state.date_locale = canonicalDateLocale(locale, country);
       if (CURRENCIES[currency]) VELORA_CURRENCY = currency;
       if (typeof updateCurrencyDisplay === 'function') updateCurrencyDisplay();
       renderGlobalPreferences();
@@ -160,6 +161,9 @@
   function renderGlobalPreferences() {
     const host = document.getElementById('veloraGlobalPreferences');
     if (!host) return;
+    // Invariant: displayed regional locale follows the active UI language.
+    state.date_locale = canonicalDateLocale(state.locale, state.country_code);
+    localStorage.setItem('velora_date_locale', state.date_locale);
     const languages = ['en','ar'].filter(k => LANG_META[k]).map(k => `<option value="${k}" ${k===state.locale?'selected':''}>${esc(LANG_META[k].name || k)}</option>`).join('');
     const currencies = Object.keys(CURRENCIES).map(k => `<option value="${k}" ${k===state.currency_code?'selected':''}>${k} — ${esc(CURRENCIES[k].symbol || '')}</option>`).join('');
     host.innerHTML = `
