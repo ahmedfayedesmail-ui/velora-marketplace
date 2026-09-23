@@ -28,17 +28,31 @@
     try {
       const c = db();
       if (!c?.rpc || !STATE?.user) return state;
+
+      // Server context is persistence data, not permission to overwrite a
+      // newer client language choice. Local language wins whenever present.
+      const localLocale = String(localStorage.getItem('velora_language') || '').toLowerCase();
+      const localHasLocale = ['en','ar'].includes(localLocale);
       const r = await c.rpc('velora_get_global_locale_context');
       if (r?.error || !r?.data) return state;
-      Object.assign(state, r.data);
-      // An empty/invalid server currency must never blank the selector.
+
+      const server = r.data || {};
+      const keepLocale = localHasLocale ? localLocale : (LANG_META[server.locale] ? server.locale : state.locale);
+
+      Object.assign(state, server, {locale: keepLocale});
+
       if (!CURRENCIES[state.currency_code]) state.currency_code = initialCurrency;
+      state.date_locale = canonicalDateLocale(state.locale, state.country_code);
+
       localStorage.setItem('velora_language', state.locale);
       localStorage.setItem('velora_country', state.country_code);
       localStorage.setItem('velora_currency', state.currency_code);
-      localStorage.setItem('velora_date_locale', state.date_locale || state.locale);
+      localStorage.setItem('velora_date_locale', state.date_locale);
+
       if (CURRENCIES[state.currency_code]) VELORA_CURRENCY = state.currency_code;
-      if (typeof window.setVeloraLanguage === 'function') await window.setVeloraLanguage(state.locale);
+
+      // Do NOT call window.setVeloraLanguage here. V5 is the only language
+      // mutation owner and the user's local locale has already been committed.
       if (typeof document !== 'undefined') {
         document.documentElement.lang = state.locale;
         document.documentElement.dir = LANG_META[state.locale]?.dir || (state.locale === 'ar' ? 'rtl' : 'ltr');
@@ -46,6 +60,13 @@
     } catch (_) {}
     return state;
   }
+
+  function canonicalDateLocale(locale, country) {
+    const l = String(locale || 'en').toLowerCase();
+    const cc = String(country || 'US').toUpperCase();
+    return l + '-' + cc;
+  }
+
 
   const previousSetLanguage = window.setVeloraLanguage;
   window.setVeloraLanguage = async function(code) {
@@ -103,6 +124,14 @@
     const timezone = document.getElementById('vlpTimezone')?.value || state.timezone;
     const dateLocale = document.getElementById('vlpDateLocale')?.value || state.date_locale;
     try {
+      // User choice is committed locally before network persistence.
+      state.locale = locale;
+      state.country_code = country;
+      state.currency_code = currency;
+      state.timezone = timezone;
+      state.date_locale = canonicalDateLocale(locale, country);
+      document.documentElement.lang = locale;
+      document.documentElement.dir = LANG_META[locale]?.dir || (locale === 'ar' ? 'rtl' : 'ltr');
       const c = db();
       if (!c?.rpc || !STATE?.user) throw new Error('Please login first');
       const r = await c.rpc('velora_set_global_locale_context', {
@@ -169,19 +198,12 @@
     };
   }
 
-  window.addEventListener('velora:languagechange', () => setTimeout(renderGlobalPreferences, 0));
-  window.addEventListener('velora:global-locale-change', () => setTimeout(renderGlobalPreferences, 0));
+  window.addEventListener('velora:languagechange', () => queueMicrotask(() => renderGlobalPreferences()));
+  window.addEventListener('velora:global-locale-change', () => queueMicrotask(() => renderGlobalPreferences()));
 
   async function bootGlobalLocale() {
     await loadContext();
-    const c = db();
-    if (c && STATE?.user) {
-      // Keep the first logged-in session synchronized with the server-side context.
-      try {
-        const r = await c.rpc('velora_get_global_locale_context');
-        if (!r?.error && r?.data) Object.assign(state, r.data);
-      } catch (_) {}
-    }
+    try { renderGlobalPreferences(); } catch (_) {}
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootGlobalLocale, {once:true});
