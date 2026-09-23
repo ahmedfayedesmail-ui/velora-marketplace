@@ -495,6 +495,8 @@ window.VELORA_I18N_SET_LANGUAGE=setLang;
 window.VELORA_I18N_RENDER=(root)=>translateRoot(root||document,state.locale||'en');
 window.VELORA_TRANSLATE_ALL=()=>translateRoot(document,state.locale||'en');
 window.VELORA_GET_TRANSLATION=(source,locale=state.locale)=>resolveExact(source,locale);
+window.VELORA_I18N=(window.__VELORA_PACK||{});
+window.VELORA_I18N_VERSION='KERNEL-1.0';
 window.setVeloraLanguage=setLang;
 
 /* Keep the compatibility fallback API inert while V5 is healthy. */
