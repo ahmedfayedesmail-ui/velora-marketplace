@@ -23,12 +23,6 @@
     const originalOpenOwner = window.openOwnerPlatform;
     const originalCloseOwner = window.closeOwnerPlatform;
     const originalNavigateTo = window.navigateTo;
-    const canonicalOpenSeller = window.VELORA_OPEN_SELLER;
-    const canonicalCloseSeller = window.VELORA_CLOSE_SELLER;
-    const canonicalOpenAdmin = window.__VELORA_OPEN_ADMIN_CORE || window.VELORA_OPEN_ADMIN;
-    const canonicalCloseAdmin = window.VELORA_CLOSE_ADMIN;
-    const canonicalOpenOwner = window.VELORA_OPEN_OWNER;
-    const canonicalCloseOwner = window.VELORA_CLOSE_OWNER;
 
     let returnHash = normalizeHash(window.location.hash);
     let syncing = false;
@@ -43,31 +37,31 @@
     }
 
     function closeAllPlatforms() {
-        try { if (typeof canonicalCloseSeller === 'function') canonicalCloseSeller(); else if (typeof originalCloseSeller === 'function') originalCloseSeller(); } catch (e) {}
-        try { if (typeof canonicalCloseAdmin === 'function') canonicalCloseAdmin(); else if (typeof originalCloseAdmin === 'function') originalCloseAdmin(); } catch (e) {}
-        try { if (typeof canonicalCloseOwner === 'function') canonicalCloseOwner(); else if (typeof originalCloseOwner === 'function') originalCloseOwner(); } catch (e) {}
+        try { if (typeof originalCloseSeller === 'function') originalCloseSeller(); } catch (e) {}
+        try { if (typeof originalCloseAdmin === 'function') originalCloseAdmin(); } catch (e) {}
+        try { if (typeof originalCloseOwner === 'function') originalCloseOwner(); } catch (e) {}
     }
 
-    async function activatePlatform(route) {
+    function activatePlatform(route) {
         if (!PLATFORM_ROUTES.has(route)) return false;
 
         syncing = true;
         try {
             closeAllPlatforms();
 
-            if (route === 'seller') {
-                const opener = typeof canonicalOpenSeller === 'function' ? canonicalOpenSeller : originalOpenSeller;
-                if (typeof opener === 'function') { await opener(); return true; }
+            if (route === 'seller' && typeof originalOpenSeller === 'function') {
+                originalOpenSeller();
+                return true;
             }
 
-            if (route === 'admin') {
-                const opener = typeof canonicalOpenAdmin === 'function' ? canonicalOpenAdmin : originalOpenAdmin;
-                if (typeof opener === 'function') { await opener(); return true; }
+            if (route === 'admin' && typeof originalOpenAdmin === 'function') {
+                originalOpenAdmin();
+                return true;
             }
 
-            if (route === 'owner') {
-                const opener = typeof canonicalOpenOwner === 'function' ? canonicalOpenOwner : originalOpenOwner;
-                if (typeof opener === 'function') { await opener(); return true; }
+            if (route === 'owner' && typeof originalOpenOwner === 'function') {
+                originalOpenOwner();
+                return true;
             }
         } finally {
             syncing = false;
@@ -86,23 +80,19 @@
         }
     }
 
-    async function goPlatform(route) {
-        if (!PLATFORM_ROUTES.has(route)) return false;
+    function goPlatform(route) {
+        if (!PLATFORM_ROUTES.has(route)) return;
 
         if (!PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
             returnHash = currentMarketplaceHash();
         }
 
-        // Platform activation is canonical and independent from hashchange.
-        // The hash mirrors the current platform for refresh/back navigation only.
-        const current = normalizeHash(window.location.hash);
-        if (current !== route) {
-            const url = new URL(window.location.href);
-            url.hash = route;
-            window.history.pushState({}, '', url);
+        if (normalizeHash(window.location.hash) === route) {
+            activatePlatform(route);
+            return;
         }
 
-        return await activatePlatform(route);
+        window.location.hash = route;
     }
 
     function goMarketplace() {
@@ -130,17 +120,17 @@
     }
 
     window.openSellerPlatform = function () {
-        return goPlatform('seller');
+        goPlatform('seller');
     };
 
     window.openAdminPlatform = function () {
-        return goPlatform('admin');
+        goPlatform('admin');
     };
 
     window.openAdminPanel = window.openAdminPlatform;
 
     window.openOwnerPlatform = function () {
-        return goPlatform('owner');
+        goPlatform('owner');
     };
 
     window.closeSellerPlatform = function () {
@@ -168,95 +158,25 @@
     };
 
     window.switchPlatform = function (platformId) {
-        if (platformId === 'admin') {
-            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin',{
-                locale:window.VELORA_GLOBAL_LOCALE||null,
-                stateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale||null,
-                documentElementLang:document.documentElement.lang||null,
-                setVeloraLanguage:typeof window.setVeloraLanguage==='function' ? window.setVeloraLanguage.toString().slice(0,180) : null,
-                v5SetLanguage:typeof window.VELORA_V5_SET_LANGUAGE==='function' ? window.VELORA_V5_SET_LANGUAGE.toString().slice(0,180) : null,
-                setLanguageIsV5:window.setVeloraLanguage===window.VELORA_V5_SET_LANGUAGE,
-                windowOpenAdmin:typeof window.openAdminPlatform==='function' ? window.openAdminPlatform.toString().slice(0,180) : null,
-                capturedOriginalOpenAdmin:typeof originalOpenAdmin==='function' ? originalOpenAdmin.toString().slice(0,180) : null,
-                canonicalOpenAdmin:typeof canonicalOpenAdmin==='function' ? canonicalOpenAdmin.toString().slice(0,180) : null,
-                switchPlatform:window.switchPlatform.toString().slice(0,180)
-            });
-        }
-
         const menu = document.getElementById('platformSwitcherMenu');
         if (menu) menu.classList.remove('open');
 
-        if (platformId === 'marketplace') {
-            goMarketplace();
-            return;
-        }
-
-        // Direct UI action: use the stable canonical core opener for Admin.
-        // Feature modules may decorate public globals, but they must not sit on
-        // the critical platform-entry path.
-        const entry = platformId === 'seller'
-            ? (window.__VELORA_OPEN_SELLER_CORE || originalOpenSeller)
-            : platformId === 'admin'
-                ? (window.__VELORA_OPEN_ADMIN_CORE || originalOpenAdmin)
-                : platformId === 'owner'
-                    ? originalOpenOwner
-                    : null;
-
-        if (typeof entry !== 'function') {
-            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin entry missing',{
-                platformId,
-                originalOpenAdminType:typeof originalOpenAdmin
-            });
-            return;
-        }
-
-        if (platformId === 'admin') {
-            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin invoking entry',{
-                entry:entry.toString().slice(0,180),
-                sameAsWindowOpenAdmin:entry===window.openAdminPlatform,
-                sameAsCanonicalOpenAdmin:entry===window.VELORA_OPEN_ADMIN
-            });
-        }
-
-        try {
-            if (platformId !== 'seller' && typeof originalCloseSeller === 'function') originalCloseSeller();
-            if (platformId !== 'admin' && typeof originalCloseAdmin === 'function') originalCloseAdmin();
-            if (platformId !== 'owner' && typeof originalCloseOwner === 'function') originalCloseOwner();
-
-            const result = entry();
-            if (platformId === 'admin') {
-                window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin entry returned',{
-                    resultType:typeof result,
-                    isPromiseLike:!!(result&&typeof result.then==='function')
-                });
-            }
-            if (result && typeof result.catch === 'function') {
-                result.catch((error) => {
-                    window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin async rejection',{
-                        message:error?.message||String(error),
-                        stack:error?.stack||null,
-                        name:error?.name||null
-                    });
-                    console.error('[Velora platform switch]', error);
-                });
-            }
-
-            if (!PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
-                returnHash = currentMarketplaceHash();
-            }
-            const url = new URL(window.location.href);
-            url.hash = platformId;
-            window.history.pushState({}, '', url);
-            return result;
-        } catch (error) {
-            window.__VELORA_PLATFORM_TRACE__?.('switchPlatform admin sync exception',{
-                message:error?.message||String(error),
-                stack:error?.stack||null,
-                name:error?.name||null
-            });
-            console.error('[Velora platform switch]', error);
+        switch (platformId) {
+            case 'marketplace':
+                goMarketplace();
+                break;
+            case 'seller':
+                goPlatform('seller');
+                break;
+            case 'admin':
+                goPlatform('admin');
+                break;
+            case 'owner':
+                goPlatform('owner');
+                break;
         }
     };
+
     window.addEventListener('hashchange', syncRoute);
     window.addEventListener('popstate', syncRoute);
 
