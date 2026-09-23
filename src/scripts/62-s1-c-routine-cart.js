@@ -5,8 +5,13 @@
 (function () {
   'use strict';
 
-  const client = window.mahaSupabase || window.supabaseClient || null;
-  if (!client || typeof client.rpc !== 'function' || !client.from) return;
+  function getClient() {
+    const client = window.mahaSupabase || window.supabaseClient || window.sb || null;
+    if (!client || typeof client.rpc !== 'function' || !client.from || !client.auth) {
+      throw new Error('SUPABASE_UNAVAILABLE');
+    }
+    return client;
+  }
 
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -43,6 +48,7 @@
   }
 
   async function getAuthenticatedUser() {
+    const client = getClient();
     const { data, error } = await client.auth.getUser();
     if (error) throw error;
     if (!data?.user) throw new Error('AUTH_REQUIRED');
@@ -50,6 +56,7 @@
   }
 
   async function readServerCartKeys(userId) {
+    const client = getClient();
     const { data, error } = await client
       .from('carts')
       .select('id,cart_items(product_id,product_variant_id,quantity)')
@@ -69,6 +76,7 @@
   }
 
   async function readLiveCatalog(productIds) {
+    const client = getClient();
     const ids = Array.from(new Set(productIds.filter((id) => UUID_RE.test(String(id || '')))));
     if (!ids.length) return { products: new Map(), variants: new Map() };
 
@@ -150,6 +158,17 @@
       '#veloraRoutineAddAll:disabled{opacity:.65;cursor:wait;}'
     ].join('');
     document.head.appendChild(style);
+  }
+
+  function bindRoutineAddAll() {
+    const button = document.getElementById('veloraRoutineAddAll');
+    if (!button || button.dataset.routineCartBound === '1') return;
+    button.dataset.routineCartBound = '1';
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void addAllRoutineItems();
+    });
   }
 
   async function addAllRoutineItems() {
@@ -281,8 +300,13 @@
         }
       }
 
+      renderFeedback(result);
+
       if (typeof window.veloraSyncCloudCart === 'function') {
-        await window.veloraSyncCloudCart();
+        // Cloud-cart refresh is useful but must never block the routine feedback.
+        void window.veloraSyncCloudCart().catch((syncError) => {
+          console.warn('[Routine→Cart] cloud cart sync failed', syncError);
+        });
       }
 
       if (result.failed.length) {
@@ -304,7 +328,6 @@
         }
       }
 
-      renderFeedback(result);
       return result;
     } catch (error) {
       console.error('[Routine→Cart] adapter failed', error);
@@ -326,8 +349,20 @@
   document.addEventListener('click', (event) => {
     const button = event.target?.closest?.('#veloraRoutineAddAll');
     if (!button) return;
-    addAllRoutineItems();
-  });
+    event.preventDefault();
+    event.stopPropagation();
+    void addAllRoutineItems();
+  }, true);
+
+  const routineBindObserver = new MutationObserver(() => bindRoutineAddAll());
+  if (document.body) {
+    routineBindObserver.observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindRoutineAddAll, { once: true });
+  } else {
+    bindRoutineAddAll();
+  }
 
   window.veloraRoutineCart = Object.freeze({
     addAll: addAllRoutineItems
