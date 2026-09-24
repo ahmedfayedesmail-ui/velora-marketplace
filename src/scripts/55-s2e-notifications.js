@@ -14,9 +14,10 @@
   var LIMIT=20;
   var state={items:[],unread:0,loading:false};
   var pollTimer=null;
+  var authUser=null;
 
   function getUser(){
-    try{return STATE&&STATE.user?STATE.user:null;}catch(_){return null;}
+    try{return STATE&&STATE.user?STATE.user:authUser;}catch(_){return authUser;}
   }
 
   function escape(value){
@@ -283,7 +284,9 @@
     var sb=client();
     if(!sb || !sb.auth || typeof sb.auth.onAuthStateChange!=='function') return false;
     sb.auth.onAuthStateChange(function(event,session){
+    authUser=session&&session.user?session.user:null;
     if(event==='SIGNED_IN' || event==='TOKEN_REFRESHED'){
+      renderBell();
       setTimeout(function(){load(true);},350);
     }else if(event==='SIGNED_OUT'){
       state.items=[];
@@ -301,15 +304,20 @@
     },POLL_MS);
   }
 
-  function bootstrap(){
+  async function bootstrap(){
     if(!bindAuth()){
       setTimeout(bootstrap,250);
       return;
     }
-    setTimeout(function(){
-      renderBell();
-      load(true);
-    },450);
+    var sb=client();
+    try{
+      var current=await sb.auth.getUser();
+      authUser=current&&current.data&&current.data.user?current.data.user:null;
+    }catch(_){
+      authUser=null;
+    }
+    renderBell();
+    setTimeout(function(){load(true);},450);
     startPolling();
   }
 
