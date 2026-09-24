@@ -145,8 +145,7 @@
         ? await registration.pushManager.getSubscription()
         : null;
       button.textContent = subscription ? 'Disable on this phone' : 'Enable on this phone';
-      button.onclick = null;
-      button.addEventListener('click', function once(event) {
+      button.onclick = function (event) {
         event.preventDefault();
         event.stopPropagation();
         if (subscription) {
@@ -159,7 +158,7 @@
             toast('Could not enable mobile notifications right now.', 'warning');
           });
         }
-      }, { once: true });
+      };
     } catch (_) {}
   }
 
