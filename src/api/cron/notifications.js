@@ -87,16 +87,19 @@ module.exports = async function handler(req, res) {
         attempted += 1;
 
         const claim = await supabaseFetch(
-          '/rest/v1/notification_push_deliveries',
+          '/rest/v1/rpc/velora_mark_push_delivery',
           {
             method: 'POST',
-            headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
             body: JSON.stringify({
-              notification_id: notification.id,
-              subscription_id: sub.id
+              p_notification_id: notification.id,
+              p_subscription_id: sub.id
             })
           }
         );
+
+        if (claim !== true) {
+          continue;
+        }
 
         try {
           await webpush.sendNotification(
