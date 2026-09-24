@@ -43,7 +43,7 @@ module.exports = async function handler(req, res) {
 
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
   const vapidPublic = process.env.VAPID_PUBLIC_KEY ||
-    'BK0OWJTIQ3L62VXZUkoVCyrZkhBSTuajYcusoOcckLId7poLrHYE129EHGh9Kdrb62jrXlCx0rOKtLJv405mfCU';
+    'BE5Yra8z7oNzKQdZ8qCfxOR5LPAqOdTsWuWMogdUeNRsfTWN_1ercDjb5A1LQuZrWgwWV0ovA5GIM55qD8Msmyc';
   const vapidSubject = process.env.VAPID_SUBJECT;
 
   if (!vapidPrivate || !vapidSubject) {
