@@ -1,0 +1,9 @@
+{
+  "name": "Velora Marketplace",
+  "short_name": "Velora",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d4708a",
+  "description": "Velora beauty marketplace and personal Beauty Journey."
+}
