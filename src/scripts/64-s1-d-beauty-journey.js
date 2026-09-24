@@ -30,45 +30,30 @@
 
   async function loadJourney() {
     const client = getClient();
-    if (!client?.from || !client?.auth) return null;
+    if (!client?.rpc || !client?.auth) return null;
 
     const auth = await client.auth.getUser();
     if (auth.error || !auth.data?.user) return null;
 
-    const [profileResult, routineResult] = await Promise.all([
-      client
-        .from('beauty_profiles')
-        .select('quiz_version,skin_type,goal,routine_budget,updated_at')
-        .maybeSingle(),
-      client
-        .from('beauty_routine_runs')
-        .select('id,contract_version,ruleset_version,status,created_at')
-        .order('created_at', { ascending: false })
-        .limit(5)
+    const [journeyResult, replenishmentResult] = await Promise.all([
+      client.rpc('velora_get_current_beauty_routine'),
+      client.rpc('velora_get_replenishment_signals')
     ]);
 
-    if (profileResult.error) throw profileResult.error;
-    if (routineResult.error) throw routineResult.error;
+    if (journeyResult.error) throw journeyResult.error;
+    if (replenishmentResult.error) throw replenishmentResult.error;
 
-    const routines = Array.isArray(routineResult.data) ? routineResult.data : [];
-
-    let steps = [];
-    if (routines[0]?.id) {
-      const stepResult = await client
-        .from('beauty_routine_steps')
-        .select('step_order,step_type,time_of_day,selection_status,product_id')
-        .eq('routine_run_id', routines[0].id)
-        .order('step_order', { ascending: true });
-
-      if (stepResult.error) throw stepResult.error;
-      steps = stepResult.data || [];
-    }
+    const journey = journeyResult.data || {};
+    const replenishment = replenishmentResult.data || {};
 
     return {
-      profile: profileResult.data || null,
-      routine: routines[0] || null,
-      routines,
-      steps
+      profile: journey.profile || null,
+      routine: journey.routine || null,
+      routines: Array.isArray(journey.routines) ? journey.routines : [],
+      steps: Array.isArray(journey.steps) ? journey.steps : [],
+      context: journey.context || null,
+      refreshed: !!journey.refreshed,
+      replenishmentSignals: Array.isArray(replenishment.signals) ? replenishment.signals : []
     };
   }
 
@@ -124,8 +109,9 @@
             '<div class="velora-journey-label">Latest Routine</div>' +
             '<div class="velora-journey-row"><span>Status</span><strong>' + esc(routine?.status || 'No routine yet') + '</strong></div>' +
             '<div class="velora-journey-row"><span>Steps selected</span><strong>' + selectedSteps.length + '</strong></div>' +
+            '<div class="velora-journey-row"><span>Season</span><strong>' + esc(data.context?.season || '—') + '</strong></div>' +
             '<div class="velora-journey-row"><span>Ruleset</span><strong>' + esc(routine?.ruleset_version || '—') + '</strong></div>' +
-            '<div class="velora-journey-date">Created ' + esc(formatDate(routine?.created_at)) + '</div>' +
+            '<div class="velora-journey-date">Created ' + esc(formatDate(routine?.created_at)) + (data.refreshed ? ' · refreshed for current context' : '') + '</div>' +
             '<button type="button" class="btn btn-primary" data-velora-journey-action="routine" ' +
               (routine ? '' : 'disabled') + '>Open my routine</button>' +
           '</div>' +
@@ -143,7 +129,33 @@
               : '') +
           '</div>' +
         '</div>' +
-        '<div class="velora-journey-footer">' +
+        '<div class="velora-journey-history" data-velora-replenishment>' +
+          '<div class="velora-journey-history-row">' +
+            '<div>' +
+              '<div class="velora-journey-label">Replenishment</div>' +
+              '<div class="velora-journey-muted">' +
+                (data.replenishmentSignals.length
+                  ? data.replenishmentSignals.filter((x) => x.status === 'due').length + ' due · ' +
+                    data.replenishmentSignals.filter((x) => x.status === 'upcoming').length + ' upcoming'
+                  : 'No replenishment signals yet.') +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          (data.replenishmentSignals.length
+            ? '<div class="velora-journey-history-list">' +
+              data.replenishmentSignals.slice(0, 4).map((x) =>
+                '<div class="velora-journey-history-item">' +
+                  '<div><strong>' + esc(x.product_name || 'Product') + '</strong>' +
+                  '<div class="velora-journey-muted">' +
+                    esc(x.status) + ' · ' + esc(Math.max(0, Math.ceil(Number(x.days_until_due || 0)))) + ' days' +
+                  '</div></div>' +
+                  '<span>' + esc(formatDate(x.next_replenishment_at)) + '</span>' +
+                '</div>'
+              ).join('') +
+              '</div>'
+            : '') +
+        '</div>' +
+        '<div class="velora-journey-footer">'
           '<span>Your Passport is the memory. Your current routine stays in focus; history is available when you need it.</span>' +
         '</div>' +
       '</section>';
