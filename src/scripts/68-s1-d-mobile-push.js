@@ -185,14 +185,8 @@
     button.id = ROOT_ID;
     button.type = 'button';
     button.textContent = 'Enable on this phone';
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      enablePush().catch(function (error) {
-        console.warn('Velora push enable:', error);
-        toast('Could not enable mobile notifications right now.', 'warning');
-      });
-    });
+    // renderButtonState owns the single click handler so MutationObserver
+    // re-renders cannot leave a second enable/disable handler attached.
     header.appendChild(button);
   }
 
