@@ -230,7 +230,7 @@ begin
     v_stale := true;
     v_response := private.velora_beauty_routine_operation();
   else
-    v_response := private.velora_build_routine_response(v_run.id);
+    v_response := private.beauty_build_routine_response(v_run.id);
   end if;
 
   select * into v_run
