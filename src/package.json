@@ -1,0 +1,7 @@
+{
+  "name": "velora-marketplace-web",
+  "private": true,
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
