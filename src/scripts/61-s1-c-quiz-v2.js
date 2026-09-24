@@ -286,14 +286,34 @@
 
   async function open() {
     ensureStyle();
-    const client = getClient();
-    const { data: authData, error: authError } = await client.auth.getUser();
-    if (authError) throw authError;
-    if (!authData || !authData.user) {
+    const passportState = await readV2PassportState();
+    if (!passportState.authenticated) {
       throw new Error('AUTH_REQUIRED');
     }
 
     reset();
+
+    // Editing the Passport must start from the authoritative persisted V2
+    // values. A fresh empty quiz here would silently overwrite unchanged
+    // answers when the customer edits only one field.
+    const profile = passportState.profile;
+    if (profile) {
+      if (String(profile.skin_type || '').trim() !== '') {
+        state.answers.skin_type = String(profile.skin_type);
+      }
+      if (String(profile.goal || '').trim() !== '') {
+        state.answers.goal = String(profile.goal);
+      }
+      if (String(profile.routine_budget || '').trim() !== '') {
+        state.answers.routine_budget = String(profile.routine_budget);
+      }
+    }
+
+    // Start on the first unanswered question; for a complete Passport, this
+    // is Q1 so the customer can intentionally review/change any answer.
+    state.step = QUESTIONS.findIndex((question) => !state.answers[question.id]);
+    if (state.step === -1) state.step = 0;
+
     ensureModal().classList.add('active');
     document.body.style.overflow = 'hidden';
     render();
