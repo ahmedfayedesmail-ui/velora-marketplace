@@ -155,7 +155,7 @@
               '</div>'
             : '') +
         '</div>' +
-        '<div class="velora-journey-footer">'
+        '<div class="velora-journey-footer">' +
           '<span>Your Passport is the memory. Your current routine stays in focus; history is available when you need it.</span>' +
         '</div>' +
       '</section>';
