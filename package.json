@@ -6,5 +6,8 @@
   "scripts": {
     "serve": "python3 -m http.server 4173 -d src",
     "check": "python3 tools/static_audit.py"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
   }
 }
