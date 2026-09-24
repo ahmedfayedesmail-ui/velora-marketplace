@@ -63,7 +63,7 @@ module.exports = async function handler(req, res) {
 
     const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     const notifications = await supabaseFetch(
-      '/rest/v1/notifications?select=id,type,title,body,entity_type,entity_id,created_at' +
+      '/rest/v1/notifications?select=id,user_id,type,title,body,entity_type,entity_id,created_at' +
       '&type=in.(beauty_experience,replenishment)' +
       '&created_at=gte.' + encodeURIComponent(since) +
       '&order=created_at.desc&limit=100',
