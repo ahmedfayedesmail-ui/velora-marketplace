@@ -5820,3 +5820,62 @@ ul { list-style: none; }
   .velora-beauty-journey{grid-template-columns:1fr;}
   .velora-beauty-journey-steps{grid-template-columns:1fr;}
 }
+
+/* ================================================================
+   NOTIFICATIONS — HEADER ACTIONS RESPONSIVE HARDENING
+   Keep the title readable when push controls are injected beside it.
+   ================================================================ */
+.notification-bell .notif-header {
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.notification-bell .notif-header h4 {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    line-height: 1.25;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.notification-bell .notif-header button {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+    padding: .35rem .45rem;
+}
+
+@media (max-width: 600px) {
+    .notification-bell .notif-dropdown {
+        width: auto !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+    }
+
+    .notification-bell .notif-header {
+        display: flex;
+        align-items: stretch;
+        gap: .55rem;
+        padding: .8rem;
+    }
+
+    .notification-bell .notif-header h4 {
+        flex: 1 0 100%;
+        width: 100%;
+        font-size: .95rem;
+    }
+
+    .notification-bell .notif-header button {
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
+        font-size: .74rem;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
