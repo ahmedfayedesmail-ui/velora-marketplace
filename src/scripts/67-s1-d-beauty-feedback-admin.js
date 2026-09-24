@@ -192,15 +192,26 @@
     document.head.appendChild(style);
   }
 
+  function watchAdminDom() {
+    if (typeof MutationObserver !== 'function' || !document.body) return;
+
+    // The Admin DOM can be created only after the platform is opened.
+    // Observe the document body so the Beauty Feedback item is injected
+    // whenever #adminPlatform/.admin-nav appears or is rebuilt.
+    const observer = new MutationObserver(() => addNav());
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
   function init() {
     ensureStyles();
     addNav();
+    watchAdminDom();
 
-    const platform = document.getElementById('adminPlatform');
-    if (platform && typeof MutationObserver === 'function') {
-      const observer = new MutationObserver(() => addNav());
-      observer.observe(platform, { childList: true, subtree: true });
-    }
+    // Catch the common case where the admin platform is opened later,
+    // after this script has already initialized.
+    setTimeout(addNav, 300);
+    setTimeout(addNav, 900);
+    setTimeout(addNav, 1800);
   }
 
   if (document.readyState === 'loading') {
