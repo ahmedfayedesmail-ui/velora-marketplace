@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  var VAPID_PUBLIC_KEY = 'BK0OWJTIQ3L62VXZUkoVCyrZkhBSTuajYcusoOcckLId7poLrHYE129EHGh9Kdrb62jrXlCx0rOKtLJv405mfCU';
+  var VAPID_PUBLIC_KEY = 'BE5Yra8z7oNzKQdZ8qCfxOR5LPAqOdTsWuWMogdUeNRsfTWN_1ercDjb5A1LQuZrWgwWV0ovA5GIM55qD8Msmyc';
   var ROOT_ID = 'veloraPushEnableButton';
 
   function client() {
@@ -84,6 +84,12 @@
     await navigator.serviceWorker.ready;
 
     var existing = await registration.pushManager.getSubscription();
+    var storedKey = localStorage.getItem('velora_push_vapid_public');
+    if (existing && storedKey !== VAPID_PUBLIC_KEY) {
+      try { await existing.unsubscribe(); } catch (_) {}
+      existing = null;
+    }
+
     var subscription = existing || await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: base64UrlToBytes(VAPID_PUBLIC_KEY)
@@ -91,6 +97,7 @@
 
     await saveSubscription(subscription);
     localStorage.setItem('velora_push_enabled', '1');
+    localStorage.setItem('velora_push_vapid_public', VAPID_PUBLIC_KEY);
     renderButtonState();
     toast('✅ Velora notifications are enabled on this phone.', 'success');
     return true;
@@ -144,7 +151,10 @@
       var subscription = registration
         ? await registration.pushManager.getSubscription()
         : null;
-      button.textContent = subscription ? 'Disable on this phone' : 'Enable on this phone';
+      var storedKey = localStorage.getItem('velora_push_vapid_public');
+      button.textContent = subscription
+        ? (storedKey === VAPID_PUBLIC_KEY ? 'Disable on this phone' : 'Re-enable on this phone')
+        : 'Enable on this phone';
       button.onclick = function (event) {
         event.preventDefault();
         event.stopPropagation();
