@@ -125,6 +125,28 @@
     toast('Mobile notifications disabled.', 'success');
   }
 
+  async function reEnablePush() {
+    var registration = await navigator.serviceWorker.getRegistration('/');
+    if (registration) {
+      var subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        var endpoint = subscription.endpoint;
+        var sb = client();
+        if (sb && typeof sb.rpc === 'function') {
+          try {
+            await sb.rpc('velora_unregister_push_subscription', { p_endpoint: endpoint });
+          } catch (_) {}
+        }
+        try { await subscription.unsubscribe(); } catch (_) {}
+      }
+    }
+
+    localStorage.removeItem('velora_push_enabled');
+    localStorage.removeItem('velora_push_vapid_public');
+
+    return enablePush();
+  }
+
   async function sendTestPush() {
     var sb = client();
     if (!sb || !sb.functions || typeof sb.functions.invoke !== 'function') {
@@ -207,16 +229,12 @@
       button.onclick = function (event) {
         event.preventDefault();
         event.stopPropagation();
-        if (subscription) {
-          disablePush().catch(function (error) {
-            console.warn('Velora push disable:', error);
-          });
-        } else {
-          enablePush().catch(function (error) {
-            console.warn('Velora push enable:', error);
-            toast('Could not enable mobile notifications right now.', 'warning');
-          });
-        }
+        var needsKeyMigration = !!subscription && storedKey !== VAPID_PUBLIC_KEY;
+        var action = needsKeyMigration ? reEnablePush : (subscription ? disablePush : enablePush);
+        action().catch(function (error) {
+          console.warn('Velora push action:', error);
+          toast('Could not update mobile notifications right now.', 'warning');
+        });
       };
     } catch (_) {}
   }
