@@ -8,8 +8,7 @@
 (function(){
   'use strict';
 
-  var client=window.mahaSupabase;
-  if(!client || !client.rpc) return;
+  function client(){ return window.mahaSupabase || window.supabaseClient || window.sb || null; }
 
   var POLL_MS=30000;
   var LIMIT=20;
@@ -172,9 +171,11 @@
     renderList();
 
     try{
+      var sb=client();
+      if(!sb || typeof sb.rpc!=='function') throw new Error('SUPABASE_UNAVAILABLE');
       var results=await Promise.all([
-        client.rpc('velora_get_notifications',{p_limit:LIMIT,p_offset:0}),
-        client.rpc('velora_get_unread_notification_count')
+        sb.rpc('velora_get_notifications',{p_limit:LIMIT,p_offset:0}),
+        sb.rpc('velora_get_unread_notification_count')
       ]);
 
       if(results[0].error) throw results[0].error;
@@ -206,7 +207,9 @@
     closeDropdown();
 
     try{
-      var r=await client.rpc('velora_mark_notification_read',{p_notification_id:notificationId});
+      var sb=client();
+      if(!sb || typeof sb.rpc!=='function') throw new Error('SUPABASE_UNAVAILABLE');
+      var r=await sb.rpc('velora_mark_notification_read',{p_notification_id:notificationId});
       if(r.error) throw r.error;
 
       state.items=state.items.map(function(n){
@@ -232,7 +235,9 @@
     }
 
     try{
-      var r=await client.rpc('velora_mark_all_notifications_read');
+      var sb=client();
+      if(!sb || typeof sb.rpc!=='function') throw new Error('SUPABASE_UNAVAILABLE');
+      var r=await sb.rpc('velora_mark_all_notifications_read');
       if(r.error) throw r.error;
 
       var now=new Date().toISOString();
@@ -274,7 +279,10 @@
     }
   });
 
-  client.auth.onAuthStateChange(function(event,session){
+  function bindAuth(){
+    var sb=client();
+    if(!sb || !sb.auth || typeof sb.auth.onAuthStateChange!=='function') return false;
+    sb.auth.onAuthStateChange(function(event,session){
     if(event==='SIGNED_IN' || event==='TOKEN_REFRESHED'){
       setTimeout(function(){load(true);},350);
     }else if(event==='SIGNED_OUT'){
@@ -282,7 +290,9 @@
       state.unread=0;
       renderBell();
     }
-  });
+    });
+    return true;
+  }
 
   function startPolling(){
     if(pollTimer) clearInterval(pollTimer);
@@ -291,20 +301,22 @@
     },POLL_MS);
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',function(){
-      setTimeout(function(){
-        renderBell();
-        load(true);
-        startPolling();
-      },450);
-    },{once:true});
-  }else{
+  function bootstrap(){
+    if(!bindAuth()){
+      setTimeout(bootstrap,250);
+      return;
+    }
     setTimeout(function(){
       renderBell();
       load(true);
-      startPolling();
     },450);
+    startPolling();
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',bootstrap,{once:true});
+  }else{
+    bootstrap();
   }
 
   console.log('✅ S2-E authoritative notifications loaded');
