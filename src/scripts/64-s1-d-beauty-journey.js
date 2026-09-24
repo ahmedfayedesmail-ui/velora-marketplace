@@ -131,21 +131,20 @@
           '</div>' +
         '</div>' +
         '<div class="velora-journey-history">' +
-          '<div class="velora-journey-label">Routine History</div>' +
-          (data.routines && data.routines.length
-            ? '<div class="velora-journey-history-list">' +
-                data.routines.slice(0, 5).map((run, index) =>
-                  '<div class="velora-journey-history-item">' +
-                    '<div><strong>' + (index === 0 ? 'Current routine' : 'Routine ' + (index + 1)) + '</strong>' +
-                    '<div class="velora-journey-muted">' + esc(formatDate(run.created_at)) + ' · ' + esc(run.status) + '</div></div>' +
-                    '<span>' + esc(run.ruleset_version || '—') + '</span>' +
-                  '</div>'
-                ).join('') +
-              '</div>'
-            : '<div class="velora-journey-muted">No routine history yet.</div>') +
+          '<div class="velora-journey-history-row">' +
+            '<div>' +
+              '<div class="velora-journey-label">Routine History</div>' +
+              '<div class="velora-journey-muted">' + (data.routines && data.routines.length > 1
+                ? (data.routines.length - 1) + ' previous routine' + ((data.routines.length - 1) === 1 ? '' : 's') + ' saved'
+                : 'No previous routines yet.') + '</div>' +
+            '</div>' +
+            (data.routines && data.routines.length > 1
+              ? '<button type="button" class="btn btn-outline btn-sm" data-velora-history-open>View history</button>'
+              : '') +
+          '</div>' +
         '</div>' +
         '<div class="velora-journey-footer">' +
-          '<span>Your Passport is the memory. Each routine run becomes part of your journey.</span>' +
+          '<span>Your Passport is the memory. Your current routine stays in focus; history is available when you need it.</span>' +
         '</div>' +
       '</section>';
 
@@ -163,6 +162,42 @@
         }
       });
     });
+    
+    const historyButton = host.querySelector('[data-velora-history-open]');
+    if (historyButton) {
+      historyButton.addEventListener('click', () => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = 'veloraRoutineHistoryModal';
+        modal.innerHTML =
+          '<div class="modal-content velora-history-modal">' +
+            '<div class="modal-header">' +
+              '<h2>Routine History</h2>' +
+              '<button class="modal-close" type="button" data-history-close>✕</button>' +
+            '</div>' +
+            '<p class="velora-journey-muted">Your saved routine runs stay available without taking space on the main account page.</p>' +
+            '<div class="velora-journey-history-list">' +
+              (data.routines || []).map((run, index) =>
+                '<div class="velora-journey-history-item">' +
+                  '<div><strong>' + (index === 0 ? 'Current routine' : 'Routine ' + (index + 1)) + '</strong>' +
+                  '<div class="velora-journey-muted">' + esc(formatDate(run.created_at)) + ' · ' + esc(run.status) + '</div></div>' +
+                  '<span>' + esc(run.ruleset_version || '—') + '</span>' +
+                '</div>'
+              ).join('') +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        modal.querySelector('[data-history-close]').addEventListener('click', () => {
+          modal.classList.remove('active');
+          setTimeout(() => {
+            modal.remove();
+            document.body.style.overflow = '';
+          }, 120);
+        });
+      });
+    }
   }
 
   function ensureStyles() {
@@ -183,7 +218,7 @@
       '.velora-journey-row:last-of-type{border-bottom:0;}',
       '.velora-journey-row strong{text-align:end;}',
       '.velora-journey-date{font-size:.78rem;margin:.7rem 0;}',
-      '.velora-journey-history{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}',      '.velora-journey-history-list{display:grid;gap:.45rem;}',      '.velora-journey-history-item{display:flex;justify-content:space-between;gap:.8rem;align-items:center;padding:.7rem .8rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);}',      '.velora-journey-history-item span{font-size:.75rem;font-weight:750;color:var(--text-muted);text-align:right;}',      '.velora-journey-footer{margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);font-size:.82rem;color:var(--text-muted);}',
+      '.velora-journey-history{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}',      '.velora-journey-history-row{display:flex;justify-content:space-between;gap:.8rem;align-items:center;}',      '.velora-journey-history-list{display:grid;gap:.45rem;margin-top:.9rem;}',      '.velora-journey-history-item{display:flex;justify-content:space-between;gap:.8rem;align-items:center;padding:.7rem .8rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);}',      '.velora-journey-history-item span{font-size:.75rem;font-weight:750;color:var(--text-muted);text-align:right;}',      '.velora-history-modal{max-width:680px;}',      '.velora-journey-footer{margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);font-size:.82rem;color:var(--text-muted);}',
       '.velora-journey-loading{padding:1rem 0;color:var(--text-muted);}',
       '@media(max-width:700px){.velora-journey-grid{grid-template-columns:1fr}.velora-journey-head{gap:.5rem}.velora-journey-card{border-radius:18px;padding:.85rem}}'
     ].join('');
