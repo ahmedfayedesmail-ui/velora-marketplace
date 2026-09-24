@@ -7,8 +7,9 @@
 (function () {
   'use strict';
 
-  var VAPID_PUBLIC_KEY = 'BE5Yra8z7oNzKQdZ8qCfxOR5LPAqOdTsWuWMogdUeNRsfTWN_1ercDjb5A1LQuZrWgwWV0ovA5GIM55qD8Msmyc';
+  var VAPID_PUBLIC_KEY = 'BD7w_n7zLzH4GVnp0lQgTgaQgZB_eXfKd0_sYnu50hMJSkKGbpr8LhQHPxhHxkNxotCF269zNRDFY_EuKn9dSmA';
   var ROOT_ID = 'veloraPushEnableButton';
+  var TEST_ID = 'veloraPushTestButton';
 
   function client() {
     return window.mahaSupabase || window.supabaseClient || window.sb || null;
@@ -124,6 +125,54 @@
     toast('Mobile notifications disabled.', 'success');
   }
 
+  async function sendTestPush() {
+    var sb = client();
+    if (!sb || !sb.functions || typeof sb.functions.invoke !== 'function') {
+      toast('Push test is not available yet.', 'warning');
+      return;
+    }
+
+    var result = await sb.functions.invoke('velora-send-push-test', {
+      body: {
+        title: 'Velora test notification',
+        body: '✅ Push notifications are working on your phone.',
+        url: '/'
+      }
+    });
+
+    if (result.error) {
+      console.warn('Velora push test:', result.error);
+      toast('Push test failed. Please re-enable notifications and try again.', 'warning');
+      return;
+    }
+
+    if (!result.data || result.data.sent < 1) {
+      toast('Push test was not delivered.', 'warning');
+      return;
+    }
+
+    toast('✅ Test push sent. Check your phone notifications.', 'success');
+  }
+
+  function addTestButton() {
+    var header = document.querySelector('#notifDropdown .notif-header');
+    if (!header || document.getElementById(TEST_ID)) return;
+
+    var button = document.createElement('button');
+    button.id = TEST_ID;
+    button.type = 'button';
+    button.textContent = 'Send test push';
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      sendTestPush().catch(function (error) {
+        console.warn('Velora push test:', error);
+        toast('Push test failed. Please try again.', 'warning');
+      });
+    });
+    header.appendChild(button);
+  }
+
   function addButton() {
     var header = document.querySelector('#notifDropdown .notif-header');
     if (!header || document.getElementById(ROOT_ID)) return;
@@ -176,10 +225,12 @@
     if (typeof MutationObserver !== 'function' || !document.body) return;
     var observer = new MutationObserver(function () {
       addButton();
+      addTestButton();
       renderButtonState();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     addButton();
+    addTestButton();
     renderButtonState();
   }
 
