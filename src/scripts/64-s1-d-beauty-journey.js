@@ -287,6 +287,7 @@
   }
 
   window.addEventListener('velora:passport-v2-updated', scheduleMount);
+  window.addEventListener('velora:feedback-updated', scheduleMount);
   window.addEventListener('hashchange', scheduleMount);
   window.addEventListener('popstate', scheduleMount);
 
