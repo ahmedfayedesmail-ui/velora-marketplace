@@ -44,19 +44,20 @@
         .from('beauty_routine_runs')
         .select('id,contract_version,ruleset_version,status,created_at')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        .limit(5)
     ]);
 
     if (profileResult.error) throw profileResult.error;
     if (routineResult.error) throw routineResult.error;
 
+    const routines = Array.isArray(routineResult.data) ? routineResult.data : [];
+
     let steps = [];
-    if (routineResult.data?.id) {
+    if (routines[0]?.id) {
       const stepResult = await client
         .from('beauty_routine_steps')
         .select('step_order,step_type,time_of_day,selection_status,product_id')
-        .eq('routine_run_id', routineResult.data.id)
+        .eq('routine_run_id', routines[0].id)
         .order('step_order', { ascending: true });
 
       if (stepResult.error) throw stepResult.error;
@@ -65,7 +66,8 @@
 
     return {
       profile: profileResult.data || null,
-      routine: routineResult.data || null,
+      routine: routines[0] || null,
+      routines,
       steps
     };
   }
@@ -128,8 +130,22 @@
               (routine ? '' : 'disabled') + '>Open my routine</button>' +
           '</div>' +
         '</div>' +
+        '<div class="velora-journey-history">' +
+          '<div class="velora-journey-label">Routine History</div>' +
+          (data.routines && data.routines.length
+            ? '<div class="velora-journey-history-list">' +
+                data.routines.slice(0, 5).map((run, index) =>
+                  '<div class="velora-journey-history-item">' +
+                    '<div><strong>' + (index === 0 ? 'Current routine' : 'Routine ' + (index + 1)) + '</strong>' +
+                    '<div class="velora-journey-muted">' + esc(formatDate(run.created_at)) + ' · ' + esc(run.status) + '</div></div>' +
+                    '<span>' + esc(run.ruleset_version || '—') + '</span>' +
+                  '</div>'
+                ).join('') +
+              '</div>'
+            : '<div class="velora-journey-muted">No routine history yet.</div>') +
+        '</div>' +
         '<div class="velora-journey-footer">' +
-          '<span>Next layer: feedback → better future routines</span>' +
+          '<span>Your Passport is the memory. Each routine run becomes part of your journey.</span>' +
         '</div>' +
       '</section>';
 
@@ -167,7 +183,7 @@
       '.velora-journey-row:last-of-type{border-bottom:0;}',
       '.velora-journey-row strong{text-align:end;}',
       '.velora-journey-date{font-size:.78rem;margin:.7rem 0;}',
-      '.velora-journey-footer{margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);font-size:.82rem;color:var(--text-muted);}',
+      '.velora-journey-history{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}',      '.velora-journey-history-list{display:grid;gap:.45rem;}',      '.velora-journey-history-item{display:flex;justify-content:space-between;gap:.8rem;align-items:center;padding:.7rem .8rem;border:1px solid var(--border);border-radius:14px;background:var(--bg-alt);}',      '.velora-journey-history-item span{font-size:.75rem;font-weight:750;color:var(--text-muted);text-align:right;}',      '.velora-journey-footer{margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);font-size:.82rem;color:var(--text-muted);}',
       '.velora-journey-loading{padding:1rem 0;color:var(--text-muted);}',
       '@media(max-width:700px){.velora-journey-grid{grid-template-columns:1fr}.velora-journey-head{gap:.5rem}.velora-journey-card{border-radius:18px;padding:.85rem}}'
     ].join('');
