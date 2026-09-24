@@ -170,6 +170,7 @@
         if (typeof showToast === 'function') {
           showToast('✅ Experience saved to your Beauty Journey.', 'success');
         }
+        window.dispatchEvent(new CustomEvent('velora:feedback-updated'));
         await mount();
       } catch (error) {
         console.error('Velora Beauty Feedback error:', error);
