@@ -176,24 +176,7 @@
     toast('✅ Test push sent. Check your phone notifications.', 'success');
   }
 
-  function addTestButton() {
-    var header = document.querySelector('#notifDropdown .notif-header');
-    if (!header || document.getElementById(TEST_ID)) return;
-
-    var button = document.createElement('button');
-    button.id = TEST_ID;
-    button.type = 'button';
-    button.textContent = 'Send test push';
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      sendTestPush().catch(function (error) {
-        console.warn('Velora push test:', error);
-        toast('Push test failed. Please try again.', 'warning');
-      });
-    });
-    header.appendChild(button);
-  }
+  // Test-push UI is intentionally omitted from the customer-facing notification menu.
 
   function addButton() {
     var header = document.querySelector('#notifDropdown .notif-header');
@@ -243,12 +226,10 @@
     if (typeof MutationObserver !== 'function' || !document.body) return;
     var observer = new MutationObserver(function () {
       addButton();
-      addTestButton();
       renderButtonState();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     addButton();
-    addTestButton();
     renderButtonState();
   }
 
