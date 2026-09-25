@@ -4735,6 +4735,8 @@ async function applyCoupon() {
 
         appliedCoupon = coupon;
         window.VELORA_ACTIVE_COUPON_CODE = coupon.code;
+        window.VELORA_GIFT_CARD_QUOTE = null;
+        window.VELORA_GIFT_CARD_CODE = null;
         showToast('🎉 Coupon applied: ' + (coupon.description || coupon.code), 'success');
 
         renderCartSidebar();
@@ -4763,6 +4765,8 @@ async function applyCoupon() {
 function removeCoupon() {
     appliedCoupon = null;
     window.VELORA_ACTIVE_COUPON_CODE = null;
+    window.VELORA_GIFT_CARD_QUOTE = null;
+    window.VELORA_GIFT_CARD_CODE = null;
     showToast('🗑️ Coupon removed', 'info');
     renderCartSidebar();
     renderCartPage();
@@ -4779,6 +4783,18 @@ function loadCoupon() {
 function calculateDiscount() {
     if (!appliedCoupon) return 0;
     return Math.max(0, Number(appliedCoupon.discount_amount || 0));
+}
+
+function calculateGiftCardDiscountPreview() {
+    const q = window.VELORA_GIFT_CARD_QUOTE;
+    if (!q?.apply_amount) return 0;
+    const base = Math.max(0, Number(getCartTotal() || 0) - calculateDiscount());
+    if (q.base_amount != null && Math.abs(Number(q.base_amount) - base) > 0.01) {
+        window.VELORA_GIFT_CARD_QUOTE = null;
+        window.VELORA_GIFT_CARD_CODE = null;
+        return 0;
+    }
+    return Math.max(0, Math.min(Number(q.apply_amount || 0), base));
 }
 
 /* ============ OVERRIDE CART TOTAL ============ */
@@ -4969,8 +4985,9 @@ renderCheckoutSummary = function() {
 
     const subtotal = getCartTotal();
     const discount = calculateDiscount();
-    const shipping = (subtotal - discount) >= 500 ? 0 : 30;
-    const total = Math.max(0, subtotal - discount) + shipping;
+    const giftCardDiscount = calculateGiftCardDiscountPreview();
+    const shipping = (subtotal - discount - giftCardDiscount) >= 500 ? 0 : 30;
+    const total = Math.max(0, subtotal - discount - giftCardDiscount) + shipping;
 
     container.innerHTML = `
         <h3>Summary</h3>
@@ -4989,6 +5006,7 @@ renderCheckoutSummary = function() {
             <span>Subtotal</span><span>${formatPrice(subtotal)}</span>
         </div>
         ${discount > 0 ? `<div class="order-total-row" style="color: var(--success); font-weight: 700;"><span>Discount</span><span>-${formatPrice(discount)}</span></div>` : ''}
+        ${giftCardDiscount > 0 ? `<div class="order-total-row" style="color: var(--success); font-weight: 700;"><span>🎁 Gift card</span><span>-${formatPrice(giftCardDiscount)}</span></div>` : ''}
         <div class="order-total-row">
             <span>Shipping</span><span>${shipping === 0 ? '🎉 Free' : formatPrice(shipping)}</span>
         </div>
