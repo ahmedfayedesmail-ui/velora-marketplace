@@ -8,7 +8,7 @@ create policy return_items_customer_select on public.return_items for select to 
 alter table public.returns add column if not exists resolution_notes text, add column if not exists refund_reference text, add column if not exists refund_provider text, add column if not exists refund_method text, add column if not exists refund_processed_at timestamptz;
 revoke all on function public.velora_request_return(uuid,uuid,jsonb,text,text) from public;
 grant execute on function public.velora_request_return(uuid,uuid,jsonb,text,text) to authenticated;
-revoke all on function public.velora_resolve_return(uuid,text,text) from public;
-grant execute on function public.velora_resolve_return(uuid,text,text) to authenticated;
+revoke all on function public.velora_resolve_return(uuid,text,text,text,text,text) from public;
+grant execute on function public.velora_resolve_return(uuid,text,text,text,text,text) to authenticated;
 revoke all on function public.velora_create_shipment(uuid,uuid[],text,text,text,text,timestamptz) from public;
 grant execute on function public.velora_create_shipment(uuid,uuid[],text,text,text,text,timestamptz) to authenticated;
