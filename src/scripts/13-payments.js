@@ -7,6 +7,7 @@
 'use strict';
 const db=window.mahaSupabase;if(!db)return;
 const esc=v=>escapeHtml(String(v??''));
+const tr=v=>typeof window.VELORA_GET_TRANSLATION==='function'?window.VELORA_GET_TRANSLATION(String(v)):String(v);
 const money=(n,c)=>{try{return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'USD'}).format(Number(n||0))}catch(_){return `${Number(n||0).toFixed(2)} ${c||''}`}};
 const cls=s=>String(s||'').toLowerCase().replace(/[^a-z0-9_-]/g,'');
 async function user(){const {data,error}=await db.auth.getUser();if(error)throw error;if(!data?.user)throw new Error('Please login first');return data.user}
@@ -40,7 +41,7 @@ async function applyGiftCardCode(){
   const status=document.getElementById('veloraGiftCardStatus');
   const code=String(input?.value||'').trim().toUpperCase();
   const client=db;
-  if(!code){if(status)status.textContent='Please enter a gift card code.';return;}
+  if(!code){if(status)status.textContent=tr('Please enter a gift card code.');return;}
   try{
     const currency=String(document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase();
     const base=Math.max(0,Number(typeof getCartTotal==='function'?getCartTotal():0)-Number(typeof calculateDiscount==='function'?calculateDiscount():0));
@@ -50,20 +51,20 @@ async function applyGiftCardCode(){
     if(!q?.ok)throw new Error('GIFT_CARD_NOT_AVAILABLE');
     window.VELORA_GIFT_CARD_CODE=q.code;
     window.VELORA_GIFT_CARD_QUOTE={...q,base_amount:base};
-    if(status)status.textContent='Gift card applied: '+Number(q.apply_amount||0).toFixed(2)+' '+q.currency_code+' · Remaining: '+Number(q.remaining_order_amount||0).toFixed(2)+' '+q.currency_code;
+    if(status)status.textContent=tr('Gift card applied:')+' '+Number(q.apply_amount||0).toFixed(2)+' '+q.currency_code+' · '+tr('Remaining:')+' '+Number(q.remaining_order_amount||0).toFixed(2)+' '+q.currency_code;
     if(typeof renderCheckoutSummary==='function')renderCheckoutSummary();
     setTimeout(decorateGiftCard,0);
   }catch(e){
     window.VELORA_GIFT_CARD_CODE=null;
     window.VELORA_GIFT_CARD_QUOTE=null;
-    if(status)status.textContent=(e?.message||'Gift card could not be applied.');
+    if(status)status.textContent=(e?.message||tr('Gift card could not be applied.'));
   }
 }
 function removeGiftCardCode(){
   window.VELORA_GIFT_CARD_CODE=null;
   window.VELORA_GIFT_CARD_QUOTE=null;
   const input=document.getElementById('veloraGiftCardInput');if(input)input.value='';
-  const status=document.getElementById('veloraGiftCardStatus');if(status)status.textContent='Gift card removed.';
+  const status=document.getElementById('veloraGiftCardStatus');if(status)status.textContent=tr('Gift card removed.');
   if(typeof renderCheckoutSummary==='function')renderCheckoutSummary();
   setTimeout(decorateGiftCard,0);
 }
@@ -74,10 +75,10 @@ function decorateGiftCard(){
   box.id='veloraGiftCardBox';
   box.className='coupon-box';
   box.style.marginTop='1rem';
-  box.innerHTML='<div style="font-weight:700;margin-bottom:.4rem">🎁 Gift card</div><div style="display:flex;gap:.5rem;flex-wrap:wrap"><input id="veloraGiftCardInput" class="coupon-input" placeholder="Gift card code" type="text"><button id="veloraGiftCardApply" class="coupon-btn" type="button">Apply</button><button id="veloraGiftCardRemove" class="coupon-btn" type="button" style="display:none">Remove</button></div><div id="veloraGiftCardStatus" class="velora-op-muted" style="margin-top:.4rem"></div>';
+  box.innerHTML='<div style="font-weight:700;margin-bottom:.4rem">🎁 '+esc(tr('Gift card'))+'</div><div style="display:flex;gap:.5rem;flex-wrap:wrap"><input id="veloraGiftCardInput" class="coupon-input" placeholder="'+esc(tr('Gift card code'))+'" type="text"><button id="veloraGiftCardApply" class="coupon-btn" type="button">'+esc(tr('Apply'))+'</button><button id="veloraGiftCardRemove" class="coupon-btn" type="button" style="display:none">'+esc(tr('Remove'))+'</button></div><div id="veloraGiftCardStatus" class="velora-op-muted" style="margin-top:.4rem"></div>';
   host.appendChild(box);
   const input=document.getElementById('veloraGiftCardInput'),apply=document.getElementById('veloraGiftCardApply'),remove=document.getElementById('veloraGiftCardRemove'),status=document.getElementById('veloraGiftCardStatus');
-  if(window.VELORA_GIFT_CARD_CODE){if(input)input.value=window.VELORA_GIFT_CARD_CODE;if(apply)apply.style.display='none';if(remove)remove.style.display='inline-flex';if(status&&window.VELORA_GIFT_CARD_QUOTE)status.textContent='Gift card applied: '+Number(window.VELORA_GIFT_CARD_QUOTE.apply_amount||0).toFixed(2)+' '+window.VELORA_GIFT_CARD_QUOTE.currency_code+' · Remaining: '+Number(window.VELORA_GIFT_CARD_QUOTE.remaining_order_amount||0).toFixed(2)+' '+window.VELORA_GIFT_CARD_QUOTE.currency_code;}
+  if(window.VELORA_GIFT_CARD_CODE){if(input)input.value=window.VELORA_GIFT_CARD_CODE;if(apply)apply.style.display='none';if(remove)remove.style.display='inline-flex';if(status&&window.VELORA_GIFT_CARD_QUOTE)status.textContent=tr('Gift card applied:')+' '+Number(window.VELORA_GIFT_CARD_QUOTE.apply_amount||0).toFixed(2)+' '+window.VELORA_GIFT_CARD_QUOTE.currency_code+' · '+tr('Remaining:')+' '+Number(window.VELORA_GIFT_CARD_QUOTE.remaining_order_amount||0).toFixed(2)+' '+window.VELORA_GIFT_CARD_QUOTE.currency_code;}
   apply?.addEventListener('click',async()=>{await applyGiftCardCode();setTimeout(decorateGiftCard,0);});
   input?.addEventListener('keypress',async e=>{if(e.key==='Enter'){e.preventDefault();await applyGiftCardCode();setTimeout(decorateGiftCard,0);}});
   remove?.addEventListener('click',removeGiftCardCode);
@@ -91,5 +92,5 @@ window.VELORA_SELECT_PAYMENT_METHOD=(code,id,el)=>{window.VELORA_PAYMENT_SELECTI
 const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){const r=oldRender.apply(this,arguments);setTimeout(()=>{decorate();decorateGiftCard()},100);return r};
 const oldRenderSummary=window.renderCheckoutSummary;if(typeof oldRenderSummary==='function')window.renderCheckoutSummary=function(){const r=oldRenderSummary.apply(this,arguments);setTimeout(decorateGiftCard,80);return r};
 /* Canonical placeOrder wrapper: create order first, then create provider attempt for non-COD methods. */
-const oldPlace=window.placeOrder;window.placeOrder=async function(event){if(!window.VELORA_PAYMENT_SELECTION||!window.VELORA_PAYMENT_SELECTION.id)return oldPlace?oldPlace(event):undefined;event.preventDefault();const selected=window.VELORA_PAYMENT_SELECTION;try{const original=window.STATE?.cart||[];const canonical=original.map(i=>({product_id:i.canonicalId||i.productId||i.id,quantity:Number(i.quantity||1)})).filter(i=>/^[0-9a-f-]{36}$/i.test(String(i.product_id)));const country=document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG';const currency=document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'USD';const name=document.getElementById('custName')?.value?.trim()||'',phone=document.getElementById('custPhone')?.value?.trim()||'',email=document.getElementById('custEmail')?.value?.trim()||'',city=document.getElementById('custCity')?.value?.trim()||'',address=document.getElementById('custAddress')?.value?.trim()||'',notes=document.getElementById('custNotes')?.value?.trim()||'';if(!name||!phone||!city||!address){showToast('⚠️ Please complete your shipping information','warning');return}const couponCode=String(window.VELORA_ACTIVE_COUPON_CODE||'').trim().toUpperCase()||null;const giftCardCode=String(window.VELORA_GIFT_CARD_CODE||'').trim().toUpperCase()||null;const {data,error}=await db.rpc('velora_create_order_with_commercials',{p_items:canonical,p_currency:currency,p_shipping:0,p_customer_name:name,p_customer_phone:phone,p_customer_email:email,p_customer_city:city,p_customer_address:address,p_customer_notes:JSON.stringify({notes,country_code:country,payment_method:selected.code}),p_checkout_reference:'VELORA-'+Date.now()+'-'+Math.random().toString(36).slice(2,10),p_coupon_code:couponCode,p_gift_card_code:giftCardCode});if(error)throw error;if(!data?.ok)throw new Error('Order creation failed');if(Number(data.total||0)<=0&&String(data.payment_status||'').toLowerCase()==='paid'){STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();window.VELORA_GIFT_CARD_CODE=null;window.VELORA_GIFT_CARD_QUOTE=null;showToast(`✅ Order #${data.order_number} created — paid by gift card`,'success');setTimeout(()=>navigateTo('orders'),900);return}const attempt=await startPayment(data.order_id,selected.id,country);if(attempt?.checkout_url){window.location.assign(attempt.checkout_url);return}STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();showToast(`✅ Order #${data.order_number} created — payment started`,'success');setTimeout(()=>navigateTo('orders'),900)}catch(e){console.error(e);showToast('❌ '+(e.message||'Payment could not be started'),'error')}};
+const oldPlace=window.placeOrder;window.placeOrder=async function(event){const selected=window.VELORA_PAYMENT_SELECTION;const fullGiftCard=Boolean(window.VELORA_GIFT_CARD_QUOTE&&Number(window.VELORA_GIFT_CARD_QUOTE.remaining_order_amount||0)<=0&&window.VELORA_GIFT_CARD_CODE);if(!selected?.id&&!fullGiftCard)return oldPlace?oldPlace(event):undefined;event.preventDefault();try{const original=window.STATE?.cart||[];const canonical=original.map(i=>({product_id:i.canonicalId||i.productId||i.id,quantity:Number(i.quantity||1)})).filter(i=>/^[0-9a-f-]{36}$/i.test(String(i.product_id)));const country=document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG';const currency=document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'USD';const name=document.getElementById('custName')?.value?.trim()||'',phone=document.getElementById('custPhone')?.value?.trim()||'',email=document.getElementById('custEmail')?.value?.trim()||'',city=document.getElementById('custCity')?.value?.trim()||'',address=document.getElementById('custAddress')?.value?.trim()||'',notes=document.getElementById('custNotes')?.value?.trim()||'';if(!name||!phone||!city||!address){showToast('⚠️ Please complete your shipping information','warning');return}const couponCode=String(window.VELORA_ACTIVE_COUPON_CODE||'').trim().toUpperCase()||null;const giftCardCode=String(window.VELORA_GIFT_CARD_CODE||'').trim().toUpperCase()||null;const {data,error}=await db.rpc('velora_create_order_with_commercials',{p_items:canonical,p_currency:currency,p_shipping:0,p_customer_name:name,p_customer_phone:phone,p_customer_email:email,p_customer_city:city,p_customer_address:address,p_customer_notes:JSON.stringify({notes,country_code:country,payment_method:selected?.code||'gift_card'}),p_checkout_reference:'VELORA-'+Date.now()+'-'+Math.random().toString(36).slice(2,10),p_coupon_code:couponCode,p_gift_card_code:giftCardCode});if(error)throw error;if(!data?.ok)throw new Error('Order creation failed');if(Number(data.total||0)<=0&&String(data.payment_status||'').toLowerCase()==='paid'){STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();window.VELORA_GIFT_CARD_CODE=null;window.VELORA_GIFT_CARD_QUOTE=null;showToast(`✅ Order #${data.order_number} created — paid by gift card`,'success');setTimeout(()=>navigateTo('orders'),900);return}if(!selected?.id)throw new Error('PAYMENT_METHOD_REQUIRED');const attempt=await startPayment(data.order_id,selected.id,country);if(attempt?.checkout_url){window.location.assign(attempt.checkout_url);return}STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();showToast(`✅ Order #${data.order_number} created — payment started`,'success');setTimeout(()=>navigateTo('orders'),900)}catch(e){console.error(e);showToast('❌ '+(e.message||'Payment could not be started'),'error')}};
 })();
