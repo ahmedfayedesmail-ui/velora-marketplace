@@ -118,6 +118,7 @@
         dry: ['Dry', 'جافة'],
         combination: ['Combination', 'مختلطة'],
         normal: ['Normal', 'عادية'],
+        sensitive: ['Sensitive', 'حساسة'],
         unknown: ["I don't know", 'مش عارفة']
       },
       goal: {
