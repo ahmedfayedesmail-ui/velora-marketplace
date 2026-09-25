@@ -36,7 +36,7 @@ const oldOpen=window.VELORA_OPEN_ADMIN;
 window.VELORA_OPEN_ADMIN=async function(){const r=oldOpen?await oldOpen():undefined;setTimeout(adminNav,100);return r};
 if(window.VELORA_CANONICAL_ADMIN_SECTION)setTimeout(adminNav,250);
 /* Upgrade checkout payment choices when the canonical checkout renders. */
-const decorate=async()=>{const box=document.querySelector('.payment-methods');try{if(box&&!box.dataset.veloraStage9){box.dataset.veloraStage9='1';const ms=await paymentMethods();box.innerHTML=ms.map(m=>`<div class="payment-method" data-payment-code="${esc(m.code)}" data-payment-id="${esc(m.id)}" onclick="window.VELORA_SELECT_PAYMENT_METHOD('${esc(m.code)}','${esc(m.id)}',this)"><div class="payment-radio"></div><div class="payment-icon">💳</div><div class="payment-info"><div class="payment-name">${esc(m.name)}</div><div class="payment-desc">${esc(m.method_type||'Provider routed')}</div></div></div>`).join('')||box.innerHTML;}}catch(e){console.warn('Stage9 payment methods',e)}decorateGiftCard();};
+const decorate=async()=>{const box=document.querySelector('.payment-methods');try{if(box&&!box.dataset.veloraStage9){box.dataset.veloraStage9='1';const ms=await paymentMethods();if(Array.isArray(ms)&&ms.length){box.innerHTML=ms.map((m,i)=>`<div class="payment-method ${(window.VELORA_PAYMENT_SELECTION?.id===m.id||( !window.VELORA_PAYMENT_SELECTION?.id && i===0))?'selected':''}" data-payment-code="${esc(m.code)}" data-payment-id="${esc(m.id)}" onclick="window.VELORA_SELECT_PAYMENT_METHOD('${esc(m.code)}','${esc(m.id)}',this)"><div class="payment-radio"></div><div class="payment-icon">💳</div><div class="payment-info"><div class="payment-name">${esc(m.name)}</div><div class="payment-desc">${esc(m.method_type||'Provider routed')}</div></div></div>`).join('');if(!window.VELORA_PAYMENT_SELECTION)window.VELORA_PAYMENT_SELECTION={code:ms[0].code,id:ms[0].id};}else if(box&&!box.innerHTML.trim()){box.innerHTML='<div class="velora-op-note">'+esc(tr('No operational payment method is currently available.'))+'</div>';}}catch(e){console.warn('Stage9 payment methods',e)}decorateGiftCard();};
 let giftCardObserverStarted=false;
 async function applyGiftCardCode(){
   const input=document.getElementById('veloraGiftCardInput');
@@ -205,7 +205,6 @@ async function clearCanonicalCheckoutCart(items){
   return {failed:failures.length,failures};
 }
 
-const oldPlace=window.placeOrder;
 window.placeOrder=async function(event){
   const selected=window.VELORA_PAYMENT_SELECTION;
   const fullGiftCard=Boolean(
@@ -214,11 +213,11 @@ window.placeOrder=async function(event){
     window.VELORA_GIFT_CARD_CODE
   );
 
-  if(!selected?.id&&!fullGiftCard){
-    return oldPlace?oldPlace(event):undefined;
-  }
-
   if(event&&typeof event.preventDefault==='function')event.preventDefault();
+
+  if(!selected?.id&&!fullGiftCard){
+    throw new Error('PAYMENT_METHOD_REQUIRED');
+  }
 
   try{
     const original=window.STATE?.cart||[];
