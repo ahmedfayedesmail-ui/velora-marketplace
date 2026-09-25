@@ -20,7 +20,7 @@
     event.preventDefault();
     event.stopImmediatePropagation();
 
-    var handler=canonicalPlaceOrder||window.placeOrder;
+    var handler=canonicalPlaceOrder;
     if(typeof handler!=="function"){
       if(typeof showToast==="function")showToast("❌ Checkout handler is unavailable.","error");
       console.error("Velora checkout: canonical placeOrder handler unavailable");
