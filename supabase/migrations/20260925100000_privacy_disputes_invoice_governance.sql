@@ -1,0 +1,24 @@
+-- Restore-Test / staging only. Production remains frozen.
+drop index if exists public.uq_privacy_requests_active_type;
+create unique index if not exists uq_privacy_requests_active_type on public.privacy_requests(user_id,request_type) where status in ('requested','reviewing','approved','processing');
+revoke all on table public.privacy_consents from anon,authenticated;
+revoke all on table public.privacy_requests from anon,authenticated;
+revoke all on table public.disputes from anon,authenticated;
+revoke all on table public.invoices from anon,authenticated;
+drop policy if exists privacy_consents_self on public.privacy_consents;
+create policy privacy_consents_self on public.privacy_consents for select to authenticated using(user_id=auth.uid());
+drop policy if exists privacy_requests_self on public.privacy_requests;
+create policy privacy_requests_self on public.privacy_requests for select to authenticated using(user_id=auth.uid());
+drop policy if exists privacy_requests_staff on public.privacy_requests;
+create policy privacy_requests_staff on public.privacy_requests for select to authenticated using(public.velora_is_staff());
+drop policy if exists velora_disputes_read on public.disputes;
+create policy velora_disputes_read on public.disputes for select to authenticated using(customer_id=auth.uid() or exists(select 1 from public.stores s where s.id=disputes.store_id and s.owner_id=auth.uid()) or public.velora_is_staff());
+drop policy if exists velora_invoices_read on public.invoices;
+create policy velora_invoices_read on public.invoices for select to authenticated using(exists(select 1 from public.orders o where o.id=invoices.order_id and o.customer_id=auth.uid()) or public.velora_is_staff());
+create unique index if not exists uq_disputes_active_customer_store on public.disputes(customer_id,order_id,store_id) where status in ('open','in_review');
+revoke all on function public.velora_request_privacy_action(text,text) from public; grant execute on function public.velora_request_privacy_action(text,text) to authenticated;
+revoke all on function public.velora_resolve_privacy_request(uuid,text,text) from public; grant execute on function public.velora_resolve_privacy_request(uuid,text,text) to authenticated;
+revoke all on function public.velora_set_privacy_consent(text,boolean,text) from public; grant execute on function public.velora_set_privacy_consent(text,boolean,text) to authenticated;
+revoke all on function public.velora_open_dispute(uuid,uuid,text,text) from public; grant execute on function public.velora_open_dispute(uuid,uuid,text,text) to authenticated;
+revoke all on function public.velora_resolve_dispute(uuid,text,text) from public; grant execute on function public.velora_resolve_dispute(uuid,text,text) to authenticated;
+revoke all on function public.velora_prepare_manual_invoice(uuid,text,numeric,jsonb,jsonb,jsonb) from public; grant execute on function public.velora_prepare_manual_invoice(uuid,text,numeric,jsonb,jsonb,jsonb) to authenticated;
