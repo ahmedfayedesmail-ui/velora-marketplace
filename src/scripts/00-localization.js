@@ -3851,10 +3851,10 @@ function renderCheckoutSummary() {
             <span>Subtotal</span><span>${formatPrice(subtotal)}</span>
         </div>
         <div class="order-total-row">
-            <span>Shipping</span><span>${shipping === 0 ? '🎉 Free' : formatPrice(shipping)}</span>
+            <span>Shipping</span><span>${shipping === null ? '—' : (shipping === 0 ? '🎉 Free' : formatPrice(shipping))}</span>
         </div>
         <div class="order-total-row grand">
-            <span>Total</span><span>${formatPrice(total)}</span>
+            <span>Total</span><span>${total === null ? '—' : formatPrice(total)}</span>
         </div>
     `;
 }
@@ -4840,10 +4840,18 @@ function calculateDiscount() {
     return Math.max(0, Number(appliedCoupon.discount_amount || 0));
 }
 
+function getVeloraShippingPreview() {
+    const q = window.VELORA_SHIPPING_QUOTE;
+    if (!q?.ok) return null;
+    const amount = Number(q.total_shipping);
+    return Number.isFinite(amount) ? Math.max(0, amount) : null;
+}
+
 function calculateGiftCardDiscountPreview() {
     const q = window.VELORA_GIFT_CARD_QUOTE;
     if (!q?.apply_amount) return 0;
-    const base = Math.max(0, Number(getCartTotal() || 0) - calculateDiscount());
+    const shipping = getVeloraShippingPreview();
+    const base = Math.max(0, Number(getCartTotal() || 0) - calculateDiscount()) + Number(shipping || 0);
     if (q.base_amount != null && Math.abs(Number(q.base_amount) - base) > 0.01) {
         window.VELORA_GIFT_CARD_QUOTE = null;
         window.VELORA_GIFT_CARD_CODE = null;
@@ -5040,9 +5048,9 @@ renderCheckoutSummary = function() {
 
     const subtotal = getCartTotal();
     const discount = calculateDiscount();
+    const shipping = getVeloraShippingPreview();
     const giftCardDiscount = calculateGiftCardDiscountPreview();
-    const shipping = (subtotal - discount - giftCardDiscount) >= 500 ? 0 : 30;
-    const total = Math.max(0, subtotal - discount - giftCardDiscount) + shipping;
+    const total = shipping === null ? null : Math.max(0, subtotal - discount - giftCardDiscount) + shipping;
 
     container.innerHTML = `
         <h3>Summary</h3>
