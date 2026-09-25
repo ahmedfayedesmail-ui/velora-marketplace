@@ -245,12 +245,28 @@
         return result;
       }
 
+      const { data: authData, error: authError } = await client.auth.getUser();
+      if (authError) throw authError;
+      if (!authData?.user?.id) throw new Error('AUTH_REQUIRED');
+
+      const serverCart = await readServerCartKeys(authData.user.id);
+
       for (const step of selectedSteps) {
         const product = step.product;
         const variant = step.variant?.id ? step.variant : null;
         const productId = String(product.id);
         const requestedVariantId = variant ? String(variant.id) : null;
         const label = String(product.name || 'Product');
+        const key = lineKey(productId, requestedVariantId);
+        const existingQuantity = Number(serverCart.get(key) || 0);
+
+        // The canonical cart RPC increments quantity on conflict. A routine
+        // "add all" should not silently duplicate a line that is already there.
+        if (existingQuantity > 0) {
+          result.alreadyInCart += 1;
+          syncLocalCartLine(product, variant, existingQuantity);
+          continue;
+        }
 
         // The routine engine has already selected these products. Cart RPCs are
         // the final authority for approval, seller state, stock and variant validity.
@@ -278,6 +294,7 @@
           if (rpcResult.error) throw rpcResult.error;
 
           result.added += 1;
+          serverCart.set(key, 1);
           syncLocalCartLine(product, variant, 1);
         } catch (error) {
           const code = errorCode(error);
@@ -296,7 +313,6 @@
           }
         }
       }
-
       renderFeedback(result);
 
       // The authenticated server cart is updated by the RPCs above.
