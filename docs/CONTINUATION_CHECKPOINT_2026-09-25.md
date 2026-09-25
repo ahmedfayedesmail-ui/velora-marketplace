@@ -6,8 +6,9 @@ Environment: Restore-Test / staging only. Production remains frozen.
 
 - Branch: `sprint-2-s2d-admin`
 - Latest verified Vercel deployment:
-  - deployment: `dpl_4bEhRr4cxK3KjmRs3nCniJRxxuTX`
-  - commit: `f41f909c51303e085533f5cc9c558e5aa5baa849`
+  - deployment: `dpl_6mXDv1CK39s77JJ456pK1UVFo9fT`
+  - commit: `4170135345413d10555680b3aebf097218eac379`
+  - state: READY
   - state: READY
 - Preview root responds HTTP 200.
 - `src/scripts/13-payments.js` syntax check: PASS.
@@ -20,6 +21,7 @@ Environment: Restore-Test / staging only. Production remains frozen.
 
 - Removed legacy `oldPlace` fallback from canonical `window.placeOrder`.
 - Removed runtime fallback from `57-s2-checkout-e2e.js`; it now delegates only to the handler captured from `13-payments.js`.
+- Added a same-render checkout submit guard and stable checkout reference to prevent rapid duplicate order creation.
 - Canonical order path remains `velora_create_order_with_commercials`.
 - Server shipping is recomputed and compared with client quote.
 - Operational payment method selection remains server governed.
@@ -52,6 +54,11 @@ Remediation:
 - Function state: ACTIVE.
 - `verify_jwt=true`.
 - This avoids hard-coding a restore-test-only name into production-targeted frontend code.
+
+## Latest checkout verification
+
+- Preview serves the modified `13-payments.js` with the stable checkout reference and submit guard present.
+- Preview source no longer contains the legacy `oldPlace?oldPlace(event)` fallback.
 
 ## Restore-Test data cleanliness
 
