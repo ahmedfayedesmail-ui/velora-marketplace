@@ -57,6 +57,8 @@ async function v39LoadSubscription(){
    if(legalR.error)throw legalR.error;
    const plans=(plansR.data||[]).filter(p=>String(p.name).toLowerCase()!=='free');
    const sellerLegalDocs=(Array.isArray(legalR.data)?legalR.data:[]).filter(d=>['seller_agreement','seller_subscription','seller_commission'].includes(d.document_type));
+   const sellerLegalTypes=new Set(sellerLegalDocs.map(d=>d.document_type));
+   const sellerLegalReady=['seller_agreement','seller_subscription','seller_commission'].every(type=>sellerLegalTypes.has(type));
    const e=ent.data||{};
    const activePaid=Boolean(e.is_paid&&e.subscription_id);
    const expires=e.expires_at?new Date(e.expires_at).toLocaleString():v39t('Not active');
@@ -94,8 +96,9 @@ async function v39LoadSubscription(){
      if(statusEl)statusEl.textContent=v39t('Starting secure checkout…');
      try{
        const country=(window.VELORA_MARKET_CONTEXT?.countryCode||document.getElementById('veloraCountryCode')?.value||e.country_code||'EG').toUpperCase();
-       if(sellerLegalDocs.length&&!activePaid&&!v39El('v39LegalConsent')?.checked){if(statusEl)statusEl.textContent=v39t('Legal acceptance is required before subscription checkout.');button.disabled=false;return;}
-       if(sellerLegalDocs.length&&!activePaid){
+       if(!activePaid&&!sellerLegalReady){if(statusEl)statusEl.textContent=v39t('Seller subscription terms are not published yet.');button.disabled=false;return;}
+       if(!activePaid&&!v39El('v39LegalConsent')?.checked){if(statusEl)statusEl.textContent=v39t('Legal acceptance is required before subscription checkout.');button.disabled=false;return;}
+       if(!activePaid){
          for(const d of sellerLegalDocs){
            const accepted=await (window.supabaseClient||window.sb).rpc('velora_accept_legal_document',{p_document_id:d.id,p_acceptance_method:'subscription_purchase',p_context:{surface:'seller_subscription',billing_cycle:cycleEl.value,plan_id:planEl.value}});
            if(accepted.error)throw accepted.error;
