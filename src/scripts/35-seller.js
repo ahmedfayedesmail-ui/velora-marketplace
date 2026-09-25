@@ -34,12 +34,13 @@ async function v39LoadSubscription(){
          '<select id="v39Cycle" class="form-input" style="margin-top:.3rem"><option value="monthly">'+v39Esc(v39t('Monthly (30 days)'))+'</option><option value="yearly">'+v39Esc(v39t('Yearly'))+'</option></select></label>'+
        '</div>'+
        '<div class="velora-seller39-muted" id="v39Price" style="margin-top:.65rem"></div>'+
-       '<button class="velora-seller39-btn primary" id="v39Subscribe" style="margin-top:.7rem">'+v39Esc(v39t(activePaid?'Change subscription':'Start paid subscription'))+'</button>'+
+       '<button class="velora-seller39-btn primary" id="v39Subscribe" style="margin-top:.7rem" '+(activePaid?'disabled':'')+'>'+v39Esc(v39t(activePaid?'Paid subscription active':'Start paid subscription'))+'</button>'+
        '<div class="velora-seller39-muted" id="v39SubStatus" style="margin-top:.55rem"></div>'
        :'')+
        '<div class="velora-seller39-muted" style="margin-top:.7rem">'+v39Esc(v39t('Permissions are enforced server-side. Payment provider settlement is not assumed until verified.'))+'</div>'+
      '</div>';
    const planEl=v39El('v39Plan'),cycleEl=v39El('v39Cycle'),priceEl=v39El('v39Price'),button=v39El('v39Subscribe'),statusEl=v39El('v39SubStatus');
+   if(activePaid){if(planEl)planEl.disabled=true;if(cycleEl)cycleEl.disabled=true;if(statusEl)statusEl.textContent=v39t('Upgrade / change flow will be added only with a governed replacement policy.');}
    const refreshPrice=()=>{const o=planEl?.selectedOptions?.[0];if(!o||!priceEl)return;const val=cycleEl?.value==='yearly'?o.dataset.y:o.dataset.m;priceEl.textContent=v39t('Price')+': '+val+' '+(o.dataset.c||'');};
    planEl?.addEventListener('change',refreshPrice);cycleEl?.addEventListener('change',refreshPrice);refreshPrice();
    button?.addEventListener('click',async()=>{
