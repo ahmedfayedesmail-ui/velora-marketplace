@@ -2527,7 +2527,7 @@ ul { list-style: none; }
 /* ============ PWA INSTALL BANNER ============ */
 .pwa-banner {
     position: fixed;
-    bottom: 5rem;
+    bottom: calc(8.5rem + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%) translateY(200%);
     max-width: 500px;
@@ -2582,13 +2582,21 @@ ul { list-style: none; }
 
 .pwa-close {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     width: 32px;
     height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
     background: var(--bg-alt);
+    color: var(--text);
     border-radius: 50%;
     font-size: 0.85rem;
+    line-height: 1;
     flex-shrink: 0;
+    cursor: pointer;
+    appearance: none;
 }
 
 /* ============ RESPONSIVE ============ */
@@ -2599,7 +2607,7 @@ ul { list-style: none; }
     .first-order-banner { margin: 0.75rem; padding: 0.85rem; }
     .first-order-inner { flex-direction: column; text-align: center; }
     .first-order-copy { width: 100%; }
-    .pwa-banner { width: calc(100% - 1rem); padding: 1rem 2.6rem 0.85rem 0.75rem; bottom: 4rem; }
+    .pwa-banner { width: calc(100% - 1rem); padding: 1rem 2.6rem 0.85rem 0.75rem; bottom: calc(7.5rem + env(safe-area-inset-bottom)); }
     .pwa-close { position: absolute; top: 0.35rem; left: 0.35rem; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
     .pwa-icon { font-size: 1.5rem; }
 }
