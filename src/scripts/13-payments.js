@@ -68,6 +68,65 @@ function removeGiftCardCode(){
   if(typeof renderCheckoutSummary==='function')renderCheckoutSummary();
   setTimeout(decorateGiftCard,0);
 }
+let legalConsentObserverStarted=false;
+async function ensureCheckoutLegalAcceptance(){
+  const client=db;
+  const locale=String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase();
+  const docsR=await client.rpc('velora_get_required_legal_documents',{p_locale:locale,p_audience:'customer'});
+  if(docsR.error)throw docsR.error;
+  const docs=Array.isArray(docsR.data)?docsR.data:[];
+  const required=docs.filter(d=>['terms_of_service','privacy_policy'].includes(d.document_type));
+  if(!required.length)return {accepted:0,required:0};
+  const box=document.getElementById('veloraLegalConsent');
+  if(!box?.checked)throw new Error('LEGAL_ACCEPTANCE_REQUIRED');
+
+  const context={
+    surface:'checkout',
+    checkout_reference:'pre-order',
+    has_coupon:Boolean(window.VELORA_ACTIVE_COUPON_CODE),
+    has_gift_card:Boolean(window.VELORA_GIFT_CARD_CODE)
+  };
+  let accepted=0;
+  for(const d of required){
+    const x=await client.rpc('velora_accept_legal_document',{
+      p_document_id:d.id,
+      p_acceptance_method:'checkout',
+      p_context:context
+    });
+    if(x.error)throw x.error;
+    accepted++;
+  }
+  const relevantTypes=[];
+  if(window.VELORA_ACTIVE_COUPON_CODE)relevantTypes.push('promotion_terms');
+  if(window.VELORA_GIFT_CARD_CODE)relevantTypes.push('gift_card_terms');
+  for(const d of docs.filter(x=>relevantTypes.includes(x.document_type))){
+    const x=await client.rpc('velora_accept_legal_document',{
+      p_document_id:d.id,
+      p_acceptance_method:'checkout',
+      p_context:{...context,document_type:d.document_type}
+    });
+    if(x.error)throw x.error;
+    accepted++;
+  }
+  return {accepted,required:required.length};
+}
+function decorateLegalConsent(){
+  const host=document.getElementById('checkoutSummary');
+  if(!host||document.getElementById('veloraLegalConsentWrap'))return;
+  const docsHint=document.createElement('div');
+  docsHint.id='veloraLegalConsentWrap';
+  docsHint.className='velora-op-note';
+  docsHint.style.marginTop='1rem';
+  docsHint.innerHTML='<label style="display:flex;gap:.6rem;align-items:flex-start;cursor:pointer"><input id="veloraLegalConsent" type="checkbox" style="margin-top:.25rem"><span data-velora-i18n="I agree to the published Terms of Service and Privacy Policy, and any applicable promotion or gift card terms.">I agree to the published Terms of Service and Privacy Policy, and any applicable promotion or gift card terms.</span></label><div style="margin-top:.4rem;font-size:.78rem"><a href="#" onclick="openLegalDocument(\'terms_of_service\');return false" data-velora-i18n="Terms of Service">Terms of Service</a> · <a href="#" onclick="openLegalDocument(\'privacy_policy\');return false" data-velora-i18n="Privacy Policy">Privacy Policy</a></div>';
+  host.appendChild(docsHint);
+  if(!legalConsentObserverStarted&&typeof MutationObserver==='function'){
+    legalConsentObserverStarted=true;
+    const observer=new MutationObserver(()=>{if(document.getElementById('checkoutSummary')&&!document.getElementById('veloraLegalConsentWrap'))decorateLegalConsent();});
+    observer.observe(host,{childList:true});
+  }
+  if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
+}
+
 function decorateGiftCard(){
   const host=document.getElementById('checkoutSummary');
   if(!host||document.getElementById('veloraGiftCardBox'))return;
@@ -89,8 +148,8 @@ function decorateGiftCard(){
   }
 }
 window.VELORA_SELECT_PAYMENT_METHOD=(code,id,el)=>{window.VELORA_PAYMENT_SELECTION={code,id};document.querySelectorAll('.payment-method').forEach(x=>x.classList.remove('selected'));el.classList.add('selected')};
-const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){const r=oldRender.apply(this,arguments);setTimeout(()=>{decorate();decorateGiftCard()},100);return r};
-const oldRenderSummary=window.renderCheckoutSummary;if(typeof oldRenderSummary==='function')window.renderCheckoutSummary=function(){const r=oldRenderSummary.apply(this,arguments);setTimeout(decorateGiftCard,80);return r};
+const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){const r=oldRender.apply(this,arguments);setTimeout(()=>{decorate();decorateGiftCard();decorateLegalConsent()},100);return r};
+const oldRenderSummary=window.renderCheckoutSummary;if(typeof oldRenderSummary==='function')window.renderCheckoutSummary=function(){const r=oldRenderSummary.apply(this,arguments);setTimeout(()=>{decorateGiftCard();decorateLegalConsent()},80);return r};
 /* Canonical placeOrder wrapper: create order first, then create provider attempt for non-COD methods. */
-const oldPlace=window.placeOrder;window.placeOrder=async function(event){const selected=window.VELORA_PAYMENT_SELECTION;const fullGiftCard=Boolean(window.VELORA_GIFT_CARD_QUOTE&&Number(window.VELORA_GIFT_CARD_QUOTE.remaining_order_amount||0)<=0&&window.VELORA_GIFT_CARD_CODE);if(!selected?.id&&!fullGiftCard)return oldPlace?oldPlace(event):undefined;event.preventDefault();try{const original=window.STATE?.cart||[];const canonical=original.map(i=>({product_id:i.canonicalId||i.productId||i.id,quantity:Number(i.quantity||1)})).filter(i=>/^[0-9a-f-]{36}$/i.test(String(i.product_id)));const country=document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG';const currency=document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'USD';const name=document.getElementById('custName')?.value?.trim()||'',phone=document.getElementById('custPhone')?.value?.trim()||'',email=document.getElementById('custEmail')?.value?.trim()||'',city=document.getElementById('custCity')?.value?.trim()||'',address=document.getElementById('custAddress')?.value?.trim()||'',notes=document.getElementById('custNotes')?.value?.trim()||'';if(!name||!phone||!city||!address){showToast('⚠️ Please complete your shipping information','warning');return}const couponCode=String(window.VELORA_ACTIVE_COUPON_CODE||'').trim().toUpperCase()||null;const giftCardCode=String(window.VELORA_GIFT_CARD_CODE||'').trim().toUpperCase()||null;const {data,error}=await db.rpc('velora_create_order_with_commercials',{p_items:canonical,p_currency:currency,p_shipping:0,p_customer_name:name,p_customer_phone:phone,p_customer_email:email,p_customer_city:city,p_customer_address:address,p_customer_notes:JSON.stringify({notes,country_code:country,payment_method:selected?.code||'gift_card'}),p_checkout_reference:'VELORA-'+Date.now()+'-'+Math.random().toString(36).slice(2,10),p_coupon_code:couponCode,p_gift_card_code:giftCardCode});if(error)throw error;if(!data?.ok)throw new Error('Order creation failed');if(Number(data.total||0)<=0&&String(data.payment_status||'').toLowerCase()==='paid'){STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();window.VELORA_GIFT_CARD_CODE=null;window.VELORA_GIFT_CARD_QUOTE=null;showToast(`✅ Order #${data.order_number} created — paid by gift card`,'success');setTimeout(()=>navigateTo('orders'),900);return}if(!selected?.id)throw new Error('PAYMENT_METHOD_REQUIRED');const attempt=await startPayment(data.order_id,selected.id,country);if(attempt?.checkout_url){window.location.assign(attempt.checkout_url);return}STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();showToast(`✅ Order #${data.order_number} created — payment started`,'success');setTimeout(()=>navigateTo('orders'),900)}catch(e){console.error(e);showToast('❌ '+(e.message||'Payment could not be started'),'error')}};
+const oldPlace=window.placeOrder;window.placeOrder=async function(event){const selected=window.VELORA_PAYMENT_SELECTION;const fullGiftCard=Boolean(window.VELORA_GIFT_CARD_QUOTE&&Number(window.VELORA_GIFT_CARD_QUOTE.remaining_order_amount||0)<=0&&window.VELORA_GIFT_CARD_CODE);if(!selected?.id&&!fullGiftCard)return oldPlace?oldPlace(event):undefined;event.preventDefault();try{const original=window.STATE?.cart||[];const canonical=original.map(i=>({product_id:i.canonicalId||i.productId||i.id,quantity:Number(i.quantity||1)})).filter(i=>/^[0-9a-f-]{36}$/i.test(String(i.product_id)));const country=document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG';const currency=document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'USD';const name=document.getElementById('custName')?.value?.trim()||'',phone=document.getElementById('custPhone')?.value?.trim()||'',email=document.getElementById('custEmail')?.value?.trim()||'',city=document.getElementById('custCity')?.value?.trim()||'',address=document.getElementById('custAddress')?.value?.trim()||'',notes=document.getElementById('custNotes')?.value?.trim()||'';if(!name||!phone||!city||!address){showToast('⚠️ Please complete your shipping information','warning');return}const selectedLegal=await ensureCheckoutLegalAcceptance();if(selectedLegal.required===0){}const couponCode=String(window.VELORA_ACTIVE_COUPON_CODE||'').trim().toUpperCase()||null;const giftCardCode=String(window.VELORA_GIFT_CARD_CODE||'').trim().toUpperCase()||null;const {data,error}=await db.rpc('velora_create_order_with_commercials',{p_items:canonical,p_currency:currency,p_shipping:0,p_customer_name:name,p_customer_phone:phone,p_customer_email:email,p_customer_city:city,p_customer_address:address,p_customer_notes:JSON.stringify({notes,country_code:country,payment_method:selected?.code||'gift_card'}),p_checkout_reference:'VELORA-'+Date.now()+'-'+Math.random().toString(36).slice(2,10),p_coupon_code:couponCode,p_gift_card_code:giftCardCode});if(error)throw error;if(!data?.ok)throw new Error('Order creation failed');if(Number(data.total||0)<=0&&String(data.payment_status||'').toLowerCase()==='paid'){STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();window.VELORA_GIFT_CARD_CODE=null;window.VELORA_GIFT_CARD_QUOTE=null;showToast(`✅ Order #${data.order_number} created — paid by gift card`,'success');setTimeout(()=>navigateTo('orders'),900);return}if(!selected?.id)throw new Error('PAYMENT_METHOD_REQUIRED');const attempt=await startPayment(data.order_id,selected.id,country);if(attempt?.checkout_url){window.location.assign(attempt.checkout_url);return}STATE.cart=[];saveToStorage(KEYS.CART,STATE.cart);updateCartBadge();showToast(`✅ Order #${data.order_number} created — payment started`,'success');setTimeout(()=>navigateTo('orders'),900)}catch(e){console.error(e);showToast('❌ '+(e.message||'Payment could not be started'),'error')}};
 })();
