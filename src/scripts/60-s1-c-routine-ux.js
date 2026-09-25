@@ -214,22 +214,28 @@
     const modal = document.getElementById(ROOT_ID);
     if (!modal || !modal.classList.contains('active') || rolloverInFlight) return;
 
-    const currentDate = cairoDate();
-    if (!force && lastContextDate && currentDate === lastContextDate) return;
-
     rolloverInFlight = true;
-    const body = document.getElementById('veloraRoutineBody');
-    if (body) {
-      body.innerHTML = '<div class="velora-variant-loading">' + escapeHtml(t('Updating your routine for the new date…', 'بنحدّث روتينك حسب التاريخ الجديد…')) + '</div>';
-    }
 
     try {
-      const [data, passport, context] = await Promise.all([
+      // The server is authoritative for Egypt-local date/season. The browser
+      // clock is never used to decide whether the routine context changed.
+      const context = await loadContext();
+      const serverDate = String(context?.context_date || '');
+      if (!serverDate) return;
+
+      if (!force && lastContextDate && serverDate === lastContextDate) return;
+
+      const body = document.getElementById('veloraRoutineBody');
+      if (body) {
+        body.innerHTML = '<div class="velora-variant-loading">' + escapeHtml(t('Updating your routine for the new date…', 'بنحدّث روتينك حسب التاريخ الجديد…')) + '</div>';
+      }
+
+      const [data, passport] = await Promise.all([
         generate(),
-        loadPassportSummary(),
-        loadContext()
+        loadPassportSummary()
       ]);
-      lastContextDate = String(context?.context_date || currentDate);
+
+      lastContextDate = serverDate;
       render(data, passport, context);
     } catch (error) {
       console.error('[Beauty Passport] context refresh failed', error);
