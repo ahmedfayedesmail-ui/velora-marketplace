@@ -223,7 +223,27 @@ const CORE_AR={
   'Customer experience signals are private to the journey and only approved feedback can influence future routines.':'إشارات تجربة العميل خاصة برحلته، ولا يمكن أن تؤثر في الروتينات المستقبلية إلا الملاحظات المعتمدة.',
   'Loading…':'جارٍ التحميل…',
   'No':'لا',
-  'feedback.':' من الملاحظات.'
+  'Beauty Journey':'رحلة الجمال',
+  'Audit & Exception Center':'مركز التدقيق والاستثناءات',
+  'Beauty Feedback Audit & Exception Center':'مركز تدقيق واستثناءات ملاحظات الجمال',
+  'Order item linked':'عنصر الطلب مرتبط',
+  'Product interaction':'تفاعل مع المنتج',
+  'Rating':'التقييم',
+  'Texture':'القوام',
+  'Effect':'التأثير',
+  'Created':'تاريخ الإنشاء',
+  'Approve':'اعتماد',
+  'Reject':'رفض',
+  'Keep pending':'إبقاء معلقًا',
+  'Could not load feedback:':'تعذر تحميل الملاحظات:',
+  'No feedback found for this status.':'لا توجد ملاحظات لهذا الوضع.',
+  'Beauty feedback status updated.':'تم تحديث حالة ملاحظات الجمال.',
+  'Provider Contract Test Lab':'معمل اختبار عقود المزوّد',
+  'Run contract suite':'تشغيل مجموعة اختبارات العقود',
+  'No contract test run yet.':'لم يتم تشغيل اختبارات العقود بعد.',
+  'Last run':'آخر تشغيل',
+  'Status':'الحالة'
+};
 };
 
 function catalog(locale){
