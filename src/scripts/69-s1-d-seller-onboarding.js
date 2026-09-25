@@ -67,7 +67,9 @@
       && c.catalog_status==='approved'
       && c.sla_status==='accepted'
       && ['active','passed'].includes(c.pilot_status)
-      && ['verified','not_required'].includes(c.authenticity_status);
+      && ['verified','not_required'].includes(c.authenticity_status)
+      && String(c.contact_name||'').trim()!==''
+      && ['email','phone','whatsapp','other'].includes(String(c.contact_channel||''));
   }
 
   async function saveCase(id){
