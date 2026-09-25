@@ -48,9 +48,15 @@ async function v39LoadSubscription(){
  try{
    const ent=await v39Rpc('velora_get_seller_entitlement');
    if(ent.error)throw ent.error;
-   const plansR=await (window.supabaseClient||window.sb).from('subscription_plans').select('id,name,monthly_price,yearly_price,currency_code,commission_rate,max_products,features').eq('is_active',true).order('monthly_price');
+   const client=window.supabaseClient||window.sb;
+   const [plansR,legalR]=await Promise.all([
+     client.from('subscription_plans').select('id,name,monthly_price,yearly_price,currency_code,commission_rate,max_products,features').eq('is_active',true).order('monthly_price'),
+     client.rpc('velora_get_required_legal_documents',{p_locale:String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase(),p_audience:'seller'})
+   ]);
    if(plansR.error)throw plansR.error;
+   if(legalR.error)throw legalR.error;
    const plans=(plansR.data||[]).filter(p=>String(p.name).toLowerCase()!=='free');
+   const sellerLegalDocs=(Array.isArray(legalR.data)?legalR.data:[]).filter(d=>['seller_agreement','seller_subscription','seller_commission'].includes(d.document_type));
    const e=ent.data||{};
    const activePaid=Boolean(e.is_paid&&e.subscription_id);
    const expires=e.expires_at?new Date(e.expires_at).toLocaleString():v39t('Not active');
@@ -72,6 +78,7 @@ async function v39LoadSubscription(){
          '<select id="v39Cycle" class="form-input" style="margin-top:.3rem"><option value="monthly">'+v39Esc(v39t('Monthly (30 days)'))+'</option><option value="yearly">'+v39Esc(v39t('Yearly'))+'</option></select></label>'+
        '</div>'+
        '<div class="velora-seller39-muted" id="v39Price" style="margin-top:.65rem"></div>'+
+       (sellerLegalDocs.length&&!activePaid?'<label style="display:flex;gap:.6rem;align-items:flex-start;margin-top:.75rem;cursor:pointer"><input id="v39LegalConsent" type="checkbox" style="margin-top:.25rem"><span>'+v39Esc(v39t('I agree to the published seller agreement, subscription terms and commission terms applicable to this purchase.'))+'</span></label>':'')+
        '<button class="velora-seller39-btn primary" id="v39Subscribe" style="margin-top:.7rem" '+(activePaid?'disabled':'')+'>'+v39Esc(v39t(activePaid?'Paid subscription active':'Start paid subscription'))+'</button>'+
        '<div class="velora-seller39-muted" id="v39SubStatus" style="margin-top:.55rem"></div>'
        :'')+
@@ -87,6 +94,13 @@ async function v39LoadSubscription(){
      if(statusEl)statusEl.textContent=v39t('Starting secure checkout…');
      try{
        const country=(window.VELORA_MARKET_CONTEXT?.countryCode||document.getElementById('veloraCountryCode')?.value||e.country_code||'EG').toUpperCase();
+       if(sellerLegalDocs.length&&!activePaid&&!v39El('v39LegalConsent')?.checked){if(statusEl)statusEl.textContent=v39t('Legal acceptance is required before subscription checkout.');button.disabled=false;return;}
+       if(sellerLegalDocs.length&&!activePaid){
+         for(const d of sellerLegalDocs){
+           const accepted=await (window.supabaseClient||window.sb).rpc('velora_accept_legal_document',{p_document_id:d.id,p_acceptance_method:'subscription_purchase',p_context:{surface:'seller_subscription',billing_cycle:cycleEl.value,plan_id:planEl.value}});
+           if(accepted.error)throw accepted.error;
+         }
+       }
        const key='VELORA-SUB-'+planEl.value+'-'+cycleEl.value+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
        const fn=(window.mahaSupabase||window.supabaseClient||window.sb)?.functions;
        if(!fn?.invoke)throw new Error('Payment session service unavailable');
