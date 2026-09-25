@@ -8,6 +8,9 @@
 
   const ROOT_ID = 'veloraRoutineUxModal';
   const STATUS = new Set(['complete', 'partial', 'no_matches']);
+  let rolloverTimer = null;
+  let rolloverInFlight = false;
+  let lastContextDate = null;
 
   function getClient() {
     const client = window.supabaseClient || window.mahaSupabase || null;
@@ -150,6 +153,98 @@
     }
   }
 
+  async function loadContext() {
+    const client = getClient();
+    const { data, error } = await client.rpc('velora_get_beauty_context');
+    if (error) throw error;
+    return data || null;
+  }
+
+  function cairoDate() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Cairo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    } catch (_) {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  function seasonLabel(season) {
+    const labels = {
+      winter: ['Winter', 'الشتاء'],
+      spring: ['Spring', 'الربيع'],
+      summer: ['Summer', 'الصيف'],
+      autumn: ['Autumn', 'الخريف']
+    };
+    const pair = labels[String(season || '').toLowerCase()] || [season || '—', season || '—'];
+    return t(pair[0], pair[1]);
+  }
+
+  function renderContextBasis(context) {
+    if (!context) return '';
+
+    const season = seasonLabel(context.season);
+    const date = String(context.context_date || cairoDate());
+    const basis = String(context.season_basis || 'meteorological_calendar');
+    const basisLabel = basis === 'meteorological_calendar'
+      ? t('Egypt calendar season', 'الموسم حسب التقويم المناخي في مصر')
+      : basis;
+
+    return [
+      '<div class="velora-routine-basis">',
+      '<div class="velora-routine-basis-title">', escapeHtml(t('Current beauty context', 'السياق الحالي للروتين')), '</div>',
+      '<div class="velora-routine-basis-grid">',
+      '<div class="velora-routine-basis-item"><span>', escapeHtml(t('Season', 'الموسم')), '</span><strong>', escapeHtml(season), '</strong></div>',
+      '<div class="velora-routine-basis-item"><span>', escapeHtml(t('Egypt local date', 'التاريخ المحلي في مصر')), '</span><strong>', escapeHtml(date), '</strong></div>',
+      '<div class="velora-routine-basis-item"><span>', escapeHtml(t('Basis', 'الأساس')), '</span><strong>', escapeHtml(basisLabel), '</strong></div>',
+      '</div>',
+      '<div class="velora-routine-disclaimer">', escapeHtml(t(
+        'The season is calculated automatically from the Egypt-local calendar date. Real-time weather is not used to define the season yet.',
+        'الموسم بيتحدد تلقائيًا من التاريخ المحلي في مصر. الطقس اللحظي لسه مش هو اللي بيحدد الموسم.'
+      )), '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  async function refreshForContextChange(force) {
+    const modal = document.getElementById(ROOT_ID);
+    if (!modal || !modal.classList.contains('active') || rolloverInFlight) return;
+
+    const currentDate = cairoDate();
+    if (!force && lastContextDate && currentDate === lastContextDate) return;
+
+    rolloverInFlight = true;
+    const body = document.getElementById('veloraRoutineBody');
+    if (body) {
+      body.innerHTML = '<div class="velora-variant-loading">' + escapeHtml(t('Updating your routine for the new date…', 'بنحدّث روتينك حسب التاريخ الجديد…')) + '</div>';
+    }
+
+    try {
+      const [data, passport, context] = await Promise.all([
+        generate(),
+        loadPassportSummary(),
+        loadContext()
+      ]);
+      lastContextDate = String(context?.context_date || currentDate);
+      render(data, passport, context);
+    } catch (error) {
+      console.error('[Beauty Passport] context refresh failed', error);
+    } finally {
+      rolloverInFlight = false;
+    }
+  }
+
+  function startRolloverWatch() {
+    if (rolloverTimer) clearInterval(rolloverTimer);
+    rolloverTimer = setInterval(() => {
+      void refreshForContextChange(false);
+    }, 5 * 60 * 1000);
+  }
+
   function ensureStyle() {
     if (document.getElementById('veloraRoutineUxStyle')) return;
 
@@ -230,6 +325,10 @@
     const close = () => {
       modal.classList.remove('active');
       document.body.style.overflow = '';
+      if (rolloverTimer) {
+        clearInterval(rolloverTimer);
+        rolloverTimer = null;
+      }
     };
 
     document.getElementById('veloraRoutineClose').addEventListener('click', close);
@@ -290,7 +389,7 @@
     });
   }
 
-  function render(data, passport) {
+  function render(data, passport, context) {
     if (!data || typeof data !== 'object') throw new Error('BEAUTY_ROUTINE_EMPTY_RESPONSE');
 
     const status = String(data.status || '');
@@ -309,6 +408,7 @@
 
     if (status === 'no_matches') {
       body.innerHTML = [
+        renderContextBasis(context),
         '<div class="velora-routine-banner empty">',
         '<strong>', escapeHtml(t('No matching products right now', 'مفيش منتجات مطابقة حاليًا')), '</strong>',
         '<div class="velora-routine-status">', escapeHtml(t('Your profile is valid, but the current catalog has no eligible match for the routine.', 'البروفايل صالح، لكن الكتالوج الحالي مفيهوش مطابقة مؤهلة للروتين.')), '</div>',
@@ -335,7 +435,7 @@
       sections.push('<div class="velora-routine-group"><h3>', escapeHtml(t('Evening', 'المساء')), '</h3><div class="velora-routine-steps">', pmSteps.map(renderStep).join(''), '</div></div>');
     }
 
-    const basis = passport ? [
+    const basis = (passport ? [
       '<div class="velora-routine-basis">',
       '<div class="velora-routine-basis-title">', escapeHtml(t('Built from your Beauty Passport', 'مبني على Beauty Passport بتاعك')), '</div>',
       '<div class="velora-routine-basis-grid">',
@@ -345,7 +445,7 @@
       '</div>',
       '<div class="velora-routine-disclaimer">', escapeHtml(t('This is a deterministic cosmetic routine generated from your answers and the approved catalog. It is not a medical diagnosis or dermatologist assessment.', 'ده روتين تجميلي محدد بقواعد من إجاباتك والكتالوج المعتمد. مش تشخيص طبي ولا تقييم من طبيب جلدية.')), '</div>',
       '</div>'
-    ].join('') : '';
+    ].join('') : '') + renderContextBasis(context);
 
     body.innerHTML = [
       basis,
@@ -414,11 +514,14 @@
     if (body) body.innerHTML = '<div class="velora-variant-loading">' + escapeHtml(t('Loading your routine…', 'بنجهّز روتينك…')) + '</div>';
 
     try {
-      const [data, passport] = await Promise.all([
+      const [data, passport, context] = await Promise.all([
         generate(),
-        loadPassportSummary()
+        loadPassportSummary(),
+        loadContext()
       ]);
-      render(data, passport);
+      lastContextDate = String(context?.context_date || cairoDate());
+      render(data, passport, context);
+      startRolloverWatch();
       return data;
     } catch (error) {
       if (body) {
