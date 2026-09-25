@@ -20,6 +20,7 @@
         { value: 'dry', ar: 'جافة', en: 'Dry' },
         { value: 'combination', ar: 'مختلطة', en: 'Combination' },
         { value: 'normal', ar: 'عادية', en: 'Normal' },
+        { value: 'sensitive', ar: 'حساسة', en: 'Sensitive' },
         { value: 'unknown', ar: 'مش عارفة', en: "I don't know" }
       ]
     },
