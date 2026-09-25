@@ -70,7 +70,55 @@ async function sellerShippingSection(){
  if(!store){const {data,error}=await db.from('stores').select('id,name,slug,status,currency_code').eq('owner_id',s.user_id).order('created_at',{ascending:false}).limit(1).maybeSingle();if(error)throw error;store=data;window.VELORA_CANONICAL_STORE=store;}
  await renderShipping('sellerContent',false,store?.id||null);
 }
-async function adminShippingSection(){await renderShipping('adminContent',true,null)}
+async function renderAdminShippingConfig(){
+ const host=document.getElementById('adminContent');if(!host)return;
+ const box=document.createElement('section');box.className='admin-section-card';box.id='veloraShippingConfig';
+ box.innerHTML='<div class="velora-ship-toolbar"><div><h3 style="margin:0">⚙️ Shipping Rate Configuration</h3><div class="velora-op-muted">Configure seller shipping rates. External carrier integration is not assumed; Velora Manual Fulfillment is the current fallback.</div></div></div>'+
+ '<form id="veloraShippingRateForm" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
+ '<select id="vsrStore" class="form-input" required></select><select id="vsrCarrier" class="form-input" required></select>'+
+ '<input id="vsrCountry" class="form-input" value="EG" maxlength="2" placeholder="Country (2-letter)" required>'+
+ '<input id="vsrZoneName" class="form-input" value="Egypt" placeholder="Zone name" required>'+
+ '<input id="vsrService" class="form-input" value="Standard" placeholder="Service name" required>'+
+ '<input id="vsrPrice" class="form-input" type="number" min="0" step="0.01" placeholder="Price" required>'+
+ '<input id="vsrMinDays" class="form-input" type="number" min="0" step="1" placeholder="Min delivery days">'+
+ '<input id="vsrMaxDays" class="form-input" type="number" min="0" step="1" placeholder="Max delivery days">'+
+ '<input id="vsrFree" class="form-input" type="number" min="0" step="0.01" placeholder="Free shipping threshold (optional)">'+
+ '<select id="vsrCurrency" class="form-input"><option value="EGP">EGP</option><option value="USD">USD</option><option value="EUR">EUR</option></select>'+
+ '<button class="btn btn-primary" type="submit" style="grid-column:1/-1">Save shipping rate</button></form>'+
+ '<div id="vsrStatus" class="velora-op-muted" style="margin-top:.6rem"></div>'+
+ '<div id="vsrList" style="margin-top:1rem"></div>';
+ host.appendChild(box);
+ const client=db;
+ try{
+   const [stores,carriers,zones,rates]=await Promise.all([
+     client.from('stores').select('id,name,status').eq('status','approved').order('created_at',{ascending:false}),
+     client.from('shipping_carriers').select('code,name,is_active').eq('is_active',true).order('name'),
+     client.from('store_shipping_zones').select('id,store_id,name,country_code,is_active').eq('is_active',true),
+     client.from('store_shipping_rates').select('id,zone_id,carrier_code,service_name,price,currency_code,estimated_days_min,estimated_days_max,is_active').eq('is_active',true)
+   ]);
+   for(const x of [stores,carriers,zones,rates])if(x.error)throw x.error;
+   const se=box.querySelector('#vsrStore');se.innerHTML=(stores.data||[]).map(s=>'<option value="'+esc(s.id)+'">'+esc(s.name||s.id)+'</option>').join('');
+   const ce=box.querySelector('#vsrCarrier');ce.innerHTML=(carriers.data||[]).map(c=>'<option value="'+esc(c.code)+'">'+esc(c.name)+' ('+esc(c.code)+')</option>').join('');
+   const list=box.querySelector('#vsrList');
+   const zoneMap=new Map((zones.data||[]).map(z=>[String(z.id),z]));
+   const rows=(rates.data||[]).map(x=>{const z=zoneMap.get(String(x.zone_id))||{};return '<tr><td>'+esc(z.name||'—')+'</td><td>'+esc(z.country_code||'—')+'</td><td>'+esc(x.carrier_code||'—')+'</td><td>'+esc(x.service_name)+'</td><td>'+esc(String(x.price))+' '+esc(x.currency_code)+'</td><td>'+esc(String(x.estimated_days_min??'—'))+'–'+esc(String(x.estimated_days_max??'—'))+'</td></tr>'}).join('');
+   list.innerHTML='<div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>Zone</th><th>Country</th><th>Carrier</th><th>Service</th><th>Price</th><th>ETA</th></tr></thead><tbody>'+ (rows||'<tr><td colspan="6">No shipping rates configured.</td></tr>') +'</tbody></table></div>';
+   const form=box.querySelector('#veloraShippingRateForm');
+   form.addEventListener('submit',async e=>{
+     e.preventDefault();const status=box.querySelector('#vsrStatus');if(status)status.textContent='Saving…';
+     try{
+       const storeId=se.value,country=String(box.querySelector('#vsrCountry').value||'').toUpperCase();
+       const zone=await client.rpc('velora_upsert_store_shipping_zone',{p_zone_id:null,p_store_id:storeId,p_name:box.querySelector('#vsrZoneName').value,p_country_code:country,p_is_active:true});
+       if(zone.error)throw zone.error;
+       const rate=await client.rpc('velora_upsert_store_shipping_rate',{p_rate_id:null,p_zone_id:zone.data?.id,p_carrier_code:ce.value,p_service_name:box.querySelector('#vsrService').value,p_price:Number(box.querySelector('#vsrPrice').value||0),p_currency_code:box.querySelector('#vsrCurrency').value,p_estimated_days_min:box.querySelector('#vsrMinDays').value?Number(box.querySelector('#vsrMinDays').value):null,p_estimated_days_max:box.querySelector('#vsrMaxDays').value?Number(box.querySelector('#vsrMaxDays').value):null,p_free_shipping_threshold:box.querySelector('#vsrFree').value?Number(box.querySelector('#vsrFree').value):null,p_is_active:true});
+       if(rate.error)throw rate.error;
+       if(status)status.textContent='✅ Shipping rate saved.';
+     }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+     await renderAdminShippingConfig();
+   });
+ }catch(err){box.innerHTML='<div class="velora-op-note">❌ '+esc(err.message||err)+'</div>';}
+}
+async function adminShippingSection(){await renderShipping('adminContent',true,null);await renderAdminShippingConfig()}
 async function updateShipment(id,currentStatus,currentTracking,currentUrl,currentCarrier,currentService){
  const status=prompt('New shipment status:\n'+shipStatuses.join(', '),currentStatus||'in_transit');if(status===null)return;
  const valid=shipStatuses.includes(String(status).toLowerCase());if(!valid){showToast('❌ Invalid shipment status','error');return}
