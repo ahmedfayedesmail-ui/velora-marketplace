@@ -1,11 +1,13 @@
 /* ============================================================
-   VELORA — Beauty Feedback Moderation
+   VELORA — Beauty Feedback Audit & Exception Center
    Staff-only queue. Public reviews remain separate.
    ============================================================ */
 (function () {
   'use strict';
 
   const getClient = () => window.mahaSupabase || window.supabaseClient || window.sb || null;
+
+  const t = (value) => typeof window.VELORA_GET_TRANSLATION === 'function' ? window.VELORA_GET_TRANSLATION(String(value)) : String(value);
 
   function esc(value) {
     return typeof escapeHtml === 'function'
@@ -22,9 +24,9 @@
     const section = document.createElement('div');
     section.className = 'admin-nav-section';
     section.innerHTML =
-      '<div class="admin-nav-title">Beauty Journey</div>' +
+      '<div class="admin-nav-title">' + esc(t('Beauty Journey')) + '</div>' +
       '<div class="admin-nav-item" data-velora-beauty-feedback-nav>' +
-        '<span>💗</span><span>Beauty Feedback</span>' +
+        '<span>💗</span><span>' + esc(t('Beauty Feedback Audit & Exception Center')) + '</span>' +
       '</div>';
 
     const item = section.querySelector('[data-velora-beauty-feedback-nav]');
@@ -32,7 +34,7 @@
       document.querySelectorAll('.admin-nav-item').forEach((x) => x.classList.remove('active'));
       item.classList.add('active');
       const title = document.getElementById('adminHeaderTitle');
-      if (title) title.textContent = 'Beauty Feedback';
+      if (title) title.textContent = t('Audit & Exception Center');
       renderQueue('pending').catch((error) => renderError(error));
     });
 
@@ -67,8 +69,8 @@
     if (!host) return;
     host.innerHTML =
       '<section class="velora-feedback-admin-card">' +
-        '<h2>Beauty Feedback</h2>' +
-        '<div class="velora-feedback-admin-error">Could not load feedback: ' +
+        '<h2>' + esc(t('Beauty Feedback Audit & Exception Center')) + '</h2>' +
+        '<div class="velora-feedback-admin-error">' + esc(t('Could not load feedback:')) + ' ' +
           esc(error?.message || error) + '</div>' +
       '</section>';
   }
@@ -80,16 +82,16 @@
     host.innerHTML =
       '<section class="velora-feedback-admin-card">' +
         '<div class="velora-feedback-admin-head">' +
-          '<div><div class="velora-feedback-admin-kicker">BEAUTY JOURNEY</div>' +
-          '<h2>Beauty Feedback Moderation</h2>' +
-          '<p>Customer experience signals are private to the journey and only approved feedback can influence future routines.</p></div>' +
+          '<div><div class="velora-feedback-admin-kicker">' + esc(t('BEAUTY JOURNEY')) + '</div>' +
+          '<h2>' + esc(t('Beauty Feedback Audit & Exception Center')) + '</h2>' +
+          '<p>' + esc(t('Customer experience signals are private to the journey and only approved feedback can influence future routines.')) + '</p></div>' +
           '<select id="veloraBeautyFeedbackStatus" class="form-input" style="max-width:180px">' +
-            '<option value="pending">Pending</option>' +
-            '<option value="approved">Approved</option>' +
-            '<option value="rejected">Rejected</option>' +
+            '<option value="pending">' + esc(t('Pending')) + '</option>' +
+            '<option value="approved">' + esc(t('Approved')) + '</option>' +
+            '<option value="rejected">' + esc(t('Rejected')) + '</option>' +
           '</select>' +
         '</div>' +
-        '<div id="veloraBeautyFeedbackQueue">Loading…</div>' +
+        '<div id="veloraBeautyFeedbackQueue">' + esc(t('Loading…')) + '</div>' +
       '</section>';
 
     const select = document.getElementById('veloraBeautyFeedbackStatus');
@@ -103,7 +105,7 @@
       if (!queue) return;
 
       if (!rows.length) {
-        queue.innerHTML = '<div class="velora-feedback-admin-empty">No ' + esc(status) + ' feedback.</div>';
+        queue.innerHTML = '<div class="velora-feedback-admin-empty">' + esc(t('No feedback found for this status.')) + '</div>';
         return;
       }
 
@@ -115,20 +117,20 @@
             '<div><strong>' + esc(product.name || orderItem.product_name || 'Product') + '</strong>' +
             '<div class="velora-feedback-admin-meta">' +
               (product.brand ? esc(product.brand) + ' · ' : '') +
-              (row.order_item_id ? 'Order item linked' : 'Product interaction') +
+              (row.order_item_id ? esc(t('Order item linked')) : esc(t('Product interaction'))) +
             '</div></div>' +
-            '<span class="velora-feedback-admin-pill">' + esc(row.moderation_status) + '</span>' +
+            '<span class="velora-feedback-admin-pill">' + esc(t(row.moderation_status)) + '</span>' +
           '</div>' +
           '<div class="velora-feedback-admin-grid">' +
-            '<div><span>Rating</span><strong>' + esc(row.rating) + '/5</strong></div>' +
-            '<div><span>Texture</span><strong>' + esc(row.texture) + '</strong></div>' +
-            '<div><span>Effect</span><strong>' + esc(row.effect) + '</strong></div>' +
-            '<div><span>Created</span><strong>' + esc(new Date(row.created_at).toLocaleString()) + '</strong></div>' +
+            '<div><span>' + esc(t('Rating')) + '</span><strong>' + esc(row.rating) + '/5</strong></div>' +
+            '<div><span>' + esc(t('Texture')) + '</span><strong>' + esc(t(row.texture)) + '</strong></div>' +
+            '<div><span>' + esc(t('Effect')) + '</span><strong>' + esc(t(row.effect)) + '</strong></div>' +
+            '<div><span>' + esc(t('Created')) + '</span><strong>' + esc(new Date(row.created_at).toLocaleString()) + '</strong></div>' +
           '</div>' +
           '<div class="velora-feedback-admin-actions">' +
-            '<button class="btn btn-primary" data-feedback-status="approved">Approve</button>' +
-            '<button class="btn btn-outline" data-feedback-status="rejected">Reject</button>' +
-            '<button class="btn btn-outline" data-feedback-status="pending">Keep pending</button>' +
+            '<button class="btn btn-primary" data-feedback-status="approved">' + esc(t('Approve')) + '</button>' +
+            '<button class="btn btn-outline" data-feedback-status="rejected">' + esc(t('Reject')) + '</button>' +
+            '<button class="btn btn-outline" data-feedback-status="pending">' + esc(t('Keep pending')) + '</button>' +
           '</div>' +
         '</article>';
       }).join('');
@@ -149,7 +151,7 @@
             });
             if (result.error) throw result.error;
             if (typeof showToast === 'function') {
-              showToast('✅ Beauty feedback status updated.', 'success');
+              showToast('✅ ' + t('Beauty feedback status updated.'), 'success');
             }
             await renderQueue(status);
           } catch (error) {
