@@ -2581,7 +2581,9 @@ ul { list-style: none; }
 .pwa-btn:hover { transform: translateY(-2px); }
 
 .pwa-close {
-    width: 28px;
+    position: relative;
+    z-index: 2;
+    width: 32px;
     height: 28px;
     background: var(--bg-alt);
     border-radius: 50%;
@@ -2597,7 +2599,8 @@ ul { list-style: none; }
     .first-order-banner { margin: 0.75rem; padding: 0.85rem; }
     .first-order-inner { flex-direction: column; text-align: center; }
     .first-order-copy { width: 100%; }
-    .pwa-banner { width: calc(100% - 1rem); padding: 0.75rem; bottom: 4rem; }
+    .pwa-banner { width: calc(100% - 1rem); padding: 1rem 2.6rem 0.85rem 0.75rem; bottom: 4rem; }
+    .pwa-close { position: absolute; top: 0.35rem; left: 0.35rem; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
     .pwa-icon { font-size: 1.5rem; }
 }
 
