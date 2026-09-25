@@ -77,7 +77,7 @@ async function ensureCheckoutLegalAcceptance(){
   const docs=Array.isArray(docsR.data)?docsR.data:[];
   const required=docs.filter(d=>['terms_of_service','privacy_policy'].includes(d.document_type));
   const requiredTypes=new Set(['terms_of_service','privacy_policy']);
-  if(!required.length || !requiredTypes.isSubsetOf(new Set(required.map(d=>d.document_type)))) throw new Error('LEGAL_DOCUMENTS_NOT_PUBLISHED');
+  if(!required.length || !['terms_of_service','privacy_policy'].every(type=>required.some(d=>d.document_type===type))) throw new Error('LEGAL_DOCUMENTS_NOT_PUBLISHED');
   const box=document.getElementById('veloraLegalConsent');
   if(!box?.checked)throw new Error('LEGAL_ACCEPTANCE_REQUIRED');
 
