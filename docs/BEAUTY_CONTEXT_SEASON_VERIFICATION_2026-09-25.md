@@ -31,7 +31,7 @@ On **2026-09-25**, the server resolved:
 
 The Routine UX now reads the server context and watches the Egypt-local date while the routine modal is open.
 
-Every 5 minutes it checks the Egypt-local date. When the date changes, it regenerates the routine and refreshes the displayed context.
+Every 5 minutes it asks the server for the current Egypt-local context. The browser clock is not authoritative. When the server-side context date changes, it regenerates the routine and refreshes the displayed context.
 
 The routine input fingerprint now includes `beauty-context.v2`, so a context-date rollover invalidates the previous routine context and causes a fresh server-side routine generation.
 
@@ -84,7 +84,7 @@ The current routine endpoint also generated a fresh routine run with:
 - status: `complete`
 
 The branch commit for the UX rollover hardening is:
-`5b03ad0aef00a9ddb6663e459562b5a977eb10f0`
+`088d533385d7349cf642d6bfe9e69870fdf946c1`
 
 The corresponding Vercel preview deployment was observed **READY**, and its build log reported **Build Completed**.
 
