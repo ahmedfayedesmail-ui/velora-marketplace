@@ -7401,6 +7401,12 @@ function renderAdminLayout() {
                     <div class="admin-nav-item" data-section="coupons" onclick="showAdminSection('coupons', this)">
                         <span>🎟️</span><span>Coupons</span>
                     </div>
+                    <div class="admin-nav-item" data-section="promotions" onclick="showAdminSection('promotions', this)">
+                        <span>🔥</span><span>Promotions & Deals</span>
+                    </div>
+                    <div class="admin-nav-item" data-section="giftcards" onclick="showAdminSection('giftcards', this)">
+                        <span>🎁</span><span>Gift Cards</span>
+                    </div>
                     <div class="admin-nav-item" data-section="settings" onclick="showAdminSection('settings', this)">
                         <span>⚙️</span><span>Settings</span>
                     </div>
@@ -7491,6 +7497,8 @@ function showAdminSection(section, btn) {
         orders: 'Orders',
         users: 'Users',
         coupons: 'Coupons',
+        promotions: 'Promotions & Deals',
+        giftcards: 'Gift Cards',
         settings: 'Settings'
     };
 
@@ -7518,6 +7526,12 @@ function showAdminSection(section, btn) {
             break;
         case 'coupons':
             content.innerHTML = renderAdminCoupons();
+            break;
+        case 'promotions':
+            content.innerHTML = renderAdminPromotions();
+            break;
+        case 'giftcards':
+            content.innerHTML = renderAdminGiftCards();
             break;
         case 'settings':
             content.innerHTML = renderAdminSettings();
@@ -8409,6 +8423,137 @@ async function loadAdminCouponsFromDb() {
         host.innerHTML = '<span>❌ '+escapeHtml(error?.message||error)+'</span>';
     }
 }
+function renderAdminPromotions() {
+    const id='veloraAdminPromotions41';
+    setTimeout(loadAdminPromotionsFromDb,0);
+    return '<div class="admin-section-card" id="'+id+'">'+
+      '<h3 data-velora-i18n="Promotions & Deals">🔥 Promotions & Deals</h3>'+
+      '<p class="velora-op-muted" data-velora-i18n="Platform promotions are server-governed and non-stackable with coupons in the MVP.">Platform promotions are server-governed and non-stackable with coupons in the MVP.</p>'+
+      '<form id="'+id+'Form" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
+        '<input name="name" class="form-input" placeholder="Promotion name" required>'+
+        '<input name="code" class="form-input" placeholder="Optional code">'+
+        '<select name="discount_type" class="form-input"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select>'+
+        '<input name="discount_value" class="form-input" type="number" min="0" step="0.01" placeholder="Discount value" required>'+
+        '<input name="currency" class="form-input" value="EGP" placeholder="Currency">'+
+        '<input name="minimum" class="form-input" type="number" min="0" step="0.01" placeholder="Minimum order">'+
+        '<input name="maximum" class="form-input" type="number" min="0" step="0.01" placeholder="Max discount">'+
+        '<input name="usage_limit" class="form-input" type="number" min="1" placeholder="Global usage limit">'+
+        '<input name="customer_usage_limit" class="form-input" type="number" min="1" placeholder="Customer usage limit">'+
+        '<input name="starts_at" class="form-input" type="datetime-local">'+
+        '<input name="expires_at" class="form-input" type="datetime-local">'+
+        '<input name="priority" class="form-input" type="number" min="1" value="100" placeholder="Priority">'+
+        '<label style="display:flex;gap:.5rem;align-items:center"><input name="active" type="checkbox"> <span data-velora-i18n="Active">Active</span></label>'+
+        '<button class="btn btn-primary" type="submit" style="grid-column:1/-1" data-velora-i18n="Create platform promotion">Create platform promotion</button>'+
+      '</form>'+
+      '<div id="'+id+'Status" class="velora-op-muted" style="margin-top:.6rem"></div>'+
+      '<div id="'+id+'List" style="margin-top:1rem"><span data-velora-i18n="Loading…">Loading…</span></div>'+
+    '</div>';
+}
+
+async function loadAdminPromotionsFromDb(){
+    const host=document.getElementById('veloraAdminPromotions41List');
+    if(!host)return;
+    const client=window.mahaSupabase||window.supabaseClient||window.sb;
+    if(!client?.from)return;
+    try{
+      const result=await client.from('promotions').select('id,name,description,code,discount_type,discount_value,currency_code,minimum_order_amount,max_discount_amount,usage_limit,used_count,customer_usage_limit,starts_at,expires_at,is_active,priority,created_at').order('priority').order('created_at',{ascending:false});
+      if(result.error)throw result.error;
+      const rows=result.data||[];
+      host.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Name</th><th>Code</th><th>Discount</th><th>Window</th><th>Usage</th><th>Status</th></tr></thead><tbody>'+
+        (rows.length?rows.map(p=>'<tr><td><strong>'+escapeHtml(p.name)+'</strong><div class="velora-op-muted">'+escapeHtml(p.description||'')+'</div></td><td><code>'+escapeHtml(p.code||'auto')+'</code></td><td>'+escapeHtml(String(p.discount_value))+(p.discount_type==='percentage'?'%':' '+escapeHtml(p.currency_code||''))+'</td><td>'+escapeHtml(p.starts_at?new Date(p.starts_at).toLocaleString():'Now')+' → '+escapeHtml(p.expires_at?new Date(p.expires_at).toLocaleString():'Open')+'</td><td>'+escapeHtml(String(p.used_count||0))+(p.usage_limit?' / '+escapeHtml(String(p.usage_limit)):'')+'</td><td>'+((p.is_active)?'✅ Active':'⏸ Inactive')+'</td></tr>').join(''):'<tr><td colspan="6" data-velora-i18n="No promotions configured.">No promotions configured.</td></tr>')+
+        '</tbody></table></div>';
+      const form=document.getElementById('veloraAdminPromotions41Form');
+      if(form&&!form.dataset.bound){
+        form.dataset.bound='1';
+        form.addEventListener('submit',async(e)=>{
+          e.preventDefault();
+          const f=new FormData(form);
+          const status=document.getElementById('veloraAdminPromotions41Status');
+          if(status)status.textContent='Creating…';
+          try{
+            const create=await client.rpc('velora_create_platform_promotion',{
+              p_name:String(f.get('name')||''),
+              p_description:String(f.get('description')||''),
+              p_code:String(f.get('code')||''),
+              p_discount_type:String(f.get('discount_type')||'percentage'),
+              p_discount_value:Number(f.get('discount_value')||0),
+              p_currency_code:String(f.get('currency')||'EGP'),
+              p_minimum_order_amount:f.get('minimum')?Number(f.get('minimum')):null,
+              p_max_discount_amount:f.get('maximum')?Number(f.get('maximum')):null,
+              p_usage_limit:f.get('usage_limit')?Number(f.get('usage_limit')):null,
+              p_customer_usage_limit:f.get('customer_usage_limit')?Number(f.get('customer_usage_limit')):null,
+              p_starts_at:f.get('starts_at')?new Date(f.get('starts_at')).toISOString():new Date().toISOString(),
+              p_expires_at:f.get('expires_at')?new Date(f.get('expires_at')).toISOString():null,
+              p_priority:f.get('priority')?Number(f.get('priority')):100,
+              p_is_active:form.elements.active.checked
+            });
+            if(create.error)throw create.error;
+            if(status)status.textContent='✅ '+(create.data?.code||create.data?.name||'Promotion created.');
+            form.reset();
+            form.elements.currency.value='EGP';form.elements.priority.value='100';
+            await loadAdminPromotionsFromDb();
+          }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+        });
+      }
+      if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
+    }catch(err){host.innerHTML='<span>❌ '+escapeHtml(err.message||err)+'</span>';}
+}
+
+function renderAdminGiftCards(){
+    const id='veloraAdminGiftCards41';
+    setTimeout(loadAdminGiftCardsFromDb,0);
+    return '<div class="admin-section-card" id="'+id+'">'+
+      '<h3 data-velora-i18n="Gift Cards">🎁 Gift Cards</h3>'+
+      '<p class="velora-op-muted" data-velora-i18n="Gift cards are stored-value tender and redeemed server-side with concurrency protection.">Gift cards are stored-value tender and redeemed server-side with concurrency protection.</p>'+
+      '<form id="'+id+'Form" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
+        '<input name="amount" class="form-input" type="number" min="1" step="0.01" placeholder="Amount" required>'+
+        '<input name="currency" class="form-input" value="EGP" placeholder="Currency">'+
+        '<input name="code" class="form-input" placeholder="Optional code">'+
+        '<input name="expires_at" class="form-input" type="datetime-local">'+
+        '<button class="btn btn-primary" type="submit" data-velora-i18n="Issue gift card">Issue gift card</button>'+
+      '</form>'+
+      '<div id="'+id+'Status" class="velora-op-muted" style="margin-top:.6rem"></div>'+
+      '<div id="'+id+'List" style="margin-top:1rem"><span data-velora-i18n="Loading…">Loading…</span></div>'+
+    '</div>';
+}
+async function loadAdminGiftCardsFromDb(){
+    const host=document.getElementById('veloraAdminGiftCards41List');
+    if(!host)return;
+    const client=window.mahaSupabase||window.supabaseClient||window.sb;
+    if(!client?.from)return;
+    try{
+      const result=await client.from('gift_cards').select('code,currency_code,initial_amount,balance_amount,status,expires_at,created_at').order('created_at',{ascending:false}).limit(50);
+      if(result.error)throw result.error;
+      const rows=result.data||[];
+      host.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Code</th><th>Initial</th><th>Balance</th><th>Status</th><th>Expiry</th></tr></thead><tbody>'+
+        (rows.length?rows.map(g=>'<tr><td><code>'+escapeHtml(g.code)+'</code></td><td>'+escapeHtml(String(g.initial_amount))+' '+escapeHtml(g.currency_code)+'</td><td>'+escapeHtml(String(g.balance_amount))+' '+escapeHtml(g.currency_code)+'</td><td>'+escapeHtml(g.status)+'</td><td>'+escapeHtml(g.expires_at?new Date(g.expires_at).toLocaleString():'Open')+'</td></tr>').join(''):'<tr><td colspan="5" data-velora-i18n="No gift cards issued.">No gift cards issued.</td></tr>')+
+        '</tbody></table></div>';
+      const form=document.getElementById('veloraAdminGiftCards41Form');
+      if(form&&!form.dataset.bound){
+        form.dataset.bound='1';
+        form.addEventListener('submit',async(e)=>{
+          e.preventDefault();
+          const f=new FormData(form);const status=document.getElementById('veloraAdminGiftCards41Status');
+          if(status)status.textContent='Issuing…';
+          try{
+            const x=await client.rpc('velora_issue_gift_card',{
+              p_amount:Number(f.get('amount')||0),
+              p_currency:String(f.get('currency')||'EGP'),
+              p_code:String(f.get('code')||''),
+              p_recipient_id:null,
+              p_expires_at:f.get('expires_at')?new Date(f.get('expires_at')).toISOString():null
+            });
+            if(x.error)throw x.error;
+            if(status)status.textContent='✅ Code: '+(x.data?.code||'');
+            form.reset();form.elements.currency.value='EGP';
+            await loadAdminGiftCardsFromDb();
+          }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+        });
+      }
+      if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
+    }catch(err){host.innerHTML='<span>❌ '+escapeHtml(err.message||err)+'</span>';}
+}
+
 /* ============ INIT ============ */
 function initOwner() {
     console.log('👑 Owner Command Center ready!');
