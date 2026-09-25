@@ -4,6 +4,44 @@ function v39El(id){return document.getElementById(id)}
 async function v39Rpc(fn,args={}){if(window.supabaseClient?.rpc)return window.supabaseClient.rpc(fn,args); if(window.sb?.rpc)return window.sb.rpc(fn,args); return {data:null,error:new Error('Supabase client unavailable')}}
 function v39t(value){return typeof window.VELORA_GET_TRANSLATION==='function'?window.VELORA_GET_TRANSLATION(String(value)):String(value)}
 function v39Esc(value){return typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+async function v39LoadPayouts(){
+ const host=v39El('veloraSellerPayout39'); if(!host)return;
+ host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading payout balance…'))+'</div></div>';
+ try{
+   const r=await v39Rpc('velora_get_seller_financial_summary');
+   if(r.error)throw r.error;
+   const d=r.data||{};
+   const eligible=Number(d.payout_eligible||0);
+   host.innerHTML=
+    '<div class="velora-seller39-card">'+
+      '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">'+
+        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Payout & earnings'))+'</div>'+
+        '<div style="font-size:1.25rem;font-weight:850;margin-top:.2rem">'+v39Esc(String(d.currency||'EGP'))+' '+v39Esc(Number(d.seller_net_finalized||0).toFixed(2))+'</div>'+
+        '<div class="velora-seller39-muted" style="margin-top:.25rem">'+v39Esc(v39t('Finalized seller earnings'))+'</div></div>'+
+        '<span class="velora-seller39-pill">'+v39Esc(v39t('Eligible'))+': '+v39Esc(String(eligible.toFixed(2)))+'</span>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem">'+
+        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Payout eligible'))+'</div><strong>'+v39Esc(Number(d.payout_eligible||0).toFixed(2))+' '+v39Esc(d.currency||'')+'</strong></div>'+
+        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Pending payouts'))+'</div><strong>'+v39Esc(Number(d.payouts_pending_or_processing||0).toFixed(2))+' '+v39Esc(d.currency||'')+'</strong></div>'+
+        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Paid out'))+'</div><strong>'+v39Esc(Number(d.payouts_paid||0).toFixed(2))+' '+v39Esc(d.currency||'')+'</strong></div>'+
+      '</div>'+
+      '<button id="v39RequestPayout" class="velora-seller39-btn primary" style="margin-top:.8rem" '+(eligible>0?'':'disabled')+'>'+v39Esc(v39t('Request eligible payout'))+'</button>'+
+      '<div class="velora-seller39-muted" id="v39PayoutStatus" style="margin-top:.5rem">'+v39Esc(v39t('Payout policy: delivery + 7-day return window. External execution is recorded with evidence; it is not simulated.'))+'</div>'+
+    '</div>';
+   v39El('v39RequestPayout')?.addEventListener('click',async()=>{
+      const b=v39El('v39RequestPayout');const s=v39El('v39PayoutStatus');if(!b)return;b.disabled=true;if(s)s.textContent=v39t('Requesting payout…');
+      try{
+        const x=await v39Rpc('velora_request_seller_payout', {p_currency:d.currency||null});
+        if(x.error)throw x.error;
+        if(s)s.textContent=v39t('Payout request created.')+' '+JSON.stringify(x.data||{});
+        await v39LoadPayouts();
+      }catch(err){if(s)s.textContent=v39t('Payout unavailable')+': '+(err.message||err);b.disabled=false;}
+   });
+ }catch(err){
+   host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Payout summary unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
+ }
+}
+
 async function v39LoadSubscription(){
  const host=v39El('veloraSellerSubscription39'); if(!host)return;
  host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading subscription…'))+'</div></div>';
@@ -82,12 +120,14 @@ async function v39Load(){
   <div class="velora-seller39-card"><div class="velora-seller39-muted">Low stock</div><div class="velora-seller39-kpi">${d.low_stock_products??0}</div></div>
  </div>
  <div id="veloraSellerSubscription39" style="margin-top:12px"></div>
+ <div id="veloraSellerPayout39" style="margin-top:12px"></div>
  <div class="velora-seller39-card" style="margin-top:12px"><div class="velora-seller39-muted">Estimated seller earnings</div><div class="velora-seller39-kpi">${Number(d.estimated_earnings||0).toLocaleString()}</div><div class="velora-seller39-muted" style="margin-top:6px">Operational estimate from canonical order items; not a payout settlement.</div>
  <div class="velora-seller39-actions"><button class="velora-seller39-btn primary" id="v39Snapshot">Capture operations snapshot</button><button class="velora-seller39-btn" id="v39Refresh">Refresh</button></div></div>
  </div>`;
  v39El('v39Snapshot')?.addEventListener('click',async()=>{const x=await v39Rpc('velora_capture_seller_ops_snapshot'); if(x.error) alert(x.error.message||'Snapshot failed'); else {alert('Operations snapshot captured');v39Load()}});
  v39El('v39Refresh')?.addEventListener('click',()=>{v39Load();v39LoadSubscription()});
  v39LoadSubscription();
+ v39LoadPayouts();
 }
 function v39Install(){
  let admin=document.querySelector('[data-page="seller-operations"],#page-seller-operations,#page-seller');
@@ -96,7 +136,7 @@ function v39Install(){
  const wrap=document.createElement('div');wrap.id='veloraSellerOps39';
  const title=document.createElement('div');title.innerHTML='<h2 style="margin:0 0 8px">🏪 Seller Command Center</h2><div class="velora-seller39-muted">Seller-scoped operations, catalog health, order flow and earnings signals.</div>';
  wrap.appendChild(title);wrap.insertAdjacentHTML('beforeend','');
- admin.appendChild(wrap);setTimeout(()=>{v39Load();v39LoadSubscription()},50);
+ admin.appendChild(wrap);setTimeout(()=>{v39Load();v39LoadSubscription();v39LoadPayouts()},50);
 }
 const oldLoad=window.loadPageContent;
 window.loadPageContent=function(page){const r=typeof oldLoad==='function'?oldLoad.apply(this,arguments):undefined; if(String(page).toLowerCase().includes('seller'))setTimeout(v39Install,150);return r};
