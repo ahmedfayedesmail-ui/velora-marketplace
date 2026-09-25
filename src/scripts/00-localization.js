@@ -4695,54 +4695,7 @@ console.log('✅ Compare + Reviews loaded!');
 console.log('🎁 Loading advanced features...');
 
 /* ============ COUPONS ============ */
-/* Earlier coupon implementation removed during root consolidation; the later canonical coupon implementation is retained. */
-const COUPONS = {
-    'WELCOME20': {
-        code: 'WELCOME20',
-        type: 'percent',
-        value: 20,
-        minPurchase: 200,
-        maxDiscount: 500,
-        description: '20% off for new customers',
-        forFirstOrder: true,
-        active: false
-    },
-    'MAHA50': {
-        code: 'MAHA50',
-        type: 'fixed',
-        value: 50,
-        minPurchase: 300,
-        description: 'EGP 50 off orders above 300',
-        active: false
-    },
-    'FREESHIP': {
-        code: 'FREESHIP',
-        type: 'free_shipping',
-        value: 0,
-        minPurchase: 200,
-        description: 'Free shipping on orders above 200',
-        active: false
-    },
-    'SUMMER30': {
-        code: 'SUMMER30',
-        type: 'percent',
-        value: 30,
-        minPurchase: 500,
-        maxDiscount: 800,
-        description: '30% off summer sale',
-        active: false
-    },
-    'VIP15': {
-        code: 'VIP15',
-        type: 'percent',
-        value: 15,
-        minPurchase: 100,
-        maxDiscount: 300,
-        description: 'VIP 15% discount',
-        active: false
-    }
-};
-
+// Coupon authority is server-side. The browser stores only transient display state.
 let appliedCoupon = null;
 
 /* ============ APPLY COUPON ============ */
@@ -4790,7 +4743,20 @@ async function applyCoupon() {
     } catch (error) {
         appliedCoupon = null;
         window.VELORA_ACTIVE_COUPON_CODE = null;
-        showToast('❌ ' + (error?.message || 'Invalid coupon code'), 'error');
+        const code = String(error?.message || '').toUpperCase();
+        const messages = {
+            COUPON_NOT_FOUND: 'Coupon not found.',
+            COUPON_INACTIVE: 'This coupon is not active.',
+            COUPON_NOT_STARTED: 'This coupon is not active yet.',
+            COUPON_EXPIRED: 'This coupon has expired.',
+            COUPON_CURRENCY_MISMATCH: 'This coupon is not valid for the selected currency.',
+            COUPON_MINIMUM_ORDER_NOT_MET: 'The order does not meet the coupon minimum.',
+            COUPON_USAGE_LIMIT_REACHED: 'This coupon has reached its usage limit.',
+            COUPON_CUSTOMER_USAGE_LIMIT_REACHED: 'You have already used this coupon.',
+            COUPON_FIRST_ORDER_ONLY: 'This offer is available on your first order only.',
+            COUPON_TYPE_NOT_SUPPORTED: 'This coupon type is not available at checkout.'
+        };
+        showToast('❌ ' + (window.VELORA_GET_TRANSLATION ? window.VELORA_GET_TRANSLATION(messages[code] || error?.message || 'Invalid coupon code') : (messages[code] || error?.message || 'Invalid coupon code')), 'error');
     }
 }
 
