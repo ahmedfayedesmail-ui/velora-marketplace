@@ -2615,6 +2615,61 @@ function loadPageContent(page) {
         case 'account':
             renderAccountPage();
             break;
+        case 'legal':
+            renderLegalPage();
+            break;
+    }
+}
+
+
+let VELORA_LEGAL_DOCUMENT_TYPE = null;
+
+function openLegalDocument(documentType){
+    VELORA_LEGAL_DOCUMENT_TYPE = String(documentType||'').trim().toLowerCase() || null;
+    navigateTo('legal');
+}
+
+async function renderLegalPage(){
+    const host=document.getElementById('legalContent');
+    if(!host)return;
+    const client=window.mahaSupabase||window.supabaseClient||window.sb;
+    if(!client?.rpc){
+        host.innerHTML='<div class="velora-empty-store"><h3 data-velora-i18n="Legal documents unavailable">Legal documents unavailable</h3></div>';
+        return;
+    }
+
+    host.innerHTML='<div class="velora-empty-store"><div style="font-size:2rem">🛡️</div><p data-velora-i18n="Loading published policies…">Loading published policies…</p></div>';
+    try{
+        const locale=String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase();
+        const result=await client.rpc('velora_get_required_legal_documents',{p_locale:locale,p_audience:'customer'});
+        if(result.error)throw result.error;
+
+        const rows=Array.isArray(result.data)?result.data:[];
+        const selected=VELORA_LEGAL_DOCUMENT_TYPE ? rows.filter(x=>x.document_type===VELORA_LEGAL_DOCUMENT_TYPE) : rows;
+        const docs=selected.length?selected:rows;
+
+        if(!docs.length){
+            host.innerHTML='<div class="velora-empty-store"><div style="font-size:2rem">🛡️</div><h3 data-velora-i18n="No published policy is available yet.">No published policy is available yet.</h3><p data-velora-i18n="Velora will publish customer policies here after the required review and approval process is complete.">Velora will publish customer policies here after the required review and approval process is complete.</p></div>';
+            if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
+            return;
+        }
+
+        host.innerHTML=docs.map(d=>`
+          <article class="velora-legal-card">
+            <div class="velora-legal-meta">
+              <span>${escapeHtml(d.document_type)}</span>
+              <span>${escapeHtml(d.version)}</span>
+              ${d.effective_from?`<span>${escapeHtml(new Date(d.effective_from).toLocaleDateString())}</span>`:''}
+            </div>
+            <h2>${escapeHtml(d.title)}</h2>
+            <div class="velora-legal-body">${escapeHtml(d.body).replace(/\\n/g,'<br>')}</div>
+            <div class="velora-legal-hash"><span data-velora-i18n="Document hash">Document hash</span>: <code>${escapeHtml(d.content_hash)}</code></div>
+          </article>`).join('');
+
+        if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
+    }catch(error){
+        host.innerHTML='<div class="velora-empty-store"><h3 data-velora-i18n="Legal page unavailable">Legal page unavailable</h3><p>'+escapeHtml(error?.message||error)+'</p></div>';
+        if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
     }
 }
 
@@ -7407,6 +7462,9 @@ function renderAdminLayout() {
                     <div class="admin-nav-item" data-section="giftcards" onclick="showAdminSection('giftcards', this)">
                         <span>🎁</span><span>Gift Cards</span>
                     </div>
+                    <div class="admin-nav-item" data-section="legal" onclick="showAdminSection('legal', this)">
+                        <span>🛡️</span><span>Legal & Trust</span>
+                    </div>
                     <div class="admin-nav-item" data-section="settings" onclick="showAdminSection('settings', this)">
                         <span>⚙️</span><span>Settings</span>
                     </div>
@@ -7499,6 +7557,7 @@ function showAdminSection(section, btn) {
         coupons: 'Coupons',
         promotions: 'Promotions & Deals',
         giftcards: 'Gift Cards',
+        legal: 'Legal & Trust',
         settings: 'Settings'
     };
 
@@ -7532,6 +7591,9 @@ function showAdminSection(section, btn) {
             break;
         case 'giftcards':
             content.innerHTML = renderAdminGiftCards();
+            break;
+        case 'legal':
+            content.innerHTML = renderAdminLegal();
             break;
         case 'settings':
             content.innerHTML = renderAdminSettings();
@@ -8423,6 +8485,85 @@ async function loadAdminCouponsFromDb() {
         host.innerHTML = '<span>❌ '+escapeHtml(error?.message||error)+'</span>';
     }
 }
+function renderAdminLegal(){
+    const id='veloraAdminLegal41';
+    setTimeout(loadAdminLegalFromDb,0);
+    const owner=Array.isArray(window.VELORA_ADMIN_ROLES)&&window.VELORA_ADMIN_ROLES.includes('owner');
+    return '<div class="admin-section-card" id="'+id+'">'+
+      '<h3 data-velora-i18n="Legal & Trust">🛡️ Legal & Trust</h3>'+
+      '<p class="velora-op-muted" data-velora-i18n="Draft and version policies here. Publishing is owner-gated and legal validity still requires counsel review.">Draft and version policies here. Publishing is owner-gated and legal validity still requires counsel review.</p>'+
+      '<form id="'+id+'Form" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
+        '<select name="document_type" class="form-input"><option value="terms_of_service">Terms of Service</option><option value="privacy_policy">Privacy Policy</option><option value="returns_refunds">Returns & Refunds</option><option value="shipping_policy">Shipping Policy</option><option value="cancellation_policy">Cancellation Policy</option><option value="payment_terms">Payment Terms</option><option value="gift_card_terms">Gift Card Terms</option><option value="promotion_terms">Promotion Terms</option><option value="seller_agreement">Seller Agreement</option><option value="seller_commission">Seller Commission</option><option value="seller_subscription">Seller Subscription</option><option value="payout_terms">Payout Terms</option><option value="fulfillment">Fulfillment</option><option value="product_authenticity">Product Authenticity</option><option value="prohibited_products">Prohibited Products</option><option value="review_policy">Review Policy</option><option value="ai_beauty_disclaimer">AI Beauty Disclaimer</option><option value="data_retention">Data Retention</option><option value="dispute_chargeback">Dispute & Chargeback</option><option value="acceptable_use">Acceptable Use</option></select>'+
+        '<select name="audience" class="form-input"><option value="customer">Customer</option><option value="seller">Seller</option><option value="all">All</option><option value="internal">Internal</option></select>'+
+        '<select name="locale" class="form-input"><option value="en">EN</option><option value="ar">AR</option><option value="es">ES</option></select>'+
+        '<input name="version" class="form-input" placeholder="Version (e.g. 1.0)" required>'+
+        '<input name="title" class="form-input" placeholder="Document title" required>'+
+        '<input name="jurisdiction" class="form-input" placeholder="Jurisdiction scope (e.g. EG)" >'+
+        '<input name="review_reference" class="form-input" placeholder="Legal review reference">'+
+        '<textarea name="body" class="form-input" rows="10" placeholder="Reviewed legal text only — do not paste drafts that have not been approved for this environment." required style="grid-column:1/-1;min-height:180px"></textarea>'+
+        '<select name="status" class="form-input"><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved (Owner)</option></select>'+
+        '<label style="display:flex;gap:.5rem;align-items:center"><input name="reacceptance" type="checkbox" checked> <span data-velora-i18n="Require re-acceptance">Require re-acceptance</span></label>'+
+        '<button class="btn btn-primary" type="submit" style="grid-column:1/-1" data-velora-i18n="Save legal version">Save legal version</button>'+
+      '</form>'+
+      '<div id="'+id+'Status" class="velora-op-muted" style="margin-top:.6rem"></div>'+
+      '<div id="'+id+'List" style="margin-top:1rem"><span data-velora-i18n="Loading…">Loading…</span></div>'+
+      (owner?'<div class="velora-op-muted" style="margin-top:.75rem" data-velora-i18n="Owner publishing is intentionally separate from staff drafting.">Owner publishing is intentionally separate from staff drafting.</div>':'')+
+    '</div>';
+}
+
+async function loadAdminLegalFromDb(){
+    const host=document.getElementById('veloraAdminLegal41List');
+    if(!host)return;
+    const client=window.mahaSupabase||window.supabaseClient||window.sb;
+    if(!client?.from)return;
+    try{
+      const result=await client.from('legal_documents').select('id,document_type,audience,locale,version,title,content_hash,status,requires_reacceptance,effective_from,review_reference,reviewed_at,published_at,created_at').order('document_type').order('locale').order('version',{ascending:false});
+      if(result.error)throw result.error;
+      const rows=result.data||[];
+      const owner=Array.isArray(window.VELORA_ADMIN_ROLES)&&window.VELORA_ADMIN_ROLES.includes('owner');
+      host.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Document</th><th>Audience</th><th>Locale</th><th>Version</th><th>Status</th><th>Hash</th><th>Actions</th></tr></thead><tbody>'+
+        (rows.length?rows.map(d=>'<tr><td><strong>'+escapeHtml(d.title)+'</strong><div class="velora-op-muted">'+escapeHtml(d.document_type)+'</div></td><td>'+escapeHtml(d.audience)+'</td><td>'+escapeHtml(d.locale)+'</td><td>'+escapeHtml(d.version)+'</td><td>'+escapeHtml(d.status)+'</td><td><code>'+escapeHtml(String(d.content_hash).slice(0,16))+'…</code></td><td>'+((owner&&d.status==='approved')?'<button class="btn btn-primary" data-legal-publish="'+escapeHtml(d.id)+'">Publish</button>':'')+'</td></tr>').join(''):'<tr><td colspan="7" data-velora-i18n="No legal versions configured.">No legal versions configured.</td></tr>')+
+        '</tbody></table></div>';
+      host.querySelectorAll('[data-legal-publish]').forEach(btn=>btn.addEventListener('click',async()=>{
+        btn.disabled=true;
+        const x=await client.rpc('velora_publish_legal_document',{p_document_id:btn.getAttribute('data-legal-publish')});
+        if(x.error)showToast('❌ '+(x.error.message||x.error),'error');
+        else showToast('✅ Legal document published.','success');
+        await loadAdminLegalFromDb();
+      }));
+      const form=document.getElementById('veloraAdminLegal41Form');
+      if(form&&!form.dataset.bound){
+        form.dataset.bound='1';
+        form.addEventListener('submit',async(e)=>{
+          e.preventDefault();
+          const f=new FormData(form),status=document.getElementById('veloraAdminLegal41Status');
+          if(status)status.textContent='Saving…';
+          try{
+            const body=String(f.get('body')||'');
+            const x=await client.rpc('velora_upsert_legal_document',{
+              p_document_type:String(f.get('document_type')||''),
+              p_audience:String(f.get('audience')||'all'),
+              p_locale:String(f.get('locale')||'en'),
+              p_version:String(f.get('version')||''),
+              p_title:String(f.get('title')||''),
+              p_body:body,
+              p_content_hash:null,
+              p_status:String(f.get('status')||'draft'),
+              p_requires_reacceptance:form.elements.reacceptance.checked,
+              p_jurisdiction_scope:String(f.get('jurisdiction')||'')||null,
+              p_review_reference:String(f.get('review_reference')||'')||null
+            });
+            if(x.error)throw x.error;
+            if(status)status.textContent='✅ Saved '+(x.data?.document_type||'legal document')+' '+(x.data?.version||'');
+            form.reset();form.elements.reacceptance.checked=true;
+            await loadAdminLegalFromDb();
+          }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+        });
+      }
+      if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
+    }catch(err){host.innerHTML='<span>❌ '+escapeHtml(err.message||err)+'</span>';}
+}
+
 function renderAdminPromotions() {
     const id='veloraAdminPromotions41';
     setTimeout(loadAdminPromotionsFromDb,0);
