@@ -2026,7 +2026,7 @@ ul { list-style: none; }
 /* ============ FLOATING BUTTONS ============ */
 .floating-buttons {
     position: fixed;
-    bottom: 1.5rem;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom));
     right: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -2251,7 +2251,7 @@ ul { list-style: none; }
     .footer-inner { grid-template-columns: 1fr; gap: 1.5rem; }
     
     .floating-buttons {
-        bottom: 1rem;
+        bottom: calc(1rem + env(safe-area-inset-bottom));
         right: 1rem;
     }
     
