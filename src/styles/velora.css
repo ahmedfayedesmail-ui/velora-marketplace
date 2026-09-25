@@ -2524,6 +2524,48 @@ ul { list-style: none; }
     text-align: left;
 }
 
+/* ============ LEGAL & TRUST ============ */
+.velora-legal-card{
+    max-width:980px;
+    margin:0 auto 1rem;
+    padding:1.25rem;
+    border:1px solid var(--border);
+    border-radius:22px;
+    background:var(--card);
+    box-shadow:var(--shadow-sm);
+}
+.velora-legal-meta{
+    display:flex;
+    gap:.5rem;
+    flex-wrap:wrap;
+    margin-bottom:.65rem;
+}
+.velora-legal-meta span{
+    font-size:.72rem;
+    padding:.3rem .55rem;
+    border:1px solid var(--border);
+    border-radius:999px;
+    color:var(--text-muted);
+}
+.velora-legal-body{
+    margin-top:1rem;
+    line-height:1.8;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+}
+.velora-legal-hash{
+    margin-top:1rem;
+    padding-top:.75rem;
+    border-top:1px solid var(--border);
+    font-size:.72rem;
+    color:var(--text-muted);
+    overflow-wrap:anywhere;
+}
+@media(max-width:700px){
+    .velora-legal-card{padding:1rem;border-radius:18px}
+    .velora-legal-body{font-size:.94rem;line-height:1.7}
+}
+
 /* ============ PWA INSTALL BANNER ============ */
 .pwa-banner {
     position: fixed;
