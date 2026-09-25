@@ -1,0 +1,145 @@
+name: Velora Full Audit Gate
+
+on:
+  push:
+    branches:
+      - audit/full-gate-2026-09-25
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: velora-full-audit
+  cancel-in-progress: true
+
+jobs:
+  source-and-security:
+    name: Source + Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: CodeQL init
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+          queries: security-extended
+
+      - name: CodeQL analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript
+
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src/scripts src/api src -type f -name '*.js' -print0 |
+            while IFS= read -r -d '' f; do
+              node --check "$f"
+            done
+
+      - name: Static audit
+        run: python3 tools/static_audit.py
+
+      - name: Script manifest consistency
+        shell: python
+        run: |
+          import json, re
+          from pathlib import Path
+          html = Path("src/index.html").read_text(errors="ignore")
+          manifest = json.loads(Path("docs/SCRIPT_MANIFEST.json").read_text())
+          loaded = [x.replace("scripts/","").split("?")[0]
+                    for x in re.findall(r'<script[^>]+src=["']([^"']+)["']', html, re.I)
+                    if x.startswith("scripts/")]
+          listed = []
+          for item in manifest:
+            if isinstance(item, str):
+              listed.append(item.replace("scripts/","").split("?")[0])
+            elif isinstance(item, dict):
+              v = item.get("path") or item.get("file") or item.get("src")
+              if isinstance(v, str):
+                listed.append(v.replace("scripts/","").split("?")[0])
+          missing = sorted(set(loaded) - set(listed))
+          extra = sorted(set(listed) - set(loaded))
+          print(json.dumps({
+            "loaded_local_scripts": len(loaded),
+            "manifest_entries": len(listed),
+            "missing_from_manifest": missing,
+            "manifest_extra_entries": extra,
+          }, indent=2))
+
+      - name: Semgrep source scan
+        shell: bash
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-input semgrep
+          semgrep scan --config auto --json --output semgrep.json . || true
+
+      - name: Gitleaks secret scan
+        shell: bash
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" ghcr.io/gitleaks/gitleaks:latest             detect --source=/repo --redact --no-banner             --report-format json --report-path=/repo/gitleaks.json --exit-code 0
+
+      - name: Upload source audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-source-audit
+          path: |
+            docs/STATIC_AUDIT.json
+            semgrep.json
+            gitleaks.json
+          if-no-files-found: ignore
+
+  dependency-and-web:
+    name: Dependency + Web Surface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency audit (root)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --package-lock=false --ignore-scripts --no-audit --no-fund
+          npm audit --omit=dev --audit-level=high || true
+
+      - name: Dependency audit (src)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd src
+          npm install --package-lock=false --ignore-scripts --no-audit --no-fund
+          npm audit --omit=dev --audit-level=high || true
+
+      - name: Lighthouse
+        shell: bash
+        env:
+          TARGET_URL: https://velora-marketplace-22fgiiahj-ahmedconccc-7063.vercel.app
+        run: |
+          npx --yes lighthouse "$TARGET_URL"             --output=json --output=html             --output-path=./lighthouse             --chrome-flags="--headless --no-sandbox"             --quiet || true
+
+      - name: OWASP ZAP baseline
+        shell: bash
+        env:
+          TARGET_URL: https://velora-marketplace-22fgiiahj-ahmedconccc-7063.vercel.app
+        run: |
+          mkdir -p zap
+          docker run --rm -t             -v "${GITHUB_WORKSPACE}/zap:/zap/wrk:rw"             ghcr.io/zaproxy/zaproxy:stable             zap-baseline.py -t "$TARGET_URL"             -J zap.json -r zap.html -I || true
+
+      - name: Upload web audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-web-audit
+          path: |
+            lighthouse.*
+            zap/*
+          if-no-files-found: ignore
