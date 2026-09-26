@@ -32,8 +32,8 @@ jobs:
 
       - name: Run authenticated browser evidence
         env:
-          PREVIEW_URL: https://velora-marketplace-atzotfrna-ahmedconccc-7063.vercel.app/
-          TESTED_PREVIEW_SHA: 0d0eed6a56c3fe2775bc8c32a81a7df1c37a022f
+          PREVIEW_URL: https://velora-marketplace-5nv2ooto7-ahmedconccc-7063.vercel.app/
+          TESTED_PREVIEW_SHA: 795fa13609558c7ccf2a20456e56bf4808e1c677
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: |
