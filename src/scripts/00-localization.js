@@ -3514,73 +3514,100 @@ function openAuthModal(mode = 'login') {
     document.body.style.overflow = 'hidden';
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
-    const users = getUsers();
-    const user = users.find(u => u.email === email);
+    try {
+        const db = window.mahaSupabase;
+        if (!db?.auth?.signInWithPassword) throw new Error('AUTH_UNAVAILABLE');
 
-    if (!user) {
-        showToast('❌ Email not registered', 'error');
-        return;
+        const { data, error } = await db.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (!data?.user) throw new Error('AUTH_SESSION_NOT_CREATED');
+
+        const profileName = data.user.user_metadata?.name || data.user.email || email;
+        const { error: profileError } = await db.rpc('velora_ensure_own_profile', {
+            p_name: profileName,
+            p_phone: data.user.user_metadata?.phone || null
+        });
+        if (profileError) throw profileError;
+
+        if (typeof initializeSupabaseAuth === 'function') {
+            await initializeSupabaseAuth();
+        }
+
+        closeModal('authModal');
+        showToast('✅ Welcome back', 'success');
+        updateAccountButton();
+        setTimeout(() => navigateTo('account'), 250);
+    } catch (error) {
+        console.error('Velora canonical login:', error);
+        showToast('❌ ' + String(error?.message || 'Could not sign in'), 'error');
     }
-
-    if (user.password !== hashPassword(password)) {
-        showToast('❌ Incorrect password', 'error');
-        return;
-    }
-
-    STATE.user = {
-        uid: user.uid,
-        name: user.name,
-        email: user.email,
-        roles: user.roles || (getSellerByUserId(user.uid) ? ['customer','seller'] : ['customer']),
-        role: user.role || (getSellerByUserId(user.uid) ? 'seller' : 'customer')
-    };
-    saveToStorage(KEYS.USER, STATE.user);
-    persistVeloraUser();
-    closeModal('authModal');
-    showToast('✅ Welcome back, ' + user.name, 'success');
-    updateAccountButton();
-    setTimeout(() => navigateTo('account'), 500);
 }
 
-function handleRegister(event) {
+async function handleRegister(event) {
     event.preventDefault();
     const name = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim().toLowerCase();
     const phone = document.getElementById('regPhone').value.trim();
     const password = document.getElementById('regPassword').value;
 
+    if (name.length < 3) {
+        showToast('❌ Please enter your full name', 'error');
+        return;
+    }
     if (password.length < 6) {
         showToast('❌ Password must be at least 6 characters', 'error');
         return;
     }
 
-    const users = getUsers();
-    if (users.find(u => u.email === email)) {
-        showToast('❌ Email already registered', 'error');
-        return;
+    try {
+        const db = window.mahaSupabase;
+        if (!db?.auth?.signUp) throw new Error('AUTH_UNAVAILABLE');
+
+        const { data, error } = await db.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name,
+                    phone: phone || null
+                }
+            }
+        });
+        if (error) throw error;
+
+        if (!data?.user) throw new Error('AUTH_USER_NOT_CREATED');
+
+        // With email confirmation enabled, Supabase intentionally returns no
+        // session. Profile creation is retried automatically on next sign-in.
+        if (!data.session) {
+            closeModal('authModal');
+            showToast('✅ Account created. Please verify your email, then sign in.', 'success');
+            return;
+        }
+
+        const { error: profileError } = await db.rpc('velora_ensure_own_profile', {
+            p_name: name,
+            p_phone: phone || null
+        });
+        if (profileError) throw profileError;
+
+        if (typeof initializeSupabaseAuth === 'function') {
+            await initializeSupabaseAuth();
+        }
+
+        closeModal('authModal');
+        showToast('🎉 Account created. Welcome to Velora.', 'success');
+        updateAccountButton();
+        setTimeout(() => navigateTo('account'), 250);
+    } catch (error) {
+        console.error('Velora canonical signup:', error);
+        showToast('❌ ' + String(error?.message || 'Could not create account'), 'error');
     }
-
-    const user = {
-        uid: generateId('user'), name, email, phone, password: hashPassword(password),
-        roles: ['customer'], role: 'customer', createdAt: Date.now()
-    };
-
-    users.push(user);
-    saveUsers(users);
-
-    STATE.user = { uid: user.uid, name: user.name, email: user.email, roles: user.roles || ['customer'], role: user.role || 'customer' };
-    saveToStorage(KEYS.USER, STATE.user);
-    persistVeloraUser();
-
-    closeModal('authModal');
-    showToast('🎉 Account created! Welcome, ' + name, 'success');
-    updateAccountButton();
-    setTimeout(() => navigateTo('account'), 500);
 }
 
 async function logout() {
