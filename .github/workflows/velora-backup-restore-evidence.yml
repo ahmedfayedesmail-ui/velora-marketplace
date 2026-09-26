@@ -1,6 +1,8 @@
 name: Velora Backup Restore Evidence
 
 on:
+  push:
+    branches: [evidence/backup-restore-2026-09-26]
   workflow_dispatch:
 
 permissions:
