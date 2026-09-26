@@ -10436,9 +10436,14 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function renderCanonicalDeals(){
     const container=document.getElementById('dealsProducts');
     if(!container) return;
-    const canonical=await refreshCanonicalCatalog({limit:12});
-    const products=(canonical.length?canonical:MAHA_DATA.PRODUCTS).slice(0,12);
-    container.innerHTML=products.map(renderProductCard).join('');
+    const canonical=await refreshCanonicalCatalog({limit:48});
+    const source=canonical.length ? canonical : MAHA_DATA.PRODUCTS;
+    const products=source
+      .filter(p => Number(p?.oldPrice) > Number(p?.price))
+      .slice(0,12);
+    container.innerHTML=products.length
+      ? products.map(renderProductCard).join('')
+      : '<div class="empty-state"><div class="empty-icon">🏷️</div><h3>No active deals</h3><p>There are no discounted products available in your region right now.</p></div>';
   }
 
   const originalLoadPageContent = window.loadPageContent;
