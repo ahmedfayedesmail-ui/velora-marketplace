@@ -498,3 +498,47 @@ Therefore the current strategy is **ADAPT, not rebuild**:
 - Refund state/evidence: **ADAPT existing return + payment contracts**
 - Reimbursement/commission reversal: **BUSINESS/FINOPS DEFINITION REQUIRED**
 - Customer notifications: **REUSE existing notification foundation**
+
+
+## 14. R4 — Checkout reuse/adaptation audit
+
+### OBSERVED FACT — canonical checkout path
+The active checkout authority is `src/scripts/13-payments.js::window.placeOrder`. It:
+1. requires a canonical payment selection (with DOM hydration fallback);
+2. requires canonical cart product UUIDs;
+3. validates customer shipping fields;
+4. calls the published-legal-document/acceptance gate;
+5. calls server-side `velora_quote_cart_shipping`;
+6. calls `velora_create_order_with_commercials`;
+7. binds the selected payment method through `velora_set_order_payment_method`;
+8. uses a stable checkout reference for idempotent retries;
+9. clears canonical/local cart state after the appropriate terminal path.
+
+### OBSERVED FACT — server authority and fail-closed gates
+`velora_create_order_with_commercials` invokes `velora_assert_legal_acceptance(['terms_of_service','privacy_policy'])` before order creation. The live Restore-Test database currently has zero published legal documents and zero legal acceptances, so a legitimate order creation is intentionally blocked.
+
+`velora_quote_cart_shipping` is authenticated and server-side; it resolves shipping per seller/store and returns a canonical quote or a missing-store configuration signal.
+
+### OBSERVED FACT — provider-independent COD route exists
+Restore-Test contains an active `cash_on_delivery` payment method and an active EG/EGP routing rule to a `cash_on_delivery` provider record in test environment. The checkout source has an explicit COD terminal branch that binds the payment method, clears the canonical cart, and completes the customer flow without calling the external payment-start path.
+
+Therefore the current external-provider payment dependency is **not required for the COD checkout path**.
+
+### ADAPT / REUSE decision
+Do not rebuild checkout. Keep the existing canonical checkout authority and server contracts.
+
+When legal documents are legitimately published:
+- use COD for internal Restore-Test commerce-flow verification without external payment-provider execution;
+- keep card/Paymob behind the existing provider abstraction as an optional integration;
+- preserve idempotency and server-side shipping/legal gates;
+- do not weaken legal gates merely to manufacture E2E data.
+
+### R4 blocking classification
+- Canonical checkout source: **PASS**
+- Shipping quote dependency: **PASS**
+- Payment selection contract: **PASS**
+- COD route: **AVAILABLE**
+- Legal publication/acceptance: **BLOCKED — real legal content/counsel approval required**
+- External payment execution: **NOT REQUIRED for COD; separate optional integration**
+- Full Browser Checkout E2E: **PENDING — browser tooling unavailable**
+- Production checkout readiness: **NOT CLAIMED**
