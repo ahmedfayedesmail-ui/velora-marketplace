@@ -233,7 +233,16 @@ window.placeOrder=async function(event){
   const submitButtons=Array.from(document.querySelectorAll('#checkoutForm button[type="submit"], .checkout-form button[type="submit"]'));
   submitButtons.forEach(function(btn){btn.disabled=true;btn.dataset.veloraCheckoutSubmitting='1';});
   try{
-  const selected=window.VELORA_PAYMENT_SELECTION;
+  let selected=window.VELORA_PAYMENT_SELECTION;
+  if(!selected?.id){
+    const selectedEl=document.querySelector('.payment-method.selected[data-payment-id]');
+    const selectedId=selectedEl?.getAttribute('data-payment-id');
+    const selectedCode=selectedEl?.getAttribute('data-payment-code');
+    if(selectedId){
+      selected={id:selectedId,code:selectedCode||null};
+      window.VELORA_PAYMENT_SELECTION=selected;
+    }
+  }
   const fullGiftCard=Boolean(
     window.VELORA_GIFT_CARD_QUOTE &&
     Number(window.VELORA_GIFT_CARD_QUOTE.remaining_order_amount||0)<=0 &&
