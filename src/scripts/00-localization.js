@@ -5189,14 +5189,18 @@ function showPWABanner() {
     const banner = document.createElement('div');
     banner.id = 'pwaBanner';
     banner.className = 'pwa-banner';
+    const pwaLang = String(document.documentElement.lang || localStorage.getItem('velora_language') || 'en').toLowerCase();
+    const pwaCopy = pwaLang === 'ar'
+        ? { title: 'ثبّت Velora', subtitle: 'وصول سريع من جهازك', install: 'تثبيت' }
+        : { title: 'Install Velora', subtitle: 'Quick access from your device', install: 'Install' };
     banner.innerHTML = `
         <span class="pwa-icon">📱</span>
         <div class="pwa-text">
-            <strong>Install Velora</strong>
-            <span>Quick access from your home screen</span>
+            <strong>${pwaCopy.title}</strong>
+            <span>${pwaCopy.subtitle}</span>
         </div>
-        <button class="pwa-btn" onclick="installPWA()">Install</button>
-        <button class="pwa-close" onclick="dismissPWA()">✕</button>
+        <button class="pwa-btn" onclick="installPWA()">${pwaCopy.install}</button>
+        <button class="pwa-close" onclick="dismissPWA()" aria-label="${pwaLang === 'ar' ? 'إغلاق' : 'Close'}">✕</button>
     `;
 
     document.body.appendChild(banner);
