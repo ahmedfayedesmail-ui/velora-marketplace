@@ -542,3 +542,44 @@ When legal documents are legitimately published:
 - External payment execution: **NOT REQUIRED for COD; separate optional integration**
 - Full Browser Checkout E2E: **PENDING — browser tooling unavailable**
 - Production checkout readiness: **NOT CLAIMED**
+
+
+## 15. R6 — Privacy / Data Controls adaptation audit
+
+### OBSERVED FACT — existing privacy backend
+The Restore-Test database already contains customer-facing privacy primitives:
+- `velora_get_privacy_center()`
+- `velora_request_privacy_action(access|export|deletion|correction)`
+- `velora_set_privacy_consent(...)`
+- staff-only `velora_get_privacy_governance()`
+- staff-only `velora_resolve_privacy_request(...)`
+
+The functions are SECURITY DEFINER and executable by authenticated users where appropriate. Privacy requests are idempotent for an active request of the same type, and actions are audit-logged.
+
+### OBSERVED FACT — governance intentionally avoids automatic deletion
+The privacy center reports:
+- personalization requires consent;
+- analytics requires governed consent;
+- AI decisions require human approval;
+- deletion is not automatic;
+- export requires an authenticated request;
+- deletion requests require staff review.
+
+### OBSERVED FACT — customer surface adaptation
+The account page now exposes a **Privacy & Data Controls** surface backed directly by the existing privacy RPCs. It supports access/export/correction/deletion requests and displays request history. No privacy tables, columns, or new backend contracts were added.
+
+Commit: `0f4b67095023936ff5ce7c61dd8c39605006c4c5`
+
+### Deliberately deferred
+Consent mutation UI remains deferred until the actual governed legal/privacy document versions are legitimately published. The implementation must not invent consent versions just to populate test data.
+
+### R6 classification
+- Privacy backend: **KEEP / ADAPT**
+- Data access/export request: **ADAPT existing**
+- Correction request: **ADAPT existing**
+- Deletion request: **ADAPT existing, staff-reviewed**
+- Consent storage: **KEEP existing**
+- Consent UX: **DEFER until governed versions exist**
+- Automated deletion: **DO NOT BUILD**
+- DPO/privacy operations tooling: **REUSE existing admin governance surface**
+- Third-party privacy platform: **INTEGRATE only if an actual business requirement later proves it necessary**
