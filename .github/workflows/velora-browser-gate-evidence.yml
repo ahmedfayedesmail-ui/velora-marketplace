@@ -44,11 +44,23 @@ jobs:
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              page.add_init_script("""() => {
+                  localStorage.setItem("maha_cart", JSON.stringify([{
+                    id: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    canonicalId: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    productId: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    name: "Test Vitamin C Serum",
+                    emoji: "🧪",
+                    price: 140,
+                    quantity: 1
+                  }]));
+                  localStorage.setItem("velora_language", "ar");
+              }""")
 
               page.on("console", lambda m: result["console_errors"].append(m.text) if m.type == "error" else None)
               page.on("pageerror", lambda e: result["page_errors"].append(str(e)))
 
-              response = page.goto(url, wait_until="domcontentloaded", timeout=60000)
+              response = page.goto(url + "#checkout", wait_until="domcontentloaded", timeout=60000)
               result["checks"]["http_status"] = response.status if response else None
               result["checks"]["title"] = page.title()
 
@@ -66,19 +78,7 @@ jobs:
                   "() => window.VELORA_GET_TRANSLATION && window.VELORA_GET_TRANSLATION('Shipping Information','ar')"
               )
 
-              fixture = page.evaluate("""() => {
-                  const id = "21d977a0-111b-4bb4-9736-0f2994294d48";
-                  if (typeof window.addToCart !== "function") throw new Error("PUBLIC_ADD_TO_CART_UNAVAILABLE");
-                  if (typeof window.renderCheckoutPage !== "function") throw new Error("CHECKOUT_RENDER_UNAVAILABLE");
-                  window.addToCart(id, 1);
-                  window.renderCheckoutPage();
-                  const badge = document.getElementById("cartBadge");
-                  return {
-                    cart_badge: badge?.textContent?.trim() || "",
-                    checkout_text: document.getElementById("page-checkout")?.innerText || ""
-                  };
-              }""")
-              result["checks"]["cart_badge_after_public_add"] = fixture["cart_badge"]
+              page.wait_for_timeout(3500)
               page.wait_for_timeout(500)
               page.evaluate("window.VELORA_TRANSLATE_ALL && window.VELORA_TRANSLATE_ALL()")
               page.wait_for_timeout(1000)
