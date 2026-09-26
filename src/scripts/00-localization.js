@@ -10351,7 +10351,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     const wrap = document.createElement('div');
     wrap.className = 'form-group';
     wrap.id = 'veloraCheckoutCountry';
-    wrap.innerHTML = '<label>Country / Region *</label><select class="form-input" id="veloraCountryCode" required><option value="">Loading countries…</option></select>';
+    wrap.innerHTML = '<label>${veloraCheckoutText('Country / Region')} *</label><select class="form-input" id="veloraCountryCode" required><option value="">${veloraCheckoutText('Loading countries…')}</option></select>';
     if (target?.parentElement) target.parentElement.insertBefore(wrap, target);
     else form.querySelector('.form-section')?.appendChild(wrap);
 
@@ -10363,7 +10363,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
         const select = document.getElementById('veloraCountryCode');
         if (!select) return;
         const ctx = window.VELORA_MARKET_CONTEXT || {};
-        select.innerHTML = '<option value="">Select country</option>' + (data || []).map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.name)} (${escapeHtml(c.code)})</option>`).join('');
+        select.innerHTML = '<option value="">${veloraCheckoutText('Select country')}</option>' + (data || []).map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(veloraCheckoutText(c.name))} (${escapeHtml(c.code)})</option>`).join('');
         if (ctx.countryCode) select.value = ctx.countryCode;
         select.addEventListener('change', async () => {
           const code = select.value;
