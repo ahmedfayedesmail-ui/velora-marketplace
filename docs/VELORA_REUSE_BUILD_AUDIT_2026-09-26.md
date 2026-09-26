@@ -583,3 +583,40 @@ Consent mutation UI remains deferred until the actual governed legal/privacy doc
 - Automated deletion: **DO NOT BUILD**
 - DPO/privacy operations tooling: **REUSE existing admin governance surface**
 - Third-party privacy platform: **INTEGRATE only if an actual business requirement later proves it necessary**
+
+
+## 16. Shipping provider integration scan — Egypt
+
+This is a provider-capability scan only. No provider has been selected or connected.
+
+### Bosta — INTEGRATE candidate
+Bosta exposes delivery creation APIs, shipment tracking, API-key scopes, and status webhooks. Its docs describe CRUD-style API key scopes and webhook callbacks on shipment status changes. Its delivery API also explicitly supports **CRP (Customer Return Pickup)** as order type 25. References:
+- https://docs.bosta.co/docs/
+- https://docs.bosta.co/docs/how-to/create-your-first-delivery/
+- https://docs.bosta.co/docs/how-to/get-delivery-status-via-webhook/
+- https://docs.bosta.co/docs/how-to/get-your-api-key/
+
+### ShipBlu — INTEGRATE candidate
+ShipBlu provides an API-key based integration path and configurable status webhooks. Their integration guidance explicitly calls out subscribing to the statuses the merchant wants reflected, including returned status. Reference:
+- https://support.shipblu.com/en/support/solutions/articles/154000223217-zammit
+
+### Mylerz — INVESTIGATE
+Publicly discoverable API documentation exposes package, notification, dashboard and operational endpoints. A production integration decision still requires current merchant/API onboarding evidence, authentication details, webhook behavior, service coverage, commercial terms, and supported return/pickup flows.
+
+### Provider abstraction required by Velora
+Regardless of the eventual provider, Velora should keep its current canonical concepts:
+`order → shipment → carrier/service → tracking → status`.
+
+Provider adapters should be responsible for:
+- create shipment;
+- cancel where supported;
+- generate/return tracking data;
+- receive status webhooks;
+- normalize provider statuses into Velora's shipment state machine;
+- retain provider reference/metadata;
+- retry/idempotency handling.
+
+Do not expose provider credentials to the browser. Provider credentials belong in server-side secrets/configuration.
+
+### Current decision
+**No provider integration now.** Continue with `velora_manual` for Restore-Test E2E. A real carrier adapter requires an actual provider account/API contract and should be added as an integration adapter, not as a replacement for the existing Velora shipment model.
