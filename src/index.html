@@ -58,7 +58,7 @@
 <button class="icon-btn" id="accountBtn" onclick="handleAccountClick()" title="Account">👤</button>
 <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Theme">🌙</button>
 <select class="icon-btn" id="languageSelect" onchange="setVeloraLanguage(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem" title="Language"><option value="en">EN</option><option value="ar">AR</option></select>
-<select class="icon-btn" id="currencySelect" onchange="setVeloraCurrency(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem;max-width:88px" title="Currency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="EGP">EGP</option><option value="AED">AED</option><option value="SAR">SAR</option><option value="QAR">QAR</option><option value="KWD">KWD</option><option value="BHD">BHD</option><option value="OMR">OMR</option><option value="CAD">CAD</option><option value="AUD">AUD</option><option value="NZD">NZD</option><option value="CHF">CHF</option><option value="JPY">JPY</option><option value="CNY">CNY</option><option value="INR">INR</option><option value="TRY">TRY</option><option value="BRL">BRL</option><option value="MXN">MXN</option><option value="ZAR">ZAR</option><option value="SEK">SEK</option><option value="NOK">NOK</option><option value="DKK">DKK</option><option value="PLN">PLN</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="KRW">KRW</option><option value="THB">THB</option><option value="IDR">IDR</option><option value="MYR">MYR</option><option value="PHP">PHP</option><option value="PKR">PKR</option><option value="ILS">ILS</option></select>
+<select class="icon-btn" id="currencySelect" onchange="setVeloraCurrency(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem;max-width:88px" title="Currency"><option value="EGP">EGP</option></select>
 <button class="menu-btn" onclick="toggleMobileMenu()" title="Menu">☰</button>
 </div>
 </div>
@@ -180,7 +180,7 @@
 <section class="page" id="page-shop">
 <div class="page-hero">
 <h1>🛍️ <span data-velora-i18n="Explore Velora">Explore Velora</span></h1>
-<p>Discover products across multiple categories and growing stores.</p>
+<p><span data-velora-i18n="Discover beauty products from Velora stores.">Discover beauty products from Velora stores.</span></p>
 </div>
 <div class="container">
 <!-- Search -->
@@ -193,11 +193,7 @@
 <div class="filters-bar">
 <div class="filter-tabs" id="categoryFilters">
 <button class="filter-tab active" data-cat="all" onclick="filterShop('all', this)">🛍️ All</button>
-<button class="filter-tab" data-cat="electronics" onclick="filterShop('electronics', this)">📱 Electronics</button>
-<button class="filter-tab" data-cat="fashion" onclick="filterShop('fashion', this)">👗 Fashion</button>
 <button class="filter-tab" data-cat="beauty" onclick="filterShop('beauty', this)">✨ Beauty</button>
-<button class="filter-tab" data-cat="home" onclick="filterShop('home', this)">🏠 Home</button>
-<button class="filter-tab" data-cat="sports" onclick="filterShop('sports', this)">⚽ Sports</button>
 </div>
 <select class="sort-select" id="sortSelect" onchange="sortProducts(this.value)">
 <option value="featured">Featured</option>
