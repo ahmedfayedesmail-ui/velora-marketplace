@@ -827,7 +827,9 @@ function bootSync(){
     void (async()=>{
       try{
         const db=getDb();
-        const r=await db?.rpc?.('velora_get_language_preference');
+        const session=await db?.auth?.getSession?.();
+        if(!session?.data?.session?.user) return;
+        const r=await db.rpc('velora_get_language_preference');
         const server=String(r?.data||'').toLowerCase();
         if(isLocale(server)&&server!==state.locale)paintLocale(server);
       }catch(_){}
