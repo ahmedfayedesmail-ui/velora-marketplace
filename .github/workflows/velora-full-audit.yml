@@ -21,18 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
 
       - name: CodeQL init
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@1190a975f95ce23525efb6a3fc21ea29567c1b52
         with:
           languages: javascript
           queries: security-extended
 
       - name: CodeQL analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@1190a975f95ce23525efb6a3fc21ea29567c1b52
         with:
           category: /language:javascript
 
@@ -68,12 +68,15 @@ jobs:
                 listed.append(v.replace("scripts/","").split("?")[0])
           missing = sorted(set(loaded) - set(listed))
           extra = sorted(set(listed) - set(loaded))
-          print(json.dumps({
+          report = {
             "loaded_local_scripts": len(loaded),
             "manifest_entries": len(listed),
             "missing_from_manifest": missing,
             "manifest_extra_entries": extra,
-          }, indent=2))
+          }
+          print(json.dumps(report, indent=2))
+          if missing or extra:
+            raise SystemExit("SCRIPT_MANIFEST_MISMATCH")
 
       - name: Semgrep source scan
         if: always()
@@ -86,11 +89,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" ghcr.io/gitleaks/gitleaks:latest             detect --source=/repo --redact --no-banner             --report-format json --report-path=/repo/gitleaks.json --exit-code 0
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f             detect --source=/repo --redact --no-banner             --report-format json --report-path=/repo/gitleaks.json --exit-code 0
 
       - name: Upload source audit reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: velora-source-audit
           path: |
@@ -104,22 +107,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Dependency audit (root)
         shell: bash
         run: |
           set -euo pipefail
-          npm install --package-lock=false --ignore-scripts --no-audit --no-fund
-          npm audit --omit=dev --audit-level=high || true
+          test -f package-lock.json || { echo "::error::DEPENDENCY_AUDIT_BLOCKED: root package-lock.json is missing"; exit 1; }
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm audit --omit=dev --audit-level=high
 
       - name: Dependency audit (src)
         shell: bash
         run: |
           set -euo pipefail
           cd src
-          npm install --package-lock=false --ignore-scripts --no-audit --no-fund
-          npm audit --omit=dev --audit-level=high || true
+          test -f package-lock.json || { echo "::error::DEPENDENCY_AUDIT_BLOCKED: src/package-lock.json is missing"; exit 1; }
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm audit --omit=dev --audit-level=high
 
       - name: Lighthouse
         shell: bash
@@ -135,11 +140,11 @@ jobs:
         run: |
           mkdir -p zap
           chmod 777 zap
-          docker run --rm -t             -v "${GITHUB_WORKSPACE}/zap:/zap/wrk:rw"             ghcr.io/zaproxy/zaproxy:stable             zap-baseline.py -t "$TARGET_URL"             -J zap.json -r zap.html -I || true
+          docker run --rm -t             -v "${GITHUB_WORKSPACE}/zap:/zap/wrk:rw"             ghcr.io/zaproxy/zaproxy@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef             zap-baseline.py -t "$TARGET_URL"             -J zap.json -r zap.html -I || true
 
       - name: Upload web audit reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: velora-web-audit
           path: |
