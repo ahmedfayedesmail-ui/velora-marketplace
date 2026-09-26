@@ -45,7 +45,13 @@ const decorate=async()=>{
       if(Array.isArray(ms)&&ms.length){
         box.innerHTML=ms.map((m,i)=>{
           const selected=(window.VELORA_PAYMENT_SELECTION?.id===m.id)||(!window.VELORA_PAYMENT_SELECTION?.id&&i===0);
-          return '<div class="payment-method'+(selected?' selected':'')+'" data-payment-code="'+esc(m.code)+'" data-payment-id="'+esc(m.id)+'" onclick="window.VELORA_SELECT_PAYMENT_METHOD(\''+esc(m.code)+'\',\''+esc(m.id)+'\',this)"><div class="payment-radio"></div><div class="payment-icon">💳</div><div class="payment-info"><div class="payment-name">'+esc(m.name)+'</div><div class="payment-desc">'+esc(m.method_type||'Provider routed')+'</div></div></div>';
+          const paymentName=tr(m.name);
+          const paymentDesc=m.code==='card'
+            ? tr('Card payment')
+            : m.code==='cash_on_delivery'
+              ? tr('Pay when you receive')
+              : tr(m.method_type||'Provider routed');
+          return '<div class="payment-method'+(selected?' selected':'')+'" data-payment-code="'+esc(m.code)+'" data-payment-id="'+esc(m.id)+'" onclick="window.VELORA_SELECT_PAYMENT_METHOD(\''+esc(m.code)+'\',\''+esc(m.id)+'\',this)"><div class="payment-radio"></div><div class="payment-icon">💳</div><div class="payment-info"><div class="payment-name">'+esc(paymentName)+'</div><div class="payment-desc">'+esc(paymentDesc)+'</div></div></div>';
         }).join('');
         if(!window.VELORA_PAYMENT_SELECTION){
           window.VELORA_PAYMENT_SELECTION={code:ms[0].code,id:ms[0].id};
