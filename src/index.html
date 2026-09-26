@@ -5,8 +5,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha256-WdOUh8NYmEO0EDItij1WLOAiq6HlzLFomO8/sqDaLs0=" crossorigin="anonymous"></script>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<meta content="Velora Marketplace - Discover more. Shop better. Everything you need from stores you can trust." name="description"/>
-<title>Velora Marketplace | Discover More. Shop Better.</title>
+<meta content="Velora — Beauty-first marketplace for personalized routines, trusted beauty stores and products in Egypt." name="description"/>
+<title>Velora | Beauty-first marketplace in Egypt</title>
 <link href="/favicon.svg" rel="icon"/>
 <link href="/manifest.webmanifest" rel="manifest"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
@@ -38,28 +38,28 @@
 </a>
 <nav class="main-nav">
 <ul>
-<li><a class="active" data-page="home" href="#" onclick="navigateTo('home'); return false;">🏠 Home</a></li>
-<li><a data-page="shop" href="#" onclick="openMarketplaceCategory('all'); return false;">🗂️ Categories</a></li>
-<li><a data-page="shops" href="#" onclick="navigateTo('shops'); return false;">🏪 Shops</a></li>
-<li><a data-page="deals" href="#" onclick="navigateTo('deals'); return false;">🔥 Deals</a></li>
-<li><a href="#" onclick="openSellerRegistration(); return false;">🚀 Sell on Velora</a></li>
+<li><a class="active" data-page="home" href="#" onclick="navigateTo('home'); return false;">🏠 <span data-velora-i18n="Home">Home</span></a></li>
+<li><a data-page="shop" href="#" onclick="openMarketplaceCategory('all'); return false;">🗂️ <span data-velora-i18n="Categories">Categories</span></a></li>
+<li><a data-page="shops" href="#" onclick="navigateTo('shops'); return false;">🏪 <span data-velora-i18n="Shops">Shops</span></a></li>
+<li><a data-page="deals" href="#" onclick="navigateTo('deals'); return false;">🔥 <span data-velora-i18n="Deals">Deals</span></a></li>
+<li><a href="#" onclick="openSellerRegistration(); return false;">🚀 <span data-velora-i18n="Sell on Velora">Sell on Velora</span></a></li>
 </ul>
 </nav>
 <div class="header-actions">
-<button class="icon-btn" onclick="openSearch()" title="Search">🔍</button>
-<button class="icon-btn" onclick="navigateTo('favorites')" title="Wishlist">
+<button class="icon-btn" onclick="openSearch()" title="Search" data-velora-i18n-title="Search">🔍</button>
+<button class="icon-btn" onclick="navigateTo('favorites')" title="Wishlist" data-velora-i18n-title="Wishlist">
                 ❤️
                 <span class="badge" id="favBadge" style="display:none;">0</span>
 </button>
-<button class="icon-btn" onclick="openCart()" title="Cart">
+<button class="icon-btn" onclick="openCart()" title="Cart" data-velora-i18n-title="Cart">
                 🛒
                 <span class="badge" id="cartBadge" style="display:none;">0</span>
 </button>
-<button class="icon-btn" id="accountBtn" onclick="handleAccountClick()" title="Account">👤</button>
-<button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Theme">🌙</button>
+<button class="icon-btn" id="accountBtn" onclick="handleAccountClick()" title="Account" data-velora-i18n-title="Account">👤</button>
+<button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Theme" data-velora-i18n-title="Theme">🌙</button>
 <select class="icon-btn" id="languageSelect" onchange="setVeloraLanguage(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem" title="Language" data-velora-i18n-title="Language"><option value="en">EN</option><option value="ar">AR</option></select>
 <select class="icon-btn" id="currencySelect" onchange="setVeloraCurrency(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem;max-width:88px" title="Currency"><option value="EGP">EGP</option></select>
-<button class="menu-btn" onclick="toggleMobileMenu()" title="Menu">☰</button>
+<button class="menu-btn" onclick="toggleMobileMenu()" title="Menu" data-velora-i18n-title="Menu">☰</button>
 </div>
 </div>
 </header>
@@ -80,8 +80,8 @@
 <li><a href="#" onclick="navigateTo('shops'); return false;">🏪 Shops</a></li>
 <li><a href="#" onclick="navigateTo('deals'); return false;">🔥 Deals</a></li>
 <li><a href="#" onclick="openSellerRegistration(); return false;">🚀 Sell on Velora</a></li>
-<li><a href="#" onclick="navigateTo('favorites'); return false;">❤️ Wishlist</a></li>
-<li><a href="#" onclick="navigateTo('orders'); return false;">📦 Orders</a></li>
+<li><a href="#" onclick="navigateTo('favorites'); return false;">❤️ <span data-velora-i18n="Wishlist">Wishlist</span></a></li>
+<li><a href="#" onclick="navigateTo('orders'); return false;">📦 <span data-velora-i18n="Orders">Orders</span></a></li>
 </ul>
 </nav>
 <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileMenu()"></div>
@@ -193,7 +193,7 @@
 <div class="filters-bar">
 <div class="filter-tabs" id="categoryFilters">
 <button class="filter-tab active" data-cat="all" onclick="filterShop('all', this)">🛍️ <span data-velora-i18n="All">All</span></button>
-<button class="filter-tab" data-cat="beauty" onclick="filterShop('beauty', this)">✨ Beauty</button>
+<button class="filter-tab" data-cat="beauty" onclick="filterShop('beauty', this)">✨ <span data-velora-i18n="Beauty">Beauty</span></button>
 </div>
 <select class="sort-select" id="sortSelect" onchange="sortProducts(this.value)">
 <option value="featured" data-velora-i18n="Featured">Featured</option>
@@ -214,9 +214,9 @@
 <!-- ============ SHOPS PAGE ============ -->
 <section class="page" id="page-shops">
 <div class="page-hero">
-<span class="page-hero-badge">DISCOVER STORES</span>
-<h1>🏪 Shops on Velora</h1>
-<p>Discover independent sellers and growing brands in one marketplace.</p>
+<span class="page-hero-badge" data-velora-i18n="DISCOVER STORES">DISCOVER STORES</span>
+<h1>🏪 <span data-velora-i18n="Shops on Velora">Shops on Velora</span></h1>
+<p data-velora-i18n="Discover independent sellers and growing brands in one marketplace.">Discover independent sellers and growing brands in one marketplace.</p>
 </div>
 <div class="container">
 <div class="velora-stores-grid" id="marketplaceStores"></div>
@@ -225,9 +225,9 @@
 <!-- ============ DEALS PAGE ============ -->
 <section class="page" id="page-deals">
 <div class="page-hero">
-<span class="page-hero-badge">LIMITED-TIME OFFERS</span>
-<h1>🔥 Velora Deals</h1>
-<p>Explore popular products and marketplace offers from stores you can trust.</p>
+<span class="page-hero-badge" data-velora-i18n="LIMITED-TIME OFFERS">LIMITED-TIME OFFERS</span>
+<h1>🔥 <span data-velora-i18n="Velora Deals">Velora Deals</span></h1>
+<p data-velora-i18n="Explore popular products and marketplace offers from stores you can trust.">Explore popular products and marketplace offers from stores you can trust.</p>
 </div>
 <div class="container">
 <div class="products-grid" id="dealsProducts"></div>
@@ -236,7 +236,7 @@
 <!-- ============ GUIDE PAGE ============ -->
 <section class="page" id="page-guide">
 <div class="page-hero">
-<span class="page-hero-badge">LEARN</span>
+<span class="page-hero-badge" data-velora-i18n="LEARN">LEARN</span>
 <h1>📚 Complete Guide</h1>
 <p>How to shop, sell, manage orders, and get the most from Velora.</p>
 </div>
@@ -249,7 +249,7 @@
 <!-- ============ BLOG PAGE ============ -->
 <section class="page" id="page-blog">
 <div class="page-hero">
-<span class="page-hero-badge">ARTICLES</span>
+<span class="page-hero-badge" data-velora-i18n="ARTICLES">ARTICLES</span>
 <h1>📝 Blog</h1>
 <p>Marketplace stories, shopping tips, and seller insights.</p>
 </div>
@@ -262,7 +262,7 @@
 <!-- ============ COMPARE PAGE ============ -->
 <section class="page" id="page-compare">
 <div class="page-hero">
-<span class="page-hero-badge">COMPARE SMARTLY</span>
+<span class="page-hero-badge" data-velora-i18n="COMPARE SMARTLY">COMPARE SMARTLY</span>
 <h1>⚖️ Smart Comparison</h1>
 <p>Choose any number of products and compare them in all details</p>
 </div>
@@ -289,7 +289,7 @@
 <!-- ============ REVIEWS PAGE ============ -->
 <section class="page" id="page-reviews">
 <div class="page-hero">
-<span class="page-hero-badge">REAL EXPERIENCES</span>
+<span class="page-hero-badge" data-velora-i18n="REAL EXPERIENCES">REAL EXPERIENCES</span>
 <h1>💬 Real Reviews</h1>
 <p>Read real experiences and share yours</p>
 </div>
@@ -459,7 +459,7 @@
 <span class="logo-icon">✨</span>
 <span class="logo-text">Velora</span>
 </div>
-<p>A global multi-vendor marketplace connecting customers with independent stores and brands.</p>
+<p data-velora-i18n="A beauty-first marketplace connecting customers with trusted beauty stores and brands.">A beauty-first marketplace connecting customers with trusted beauty stores and brands.</p>
 <div class="socials">
 <a href="#" title="Instagram">📷</a>
 <a href="#" title="TikTok">🎵</a>
