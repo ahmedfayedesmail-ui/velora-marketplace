@@ -32,7 +32,7 @@ async function resolveDispute(id,status,resolution){
  if(error)throw error;return data;
 }
 async function resolveReturn(id,status,resolution){
- const {data,error}=await db.rpc('velora_resolve_return',{p_return_id:id,p_status:status,p_resolution:resolution||null});
+ const {data,error}=await db.rpc('velora_resolve_return',{p_return_id:id,p_status:status,p_resolution:resolution||null,p_refund_reference:null,p_refund_provider:null,p_refund_method:null});
  if(error)throw error;return data;
 }
 async function reviewFraud(id,status,note){
