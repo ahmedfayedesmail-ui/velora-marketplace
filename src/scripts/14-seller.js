@@ -25,8 +25,8 @@ async function createShipmentForSeller(){
  const list=orders.slice(0,20).map(r=>`${r.order_number||r.order_id} — ${r.customer_name||'Customer'} — ${r.order_status||'pending'}`).join('\n');
  const ref=prompt('Enter Order # or Order ID to ship:\n\n'+list, String(orders[0].order_number||orders[0].order_id)); if(ref===null)return;
  const order=orders.find(r=>String(r.order_number)===String(ref)||String(r.order_id)===String(ref)); if(!order){showToast('❌ Order not found in your seller orders','error');return;}
- const {data:itemRows,error:ie}=await db.from('order_items').select('id,quantity,status').eq('order_id',order.order_id).eq('store_id',store.id); if(ie)throw ie;
- const eligible=(itemRows||[]).filter(x=>['confirmed','processing','shipped'].includes(String(x.status))); if(!eligible.length){showToast('⚠️ No shippable items found for this order','warning');return;}
+ const {data:itemRows,error:ie}=await db.from('order_items').select('id,quantity').eq('order_id',order.order_id).eq('store_id',store.id); if(ie)throw ie;
+ const eligible=(itemRows||[]).filter(x=>Number(x.quantity||0)>0); if(!eligible.length){showToast('⚠️ No shippable items found for this order','warning');return;}
  const carrier=prompt('Carrier code:',(await activeCarriers())[0]?.code||''); if(carrier===null)return;
  const service=prompt('Service name:','Standard'); if(service===null)return;
  const tracking=prompt('Tracking number (optional):',''); if(tracking===null)return;
