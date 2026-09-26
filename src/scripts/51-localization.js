@@ -351,7 +351,42 @@ const CORE_AR={
   'Run contract suite':'تشغيل مجموعة اختبارات العقود',
   'No contract test run yet.':'لم يتم تشغيل اختبارات العقود بعد.',
   'Last run':'آخر تشغيل',
-  'Status':'الحالة'
+  'Status':'الحالة',
+
+  'Cleanse, treat & protect':'تنظيف وعلاج وحماية',
+  'Bath & body':'العناية بالجسم والاستحمام',
+  'Build your beauty store. Reach beauty shoppers.':'ابني متجرك للجمال ووصل لعملاء مهتمين بالجمال.',
+  'Open Your Store':'افتح متجرك',
+  'All':'الكل',
+  'Featured':'مميزة',
+  'Price: Low to High':'السعر: من الأقل للأعلى',
+  'Price: High to Low':'السعر: من الأعلى للأقل',
+  'Top Rated':'الأعلى تقييمًا',
+  'Name (A-Z)':'الاسم (أ-ي)',
+  'products':'منتجات',
+  'Mascara':'ماسكارا',
+  'Shampoo':'شامبو',
+  'Perfume':'عطر',
+  'My Account':'حسابي',
+  'Manage your profile and preferences':'إدارة ملفك الشخصي وتفضيلاتك',
+  'Legal & Trust':'القانون والثقة',
+  'Quick Links':'روابط سريعة',
+  'Home':'الرئيسية',
+  'Shop':'المتجر',
+  'Guide':'الدليل',
+  'Compare':'المقارنة',
+  'Customer Service':'خدمة العملاء',
+  'Return Policy':'سياسة الإرجاع',
+  'Shipping Policy':'سياسة الشحن',
+  'Newsletter':'النشرة البريدية',
+  'Beauty':'الجمال',
+  'Shops on Velora':'متاجر Velora',
+  'Discover independent sellers and growing brands in one marketplace.':'اكتشفي متاجر وعلامات جمال مستقلة ومتنامية في سوق واحد.',
+  'DISCOVER STORES':'اكتشفي المتاجر',
+  'Velora Deals':'عروض Velora',
+  'LIMITED-TIME OFFERS':'عروض لفترة محدودة',
+  'Explore popular products and marketplace offers from stores you can trust.':'اكتشفي منتجات الجمال والعروض من متاجر تثقين بها.'
+
 };
 
 function catalog(locale){
