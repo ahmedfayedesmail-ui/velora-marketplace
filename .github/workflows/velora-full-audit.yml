@@ -127,16 +127,18 @@ jobs:
           npm audit --omit=dev --audit-level=high
 
       - name: Lighthouse
+        if: always()
         shell: bash
         env:
-          TARGET_URL: https://velora-marketplace-22fgiiahj-ahmedconccc-7063.vercel.app
+          TARGET_URL: https://velora-marketplace-git-audit-full-gate-c558d2-ahmedconccc-7063.vercel.app
         run: |
           npx --yes lighthouse "$TARGET_URL"             --output=json --output=html             --output-path=./lighthouse             --chrome-flags="--headless --no-sandbox"             --quiet || true
 
       - name: OWASP ZAP baseline
+        if: always()
         shell: bash
         env:
-          TARGET_URL: https://velora-marketplace-22fgiiahj-ahmedconccc-7063.vercel.app
+          TARGET_URL: https://velora-marketplace-git-audit-full-gate-c558d2-ahmedconccc-7063.vercel.app
         run: |
           mkdir -p zap
           chmod 777 zap
