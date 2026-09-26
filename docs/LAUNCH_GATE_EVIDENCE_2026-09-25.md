@@ -111,3 +111,39 @@ These are not treated as equivalent vulnerabilities. Function exposure is review
 ## Verification Rule
 
 No statement above should be converted to PASS for browser/provider/legal launch gates without corresponding evidence.
+
+## 2026-09-26 Evidence Control Update
+
+### Browser E2E evidence ingestion
+- The Restore-Test E2E gate previously had zero canonical e2e_test_runs rows and no supported path from the authenticated Browser Gate artifact into those tables.
+- A minimal service-role-only ingestion RPC was added:
+  public.velora_record_browser_e2e_evidence(bigint,text,text,text,jsonb,bigint).
+- The RPC:
+  - requires auth.role() = 'service_role';
+  - is not executable by anon or authenticated;
+  - requires browser_evidence_schema = v1;
+  - requires a non-empty HTTPS Preview URL and commit SHA;
+  - refuses a claimed Browser PASS unless the artifact itself reports passed, has zero failures/page errors, and all critical authenticated-cart-checkout-Arabic checks are true;
+  - records the evidence in the existing e2e_test_runs / e2e_test_results tables;
+  - is idempotent by GitHub workflow run ID.
+- Source migration:
+  supabase/migrations/20260926214000_browser_e2e_evidence_ingestion.sql.
+- Restore-Test migration was applied successfully.
+- This is evidence plumbing only; it does not create Browser evidence or bypass the canonical launch-gate audit.
+
+### Browser workflow
+- The authenticated Browser workflow was updated to emit browser_evidence_schema = v1 and CI commit/run metadata.
+- It now optionally records its JSON evidence artifact through the new service-role-only RPC.
+- If the SUPABASE_SERVICE_ROLE_KEY repository secret is absent, the workflow keeps the Browser artifact as evidence-only and emits a warning; it does not fabricate a gate result.
+
+### Backup evidence safety
+- The backup workflow artifact path was corrected so the database dump itself is no longer uploaded as an Actions artifact.
+- Evidence artifact retention is set to 7 days.
+- The actual backup/restore drill is still pending the repository SUPABASE_DB_URL secret.
+
+### Gate classification
+OBSERVED FACT: Browser Gate PASS and Launch E2E Gate are separate evidence layers.
+
+OBSERVED FACT: The new ingestion path preserves that separation and only records evidence produced by the Browser workflow.
+
+NOT PROVEN: The e2e_tests launch gate is not PASS until an actual successful Browser workflow run is ingested and the canonical velora_run_launch_gate_audit() is subsequently executed.
