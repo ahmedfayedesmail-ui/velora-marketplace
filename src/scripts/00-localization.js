@@ -2055,6 +2055,12 @@ function getRelatedProducts(productId, limit) {
     const products = (typeof getAllProducts === 'function') ? getAllProducts() : [];
     if (!Array.isArray(products) || products.length === 0) return [];
 
+    // Current storefront checkout accepts canonical Supabase product UUIDs only.
+    // Keep legacy/demo catalog rows out of customer-facing related products so
+    // they cannot flow into the legacy add-to-cart/order compatibility path.
+    const isCanonicalProductId = value =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+
     const source = (typeof getProductById === 'function')
         ? getProductById(productId)
         : null;
@@ -2122,6 +2128,7 @@ function getRelatedProducts(productId, limit) {
     for (let i = 0; i < products.length; i++) {
         const p = products[i];
         if (!p || typeof p !== 'object') continue;
+        if (!isCanonicalProductId(p.id)) continue;
 
         // Exclude source product
         if (p.id === productId) continue;
@@ -4017,8 +4024,11 @@ function handleModalSearch(query) {
 
     const q = query.toLowerCase();
     const results = MAHA_DATA.PRODUCTS.filter(p =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(p?.id || '')) &&
         p.name.toLowerCase().includes(q) ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(p?.id || '')) &&
         p.brand.toLowerCase().includes(q) ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(p?.id || '')) &&
         (p.tags || []).some(t => t.toLowerCase().includes(q))
     ).slice(0, 8);
 
