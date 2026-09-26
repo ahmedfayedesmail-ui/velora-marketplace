@@ -5881,49 +5881,49 @@ function loadUserSession() {
 }
 
 /* ============ SUPABASE PROFILE RECOVERY ============ */
-async function ensureSupabaseProfile(authUser, fallbackName = '', fallbackPhone = '') {
-    if (!authUser || !window.mahaSupabase) {
+async function ensureSupabaseProfile(authUser, fallbackName, fallbackPhone) {
+    if (!authUser || !window.mahaSupabase?.auth) {
         return { profile: null, error: new Error('Authentication service unavailable') };
     }
 
-    const client = window.mahaSupabase;
+    const db = window.mahaSupabase;
     const metadata = authUser.user_metadata || {};
-    const baseProfile = {
-        id: authUser.id,
-        name: metadata.name || fallbackName || authUser.email || 'Velora User',
-        email: authUser.email || '',
-        phone: metadata.phone || fallbackPhone || '',
-        role: ROLES.CUSTOMER
-    };
+    const name = String(
+        fallbackName ||
+        metadata.name ||
+        authUser.email ||
+        'Velora User'
+    ).trim();
+    const phone = String(
+        fallbackPhone ??
+        metadata.phone ??
+        ''
+    ).trim();
 
-    // 1) Existing profile
-    let result = await client
-        .from('users')
-        .select('id, name, email, phone, role')
-        .eq('id', authUser.id)
-        .maybeSingle();
+    try {
+        // Canonical profile path: keep all profile/user writes inside the
+        // governed RPC so validation and audit semantics stay centralized.
+        const { data, error } = await db.rpc('velora_ensure_own_profile', {
+            p_name: name,
+            p_phone: phone || null
+        });
 
-    if (result.data) return { profile: result.data, error: null };
+        if (error) {
+            return { profile: null, error };
+        }
 
-    // 2) Recover missing profile for an Auth user
-    const insertResult = await client
-        .from('users')
-        .insert(baseProfile)
-        .select('id, name, email, phone, role')
-        .single();
+        const profile = Array.isArray(data) ? (data[0] || null) : (data || null);
+        if (!profile) {
+            return {
+                profile: null,
+                error: new Error('PROFILE_NOT_RETURNED')
+            };
+        }
 
-    if (insertResult.data) return { profile: insertResult.data, error: null };
-
-    // 3) One last read handles race conditions / triggers
-    result = await client
-        .from('users')
-        .select('id, name, email, phone, role')
-        .eq('id', authUser.id)
-        .maybeSingle();
-
-    if (result.data) return { profile: result.data, error: null };
-
-    return { profile: null, error: insertResult.error || result.error || new Error('Profile could not be created') };
+        return { profile, error: null };
+    } catch (error) {
+        return { profile: null, error };
+    }
 }
 
 /* ============ UPDATE LOGIN TO INCLUDE ROLE ============ */
