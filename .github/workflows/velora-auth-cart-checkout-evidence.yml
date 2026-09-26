@@ -28,7 +28,7 @@ jobs:
 
       - name: Run authenticated cart -> checkout evidence
         env:
-          PREVIEW_URL: https://velora-marketplace-koh7wao4t-ahmedconccc-7063.vercel.app/
+          PREVIEW_URL: https://velora-marketplace-5nv2ooto7-ahmedconccc-7063.vercel.app/
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: |
@@ -126,6 +126,25 @@ jobs:
               result["checks"]["state_user_present"] = bool(
                   page.evaluate("() => typeof STATE !== 'undefined' && !!STATE.user")
               )
+
+              # Explicitly exercise the same public V5 locale entrypoint used by
+              # the production language selector, then verify the post-auth
+              # checkout render in Arabic.
+              locale_result = page.evaluate("""
+                async () => {
+                  try {
+                    const fn = window.VELORA_V5_SET_LANGUAGE;
+                    if (typeof fn !== 'function') return { ok: false, reason: "V5_SET_LANGUAGE_UNAVAILABLE" };
+                    return { ok: !!(await fn('ar')) };
+                  } catch (e) {
+                    return { ok: false, reason: String(e?.message || e) };
+                  }
+                }
+              """)
+              result["checks"]["arabic_locale_set_ok"] = bool(locale_result.get("ok"))
+              page.wait_for_timeout(1800)
+              result["checks"]["post_login_lang"] = page.locator("html").get_attribute("lang")
+              result["checks"]["post_login_dir"] = page.locator("html").get_attribute("dir")
 
               if not auth["hasSession"]:
                   result["checks"]["login_toast_text_after_wait"] = (
