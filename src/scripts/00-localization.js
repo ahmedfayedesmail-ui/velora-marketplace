@@ -5580,7 +5580,10 @@ async function setLang(code){
     localStorage.setItem('velora_language',code);
     try{
         const c=await client();
-        if(c?.rpc)c.rpc('velora_set_language_preference',{p_locale:code});
+        const session=await c?.auth?.getSession?.();
+        if(c?.rpc && session?.data?.session?.user){
+            await c.rpc('velora_set_language_preference',{p_locale:code});
+        }
     }catch(_){}
     const old=PACK[code];
     const o=await overrides(code);
