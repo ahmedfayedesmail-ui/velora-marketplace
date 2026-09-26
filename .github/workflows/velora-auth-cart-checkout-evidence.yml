@@ -42,7 +42,10 @@ jobs:
           test_product = "21d977a0-111b-4bb4-9736-0f2994294d48"
 
           result = {
+              "browser_evidence_schema": "v1",
               "preview_url": url,
+              "github_commit_sha": os.environ.get("GITHUB_SHA", ""),
+              "github_run_id": int(os.environ.get("GITHUB_RUN_ID", "0") or 0),
               "checks": {},
               "console_errors": [],
               "page_errors": [],
@@ -302,6 +305,55 @@ jobs:
 
           print(json.dumps(result, ensure_ascii=False, indent=2))
           sys.exit(1 if failures else 0)
+          PY
+
+      - name: Record browser evidence in canonical E2E gate
+        if: always()
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY is not configured; browser artifact remains evidence-only."
+            exit 0
+          fi
+          if [[ ! -f browser-auth-cart-evidence.json ]]; then
+            echo "::warning::Browser evidence file was not produced; nothing to ingest."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          with open("browser-auth-cart-evidence.json", "r", encoding="utf-8") as f:
+              evidence = json.load(f)
+
+          status = "passed" if evidence.get("passed") is True else "failed"
+          payload = {
+              "p_workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "p_commit_sha": os.environ["GITHUB_SHA"],
+              "p_preview_url": os.environ["PREVIEW_URL"].rstrip("/"),
+              "p_status": status,
+              "p_evidence": evidence,
+          }
+
+          data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+          req = urllib.request.Request(
+              os.environ["SUPABASE_URL"] + "/rest/v1/rpc/velora_record_browser_e2e_evidence",
+              data=data,
+              headers={
+                  "apikey": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+                  "Authorization": "Bearer " + os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+
+          with urllib.request.urlopen(req, timeout=30) as resp:
+              body = resp.read().decode("utf-8")
+              print(body)
           PY
 
       - name: Upload authenticated browser evidence
