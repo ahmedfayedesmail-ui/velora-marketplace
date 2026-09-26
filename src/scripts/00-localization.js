@@ -9764,7 +9764,9 @@ function renderOwnerAuditLogs() {
 /* ============================================
    UPDATE OWNER SECTIONS
    ============================================ */
-// Override the "live" section to show real analytics
+// Override the "live" section to show real analytics when the legacy handler exists.
+// The canonical Owner platform does not require this legacy override.
+if (typeof renderOwnerLive === 'function') {
 const originalRenderOwnerLive = renderOwnerLive;
 renderOwnerLive = function() {
     const stats = getAnalyticsStats();
@@ -9798,6 +9800,7 @@ renderOwnerLive = function() {
         </div>
     `;
 };
+}
 
 function getEventIconV2(name) {
     const icons = {
