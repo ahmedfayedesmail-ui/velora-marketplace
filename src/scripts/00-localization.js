@@ -10145,20 +10145,34 @@ console.log('✅ Analytics + Events + Audit loaded!');
     marketContextPromise = (async () => {
       const auth = await getAuthenticatedProfile();
       const profile = auth?.profile || {};
-      const countryCode = (profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
-      let currencyCode = (profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
+      // Anonymous/default marketplace context is Egypt-first. Browser language
+      // such as en-US is not a reliable indicator of the customer's storefront
+      // country, so it must not silently switch the market to the US.
+      const countryCode = (
+        profile.country_code ||
+        localStorage.getItem('velora_country') ||
+        'EG'
+      ).toUpperCase();
 
-      if (countryCode) {
-        try {
-          const { data: primary } = await client.from('country_currencies')
-            .select('currency_code,is_primary')
-            .eq('country_code', countryCode)
-            .eq('is_active', true)
-            .order('is_primary', { ascending: false })
-            .limit(5);
-          if (!currencyCode && primary?.length) currencyCode = primary.find(x => x.is_primary)?.currency_code || primary[0].currency_code;
-        } catch (_) {}
-      }
+      let currencyCode = (
+        profile.preferred_currency ||
+        localStorage.getItem('velora_currency') ||
+        ''
+      ).toUpperCase() || null;
+
+      try {
+        const { data: primary } = await client.from('country_currencies')
+          .select('currency_code,is_primary')
+          .eq('country_code', countryCode)
+          .eq('is_active', true)
+          .order('is_primary', { ascending: false })
+          .limit(5);
+        if (!currencyCode && primary?.length) {
+          currencyCode = primary.find(x => x.is_primary)?.currency_code || primary[0].currency_code;
+        }
+      } catch (_) {}
+
+      if (!currencyCode && countryCode === 'EG') currencyCode = 'EGP';
 
       window.VELORA_MARKET_CONTEXT = {
         countryCode,
