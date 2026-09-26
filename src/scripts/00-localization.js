@@ -2813,6 +2813,7 @@ function renderProductCard(inputProduct) {
     const isFav = STATE.favorites.some(f => f.id === product.id);
     const discount = product.oldPrice ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100) : 0;
     const stars = renderStars(product.rating);
+    const displayCurrency = product.currency || window.VELORA_MARKET_CONTEXT?.currencyCode || VELORA_CURRENCY;
 
     return `
         <div class="product-card" data-id="${product.id}" data-product-id="${product.id}">
@@ -2838,8 +2839,8 @@ function renderProductCard(inputProduct) {
                 </div>
                 <div class="product-footer">
                     <div class="product-price">
-                        <span class="price-current">${formatPrice(product.price)}</span>
-                        ${product.oldPrice ? `<span class="price-old">${formatPrice(product.oldPrice)}</span>` : ''}
+                        <span class="price-current">${formatPrice(product.price, displayCurrency)}</span>
+                        ${product.oldPrice ? `<span class="price-old">${formatPrice(product.oldPrice, displayCurrency)}</span>` : ''}
                     </div>
                     <button class="add-cart-btn" onclick="event.stopPropagation(); addToCart('${product.id}')">🛒</button>
                 </div>
