@@ -660,3 +660,37 @@ The trigger/function should be treated as source + DB verified, not Browser PASS
 - Push delivery: REUSE / INTEGRATE
 - New provider: NOT NEEDED
 - Browser verification: PENDING
+
+
+## 18. Security adaptation — support-case assignment
+
+### OBSERVED FACT
+The Restore-Test Security Advisor flags many authenticated SECURITY DEFINER functions, but a targeted audit of mutating SECURITY DEFINER functions found no mutation function with no authorization signal.
+
+A deeper review identified one concrete authorization gap in `velora_update_support_case`: a non-staff support-case owner could supply `p_owner_user_id` and/or `p_owner_role` while updating their case. Because this is a SECURITY DEFINER RPC, the write path is more privileged than the caller's direct table policy.
+
+### Smallest safe patch
+The RPC now:
+- keeps the existing authenticated owner/staff access check;
+- permits owner-level updates to the case itself;
+- rejects owner assignment changes from non-staff callers with `STAFF_ONLY_OWNER_ASSIGNMENT`;
+- leaves assignment changes available to staff;
+- preserves the current table, RPC name, and contract shape.
+
+Migration:
+- `supabase/migrations/20260926124500_harden_support_case_owner_fields.sql`
+- Commit: `3c3371faed15a44afb6bc5a29fceb61078088b8a`
+
+### Restore-Test verification
+The migration applied successfully to `velora-restore-test`.
+
+The resulting function remains SECURITY DEFINER, has `anon_exec=false`, keeps `authenticated` EXECUTE, and contains the explicit `STAFF_ONLY_OWNER_ASSIGNMENT` guard.
+
+No support-case fixture was created or mutated for verification; current `support_cases` count remains 0.
+
+### Classification
+- Security Advisor broad warnings: **NOT blanket-fixed**
+- Targeted support assignment authorization gap: **FIXED — source + DB verified**
+- Schema change: **NONE**
+- Production: **FROZEN**
+- Browser verification: **PENDING**
