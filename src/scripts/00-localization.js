@@ -10100,7 +10100,12 @@ console.log('✅ Analytics + Events + Audit loaded!');
   window.getPublicSellerProducts=getPublicSellerProducts;
   addSeedProducts();
   syncPublicCatalog();
-  setTimeout(()=>{const c=document.getElementById('statProducts'); if(c&&window.MAHA_DATA)c.textContent=MAHA_DATA.PRODUCTS.length+'+';},100);
+  // Canonical Stage 7 sets the public product count after the live catalog loads.
+  setTimeout(()=>{
+    const c=document.getElementById('statProducts');
+    const catalog=window.VELORA_CANONICAL_CATALOG;
+    if(c && Array.isArray(catalog) && catalog.length) c.textContent=catalog.length+'+';
+  },100);
 })();
 
 
@@ -10436,6 +10441,14 @@ console.log('✅ Analytics + Events + Audit loaded!');
       await loadMarketContext();
       await loadRelevantCurrencies();
       await loadCanonicalCatalog({limit:48});
+
+      // Public storefront stats must reflect the canonical Egypt beauty catalog,
+      // not the retired legacy compatibility dataset.
+      const stat=document.getElementById('statProducts');
+      const canonicalCount=Array.isArray(window.VELORA_CANONICAL_CATALOG)
+        ? window.VELORA_CANONICAL_CATALOG.length
+        : 0;
+      if(stat && canonicalCount) stat.textContent=canonicalCount+'+';
       if (document.getElementById('page-checkout')?.classList.contains('active')) {
         if (typeof window.veloraEnsureCheckoutCartReady === 'function') {
           window.veloraEnsureCheckoutCartReady();
