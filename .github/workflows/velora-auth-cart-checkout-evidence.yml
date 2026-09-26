@@ -311,6 +311,7 @@ jobs:
         if: always()
         env:
           SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          PREVIEW_URL: https://velora-marketplace-5nv2ooto7-ahmedconccc-7063.vercel.app/
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
