@@ -346,3 +346,67 @@ The next engineering step is evidence-first:
 3. Verify customer order/tracking UI in Browser Gate.
 4. Inspect existing return/dispute RPCs and UI before writing anything.
 5. Only implement a missing surface after an observed gap is reproduced.
+
+
+## 12. Execution update — 2026-09-26 — post-audit hardening
+
+### OBSERVED FACT — shipping seller creation had a source/DB contract mismatch
+The seller shipping UI in `src/scripts/14-seller.js` queried `order_items.status`, but the live Restore-Test `public.order_items` table has no `status` column. The mismatch would fail the seller-side item lookup before the canonical `velora_create_shipment` RPC could run.
+
+**Smallest safe patch:** the UI now selects only the existing `id,quantity` columns and uses positive quantity as the local eligibility filter. Shipment authorization and lifecycle rules remain server-authoritative in `velora_create_shipment`.
+
+Commit: `7caebe5db1cf46f05099f424fe2455f7509c9145`
+
+### OBSERVED FACT — customer shipment presentation includes seller context
+The customer order renderer in `src/scripts/00-localization.js` now derives seller/store names from the already-selected order-item `store_id/store_name` fields and displays the seller inside each shipment card.
+
+Commit: `e01eb8caab9cb1043d163bb2fc3804f7411743d1`
+
+### OBSERVED FACT — CI verification
+GitHub Actions Run 68 for `e01eb8caab9cb1043d163bb2fc3804f7411743d1` completed with conclusion `success`.
+
+### OBSERVED FACT — Preview verification
+Vercel deployment `dpl_EbCsXNnzoYbUdUT6gCZimqfcToK1` for the same commit is `READY`. This is Preview evidence only; it is not Browser PASS.
+
+### OBSERVED FACT — browser gate remains pending
+A live Browser Gate was not run because the available browser automation wallet balance is negative. Therefore Shipping/Tracking remains **NOT BROWSER PASS**.
+
+### OBSERVED FACT — returns customer UX is only event recording today
+The customer-facing Stage 45 control in `src/scripts/40-payments.js` exposes a **Return / Dispute** action, but that action calls only `velora_record_post_purchase_event('return_started', ...)` and does not call `velora_request_return` or `velora_open_dispute`.
+
+The message shown to the customer states that the request was recorded for the governed workflow, while the current source evidence shows that the actual governed return/dispute object is not created by that action.
+
+### OBSERVED FACT — return backend contract exists and is materially governed
+The Restore-Test backend exposes:
+- `velora_request_return(order_id, store_id, items, reason, description)`
+- canonical 6-argument `velora_resolve_return(..., refund_reference, refund_provider, refund_method)`
+- `velora_open_dispute(order_id, store_id, reason, description)`
+- `velora_resolve_dispute(dispute_id, status, resolution)`
+
+The request-return RPC requires:
+- authenticated customer ownership of the order;
+- delivered order status;
+- settled payment status (`paid` or `refunded`);
+- a valid store belonging to the order;
+- concrete order-item IDs and requested quantities;
+- a delivered shipment covering the returned quantity;
+- no conflicting active return for the same order/store/item.
+
+The canonical return resolver enforces a return state machine and requires refund evidence (`refund_reference`) before transitioning to `refunded`.
+
+### INFERRED — return UX should be split-aware
+Because a Velora order can contain multiple stores and the canonical request RPC requires `store_id` plus item IDs/quantities, a one-click generic “Return / Dispute” action is not enough to safely create a return for a multi-seller order. The UI must first expose the affected shipment/store/items and then submit the appropriate governed RPC.
+
+### HYPOTHESIS — no return workflow patch should be made until refund economics are defined
+The current `velora_request_return` calculation starts from item unit price × requested quantity. Whether shipping, discounts, commissions, payment-provider fees, seller earnings, pickup/return shipping, or other commercial amounts are refundable/reallocated is a business/legal rule, not something engineering should invent.
+
+### Current gate classification
+- Shipping source contract: **PASS**
+- Shipping DB contract: **PASS**
+- Shipping permissions: **PASS**
+- Shipping CI: **PASS**
+- Shipping Preview: **PASS**
+- Shipping Browser Gate: **PENDING — browser tool unavailable**
+- Returns backend contract audit: **PASS**
+- Returns customer workflow: **GAP OBSERVED**
+- Returns/refund economics: **BLOCKED ON BUSINESS/LEGAL DECISION**
