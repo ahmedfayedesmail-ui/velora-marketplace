@@ -8716,10 +8716,10 @@ if (document.readyState === 'loading') {
 }
 
 /* ============ EXPOSE GLOBALLY ============ */
-window.openOwnerPlatform = openOwnerPlatform;
+window.openOwnerPlatform = typeof openOwnerPlatform === 'function' ? openOwnerPlatform : function(){ return typeof window.switchPlatform === 'function' ? window.switchPlatform('owner') : false; };
 window.closeOwnerPlatform = typeof closeOwnerPlatform === 'function' ? closeOwnerPlatform : function(){ const platform = document.getElementById('ownerPlatform'); if (platform) platform.classList.remove('active'); document.body.style.overflow=''; };
-window.showOwnerSection = showOwnerSection;
-window.toggleOwnerSidebar = toggleOwnerSidebar;
+window.showOwnerSection = typeof showOwnerSection === 'function' ? showOwnerSection : function(){ return false; };
+window.toggleOwnerSidebar = typeof toggleOwnerSidebar === 'function' ? toggleOwnerSidebar : function(){ return false; };
 
 console.log('✅ Owner Command Center loaded!');
 
