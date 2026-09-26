@@ -238,3 +238,21 @@ Restore-Test currently has legal_documents = 0. This remains intentionally fail-
 ## Engineering implementation note
 The current Velora legal system already versions documents, computes SHA-256 hashes, restricts owner publishing, stores acceptance version/hash, records legal acceptance in audit logs, and blocks checkout when required published documents are missing or unaccepted.
 
+## Current regulatory verification — 2026-09-26
+
+This section is an engineering/counsel handoff, not legal advice.
+
+According to the Egyptian Personal Data Protection Center (PDPC), the current framework is Personal Data Protection Law No. 151 of 2020 together with Executive Regulations No. 816 of 2025. The PDPC states that the Executive Regulations entered into force on the day after publication and that a one-year compliance period begins from that date.
+
+Engineering implications to confirm with Egyptian counsel:
+- Identify the Velora legal entity and its role(s) as controller, processor, or other data-user role for each data flow.
+- Assign the privacy responsible person / DPO position and confirm registration or other applicable PDPC requirements.
+- Maintain a processing-purpose/data-category map covering account, orders, payments, fulfillment, fraud/security, support, seller onboarding, personalization/Beauty Passport, analytics, and marketing.
+- Define retention periods by data category and purpose, plus deletion/anonymization procedures and legal holds.
+- Document processor relationships and cross-border access/transfer arrangements for hosting, authentication, payment, analytics, messaging, and other providers.
+- Separate necessary service processing from non-essential marketing/tracking consent where legally required.
+- Preserve evidence of consent, withdrawal/opt-out, privacy requests, legal acceptance, and disclosure/version history.
+- Review direct-marketing controls, including prior consent where required, withdrawal/opt-out, sender identity/contact/purpose, record-keeping, and applicable licenses/permits.
+- Confirm the exact tax/invoice, marketplace, payment/merchant-of-record, consumer-protection, seller-contract, returns/refunds, and complaint/dispute positions before publication.
+
+Source: Egyptian Personal Data Protection Center — https://pdpc.gov.eg/
