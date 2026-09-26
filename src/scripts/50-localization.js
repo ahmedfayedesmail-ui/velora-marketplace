@@ -20,7 +20,7 @@
     country_code: initialCountry,
     currency_code: initialCurrency,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-    date_locale: localStorage.getItem('velora_date_locale') || (navigator.language || 'en-US')
+    date_locale: localStorage.getItem('velora_date_locale') || (storedLanguage + '-' + initialCountry)
   };
 
   const db = () => window.mahaSupabase || window.supabaseClient || window.sb || null;
