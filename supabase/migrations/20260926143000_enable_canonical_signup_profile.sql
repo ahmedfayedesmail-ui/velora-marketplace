@@ -62,5 +62,5 @@ begin
 end;
 $$;
 
-revoke all on function public.velora_ensure_own_profile(text,text) from public;
+revoke all on function public.velora_ensure_own_profile(text,text) from public, anon, authenticated;
 grant execute on function public.velora_ensure_own_profile(text,text) to authenticated;
