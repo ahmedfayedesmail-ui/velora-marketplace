@@ -3637,6 +3637,48 @@ function updateAccountButton() {
     }
 }
 
+async function veloraOpenPrivacyCenter(){
+    const panel=document.getElementById('veloraPrivacyCenter');
+    if(!panel)return;
+    panel.innerHTML='<div class="velora-op-note">⏳ Loading Privacy & Data Controls…</div>';
+    try{
+        const {data,error}=await window.mahaSupabase.rpc('velora_get_privacy_center');
+        if(error)throw error;
+        const d=data||{}, consents=Array.isArray(d.consents)?d.consents:[], requests=Array.isArray(d.requests)?d.requests:[];
+        panel.innerHTML=`
+            <div class="form-section" style="margin-top:1rem;">
+                <h3>🔐 Privacy &amp; Data Controls</h3>
+                <p class="velora-op-muted">Your privacy requests are handled through Velora's governed backend workflow. Deletion is not automatic.</p>
+                <div style="display:grid;gap:.5rem;margin-top:.8rem;">
+                    <div><strong>Consent records:</strong> ${consents.length}</div>
+                    <div><strong>Privacy requests:</strong> ${requests.length}</div>
+                </div>
+                <div style="display:flex;gap:.55rem;flex-wrap:wrap;margin-top:.9rem;">
+                    <button class="btn btn-outline" type="button" onclick="window.veloraRequestPrivacy('access')">Request access</button>
+                    <button class="btn btn-outline" type="button" onclick="window.veloraRequestPrivacy('export')">Request export</button>
+                    <button class="btn btn-outline" type="button" onclick="window.veloraRequestPrivacy('correction')">Request correction</button>
+                    <button class="btn btn-outline" type="button" onclick="window.veloraRequestPrivacy('deletion')">Request deletion</button>
+                </div>
+                <div style="margin-top:1rem;">
+                    <strong>Request history</strong>
+                    ${requests.length?requests.map(r=>`<div style="padding:.55rem 0;border-bottom:1px solid var(--border);"><span>${escapeHtml(String(r.request_type||''))}</span> · <span>${escapeHtml(String(r.status||''))}</span> · <span>${escapeHtml(new Date(r.requested_at).toLocaleString())}</span></div>`).join(''):'<div class="velora-op-muted" style="margin-top:.45rem;">No privacy requests yet.</div>'}
+                </div>
+            </div>`;
+    }catch(e){
+        panel.innerHTML='<div class="velora-op-note">❌ '+escapeHtml(e?.message||e)+'</div>';
+    }
+}
+window.veloraRequestPrivacy=async function(type){
+    const reason=prompt('Optional reason for this '+String(type||'privacy')+' request:','');
+    if(reason===null)return;
+    try{
+        const {error}=await window.mahaSupabase.rpc('velora_request_privacy_action',{p_request_type:String(type||''),p_reason:reason||null});
+        if(error)throw error;
+        showToast('✅ Privacy request recorded','success');
+        await veloraOpenPrivacyCenter();
+    }catch(e){showToast('❌ '+(e?.message||e),'error')}
+}
+
 function renderAccountPage() {
     const container = document.getElementById('accountContent');
     if (!container) return;
@@ -3668,6 +3710,8 @@ function renderAccountPage() {
                 <button class="btn btn-outline" style="flex: 1;" onclick="navigateTo('orders')">📦 My Orders</button>
                 <button class="btn btn-outline" style="flex: 1;" onclick="navigateTo('favorites')">❤️ Wishlist</button>
             </div>
+            <button class="btn btn-outline btn-block" style="margin-top: 0.75rem;" type="button" onclick="window.veloraOpenPrivacyCenter()">🔐 Privacy &amp; Data Controls</button>
+            <div id="veloraPrivacyCenter"></div>
             <button class="btn btn-primary btn-block" style="margin-top: 0.75rem; background: var(--error);" onclick="logout()">
                 Logout
             </button>
