@@ -5360,25 +5360,7 @@ const SELLER_STATUS_INFO = {
 
 /* ============ SUBSCRIPTION PLANS ============ */
 const VELORA_PRODUCT_CATEGORIES = [
- {id:'electronics',name:'Electronics & Technology',emoji:'📱',subcategories:['Phones & Tablets','Computers & Laptops','TV & Audio','Cameras','Wearables','Smart Home','Accessories']},
- {id:'fashion',name:'Fashion & Clothing',emoji:'👗',subcategories:['Women','Men','Kids','Shoes','Bags','Jewelry','Accessories']},
- {id:'beauty',name:'Beauty & Personal Care',emoji:'✨',subcategories:['Skincare','Makeup','Hair Care','Fragrance','Bath & Body','Tools']},
- {id:'home',name:'Home & Kitchen',emoji:'🏠',subcategories:['Furniture','Kitchen','Home Decor','Lighting','Bedding','Storage','Appliances']},
- {id:'grocery',name:'Food & Grocery',emoji:'🛒',subcategories:['Pantry','Beverages','Snacks','Fresh Food','Organic','Specialty Food']},
- {id:'health',name:'Health & Wellness',emoji:'🩺',subcategories:['Fitness','Personal Care','Wellness','Medical Supplies','Mobility']},
- {id:'sports',name:'Sports & Outdoors',emoji:'⚽',subcategories:['Fitness','Running','Football','Cycling','Camping','Outdoor Recreation']},
- {id:'toys',name:'Toys, Games & Hobbies',emoji:'🧸',subcategories:['Toys','Board Games','Puzzles','Hobbies','Collectibles']},
- {id:'automotive',name:'Automotive',emoji:'🚗',subcategories:['Car Accessories','Parts','Tools','Motorcycle','Care & Cleaning']},
- {id:'books',name:'Books, Media & Education',emoji:'📚',subcategories:['Books','eBooks','Music','Movies','Educational','Stationery']},
- {id:'pets',name:'Pet Supplies',emoji:'🐾',subcategories:['Dogs','Cats','Birds','Fish','Pet Care','Accessories']},
- {id:'office',name:'Office & Business',emoji:'💼',subcategories:['Office Supplies','Printers','Furniture','Business Equipment','Stationery']},
- {id:'baby',name:'Baby & Kids',emoji:'👶',subcategories:['Baby Clothing','Feeding','Nursery','Toys','Strollers','Safety']},
- {id:'garden',name:'Garden & Outdoors',emoji:'🌿',subcategories:['Plants','Gardening Tools','Outdoor Furniture','Grills','Pools']},
- {id:'gaming',name:'Gaming',emoji:'🎮',subcategories:['Consoles','Games','Controllers','PC Gaming','Collectibles']},
- {id:'jewelry',name:'Jewelry & Watches',emoji:'💎',subcategories:['Fine Jewelry','Fashion Jewelry','Watches','Accessories','Gifts']},
- {id:'digital',name:'Digital Products',emoji:'💻',subcategories:['Software','Templates','Courses','Subscriptions','Downloads']},
- {id:'services',name:'Services',emoji:'🛠️',subcategories:['Professional','Home Services','Creative','Education','Business']},
- {id:'other',name:'Other',emoji:'📦',subcategories:['General']}
+  {id:'beauty',name:'Beauty & Personal Care',emoji:'✨',subcategories:['Skincare','Makeup','Hair Care','Fragrance','Bath & Body','Tools']}
 ];
 const VELORA_CATEGORY_MAP = Object.fromEntries(VELORA_PRODUCT_CATEGORIES.map(c => [c.id, c]));
 
@@ -10547,12 +10529,9 @@ console.log('✅ Analytics + Events + Audit loaded!');
       products=[];
     }
     if(!products.length){
-      // Safe legacy fallback while the global catalog has no approved rows yet.
-      products=discoverProductsAPI({
-        query: STATE.searchQuery,
-        filters:{category:STATE.currentCategory!=='all'?STATE.currentCategory:undefined},
-        sortKey: STATE.currentSort==='featured'?'default':STATE.currentSort
-      });
+      // Do not expose the retired legacy compatibility dataset in the public
+      // storefront when the canonical catalog is empty/unavailable.
+      products=[];
     }
     if(counter) counter.textContent=products.length;
     container.innerHTML=products.length
@@ -10576,7 +10555,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     const container=document.getElementById('dealsProducts');
     if(!container) return;
     const canonical=await refreshCanonicalCatalog({limit:48});
-    const source=canonical.length ? canonical : MAHA_DATA.PRODUCTS;
+    const source=canonical;
     const products=source
       .filter(p => Number(p?.oldPrice) > Number(p?.price))
       .slice(0,12);
