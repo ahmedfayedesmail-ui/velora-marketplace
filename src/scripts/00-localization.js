@@ -10927,7 +10927,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     const user=await getUser();
     if(!user) return [];
     const {data,error}=await client.from('orders')
-      .select('id,order_number,status,subtotal,shipping,total,currency,payment_status,created_at,order_items(id,product_id,product_name,quantity,unit_price,subtotal,seller_id,store_id,store_name),shipments(id,store_id,carrier_code,service_name,tracking_number,status,tracking_url,estimated_delivery_at)')
+      .select('id,order_number,status,subtotal,shipping,total,currency,payment_status,created_at,order_items(id,product_id,product_name,quantity,unit_price,subtotal,seller_id,store_id,store_name),shipments(id,store_id,carrier_code,service_name,tracking_number,status,tracking_url,shipped_at,delivered_at,estimated_delivery_at)')
       .eq('customer_id',user.id)
       .order('created_at',{ascending:false});
     if(error){ console.warn('Velora customer orders:',error.message); return []; }
