@@ -67,19 +67,11 @@ jobs:
               )
 
               page.evaluate("""() => {
-                  window.STATE.cart = [{
-                    id: "21d977a0-111b-4bb4-9736-0f2994294d48",
-                    productId: "21d977a0-111b-4bb4-9736-0f2994294d48",
-                    canonicalId: "21d977a0-111b-4bb4-9736-0f2994294d48",
-                    name: "Test Vitamin C Serum",
-                    emoji: "🧪",
-                    price: 140,
-                    quantity: 1
-                  }];
-                  window.VELORA_MARKET_CONTEXT = Object.assign({}, window.VELORA_MARKET_CONTEXT || {}, { countryCode: "EG", currencyCode: "EGP" });
-                  window.__VELORA_CHECKOUT_CART_SYNCING = false;
-                  if (typeof window.renderCheckoutPage === "function") window.renderCheckoutPage();
-                }""")
+                  const id = "21d977a0-111b-4bb4-9736-0f2994294d48";
+                  if (typeof window.addToCart !== "function") throw new Error("PUBLIC_ADD_TO_CART_UNAVAILABLE");
+                  window.addToCart(id, 1);
+                  if (typeof window.navigateTo === "function") window.navigateTo("checkout");
+              }""")
               page.wait_for_timeout(2500)
               page.evaluate("window.VELORA_TRANSLATE_ALL && window.VELORA_TRANSLATE_ALL()")
               page.wait_for_timeout(1000)
