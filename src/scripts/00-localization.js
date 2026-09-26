@@ -10952,19 +10952,60 @@ console.log('✅ Analytics + Events + Audit loaded!');
   }
 
   function renderShipments(shipments){
-    return `<div style="padding:.9rem;background:var(--bg-alt);border-radius:12px;margin-bottom:.9rem;"><strong>🚚 Fulfillment & Tracking</strong>${shipments.map(sh=>{
-      const eta=shipmentEta(sh.estimated_delivery_at);
-      const trackingUrl=safeTrackingUrl(sh.tracking_url);
-      return `<div style="margin-top:.7rem;padding:.7rem;background:var(--bg);border-radius:10px;">
-        <div style="font-weight:800;">${escapeHtml(sh.service_name||sh.carrier_code||'Shipment')}</div>
-        <div style="font-size:.85rem;margin-top:.25rem;"><strong>Status:</strong> ${escapeHtml(shipmentLabel(sh.status||'label_created'))}</div>
-        ${sh.tracking_number?`<div style="font-size:.85rem;margin-top:.25rem;"><strong>Tracking number:</strong> <span style="font-family:monospace;">${escapeHtml(sh.tracking_number)}</span></div>`:''}
-        ${eta?`<div style="font-size:.85rem;margin-top:.25rem;"><strong>Estimated delivery:</strong> ${escapeHtml(eta)}</div>`:''}
-        ${sh.shipped_at?`<div style="font-size:.8rem;color:var(--text-muted);margin-top:.25rem;">Shipped: ${escapeHtml(new Date(sh.shipped_at).toLocaleString())}</div>`:''}
-        ${trackingUrl?`<div style="margin-top:.55rem;"><a class="btn btn-outline" href="${escapeHtml(trackingUrl)}" target="_blank" rel="noopener noreferrer">Track shipment ↗</a></div>`:''}
-        ${!trackingUrl&&sh.tracking_number?`<div style="font-size:.78rem;color:var(--text-muted);margin-top:.4rem;">Carrier tracking link will appear when the shipping provider supplies it.</div>`:''}
-      </div>`;
-    }).join('')}</div>`;
+    const STATUS_STEPS=[
+      {key:'preparing',label:'Preparing'},
+      {key:'shipped',label:'Shipped'},
+      {key:'in_transit',label:'In transit'},
+      {key:'delivered',label:'Delivered'}
+    ];
+    const statusRank={pending:0,label_created:0,preparing:1,shipped:2,in_transit:3,delivered:4,failed:2,returned:2,cancelled:0};
+    const rankFor=s=>Number(statusRank[String(s||'').toLowerCase()]??0);
+    const dateText=v=>{
+      if(!v) return null;
+      try{
+        const d=new Date(v);
+        if(Number.isNaN(d.getTime())) return null;
+        return d.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});
+      }catch(_){return null}
+    };
+    return `<div style="padding:.95rem;background:var(--bg-alt);border-radius:12px;margin-bottom:.9rem;">
+      <div style="font-weight:900;margin-bottom:.8rem;">🚚 Fulfillment &amp; Tracking</div>
+      ${shipments.map(sh=>{
+        const current=String(sh.status||'pending').toLowerCase();
+        const rank=rankFor(current);
+        const eta=dateText(sh.estimated_delivery_at);
+        const shipped=dateText(sh.shipped_at);
+        const delivered=dateText(sh.delivered_at);
+        const trackingUrl=safeTrackingUrl(sh.tracking_url);
+        const terminal=current==='failed'||current==='returned'||current==='cancelled';
+        const timeline=STATUS_STEPS.map(step=>{
+          const stepRank={preparing:1,shipped:2,in_transit:3,delivered:4}[step.key];
+          const reached=rank>=stepRank && !terminal;
+          const active=current===step.key;
+          return `<span style="display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .55rem;border-radius:999px;margin:.15rem;background:${reached?'rgba(76,175,80,.14)':'var(--bg)'};font-size:.76rem;font-weight:${active?'800':'600'};">${reached?'✓':'○'} ${escapeHtml(shipmentLabel(step.key))}</span>`;
+        }).join('');
+        const terminalHtml=terminal?`<div style="margin-top:.55rem;padding:.55rem .65rem;border-radius:9px;background:rgba(244,67,54,.08);font-size:.82rem;font-weight:700;">Status: ${escapeHtml(shipmentLabel(current))}</div>`:'';
+        return `<div style="margin-top:.7rem;padding:.8rem;background:var(--bg);border-radius:10px;">
+          <div style="display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;align-items:flex-start;">
+            <div>
+              <div style="font-weight:850;">${escapeHtml(sh.service_name||sh.carrier_code||'Shipment')}</div>
+              <div style="font-size:.82rem;margin-top:.2rem;"><strong>Current status:</strong> ${escapeHtml(shipmentLabel(current))}</div>
+            </div>
+            ${sh.tracking_number?`<div style="font-size:.82rem;"><strong>Tracking:</strong> <span style="font-family:monospace;">${escapeHtml(sh.tracking_number)}</span></div>`:''}
+          </div>
+          <div aria-label="Shipment progress" style="margin-top:.7rem;line-height:1.35;">${timeline}</div>
+          ${terminalHtml}
+          <div style="display:grid;gap:.3rem;margin-top:.65rem;font-size:.82rem;">
+            ${eta?`<div><strong>Estimated delivery:</strong> ${escapeHtml(eta)}</div>`:''}
+            ${shipped?`<div><strong>Shipped:</strong> ${escapeHtml(shipped)}</div>`:''}
+            ${delivered?`<div><strong>Delivered:</strong> ${escapeHtml(delivered)}</div>`:''}
+          </div>
+          ${trackingUrl?`<div style="margin-top:.65rem;"><a class="btn btn-outline" href="${escapeHtml(trackingUrl)}" target="_blank" rel="noopener noreferrer">Track shipment ↗</a></div>`:''}
+          ${!trackingUrl&&!sh.tracking_number?'<div style="font-size:.78rem;color:var(--text-muted);margin-top:.55rem;">Tracking will appear when the fulfillment provider assigns a tracking reference.</div>':''}
+          ${!trackingUrl&&sh.tracking_number?'<div style="font-size:.78rem;color:var(--text-muted);margin-top:.45rem;">Tracking number is available; the carrier tracking link has not been supplied yet.</div>':''}
+        </div>`;
+      }).join('')}
+    </div>`;
   }
   function renderCanonicalOrders(orders){
     const container=document.getElementById('ordersContent');
