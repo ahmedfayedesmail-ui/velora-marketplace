@@ -3208,8 +3208,8 @@ function renderCartSidebar() {
     `).join('');
 
     const subtotal = getCartTotal();
-    const shipping = subtotal >= 500 ? 0 : 30;
-    const total = subtotal + shipping;
+    const shipping = getVeloraShippingPreview();
+    const total = shipping === null ? null : subtotal + shipping;
 
     footer.innerHTML = `
         <div class="cart-summary-row">
@@ -3252,8 +3252,8 @@ function renderCartPage() {
     }
 
     const subtotal = getCartTotal();
-    const shipping = subtotal >= 500 ? 0 : 30;
-    const total = subtotal + shipping;
+    const shipping = getVeloraShippingPreview();
+    const total = shipping === null ? null : subtotal + shipping;
 
     container.innerHTML = `
         <div style="display: grid; grid-template-columns: 1fr 400px; gap: 2rem;">
@@ -3891,8 +3891,8 @@ function placeOrder(event) {
     }
 
     const subtotal = getCartTotal();
-    const shipping = subtotal >= 500 ? 0 : 30;
-    const total = subtotal + shipping;
+    const shipping = getVeloraShippingPreview();
+    const total = shipping === null ? null : subtotal + shipping;
 
     const order = {
         id: 'ORD-' + Date.now(),
@@ -4988,8 +4988,8 @@ renderCartPage = function() {
 
     const subtotal = getCartTotal();
     const discount = calculateDiscount();
-    const shipping = (subtotal - discount) >= 500 ? 0 : 30;
-    const total = Math.max(0, subtotal - discount) + shipping;
+    const shipping = getVeloraShippingPreview();
+    const total = shipping === null ? null : Math.max(0, subtotal - discount) + shipping;
 
     let couponHtml = '';
     if (appliedCoupon) {
