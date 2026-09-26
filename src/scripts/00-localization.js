@@ -8705,8 +8705,12 @@ async function loadAdminGiftCardsFromDb(){
 
 /* ============ INIT ============ */
 function initOwner() {
-    console.log('👑 Owner Command Center ready!');
-    console.log('💡 Type in console: openOwnerPlatform()');
+    if (typeof window.openOwnerPlatform === 'function') {
+        console.log('👑 Owner Command Center ready!');
+        console.log('💡 Type in console: openOwnerPlatform()');
+    } else {
+        console.warn('⚠️ Owner Command Center entrypoint is unavailable.');
+    }
 }
 
 if (document.readyState === 'loading') {
@@ -8716,10 +8720,10 @@ if (document.readyState === 'loading') {
 }
 
 /* ============ EXPOSE GLOBALLY ============ */
-window.openOwnerPlatform = openOwnerPlatform;
-window.closeOwnerPlatform = closeOwnerPlatform;
-window.showOwnerSection = showOwnerSection;
-window.toggleOwnerSidebar = toggleOwnerSidebar;
+if (typeof openOwnerPlatform === 'function') window.openOwnerPlatform = openOwnerPlatform;
+if (typeof closeOwnerPlatform === 'function') window.closeOwnerPlatform = closeOwnerPlatform;
+if (typeof showOwnerSection === 'function') window.showOwnerSection = showOwnerSection;
+if (typeof toggleOwnerSidebar === 'function') window.toggleOwnerSidebar = toggleOwnerSidebar;
 
 console.log('✅ Owner Command Center loaded!');
 
@@ -9858,11 +9862,11 @@ function addAuditToOwnerNav() {
     section.insertBefore(auditItem, section.lastElementChild);
 }
 
-// Update showOwnerSection to handle audit
-const originalShowOwnerSection = showOwnerSection;
-showOwnerSection = function(section, btn) {
+// Update the optional owner navigation without assuming a legacy owner controller exists.
+const originalShowOwnerSection = typeof window.showOwnerSection === 'function' ? window.showOwnerSection : null;
+window.showOwnerSection = function(section, btn) {
     if (section === 'audit') {
-        OWNER_STATE.currentSection = 'audit';
+        if (typeof OWNER_STATE !== 'undefined' && OWNER_STATE) OWNER_STATE.currentSection = 'audit';
 
         document.querySelectorAll('.owner-nav-item').forEach(item => item.classList.remove('active'));
         if (btn) btn.classList.add('active');
@@ -9877,7 +9881,7 @@ showOwnerSection = function(section, btn) {
     }
 
     if (section === 'search') {
-        OWNER_STATE.currentSection = 'search';
+        if (typeof OWNER_STATE !== 'undefined' && OWNER_STATE) OWNER_STATE.currentSection = 'search';
 
         document.querySelectorAll('.owner-nav-item').forEach(item => item.classList.remove('active'));
         if (btn) btn.classList.add('active');
@@ -9891,7 +9895,7 @@ showOwnerSection = function(section, btn) {
         return;
     }
 
-    return originalShowOwnerSection.apply(this, arguments);
+    if (typeof originalShowOwnerSection === 'function') return originalShowOwnerSection.apply(this, arguments);
 };
 
 /* ============================================
