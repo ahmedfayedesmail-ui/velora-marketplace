@@ -145,7 +145,6 @@ const CORE_AR={
   'Cleanser':'غسول',
   'Moisturizer':'مرطب',
   'Sunscreen':'واقي شمس',
-  'Makeup':'المكياج',
   'Daily care':'عناية يومية',
   'BEAUTY PICKS':'اختيارات الجمال',
   'Popular beauty picks':'اختيارات جمال شائعة',
