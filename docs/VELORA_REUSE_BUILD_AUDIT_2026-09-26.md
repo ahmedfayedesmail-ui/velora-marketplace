@@ -435,3 +435,66 @@ License references:
 - https://github.com/spree/spree/blob/main/LICENSE
 - https://github.com/saleor/saleor/blob/main/LICENSE
 - https://github.com/saleor/storefront/blob/main/LICENSE
+
+
+## 13. R3 — Returns / Refunds reuse target model
+
+### Reuse signals from mature commerce systems
+**Medusa — REUSE / ADAPT**
+- Treat a return as a first-class domain object separate from the order.
+- Track return items independently, including quantities actually received and damaged.
+- Model return shipping as its own shipping method/option.
+- Keep the refund amount on the return, but represent the actual refund as a payment transaction.
+- Reuse explicit workflows/state transitions rather than mixing return approval with payment execution. Reference: https://docs.medusajs.com/resources/commerce-modules/order/return and https://docs.medusajs.com/resources/commerce-modules/payment/workflows
+
+**Spree — REUSE / ADAPT**
+- Separate return authorization/return items from reimbursement/refund records.
+- Keep inventory consequences tied to return receipt/resellability rather than treating “approved” as “refunded”.
+- Preserve order/payment history rather than overwriting a single refund total. Reference: https://github.com/spree/spree/blob/main/LICENSE and the current Spree/derived model structure documented in the repository.
+
+**Vendure — REUSE / ADAPT**
+- Treat refund as its own stateful domain with explicit states such as Pending, Settled, and Failed.
+- Protect refund operations with granular Order-domain permissions.
+- Keep refund/payment transitions separate from generic order modifications. References: https://docs.vendure.io/current/core/reference/typescript-api/payment/refund-state and https://docs.vendure.io/current/core/core-concepts/permissions
+
+### Velora mapping
+Current Velora already has:
+- return request object + return items;
+- delivered-shipment eligibility gate;
+- governed return state machine;
+- refund evidence fields;
+- audit logging;
+- dispute object and state machine;
+- customer/order/store ownership boundaries.
+
+Therefore the current strategy is **ADAPT, not rebuild**:
+1. Keep the existing `returns` and `return_items` contracts.
+2. Keep eligibility and authorization server-side.
+3. Add item-level received/damaged handling only when an actual operational requirement is proven.
+4. Integrate provider refund execution through the existing payment abstraction when a real provider contract exists.
+5. Record provider refund transaction/reference separately from the return decision.
+6. Reuse the existing shipment model for customer tracking; do not invent a second generic shipment system.
+7. Introduce a dedicated return-shipment representation only if return pickup/tracking is required by the final business flow and the existing shipment contract cannot express it safely.
+
+### Explicitly NOT doing now
+- No new refund table.
+- No new return-shipment table.
+- No refund-provider adapter without provider/API evidence.
+- No customer self-service return creation until the item/store selection and return economics are defined.
+- No refund automation.
+- No inventory restock logic tied to return approval.
+- No production changes.
+
+### R3 classification
+- Return request: **ADAPT existing**
+- Return item selection: **ADAPT existing**
+- Return eligibility: **KEEP existing / harden only with evidence**
+- Return state machine: **KEEP existing**
+- Return receipt: **GAP — future operational workflow**
+- Damaged/resellable classification: **GAP — future operational workflow**
+- Return shipping/pickup: **INTEGRATE / ADAPT when provider chosen**
+- Refund calculation: **BUSINESS/LEGAL DEFINITION REQUIRED**
+- Refund provider execution: **INTEGRATE**
+- Refund state/evidence: **ADAPT existing return + payment contracts**
+- Reimbursement/commission reversal: **BUSINESS/FINOPS DEFINITION REQUIRED**
+- Customer notifications: **REUSE existing notification foundation**
