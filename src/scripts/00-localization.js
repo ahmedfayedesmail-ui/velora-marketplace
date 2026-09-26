@@ -6141,6 +6141,9 @@ function updatePlatformSwitcher() {
 
     if (!STATE.user) return;
 
+    // Platform shell is optional for marketplace-only sessions.
+    // Never let a missing optional renderer break authenticated state.
+    if (typeof renderPlatformSwitcher !== 'function') return;
     const html = renderPlatformSwitcher();
     if (!html) return;
 
