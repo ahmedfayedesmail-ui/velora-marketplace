@@ -12,8 +12,8 @@
 
     const PLATFORM_ROUTES = new Set(['seller', 'admin', 'owner']);
     const MARKETPLACE_PAGES = new Set([
-        'home', 'shop', 'guide', 'blog', 'compare', 'reviews',
-        'favorites', 'cart', 'checkout', 'orders', 'account'
+        'home', 'shop', 'shops', 'deals', 'guide', 'blog', 'compare', 'reviews',
+        'favorites', 'cart', 'checkout', 'orders', 'account', 'legal'
     ]);
 
     const originalOpenSeller = window.openSellerPlatform;
