@@ -346,7 +346,6 @@ const CORE_AR={
   'Last run':'آخر تشغيل',
   'Status':'الحالة'
 };
-};
 
 function catalog(locale){
   const code=String(locale||'en').toLowerCase();
