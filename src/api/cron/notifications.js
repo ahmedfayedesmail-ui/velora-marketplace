@@ -42,8 +42,11 @@ module.exports = async function handler(req, res) {
   }
 
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  // Keep the non-secret fallback aligned with the public key used by
+  // the browser subscription flow. Production should still provide the
+  // matching key explicitly through VAPID_PUBLIC_KEY.
   const vapidPublic = process.env.VAPID_PUBLIC_KEY ||
-    'BE5Yra8z7oNzKQdZ8qCfxOR5LPAqOdTsWuWMogdUeNRsfTWN_1ercDjb5A1LQuZrWgwWV0ovA5GIM55qD8Msmyc';
+    'BD7w_n7zLzH4GVnp0lQgTgaQgZB_eXfKd0_sYnu50hMJSkKGbpr8LhQHPxhHxkNxotCF269zNRDFY_EuKn9dSmA';
   const vapidSubject = process.env.VAPID_SUBJECT;
 
   if (!vapidPrivate || !vapidSubject) {
