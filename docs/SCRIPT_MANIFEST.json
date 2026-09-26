@@ -358,5 +358,71 @@
     "file": "59-s1-b2-beauty-recommendations.js",
     "id": "s1-b2-beauty-recommendations",
     "chars": 917
+  },
+  {
+    "order": 60,
+    "file": "60-s1-c-routine-ux.js",
+    "id": "s1-c-routine-ux",
+    "chars": 28171
+  },
+  {
+    "order": 61,
+    "file": "61-s1-c-quiz-v2.js",
+    "id": "s1-c-quiz-v2",
+    "chars": 19974
+  },
+  {
+    "order": 62,
+    "file": "62-s1-c-routine-cart.js",
+    "id": "s1-c-routine-cart",
+    "chars": 14137
+  },
+  {
+    "order": 63,
+    "file": "63-platform-router.js",
+    "id": "platform-router",
+    "chars": 6817
+  },
+  {
+    "order": 64,
+    "file": "64-s1-d-beauty-journey.js",
+    "id": "s1-d-beauty-journey",
+    "chars": 14726
+  },
+  {
+    "order": 65,
+    "file": "65-s1-d-beauty-feedback.js",
+    "id": "s1-d-beauty-feedback",
+    "chars": 13209
+  },
+  {
+    "order": 66,
+    "file": "66-s1-d-home-navigation.js",
+    "id": "s1-d-home-navigation",
+    "chars": 2031
+  },
+  {
+    "order": 67,
+    "file": "67-s1-d-beauty-feedback-admin.js",
+    "id": "s1-d-beauty-feedback-admin",
+    "chars": 10857
+  },
+  {
+    "order": 68,
+    "file": "68-s1-d-mobile-push.js",
+    "id": "s1-d-mobile-push",
+    "chars": 8019
+  },
+  {
+    "order": 69,
+    "file": "69-s1-d-seller-onboarding.js",
+    "id": "s1-d-seller-onboarding",
+    "chars": 9974
+  },
+  {
+    "order": 70,
+    "file": "70-s1-d-trust-operations.js",
+    "id": "s1-d-trust-operations",
+    "chars": 9894
   }
 ]
