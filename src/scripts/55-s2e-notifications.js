@@ -102,9 +102,26 @@
     if(!headerActions) return;
 
     var existing=document.getElementById('notifBell');
-    if(existing) existing.remove();
+    if(!getUser()){
+      if(existing) existing.remove();
+      return;
+    }
 
-    if(!getUser()) return;
+    // Reuse the existing bell instead of replacing the DOM node. Replacing it
+    // would close an open dropdown during auth refresh or other lifecycle work.
+    if(existing){
+      var button=existing.querySelector('.icon-btn');
+      if(button){
+        var label=String(document.documentElement.lang||'').toLowerCase()==='ar'
+          ? 'الإشعارات'
+          : 'Notifications';
+        button.setAttribute('title',label);
+        button.setAttribute('aria-label',label);
+      }
+      var header=existing.querySelector('.notif-header h4');
+      if(header) header.textContent='🔔 '+tx('Notifications','الإشعارات');
+      return;
+    }
 
     var wrapper=document.createElement('div');
     wrapper.innerHTML=
