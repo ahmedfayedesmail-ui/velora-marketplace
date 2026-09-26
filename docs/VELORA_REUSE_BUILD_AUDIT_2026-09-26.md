@@ -620,3 +620,43 @@ Do not expose provider credentials to the browser. Provider credentials belong i
 
 ### Current decision
 **No provider integration now.** Continue with `velora_manual` for Restore-Test E2E. A real carrier adapter requires an actual provider account/API contract and should be added as an integration adapter, not as a replacement for the existing Velora shipment model.
+
+
+## 17. Notification adaptation — shipment status events
+
+### OBSERVED FACT
+Velora already has a server-side notification foundation:
+- public.notifications
+- private.velora_create_notification(...)
+- order insert/status-change notification trigger
+- Web Push dispatch through the existing private notification dispatcher
+- service-role-only lifecycle processor and push delivery claim paths.
+
+However, the shipments table previously had no notification trigger. Shipment status changes therefore updated the authoritative shipment state and customer tracking UI without entering the existing notification event stream.
+
+### Smallest safe adaptation
+A new private trigger function private.velora_notify_shipment_event() now:
+- fires only after shipments.status changes;
+- resolves the customer from the existing shipments.order_id → orders.customer_id relationship;
+- creates one existing in-app notification with type shipment_status;
+- uses the existing notification entity contract with entity_type='shipment' and the shipment UUID;
+- maps the existing shipment state values to customer-readable messages;
+- catches notification failures so a notification problem does not roll back the shipment status update.
+
+No new notification table, delivery system, shipment column, provider, or browser listener was added.
+
+Source migration:
+- supabase/migrations/20260926123000_shipment_notification_lifecycle.sql
+- Commit: 4dfe15a34cd0074aca8801d7f38da55dcd6c80d7
+
+### Restore-Test verification
+The same migration was applied successfully to velora-restore-test.
+
+The trigger/function should be treated as source + DB verified, not Browser PASS. Actual push delivery still requires runtime/provider evidence; no such delivery claim is made here.
+
+### Classification
+- Notification infrastructure: REUSE
+- Shipment event mapping: ADAPT
+- Push delivery: REUSE / INTEGRATE
+- New provider: NOT NEEDED
+- Browser verification: PENDING
