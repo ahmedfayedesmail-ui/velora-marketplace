@@ -8,6 +8,14 @@
 (function(){
   'use strict';
 
+  // This runtime owns the public notification bell. The legacy notification
+  // implementation must never replace this DOM after bootstrap.
+  window.VELORA_AUTHORITATIVE_NOTIFICATIONS = true;
+
+  function tx(en, ar){
+    return String(document.documentElement.lang || '').toLowerCase() === 'ar' ? ar : en;
+  }
+
   function client(){ return window.mahaSupabase || window.supabaseClient || window.sb || null; }
 
   var POLL_MS=30000;
@@ -55,13 +63,13 @@
     if(isNaN(d.getTime())) return '';
     var diff=Math.max(0,Date.now()-d.getTime());
     var s=Math.floor(diff/1000);
-    if(s<60) return 'just now';
+    if(s<60) return tx('just now','دلوقتي');
     var m=Math.floor(s/60);
-    if(m<60) return m+' min ago';
+    if(m<60) return tx(m+' min ago',m+' دقيقة');
     var h=Math.floor(m/60);
-    if(h<24) return h+' hr ago';
+    if(h<24) return tx(h+' hr ago',h+' ساعة');
     var days=Math.floor(h/24);
-    if(days<30) return days+(days===1?' day ago':' days ago');
+    if(days<30) return tx(days+(days===1?' day ago':' days ago'),days+(days===1?' يوم مضى':' أيام مضت'));
     return d.toLocaleDateString();
   }
 
