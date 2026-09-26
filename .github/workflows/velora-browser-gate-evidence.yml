@@ -1,0 +1,118 @@
+name: Velora Browser Gate Evidence
+
+on:
+  push:
+    branches: [evidence/browser-gate-2026-09-26]
+
+permissions:
+  contents: read
+
+jobs:
+  browser-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af6a3d6a1f4fdf8d0d7c6578f73e1b5d7e7b3
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run browser evidence against current Preview
+        env:
+          PREVIEW_URL: https://velora-marketplace-koh7wao4t-ahmedconccc-7063.vercel.app/
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          url = os.environ["PREVIEW_URL"]
+          result = {
+              "preview_url": url,
+              "checks": {},
+              "console_errors": [],
+              "page_errors": [],
+          }
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+
+              page.on("console", lambda m: result["console_errors"].append(m.text) if m.type == "error" else None)
+              page.on("pageerror", lambda e: result["page_errors"].append(str(e)))
+
+              response = page.goto(url, wait_until="domcontentloaded", timeout=60000)
+              result["checks"]["http_status"] = response.status if response else None
+              result["checks"]["title"] = page.title()
+
+              result["checks"]["initial_lang"] = page.locator("html").get_attribute("lang")
+              result["checks"]["initial_dir"] = page.locator("html").get_attribute("dir")
+
+              page.select_option("#languageSelect", "ar")
+              page.wait_for_timeout(3500)
+
+              result["checks"]["arabic_lang"] = page.locator("html").get_attribute("lang")
+              result["checks"]["arabic_dir"] = page.locator("html").get_attribute("dir")
+              result["checks"]["language_selector"] = page.locator("#languageSelect").input_value()
+
+              result["checks"]["translation_api_ar"] = page.evaluate(
+                  "() => window.VELORA_GET_TRANSLATION && window.VELORA_GET_TRANSLATION('Shipping Information','ar')"
+              )
+
+              page.evaluate("window.renderCheckoutPage && window.renderCheckoutPage()")
+              page.wait_for_timeout(2500)
+              page.evaluate("window.VELORA_TRANSLATE_ALL && window.VELORA_TRANSLATE_ALL()")
+              page.wait_for_timeout(1000)
+
+              checkout = page.locator("#page-checkout").inner_text()
+              result["checks"]["checkout_has_shipping_ar"] = "معلومات الشحن" in checkout
+              result["checks"]["checkout_has_payment_ar"] = "طريقة الدفع" in checkout
+              result["checks"]["checkout_has_summary_ar"] = "ملخص الطلب" in checkout
+              result["checks"]["checkout_has_place_order_ar"] = "إتمام الطلب" in checkout
+              result["checks"]["checkout_excerpt"] = checkout[:2000]
+
+              browser.close()
+
+          checks = result["checks"]
+          failures = []
+          if checks["http_status"] != 200:
+              failures.append("HTTP status is not 200")
+          if checks["arabic_lang"] != "ar":
+              failures.append("document.lang did not become ar")
+          if checks["arabic_dir"] != "rtl":
+              failures.append("document.dir did not become rtl")
+          if checks["language_selector"] != "ar":
+              failures.append("language selector did not remain ar")
+          if checks["translation_api_ar"] != "معلومات الشحن":
+              failures.append("Arabic translation API did not return expected checkout translation")
+          for key in ("checkout_has_shipping_ar","checkout_has_payment_ar","checkout_has_summary_ar","checkout_has_place_order_ar"):
+              if not checks[key]:
+                  failures.append(key)
+          if result["console_errors"]:
+              failures.append(f"console errors: {len(result['console_errors'])}")
+          if result["page_errors"]:
+              failures.append(f"page errors: {len(result['page_errors'])}")
+
+          result["passed"] = not failures
+          result["failures"] = failures
+
+          with open("browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(result, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          sys.exit(1 if failures else 0)
+          PY
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-browser-gate-evidence
+          path: browser-evidence.json
