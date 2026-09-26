@@ -410,3 +410,15 @@ The current `velora_request_return` calculation starts from item unit price × r
 - Returns backend contract audit: **PASS**
 - Returns customer workflow: **GAP OBSERVED**
 - Returns/refund economics: **BLOCKED ON BUSINESS/LEGAL DECISION**
+
+
+### OBSERVED FACT — return refund execution is not implemented yet
+A Restore-Test PostgreSQL function inventory contains no public function with a `refund` name, and the current `src/scripts/13-payments.js` source contains no refund execution path beyond the Stage 9 header/reference.
+
+The canonical 6-argument `velora_resolve_return` therefore records refund evidence fields when a return enters `refunded`, but it does not itself execute a payment-provider refund.
+
+### INFERRED — return resolution and payment refund should remain separate authorities
+This separation is consistent with mature commerce architecture: return handling determines the eligible amount/state, while payment infrastructure performs the actual refund transaction and supplies provider-side evidence. Medusa documents refunds as payment transactions and supports dedicated refund workflows; Spree also separates return processing from reimbursement/payment handling. citeturn246475search0turn246475search8turn735097search2turn735097search3
+
+### License/reference note
+Current reference checks confirm Medusa's core is MIT-licensed while its Enterprise materials are separately proprietary; Spree's current main repository is BSD-3-Clause for the checked license, and Saleor's core repository is BSD-3-Clause while its storefront carries a separate FSL-1.1-ALv2 license. These are reference/architecture inputs only; no external source code has been copied into Velora. citeturn735097search0turn735097search1turn246475search5turn246475search11
