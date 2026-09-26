@@ -286,3 +286,63 @@ The audit supports the user's proposed strategy: **Velora should not rebuild com
 The existing codebase should be treated as a valuable partial implementation, not discarded. The next phase is to identify exactly where mature external patterns can reduce complexity while keeping Beauty Passport/Routine/personalization and the marketplace trust model under Velora's control.
 
 **Next concrete work:** finish the shipping/tracking gap using the already-existing shipment contract, then move through returns/refunds, checkout, settlement, legal, and security in evidence-gated order.
+
+
+## 11. Evidence update — shipping and returns audit
+
+### OBSERVED FACT — shipping customer UI is already more complete than the earlier audit snapshot
+
+Source inspection of the current audit branch shows the canonical customer order renderer already:
+- selects `tracking_number`, `status`, `tracking_url`, `shipped_at`, `delivered_at`, and `estimated_delivery_at`;
+- validates tracking URLs to HTTP(S) before rendering a link;
+- displays current shipment status;
+- displays a Preparing → Shipped → In transit → Delivered progress presentation;
+- displays terminal Failed / Returned / Cancelled state;
+- displays tracking number, ETA, shipped date, delivered date;
+- displays a Track Shipment link when a valid tracking URL exists;
+- explains when a tracking number or carrier link is not yet available.
+
+Therefore **R2 does not currently justify another UI rewrite**. The correct next step is browser evidence with a real Restore-Test shipment, not more speculative frontend code.
+
+### OBSERVED FACT — returns/disputes foundations already exist
+
+Restore-Test currently contains:
+- `returns`
+- `return_items`
+- `disputes`
+- `support_cases`
+- `delivery_proofs`
+
+The database also exposes governed SECURITY DEFINER RPCs:
+- `velora_request_return`
+- `velora_resolve_return` (two signatures)
+- `velora_open_dispute`
+- `velora_resolve_dispute`
+
+This changes R4 from **"build a return system"** to **"audit the existing contract and customer/seller UX, then fill only proven gaps."**
+
+### OBSERVED FACT — current E2E evidence is still missing
+
+Current Restore-Test counts show:
+- shipments = 0
+- return_items = 0
+- returns = 0
+- disputes = 0
+- support_cases = 0
+- payment_attempts = 0
+- provider_webhook_events = 0
+- legal_documents = 0
+- legal_acceptances = 0
+
+Therefore none of these lifecycle areas should be marked Browser PASS solely from schema/RPC existence.
+
+### Decision
+
+We are **not adding another shipping table, carrier abstraction, return schema, or custom transport layer now**.
+
+The next engineering step is evidence-first:
+1. Inspect the existing shipment RPC contract.
+2. Create one controlled Restore-Test shipment for an existing eligible order/item only if the RPC prerequisites are satisfied.
+3. Verify customer order/tracking UI in Browser Gate.
+4. Inspect existing return/dispute RPCs and UI before writing anything.
+5. Only implement a missing surface after an observed gap is reproduced.
