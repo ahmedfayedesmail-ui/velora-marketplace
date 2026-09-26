@@ -694,3 +694,14 @@ No support-case fixture was created or mutated for verification; current `suppor
 - Schema change: **NONE**
 - Production: **FROZEN**
 - Browser verification: **PENDING**
+
+
+## 13. Reuse-first reference map
+
+A dedicated 100+ reference corpus and execution map is maintained in:
+docs/VELORA_REUSE_FIRST_REFERENCE_MAP_2026-09-26.md
+
+The implementation backlog that maps the existing Velora surfaces to the reuse-first strategy is:
+docs/VELORA_REUSE_FIRST_EXECUTION_BACKLOG_2026-09-26.md
+
+These documents are the default decision record for avoiding unnecessary first-principles engineering.
