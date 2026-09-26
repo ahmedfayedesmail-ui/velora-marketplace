@@ -1,0 +1,7 @@
+# Known public Supabase client keys detected by generic secret rules in historical commits.
+# These are intentionally client-visible credentials, not server secrets.
+00789db7a51b980f6d7ab3098482af3d88bfec64:src/s2a-isolated.html:jwt:79
+d64b7b81b183b085ae585e1ab188d9e38044debd:src/s2a-isolated.html:generic-api-key:79
+911c28ae5f4672853500dd9b78a4251f18408edb:src/scripts/00-localization.js:generic-api-key:7
+ba4638a420dcf4ac012681cb21142bc80cb5d8c8:src/scripts/00-localization.js:generic-api-key:7
+ba4638a420dcf4ac012681cb21142bc80cb5d8c8:legacy/Velora_ROOT_RC9.html:generic-api-key:5364
