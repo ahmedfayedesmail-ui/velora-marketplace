@@ -36,10 +36,7 @@
         a.setAttribute('data-velora-admin-entry','true');
         a.textContent=adminLabel();
         a.setAttribute('aria-label',adminLabel());
-        a.onclick=function(){
-          if(typeof window.openAdminPlatform==='function') window.openAdminPlatform();
-          return false;
-        };
+        a.setAttribute('onclick','openAdminPlatform(); return false;');
         li.appendChild(a);
         ul.appendChild(li);
       });
