@@ -1,0 +1,243 @@
+name: Velora Authenticated Browser Evidence
+
+on:
+  push:
+    branches: [evidence/auth-cart-checkout-2026-09-26]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run authenticated cart -> checkout evidence
+        env:
+          PREVIEW_URL: https://velora-marketplace-koh7wao4t-ahmedconccc-7063.vercel.app/
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          url = os.environ["PREVIEW_URL"].rstrip("/")
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
+          test_product = "21d977a0-111b-4bb4-9736-0f2994294d48"
+
+          result = {
+              "preview_url": url,
+              "checks": {},
+              "console_errors": [],
+              "page_errors": [],
+          }
+
+          if not email or not password:
+              result["checks"]["secrets_present"] = False
+              result["failures"] = ["Missing E2E_EMAIL/E2E_PASSWORD repository secrets"]
+              with open("browser-auth-cart-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(result, f, ensure_ascii=False, indent=2)
+              print(json.dumps(result, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          result["checks"]["secrets_present"] = True
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(
+                  viewport={"width": 1440, "height": 1000},
+                  locale="en-US",
+              )
+
+              page.on(
+                  "console",
+                  lambda m: result["console_errors"].append(m.text)
+                  if m.type == "error" else None
+              )
+              page.on(
+                  "pageerror",
+                  lambda e: result["page_errors"].append(str(e))
+              )
+
+              response = page.goto(
+                  url + "/#home",
+                  wait_until="domcontentloaded",
+                  timeout=60000,
+              )
+
+              result["checks"]["http_status"] = response.status if response else None
+              result["checks"]["title"] = page.title()
+              result["checks"]["initial_lang"] = page.locator("html").get_attribute("lang")
+              result["checks"]["initial_dir"] = page.locator("html").get_attribute("dir")
+
+              page.evaluate("() => openAuthModal('login')")
+              page.locator("#loginEmail").fill(email)
+              page.locator("#loginPassword").fill(password)
+              page.locator("#authFormContent button[type='submit']").click()
+
+              page.wait_for_timeout(3500)
+
+              auth = page.evaluate("""
+                async () => {
+                  const result = { hasSession: false, userId: null };
+                  try {
+                    const r = await window.mahaSupabase.auth.getSession();
+                    result.hasSession = !!r?.data?.session?.user;
+                    result.userId = r?.data?.session?.user?.id || null;
+                  } catch (_) {}
+                  return result;
+                }
+              """)
+
+              result["checks"]["authenticated_session"] = auth["hasSession"]
+              result["checks"]["authenticated_user_id_present"] = bool(auth["userId"])
+              result["checks"]["state_user_present"] = bool(
+                  page.evaluate("() => typeof STATE !== 'undefined' && !!STATE.user")
+              )
+
+              if not auth["hasSession"]:
+                  raise RuntimeError("AUTH_SESSION_NOT_CREATED")
+
+              page.evaluate("() => navigateTo('shop')")
+              page.wait_for_timeout(1200)
+
+              page.evaluate(
+                  "(productId) => window.addToCart(productId, 1)",
+                  test_product,
+              )
+              page.wait_for_timeout(3000)
+
+              cloud_sync = page.evaluate("""
+                async () => {
+                  try {
+                    if (typeof window.veloraSyncCloudCart !== 'function') {
+                      return { ok: false, reason: "SYNC_API_UNAVAILABLE" };
+                    }
+                    return {
+                      ok: await window.veloraSyncCloudCart()
+                    };
+                  } catch (e) {
+                    return { ok: false, reason: String(e?.message || e) };
+                  }
+                }
+              """)
+
+              result["checks"]["canonical_cart_sync_ok"] = bool(cloud_sync.get("ok"))
+
+              local_cart = page.evaluate("""
+                (productId) => {
+                  const cart = (typeof STATE !== 'undefined' && Array.isArray(STATE.cart))
+                    ? STATE.cart : [];
+                  const item = cart.find(x =>
+                    String(x?.canonicalId || x?.productId || x?.id || "") === productId
+                  );
+                  return {
+                    count: cart.reduce((n, x) => n + Number(x?.quantity || 0), 0),
+                    hasProduct: !!item,
+                    quantity: Number(item?.quantity || 0)
+                  };
+                }
+              """, test_product)
+
+              result["checks"]["local_cart_has_test_product"] = local_cart["hasProduct"]
+              result["checks"]["local_cart_test_quantity"] = local_cart["quantity"]
+              result["checks"]["local_cart_count"] = local_cart["count"]
+
+              page.evaluate("() => navigateTo('checkout')")
+              page.wait_for_timeout(6000)
+
+              checkout = page.locator("#page-checkout").inner_text()
+              result["checks"]["checkout_has_product"] = "Test Vitamin C Serum" in checkout
+              result["checks"]["checkout_has_shipping_ar_after_login"] = "معلومات الشحن" in checkout
+              result["checks"]["checkout_has_payment_ar_after_login"] = "طريقة الدفع" in checkout
+              result["checks"]["checkout_has_summary_ar_after_login"] = "ملخص الطلب" in checkout
+              result["checks"]["checkout_has_place_order_ar_after_login"] = "إتمام الطلب" in checkout
+              result["checks"]["checkout_has_empty_state"] = (
+                  "Your cart is empty" in checkout or "سلة التسوق فارغة" in checkout
+              )
+
+              session_after = page.evaluate("""
+                async () => {
+                  try {
+                    const r = await window.mahaSupabase.auth.getSession();
+                    return !!r?.data?.session?.user;
+                  } catch (_) {
+                    return false;
+                  }
+                }
+              """)
+              result["checks"]["session_survived_checkout_navigation"] = bool(session_after)
+
+              browser.close()
+
+          failures = []
+          c = result["checks"]
+
+          if c.get("http_status") != 200:
+              failures.append("HTTP status is not 200")
+          if not c.get("authenticated_session"):
+              failures.append("Authenticated Supabase session was not created")
+          if not c.get("state_user_present"):
+              failures.append("Application STATE.user was not populated after login")
+          if not c.get("canonical_cart_sync_ok"):
+              failures.append("Canonical cloud cart sync did not return true")
+          if not c.get("local_cart_has_test_product"):
+              failures.append("Test product was not present in local cart state")
+          if c.get("local_cart_test_quantity", 0) < 1:
+              failures.append("Test product quantity is less than 1")
+          if c.get("checkout_has_empty_state"):
+              failures.append("Checkout rendered an empty-cart state")
+          if not c.get("checkout_has_product"):
+              failures.append("Checkout did not render the test product")
+          if not c.get("session_survived_checkout_navigation"):
+              failures.append("Authenticated session did not survive checkout navigation")
+          for key in (
+              "checkout_has_shipping_ar_after_login",
+              "checkout_has_payment_ar_after_login",
+              "checkout_has_summary_ar_after_login",
+              "checkout_has_place_order_ar_after_login",
+          ):
+              if not c.get(key):
+                  failures.append(key)
+
+          unexpected_console = [
+              e for e in result["console_errors"]
+              if "401" not in e
+          ]
+          if unexpected_console:
+              failures.append(f"unexpected console errors: {len(unexpected_console)}")
+          if result["page_errors"]:
+              failures.append(f"page errors: {len(result['page_errors'])}")
+
+          result["passed"] = not failures
+          result["failures"] = failures
+
+          with open("browser-auth-cart-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(result, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          sys.exit(1 if failures else 0)
+          PY
+
+      - name: Upload authenticated browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-auth-cart-checkout-evidence
+          path: browser-auth-cart-evidence.json
