@@ -8717,7 +8717,7 @@ if (document.readyState === 'loading') {
 
 /* ============ EXPOSE GLOBALLY ============ */
 window.openOwnerPlatform = openOwnerPlatform;
-window.closeOwnerPlatform = closeOwnerPlatform;
+window.closeOwnerPlatform = typeof closeOwnerPlatform === 'function' ? closeOwnerPlatform : function(){ const platform = document.getElementById('ownerPlatform'); if (platform) platform.classList.remove('active'); document.body.style.overflow=''; };
 window.showOwnerSection = showOwnerSection;
 window.toggleOwnerSidebar = toggleOwnerSidebar;
 
