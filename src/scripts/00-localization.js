@@ -2412,10 +2412,15 @@ const VELORA_CURRENCY_META = {
 };
 
 function detectVeloraCurrency() {
-    const saved=getFromStorage('velora_currency',null); if(saved&&VELORA_CURRENCY_META[saved]) return saved;
+    const saved=getFromStorage('velora_currency',null);
+    if(saved&&VELORA_CURRENCY_META[saved]) return saved;
     const lang=String(navigator.language||'').toLowerCase();
-    const byLocale=[['de','EUR'],['fr','EUR'],['es','EUR'],['it','EUR'],['pt','EUR'],['nl','EUR'],['en-gb','GBP'],['en-au','AUD'],['en-ca','CAD'],['en-in','INR'],['ar-eg','EGP'],['ar-ae','AED'],['ar-sa','SAR'],['ar-qa','QAR'],['ar-kw','KWD'],['ar-bh','BHD'],['ar-om','OMR'],['tr','TRY'],['zh','CNY'],['ja','JPY'],['ko','KRW'],['th','THB'],['id','IDR'],['ms','MYR'],['pl','PLN'],['sv','SEK'],['no','NOK'],['da','DKK'],['he','ILS']];
-    const hit=byLocale.find(([prefix])=>lang===prefix||lang.startsWith(prefix+'-')); return hit?hit[1]:'USD';
+    const byLocale=[['en-gb','GBP'],['en-au','AUD'],['en-ca','CAD'],['en-in','INR'],['ar-eg','EGP'],['ar-ae','AED'],['ar-sa','SAR'],['ar-qa','QAR'],['ar-kw','KWD'],['ar-bh','BHD'],['ar-om','OMR'],['de','EUR'],['fr','EUR'],['es','EUR'],['it','EUR'],['pt','EUR'],['nl','EUR'],['tr','TRY'],['zh','CNY'],['ja','JPY'],['ko','KRW'],['th','THB'],['id','IDR'],['ms','MYR'],['pl','PLN'],['sv','SEK'],['no','NOK'],['da','DKK'],['he','ILS']];
+    const hit=byLocale.find(([prefix])=>lang===prefix||lang.startsWith(prefix+'-'));
+    // Phase 1 is Egypt-first: a browser locale must not silently select
+    // another commerce market. Only an explicit EG locale maps automatically;
+    // all other locales fall back to the Egypt market currency.
+    return hit?.[1] === 'EGP' ? 'EGP' : 'EGP';
 }
 window.VELORA_CURRENCY_META = VELORA_CURRENCY_META;
 let VELORA_CURRENCY = detectVeloraCurrency();
@@ -10160,7 +10165,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     if (select && data.length) {
       const uiCurrencies = data.filter(c => !window.VELORA_CURRENCY_META || window.VELORA_CURRENCY_META[c.code]);
       const visible = uiCurrencies.length ? uiCurrencies : data;
-      const current = select.value || ctx.currencyCode || visible[0].code;
+      const current = ctx.currencyCode || visible[0].code;
       select.innerHTML = visible.map(c => `<option value=\"${escapeHtml(String(c.code))}\">${escapeHtml(String(c.code))}</option>`).join('');
       const selected = visible.some(c => c.code === current) ? current : visible[0].code;
       select.value = selected;
