@@ -10934,6 +10934,38 @@ console.log('✅ Analytics + Events + Audit loaded!');
     return Array.isArray(data)?data:[];
   }
 
+  function shipmentLabel(status){
+    const labels={pending:'Pending',label_created:'Label created',preparing:'Preparing',shipped:'Shipped',in_transit:'In transit',delivered:'Delivered',failed:'Delivery exception',returned:'Returned',cancelled:'Cancelled'};
+    const value=labels[String(status||'').toLowerCase()]||String(status||'Shipment');
+    return typeof tr==='function'?tr(value):value;
+  }
+
+  function safeTrackingUrl(value){
+    try{ const url=new URL(String(value||'')); return ['https:','http:'].includes(url.protocol)?url.href:null; }
+    catch(_){ return null; }
+  }
+
+  function shipmentEta(value){
+    if(!value) return null;
+    try{ const date=new Date(value); if(Number.isNaN(date.getTime())) return null; return date.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}); }
+    catch(_){ return null; }
+  }
+
+  function renderShipments(shipments){
+    return `<div style="padding:.9rem;background:var(--bg-alt);border-radius:12px;margin-bottom:.9rem;"><strong>🚚 Fulfillment & Tracking</strong>${shipments.map(sh=>{
+      const eta=shipmentEta(sh.estimated_delivery_at);
+      const trackingUrl=safeTrackingUrl(sh.tracking_url);
+      return `<div style="margin-top:.7rem;padding:.7rem;background:var(--bg);border-radius:10px;">
+        <div style="font-weight:800;">${escapeHtml(sh.service_name||sh.carrier_code||'Shipment')}</div>
+        <div style="font-size:.85rem;margin-top:.25rem;"><strong>Status:</strong> ${escapeHtml(shipmentLabel(sh.status||'label_created'))}</div>
+        ${sh.tracking_number?`<div style="font-size:.85rem;margin-top:.25rem;"><strong>Tracking number:</strong> <span style="font-family:monospace;">${escapeHtml(sh.tracking_number)}</span></div>`:''}
+        ${eta?`<div style="font-size:.85rem;margin-top:.25rem;"><strong>Estimated delivery:</strong> ${escapeHtml(eta)}</div>`:''}
+        ${sh.shipped_at?`<div style="font-size:.8rem;color:var(--text-muted);margin-top:.25rem;">Shipped: ${escapeHtml(new Date(sh.shipped_at).toLocaleString())}</div>`:''}
+        ${trackingUrl?`<div style="margin-top:.55rem;"><a class="btn btn-outline" href="${escapeHtml(trackingUrl)}" target="_blank" rel="noopener noreferrer">Track shipment ↗</a></div>`:''}
+        ${!trackingUrl&&sh.tracking_number?`<div style="font-size:.78rem;color:var(--text-muted);margin-top:.4rem;">Carrier tracking link will appear when the shipping provider supplies it.</div>`:''}
+      </div>`;
+    }).join('')}</div>`;
+  }
   function renderCanonicalOrders(orders){
     const container=document.getElementById('ordersContent');
     if(!container) return;
@@ -10951,7 +10983,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
           <div style="padding:.3rem .8rem;background:rgba(76,175,80,.15);color:var(--success);border-radius:999px;font-size:.8rem;font-weight:700;">${escapeHtml(order.status||'pending')}</div>
         </div>
         <div style="display:grid;gap:.55rem;margin-bottom:.9rem;">${items.map(i=>`<div style="display:flex;justify-content:space-between;gap:1rem;"><span>${escapeHtml(i.product_name||'Product')} × ${Number(i.quantity||0)}</span><span>${formatPrice(i.subtotal||0,order.currency)}</span></div>`).join('')}</div>
-        ${shipments.length?`<div style="padding:.8rem;background:var(--bg-alt);border-radius:12px;margin-bottom:.9rem;"><strong>🚚 Fulfillment</strong>${shipments.map(sh=>`<div style="font-size:.85rem;margin-top:.35rem;">${escapeHtml(sh.store_id?'Seller shipment':'Shipment')} · ${escapeHtml(sh.carrier_code||'Carrier pending')} · ${escapeHtml(sh.status||'label_created')} ${sh.tracking_number?`· ${escapeHtml(sh.tracking_number)}`:''}</div>`).join('')}</div>`:''}
+        ${shipments.length?renderShipments(shipments):''}
         <div style="display:flex;justify-content:space-between;"><span>Payment: ${escapeHtml(order.payment_status||'pending')}</span><strong style="color:var(--primary);">${formatPrice(order.total||0,order.currency)}</strong></div>
       </div>`;
     }).join('');
