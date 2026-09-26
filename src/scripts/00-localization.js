@@ -10951,7 +10951,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     catch(_){ return null; }
   }
 
-  function renderShipments(shipments){
+  function renderShipments(shipments,storeNames){
     const STATUS_STEPS=[
       {key:'preparing',label:'Preparing'},
       {key:'shipped',label:'Shipped'},
@@ -10989,6 +10989,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
           <div style="display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;align-items:flex-start;">
             <div>
               <div style="font-weight:850;">${escapeHtml(sh.service_name||sh.carrier_code||'Shipment')}</div>
+              ${storeNames?.[String(sh.store_id)]?`<div style="font-size:.82rem;margin-top:.15rem;"><strong>Seller:</strong> ${escapeHtml(storeNames[String(sh.store_id)])}</div>`:''}
               <div style="font-size:.82rem;margin-top:.2rem;"><strong>Current status:</strong> ${escapeHtml(shipmentLabel(current))}</div>
             </div>
             ${sh.tracking_number?`<div style="font-size:.82rem;"><strong>Tracking:</strong> <span style="font-family:monospace;">${escapeHtml(sh.tracking_number)}</span></div>`:''}
@@ -11017,6 +11018,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     container.innerHTML=orders.map(order=>{
       const items=Array.isArray(order.order_items)?order.order_items:[];
       const shipments=Array.isArray(order.shipments)?order.shipments:[];
+      const storeNames=Object.fromEntries(items.filter(i=>i?.store_id&&i?.store_name).map(i=>[String(i.store_id),String(i.store_name)]));
       return `<div class="form-section" style="margin-bottom:1rem;">
         <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:1rem;">
           <div><div style="font-weight:900;color:var(--primary);">Order #${escapeHtml(String(order.order_number||''))}</div>
@@ -11024,7 +11026,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
           <div style="padding:.3rem .8rem;background:rgba(76,175,80,.15);color:var(--success);border-radius:999px;font-size:.8rem;font-weight:700;">${escapeHtml(order.status||'pending')}</div>
         </div>
         <div style="display:grid;gap:.55rem;margin-bottom:.9rem;">${items.map(i=>`<div style="display:flex;justify-content:space-between;gap:1rem;"><span>${escapeHtml(i.product_name||'Product')} × ${Number(i.quantity||0)}</span><span>${formatPrice(i.subtotal||0,order.currency)}</span></div>`).join('')}</div>
-        ${shipments.length?renderShipments(shipments):''}
+        ${shipments.length?renderShipments(shipments,storeNames):''}
         <div style="display:flex;justify-content:space-between;"><span>Payment: ${escapeHtml(order.payment_status||'pending')}</span><strong style="color:var(--primary);">${formatPrice(order.total||0,order.currency)}</strong></div>
       </div>`;
     }).join('');
