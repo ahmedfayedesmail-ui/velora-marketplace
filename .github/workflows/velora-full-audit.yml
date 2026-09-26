@@ -118,6 +118,7 @@ jobs:
           npm audit --omit=dev --audit-level=high
 
       - name: Dependency audit (src)
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
