@@ -418,7 +418,20 @@ A Restore-Test PostgreSQL function inventory contains no public function with a 
 The canonical 6-argument `velora_resolve_return` therefore records refund evidence fields when a return enters `refunded`, but it does not itself execute a payment-provider refund.
 
 ### INFERRED — return resolution and payment refund should remain separate authorities
-This separation is consistent with mature commerce architecture: return handling determines the eligible amount/state, while payment infrastructure performs the actual refund transaction and supplies provider-side evidence. Medusa documents refunds as payment transactions and supports dedicated refund workflows; Spree also separates return processing from reimbursement/payment handling. citeturn246475search0turn246475search8turn735097search2turn735097search3
+This separation is consistent with mature commerce architecture: return handling determines the eligible amount/state, while payment infrastructure performs the actual refund transaction and supplies provider-side evidence. Medusa documents returns/refunds as separate fulfillment and payment concerns; Spree likewise separates return processing from reimbursement/payment handling.
+
+References:
+- https://docs.medusajs.com/resources/commerce-modules/order/return
+- https://docs.medusajs.com/user-guide/orders/payments
+- https://spreecommerce.org/docs/user/returns/returns-processing
+- https://spreecommerce.org/docs/user/orders/refunding-orders
 
 ### License/reference note
-Current reference checks confirm Medusa's core is MIT-licensed while its Enterprise materials are separately proprietary; Spree's current main repository is BSD-3-Clause for the checked license, and Saleor's core repository is BSD-3-Clause while its storefront carries a separate FSL-1.1-ALv2 license. These are reference/architecture inputs only; no external source code has been copied into Velora. citeturn735097search0turn735097search1turn246475search5turn246475search11
+Current reference checks confirm Medusa's core is MIT-licensed while its Enterprise materials are separately proprietary; Spree's current main repository is BSD-3-Clause for the checked license, and Saleor's core repository is BSD-3-Clause while its storefront carries a separate FSL-1.1-ALv2 license. These are reference/architecture inputs only; no external source code has been copied into Velora.
+
+License references:
+- https://github.com/medusajs/medusa
+- https://github.com/medusajs/medusa/blob/develop/ENTERPRISE-LICENSE.md
+- https://github.com/spree/spree/blob/main/LICENSE
+- https://github.com/saleor/saleor/blob/main/LICENSE
+- https://github.com/saleor/storefront/blob/main/LICENSE
