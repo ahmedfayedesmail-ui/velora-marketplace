@@ -2560,7 +2560,7 @@ function navigateTo(page) {
     } catch(e) {}
 
     // Load page content
-    loadPageContent(page);
+    window.loadPageContent(page);
 
     console.log('📍 Navigate:', page);
 }
