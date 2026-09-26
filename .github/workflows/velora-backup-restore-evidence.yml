@@ -1,0 +1,96 @@
+name: Velora Backup Restore Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-restore:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Checkout evidence branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
+            echo "SUPABASE_DB_URL repository secret is required."
+            exit 1
+          fi
+          echo "Backup source secret is present."
+
+      - name: Create logical application backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull postgres:17-alpine >/dev/null
+          docker run --rm             -e DB_URL="$SUPABASE_DB_URL"             -v "$PWD:/work"             postgres:17-alpine             sh -lc 'pg_dump "$DB_URL" --format=custom --no-owner --no-acl --schema=public --schema=private --file=/work/velora-app-backup.dump'
+          sha256sum velora-app-backup.dump | tee velora-app-backup.sha256
+          ls -lh velora-app-backup.dump
+
+      - name: Restore into isolated PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create velora-dr
+          docker run -d --name velora-dr-db --network velora-dr             -e POSTGRES_PASSWORD='RestoreOnly_2026!_'             -e POSTGRES_DB=velora_restore             postgres:17-alpine >/tmp/velora-dr-db.log
+          for i in $(seq 1 60); do
+            if docker exec velora-dr-db pg_isready -U postgres -d velora_restore >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          docker exec velora-dr-db pg_isready -U postgres -d velora_restore
+          docker run --rm --network velora-dr             -v "$PWD:/work"             postgres:17-alpine             sh -lc 'pg_restore --no-owner --no-acl --clean --if-exists -d "postgresql://postgres:RestoreOnly_2026!_@velora-dr-db:5432/velora_restore" /work/velora-app-backup.dump'
+
+      - name: Verify source and restored integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm             -e DB_URL="$SUPABASE_DB_URL"             postgres:17-alpine             sh -lc 'psql "$DB_URL" -Atc "select jsonb_build_object(
+              '''orders''',(select count(*) from public.orders),
+              '''order_items''',(select count(*) from public.order_items),
+              '''products''',(select count(*) from public.products),
+              '''support_cases''',(select count(*) from public.support_cases),
+              '''velora_launch_gates''',(select count(*) from public.velora_launch_gates)
+            )"' | tee source-counts.json
+
+          docker run --rm --network velora-dr             postgres:17-alpine             psql "postgresql://postgres:RestoreOnly_2026!_@velora-dr-db:5432/velora_restore" -Atc             "select jsonb_build_object(
+              'orders',(select count(*) from public.orders),
+              'order_items',(select count(*) from public.order_items),
+              'products',(select count(*) from public.products),
+              'support_cases',(select count(*) from public.support_cases),
+              'velora_launch_gates',(select count(*) from public.velora_launch_gates)
+            )" | tee restored-counts.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          def load(path):
+              return json.loads(Path(path).read_text().strip())
+
+          source = load("source-counts.json")
+          restored = load("restored-counts.json")
+
+          if source != restored:
+              raise SystemExit(f"RESTORE_MISMATCH source={source} restored={restored}")
+
+          print("RESTORE_INTEGRITY_MATCH")
+          print(json.dumps(source, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Upload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-backup-restore-evidence
+          path: |
+            velora-app-backup.dump
+            velora-app-backup.sha256
+            source-counts.json
+            restored-counts.json
