@@ -13,6 +13,61 @@
   var originalShow=window.showAdminSection;
   var originalOpen=window.openAdminPlatform;
 
+  function adminLabel(){
+    return String(document.documentElement.lang||'').toLowerCase()==='ar'
+      ? '⚙️ لوحة الإدارة'
+      : '⚙️ Admin Dashboard';
+  }
+
+  function removeAdminNavEntries(){
+    document.querySelectorAll('[data-velora-admin-entry]').forEach(function(el){
+      el.closest('li')?.remove();
+    });
+  }
+
+  function ensureAdminNavEntry(){
+    try{
+      var navLists=document.querySelectorAll('.main-nav ul, .mobile-menu-list');
+      navLists.forEach(function(ul){
+        if(ul.querySelector('[data-velora-admin-entry]')) return;
+        var li=document.createElement('li');
+        var a=document.createElement('a');
+        a.href='#';
+        a.setAttribute('data-velora-admin-entry','true');
+        a.textContent=adminLabel();
+        a.setAttribute('aria-label',adminLabel());
+        a.onclick=function(){
+          if(typeof window.openAdminPlatform==='function') window.openAdminPlatform();
+          return false;
+        };
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+    }catch(_){}
+  }
+
+  async function syncAdminNav(){
+    try{
+      var session=await client.auth.getUser();
+      var user=session?.data?.user;
+      if(!user){
+        removeAdminNavEntries();
+        return;
+      }
+      var result=await client.from('user_roles').select('role').eq('user_id',user.id);
+      if(result?.error){
+        removeAdminNavEntries();
+        return;
+      }
+      var roles=(result.data||[]).map(function(x){return String(x.role||'').toLowerCase();});
+      if(roles.includes('admin')||roles.includes('owner')) ensureAdminNavEntry();
+      else removeAdminNavEntries();
+    }catch(_){
+      removeAdminNavEntries();
+    }
+  }
+
+
   function esc(v){
     if(typeof escapeHtml==='function') return escapeHtml(String(v==null?'':v));
     return String(v==null?'':v)
@@ -207,6 +262,27 @@
     if(prevCanonical) return prevCanonical.apply(this,arguments);
     return show(section,btn);
   };
+
+  window.addEventListener('velora:languagechange', function(){
+    document.querySelectorAll('[data-velora-admin-entry]').forEach(function(a){
+      a.textContent=adminLabel();
+      a.setAttribute('aria-label',adminLabel());
+    });
+  });
+
+  if(client.auth && typeof client.auth.onAuthStateChange==='function'){
+    client.auth.onAuthStateChange(function(event){
+      if(event==='SIGNED_IN'||event==='SIGNED_OUT'||event==='TOKEN_REFRESHED'){
+        setTimeout(syncAdminNav,50);
+      }
+    });
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',syncAdminNav,{once:true});
+  }else{
+    setTimeout(syncAdminNav,0);
+  }
 
   console.log('✅ S2-D read-only admin dashboard loaded');
 })();
