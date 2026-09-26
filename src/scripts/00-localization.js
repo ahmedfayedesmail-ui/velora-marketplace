@@ -3568,10 +3568,15 @@ async function handleRegister(event) {
         const db = window.mahaSupabase;
         if (!db?.auth?.signUp) throw new Error('AUTH_UNAVAILABLE');
 
+        const authRedirect = String(window.location?.origin || '').startsWith('http')
+            ? window.location.origin
+            : 'https://velora-marketplace-git-audit-full-gate-c558d2-ahmedconccc-7063.vercel.app';
+
         const { data, error } = await db.auth.signUp({
             email,
             password,
             options: {
+                emailRedirectTo: authRedirect,
                 data: {
                     name,
                     phone: phone || null
