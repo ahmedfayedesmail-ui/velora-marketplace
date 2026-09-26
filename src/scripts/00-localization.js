@@ -10236,18 +10236,40 @@ console.log('✅ Analytics + Events + Audit loaded!');
     });
     if (error || !Array.isArray(data)) return [];
 
+    // The public storefront must only expose currencies actually mapped to
+    // the active country. Egypt currently has EGP as its active primary map.
+    let allowedCodes = [];
+    try {
+      const mapped = await client.from('country_currencies')
+        .select('currency_code')
+        .eq('country_code', ctx.countryCode)
+        .eq('is_active', true);
+      allowedCodes = (mapped?.data || []).map(x => String(x.currency_code || '').toUpperCase()).filter(Boolean);
+    } catch (_) {}
+
+    let visible = data.filter(c => {
+      const code = String(c.code || '').toUpperCase();
+      return allowedCodes.length ? allowedCodes.includes(code) : (ctx.countryCode === 'EG' && code === 'EGP');
+    });
+
+    if (!visible.length && ctx.countryCode === 'EG') {
+      visible = [{code:'EGP', name:'Egyptian Pound', symbol:'EGP', decimal_digits:2}];
+    }
+
     const select = document.getElementById('currencySelect');
-    if (select && data.length) {
-      const uiCurrencies = data.filter(c => !window.VELORA_CURRENCY_META || window.VELORA_CURRENCY_META[c.code]);
-      const visible = uiCurrencies.length ? uiCurrencies : data;
-      const current = ctx.currencyCode || visible[0].code;
-      select.innerHTML = visible.map(c => `<option value=\"${escapeHtml(String(c.code))}\">${escapeHtml(String(c.code))}</option>`).join('');
-      const selected = visible.some(c => c.code === current) ? current : visible[0].code;
+    if (select && visible.length) {
+      const current = allowedCodes.includes(String(ctx.currencyCode || '').toUpperCase())
+        ? String(ctx.currencyCode).toUpperCase()
+        : visible[0].code;
+      select.innerHTML = visible.map(c => `<option value="${escapeHtml(String(c.code))}">${escapeHtml(String(c.code))}</option>`).join('');
+      const selected = visible.some(c => String(c.code).toUpperCase() === current)
+        ? current
+        : visible[0].code;
       select.value = selected;
       if (typeof setVeloraCurrency === 'function') setVeloraCurrency(selected);
       window.VELORA_MARKET_CONTEXT.currencyCode = selected;
     }
-    return data;
+    return visible;
   }
 
   async function loadCanonicalCatalog(options={}){
