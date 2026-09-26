@@ -10448,10 +10448,22 @@ console.log('✅ Analytics + Events + Audit loaded!');
 
   const originalLoadPageContent = window.loadPageContent;
   window.loadPageContent = function(page){
+    // Canonical marketplace pages must render from the canonical catalog first;
+    // do not paint legacy product data and then replace it asynchronously.
+    if(page==='home'){
+      if(typeof renderCategories==='function') renderCategories();
+      void renderCanonicalFeatured();
+      return;
+    }
+    if(page==='shop'){
+      void renderCanonicalShop();
+      return;
+    }
+    if(page==='deals'){
+      void renderCanonicalDeals();
+      return;
+    }
     if(typeof originalLoadPageContent==='function') originalLoadPageContent(page);
-    if(page==='home') setTimeout(renderCanonicalFeatured,0);
-    if(page==='shop') setTimeout(renderCanonicalShop,0);
-    if(page==='deals') setTimeout(renderCanonicalDeals,0);
   };
 
   const originalHandleShopSearch=window.handleShopSearch;
