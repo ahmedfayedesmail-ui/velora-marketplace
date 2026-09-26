@@ -56,7 +56,7 @@ jobs:
           html = Path("src/index.html").read_text(errors="ignore")
           manifest = json.loads(Path("docs/SCRIPT_MANIFEST.json").read_text())
           loaded = [x.replace("scripts/","").split("?")[0]
-                    for x in re.findall(r'<script[^>]+src=["']([^"']+)["']', html, re.I)
+                    for x in re.findall(r"""<script[^>]+src=["']([^"']+)["']""", html, re.I)
                     if x.startswith("scripts/")]
           listed = []
           for item in manifest:
@@ -76,12 +76,14 @@ jobs:
           }, indent=2))
 
       - name: Semgrep source scan
+        if: always()
         shell: bash
         run: |
           python3 -m pip install --disable-pip-version-check --no-input semgrep
           semgrep scan --config auto --json --output semgrep.json . || true
 
       - name: Gitleaks secret scan
+        if: always()
         shell: bash
         run: |
           docker run --rm -v "${GITHUB_WORKSPACE}:/repo" ghcr.io/gitleaks/gitleaks:latest             detect --source=/repo --redact --no-banner             --report-format json --report-path=/repo/gitleaks.json --exit-code 0
@@ -132,6 +134,7 @@ jobs:
           TARGET_URL: https://velora-marketplace-22fgiiahj-ahmedconccc-7063.vercel.app
         run: |
           mkdir -p zap
+          chmod 777 zap
           docker run --rm -t             -v "${GITHUB_WORKSPACE}/zap:/zap/wrk:rw"             ghcr.io/zaproxy/zaproxy:stable             zap-baseline.py -t "$TARGET_URL"             -J zap.json -r zap.html -I || true
 
       - name: Upload web audit reports
