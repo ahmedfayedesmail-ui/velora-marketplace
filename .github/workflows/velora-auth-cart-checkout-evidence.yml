@@ -76,13 +76,23 @@ jobs:
               )
 
               auth_token_responses = []
+              response_statuses = []
               page.on(
                   "response",
-                  lambda response: auth_token_responses.append({
+                  lambda response: (
+                      response_statuses.append({
+                          "status": response.status,
+                          "url": response.url
+                      }),
+                      auth_token_responses.append({
+                          "status": response.status,
+                          "url_path": response.url.split("/auth/v1/")[-1].split("?")[0]
+                      })
+                  )
+                  if "/auth/v1/token" in response.url else response_statuses.append({
                       "status": response.status,
-                      "url_path": response.url.split("/auth/v1/")[-1].split("?")[0]
+                      "url": response.url
                   })
-                  if "/auth/v1/token" in response.url else None
               )
 
               response = page.goto(
@@ -233,6 +243,15 @@ jobs:
                 }
               """)
               result["checks"]["session_survived_checkout_navigation"] = bool(session_after)
+              result["checks"]["response_403_urls"] = [
+                  x["url"] for x in response_statuses if x["status"] == 403
+              ]
+              result["checks"]["response_406_urls"] = [
+                  x["url"] for x in response_statuses if x["status"] == 406
+              ]
+              result["checks"]["response_error_urls"] = [
+                  x for x in response_statuses if x["status"] >= 400
+              ]
 
               browser.close()
 
