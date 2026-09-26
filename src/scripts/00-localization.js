@@ -2434,8 +2434,9 @@ function setVeloraCurrency(code) {
     return true;
 }
 
-function formatPrice(price, currency = VELORA_CURRENCY) {
-    const meta = VELORA_CURRENCY_META[currency] || VELORA_CURRENCY_META.USD;
+function formatPrice(price, currency = (window.VELORA_MARKET_CONTEXT?.currencyCode || VELORA_CURRENCY)) {
+    const effectiveCurrency = currency || window.VELORA_MARKET_CONTEXT?.currencyCode || VELORA_CURRENCY;
+    const meta = VELORA_CURRENCY_META[effectiveCurrency] || VELORA_CURRENCY_META.USD;
     const value = Number.isFinite(Number(price)) ? Number(price) : 0;
     const formatted = new Intl.NumberFormat(meta.locale, {
         minimumFractionDigits: meta.digits,
