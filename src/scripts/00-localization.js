@@ -10763,6 +10763,11 @@ console.log('✅ Analytics + Events + Audit loaded!');
   };
 
   async function syncCloudCartFromServer(){
+    // Wait for any in-flight local-to-cloud cart write before reading the
+    // canonical cart. This closes the add-to-cart -> checkout race.
+    if(cloudCartWritePromise){
+      try{ await cloudCartWritePromise; }catch(_){}
+    }
     const user=await currentUser();
     if(!user) return false;
     const reqId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
@@ -10828,17 +10833,34 @@ console.log('✅ Analytics + Events + Audit loaded!');
     }
   }
 
+  let cloudCartWritePromise = null;
+
   async function pushCartItem(productId,quantity){
-    const user=await currentUser();
-    if(!user || !isUuid(productId)) return;
-    try{
-      const currency=window.VELORA_MARKET_CONTEXT?.currencyCode||VELORA_CURRENCY||'USD';
-      if(quantity<=0){
-        await client.rpc('velora_remove_cart_item',{p_product_id:productId});
-      }else{
-        await client.rpc('velora_upsert_cart_item',{p_product_id:productId,p_quantity:Number(quantity),p_currency:currency});
+    const write=async()=>{
+      const user=await currentUser();
+      if(!user || !isUuid(productId)) return true;
+      try{
+        const currency=window.VELORA_MARKET_CONTEXT?.currencyCode||VELORA_CURRENCY||'USD';
+        if(quantity<=0){
+          const {error}=await client.rpc('velora_remove_cart_item',{p_product_id:productId});
+          if(error) throw error;
+        }else{
+          const {error}=await client.rpc('velora_upsert_cart_item',{p_product_id:productId,p_quantity:Number(quantity),p_currency:currency});
+          if(error) throw error;
+        }
+        return true;
+      }catch(err){
+        console.warn('Velora cloud cart write:',err);
+        return false;
       }
-    }catch(err){ console.warn('Velora cloud cart write:',err); }
+    };
+
+    // Serialize cloud-cart writes so checkout cannot race a pending
+    // add/update/remove operation.
+    cloudCartWritePromise = (cloudCartWritePromise || Promise.resolve())
+      .catch(()=>false)
+      .then(write);
+    return cloudCartWritePromise;
   }
 
   const originalAddToCart=window.addToCart;
