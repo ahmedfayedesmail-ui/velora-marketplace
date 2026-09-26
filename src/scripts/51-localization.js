@@ -95,6 +95,7 @@ const CORE_AR={
   'Global Experience':'التجربة العامة',
   'Seller Applications':'طلبات البائعين',
   'Explore Velora':'استكشف Velora',
+  'Discover beauty products from Velora stores.':'اكتشفي منتجات الجمال من متاجر Velora.',
   'PERSONAL BEAUTY EXPERIENCE':'تجربة جمال شخصية',
   'Your beauty. Your routine.':'جمالك. روتينك.',
   'Built around you.':'مصمم ليك.',
