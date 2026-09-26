@@ -57,7 +57,7 @@
 </button>
 <button class="icon-btn" id="accountBtn" onclick="handleAccountClick()" title="Account">👤</button>
 <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Theme">🌙</button>
-<select class="icon-btn" id="languageSelect" onchange="setVeloraLanguage(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem" title="Language"><option value="en">EN</option><option value="ar">AR</option></select>
+<select class="icon-btn" id="languageSelect" onchange="setVeloraLanguage(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem" title="Language" data-velora-i18n-title="Language"><option value="en">EN</option><option value="ar">AR</option></select>
 <select class="icon-btn" id="currencySelect" onchange="setVeloraCurrency(this.value)" style="width:auto;padding:0 .5rem;font-size:.8rem;max-width:88px" title="Currency"><option value="EGP">EGP</option></select>
 <button class="menu-btn" onclick="toggleMobileMenu()" title="Menu">☰</button>
 </div>
@@ -186,25 +186,25 @@
 <!-- Search -->
 <div class="search-bar">
 <span class="search-icon">🔍</span>
-<input id="shopSearch" oninput="handleShopSearch(this.value)" placeholder="Search for a product..." type="text"/>
+<input id="shopSearch" oninput="handleShopSearch(this.value)" placeholder="Search for a product..." data-velora-i18n-placeholder="Search for a product..." type="text"/>
 <button class="clear-search" id="clearSearch" onclick="clearShopSearch()" style="display:none;">✕</button>
 </div>
 <!-- Filters -->
 <div class="filters-bar">
 <div class="filter-tabs" id="categoryFilters">
-<button class="filter-tab active" data-cat="all" onclick="filterShop('all', this)">🛍️ All</button>
+<button class="filter-tab active" data-cat="all" onclick="filterShop('all', this)">🛍️ <span data-velora-i18n="All">All</span></button>
 <button class="filter-tab" data-cat="beauty" onclick="filterShop('beauty', this)">✨ Beauty</button>
 </div>
 <select class="sort-select" id="sortSelect" onchange="sortProducts(this.value)">
-<option value="featured">Featured</option>
-<option value="price-low">Price: Low to High</option>
-<option value="price-high">Price: High to Low</option>
-<option value="rating">Top Rated</option>
-<option value="name">Name (A-Z)</option>
+<option value="featured" data-velora-i18n="Featured">Featured</option>
+<option value="price-low" data-velora-i18n="Price: Low to High">Price: Low to High</option>
+<option value="price-high" data-velora-i18n="Price: High to Low">Price: High to Low</option>
+<option value="rating" data-velora-i18n="Top Rated">Top Rated</option>
+<option value="name" data-velora-i18n="Name (A-Z)">Name (A-Z)</option>
 </select>
 </div>
 <div class="results-count">
-<span id="resultsCount">0</span> products
+<span id="resultsCount">0</span> <span data-velora-i18n="products">products</span>
             </div>
 <div class="products-grid" id="shopProducts">
 <!-- Will be filled by JS -->
