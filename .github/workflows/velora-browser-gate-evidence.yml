@@ -55,7 +55,7 @@ jobs:
               result["checks"]["initial_lang"] = page.locator("html").get_attribute("lang")
               result["checks"]["initial_dir"] = page.locator("html").get_attribute("dir")
 
-              page.select_option("#languageSelect", "ar")
+              page.locator("#languageSelect").evaluate("(e) => { e.value = 'ar'; e.dispatchEvent(new Event('change', { bubbles: true })); }")
               page.wait_for_timeout(3500)
 
               result["checks"]["arabic_lang"] = page.locator("html").get_attribute("lang")
