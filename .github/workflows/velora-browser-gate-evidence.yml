@@ -66,13 +66,20 @@ jobs:
                   "() => window.VELORA_GET_TRANSLATION && window.VELORA_GET_TRANSLATION('Shipping Information','ar')"
               )
 
-              page.evaluate("""() => {
+              fixture = page.evaluate("""() => {
                   const id = "21d977a0-111b-4bb4-9736-0f2994294d48";
                   if (typeof window.addToCart !== "function") throw new Error("PUBLIC_ADD_TO_CART_UNAVAILABLE");
+                  if (typeof window.renderCheckoutPage !== "function") throw new Error("CHECKOUT_RENDER_UNAVAILABLE");
                   window.addToCart(id, 1);
-                  if (typeof window.navigateTo === "function") window.navigateTo("checkout");
+                  window.renderCheckoutPage();
+                  const badge = document.getElementById("cartBadge");
+                  return {
+                    cart_badge: badge?.textContent?.trim() || "",
+                    checkout_text: document.getElementById("page-checkout")?.innerText || ""
+                  };
               }""")
-              page.wait_for_timeout(2500)
+              result["checks"]["cart_badge_after_public_add"] = fixture["cart_badge"]
+              page.wait_for_timeout(500)
               page.evaluate("window.VELORA_TRANSLATE_ALL && window.VELORA_TRANSLATE_ALL()")
               page.wait_for_timeout(1000)
 
