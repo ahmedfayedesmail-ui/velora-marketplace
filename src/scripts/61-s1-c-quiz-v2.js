@@ -353,11 +353,15 @@
   function setEntryLabel(button, complete) {
     if (!button) return;
     button.textContent = complete
-      ? t('See my routine', 'شوفي روتينك')
+      ? t('شوفي روتينك', 'See my routine')
       : t('Build my routine', 'اعرفي روتينك');
     button.dataset.passportState = complete ? 'v2-complete' : 'needs-v2';
   }
 
+  window.addEventListener('velora:languagechange', function () {
+    refreshEntryPoint();
+  });
+  
   async function refreshEntryPoint() {
     const button = document.getElementById('veloraRoutineEntry');
     if (!button) return;
