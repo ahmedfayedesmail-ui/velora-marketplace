@@ -4,15 +4,17 @@ import {createClient} from "npm:@supabase/supabase-js@2";
 import {constantTimeEqualHex,getProviderMode,hmacSha512Hex,resolvePaymobHmacSecret} from "./_shared/hmac.ts";
 const json=(p:unknown,s=200)=>new Response(JSON.stringify(p),{status:s,headers:{"content-type":"application/json"}});
 const fields=["amount_cents","created_at","currency","error_occured","has_parent_transaction","id","integration_id","is_3d_secure","is_auth","is_capture","is_refunded","is_standalone_payment","is_voided","order.id","owner","pending","source_data.pan","source_data.sub_type","source_data.type","success"];
-// nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
 const val=(o:Record<string,unknown>,path:string)=>{
-  let current:unknown=o;
-  for(const key of path.split(".")){
-    if(current==null || typeof current!=="object") return "";
-    if(!Object.prototype.hasOwnProperty.call(current,key)) return "";
-    current=(current as Record<string,unknown>)[key];
+  if(path==="order.id"){
+    const order=o.order;
+    return order&&typeof order==="object"&&"id" in order ? String((order as Record<string,unknown>).id??"") : "";
   }
-  return current==null?"":String(current);
+  if(path==="source_data.pan"||path==="source_data.sub_type"||path==="source_data.type"){
+    const source=o.source_data;
+    const key=path.slice("source_data.".length);
+    return source&&typeof source==="object"&&key in source ? String((source as Record<string,unknown>)[key]??"") : "";
+  }
+  return Object.prototype.hasOwnProperty.call(o,path) ? String(o[path]??"") : "";
 };
 const extra=(o:Record<string,unknown>)=>{const k=o.payment_key_claims;return k&&typeof k==="object"&&((k as Record<string,unknown>).extra)&&typeof((k as Record<string,unknown>).extra)==="object"?((k as Record<string,unknown>).extra as Record<string,unknown>):{}};
 function statusOf(o:Record<string,unknown>){const e=extra(o),mo=typeof e.velora_mock_outcome==="string"?String(e.velora_mock_outcome).toLowerCase():"";if(mo==="requires_action")return"requires_action";if(mo==="token_expired")return"failed";const success=o.success===true,pending=o.pending===true,ref=o.is_refunded===true,voided=o.is_voided===true,auth=o.is_auth===true,capture=o.is_capture===true,captured=o.is_captured===true;if(ref)return"refunded";if(voided)return"failed";if(pending)return"pending";if(success&&captured)return"captured";if(success&&auth&&!capture)return"authorized";if(!success)return"failed";return"pending"}function transitionPaymentStatus(current:string,incoming:string){if(!current||current===incoming)return incoming;if(current==="refunded")return"refunded";if(current==="captured")return incoming==="refunded"?"refunded":"captured";if(current==="failed"||current==="cancelled")return current;if(current==="authorized"){if(incoming==="captured"||incoming==="refunded"||incoming==="failed")return incoming;return"authorized"}if(current==="requires_action"){if(["authorized","captured","refunded","failed","cancelled"].includes(incoming))return incoming;return"requires_action"}return incoming}
