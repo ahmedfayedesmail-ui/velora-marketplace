@@ -4242,7 +4242,7 @@ function initApp() {
 
     // Load page from URL
     const hash = window.location.hash.replace('#', '');
-    const validPages = ['home', 'shop', 'guide', 'blog', 'compare', 'reviews', 'favorites', 'cart', 'checkout', 'orders', 'account'];
+    const validPages = ['home', 'shop', 'shops', 'deals', 'guide', 'blog', 'compare', 'reviews', 'favorites', 'cart', 'checkout', 'orders', 'account', 'legal'];
     const startPage = validPages.includes(hash) ? hash : 'home';
 
     // Navigate to start page
