@@ -10112,6 +10112,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
   // placeholder context or issue duplicate catalog requests.
   let marketContextPromise = null;
   const catalogInFlight = new Map();
+  const catalogCache = new Map();
 
   const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 
@@ -10203,7 +10204,10 @@ console.log('✅ Analytics + Events + Audit loaded!');
     const ctx = hasUsableContext ? existingCtx : await loadMarketContext();
 
     const requestArgs = {
-      p_country_code: options.countryCode ?? ctx.countryCode ?? null,
+      // Country is intentionally opt-in here. Do not infer a storefront
+      // country from browser locale because an en-US browser does not mean
+      // the customer is shopping in the US.
+      p_country_code: options.countryCode ?? null,
       p_currency_code: options.currencyCode ?? ctx.currencyCode ?? null,
       p_category_slug: options.categorySlug ?? null,
       p_search: options.search ?? null,
@@ -10211,6 +10215,13 @@ console.log('✅ Analytics + Events + Audit loaded!');
       p_offset: options.offset ?? 0
     };
     const requestKey = JSON.stringify(requestArgs);
+
+    if (catalogCache.has(requestKey)) {
+      window.VELORA_CANONICAL_CATALOG = catalogCache.get(requestKey);
+      window.VELORA_CANONICAL_CATALOG_LOADED_AT = Date.now();
+      window.VELORA_CANONICAL_CATALOG_REQUEST_KEY = requestKey;
+      return window.VELORA_CANONICAL_CATALOG;
+    }
 
     if (catalogInFlight.has(requestKey)) {
       return catalogInFlight.get(requestKey);
@@ -10225,6 +10236,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
       window.VELORA_CANONICAL_CATALOG = Array.isArray(data) ? data : [];
       window.VELORA_CANONICAL_CATALOG_LOADED_AT = Date.now();
       window.VELORA_CANONICAL_CATALOG_REQUEST_KEY = requestKey;
+      catalogCache.set(requestKey, window.VELORA_CANONICAL_CATALOG);
       return window.VELORA_CANONICAL_CATALOG;
     })();
 
@@ -10422,7 +10434,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function refreshCanonicalCatalog(options={}){
     try{
       const rows = await window.veloraLoadCanonicalCatalog({
-        countryCode: options.countryCode ?? window.VELORA_MARKET_CONTEXT?.countryCode ?? null,
+        countryCode: options.countryCode ?? null,
         currencyCode: options.currencyCode ?? window.VELORA_MARKET_CONTEXT?.currencyCode ?? null,
         categorySlug: options.categorySlug ?? (STATE.currentCategory !== 'all' ? STATE.currentCategory : null),
         search: options.search ?? STATE.searchQuery ?? null,
