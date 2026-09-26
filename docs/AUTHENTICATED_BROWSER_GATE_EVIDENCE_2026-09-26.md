@@ -66,3 +66,20 @@ Post-change DB verification:
 **INFERRED:** The former notification 403s were caused by the mismatch between the RPC security context and the intentionally revoked direct `notifications` table access.
 
 **NOT PROVEN:** This is not a full live payment settlement proof, not a Production browser proof, and not a complete end-to-end order-placement proof. Production remains frozen.
+
+## 2026-09-26 Evidence Provenance Hardening
+
+The earlier successful Browser artifact is retained as historical evidence, but it is not used as the canonical Launch Gate input because its workflow commit and fixed Preview deployment were not independently identical.
+
+A new manual workflow was added:
+- .github/workflows/velora-authenticated-browser-gate.yml
+- It runs only on workflow_dispatch.
+- It pins the exact known-good Preview deployment:
+  https://velora-marketplace-atzotfrna-ahmedconccc-7063.vercel.app/
+- That Preview is the Vercel deployment created from tested Preview SHA:
+  0d0eed6a56c3fe2775bc8c32a81a7df1c37a022f
+- The artifact records both tested_preview_sha and the workflow SHA separately.
+- The artifact is ingested only through the service-role-only browser evidence RPC.
+- No Browser PASS is recorded until the workflow actually runs successfully.
+
+This removes the earlier provenance ambiguity between "workflow source revision" and "Preview code revision."
