@@ -3218,7 +3218,7 @@ function renderCartSidebar() {
         </div>
         <div class="cart-summary-row">
             <span>Shipping</span>
-            <span>${shipping === null ? 'Calculated at checkout' : (shipping === 0 ? '🎉 Free' : formatPrice(shipping))}</span>
+            <span>${shipping === null ? 'Calculated at checkout' : (shipping === 0 ? '🎉 ' + veloraCheckoutText('Free') : formatPrice(shipping))}</span>
         </div>
         <div class="cart-summary-row total">
             <span>Total</span>
@@ -3278,9 +3278,9 @@ function renderCartPage() {
                 `).join('')}
             </div>
             <div class="order-summary">
-                <h3>Summary</h3>
-                <div class="order-total-row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
-                <div class="order-total-row"><span>Shipping</span><span>${shipping === null ? 'Calculated at checkout' : (shipping === 0 ? 'Free' : formatPrice(shipping))}</span></div>
+                <h3>${veloraCheckoutText('Summary')}</h3>
+                <div class="order-total-row"><span>${veloraCheckoutText('Subtotal')}</span><span>${formatPrice(subtotal)}</span></div>
+                <div class="order-total-row"><span>${veloraCheckoutText('Shipping')}</span><span>${shipping === null ? 'Calculated at checkout' : (shipping === 0 ? 'Free' : formatPrice(shipping))}</span></div>
                 <div class="order-total-row grand"><span>Total</span><span>${total === null ? '—' : formatPrice(total)}</span></div>
                 <button class="btn btn-primary btn-block btn-lg" style="margin-top: 1.5rem;" onclick="navigateTo('checkout')">
                     💳 Checkout
@@ -3466,7 +3466,7 @@ function openAuthModal(mode = 'login') {
         content.innerHTML = `
             <form class="auth-form" onsubmit="handleLogin(event)">
                 <div class="form-group">
-                    <label>Email</label>
+                    <label>${veloraCheckoutText('Email')}</label>
                     <input type="email" class="form-input" id="loginEmail" required placeholder="example@email.com">
                 </div>
                 <div class="form-group">
@@ -3489,7 +3489,7 @@ function openAuthModal(mode = 'login') {
                     <input type="text" class="form-input" id="regName" required minlength="3" placeholder="Your name">
                 </div>
                 <div class="form-group">
-                    <label>Email</label>
+                    <label>${veloraCheckoutText('Email')}</label>
                     <input type="email" class="form-input" id="regEmail" required placeholder="example@email.com">
                 </div>
                 <div class="form-group">
@@ -3733,7 +3733,7 @@ function renderAccountPage() {
                 <input type="text" class="form-input" value="${escapeHtml(STATE.user.name)}" readonly>
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
-                <label>Email</label>
+                <label>${veloraCheckoutText('Email')}</label>
                 <input type="email" class="form-input" value="${escapeHtml(STATE.user.email)}" readonly>
             </div>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
@@ -3803,6 +3803,11 @@ function renderOrdersPage() {
 }
 
 /* ============ CHECKOUT ============ */
+function veloraCheckoutText(text) {
+    return typeof window.VELORA_GET_TRANSLATION === 'function'
+        ? window.VELORA_GET_TRANSLATION(String(text))
+        : String(text);
+}
 function renderCheckoutPage() {
     console.log('[CHECKOUT]', {
         called: true,
@@ -3838,54 +3843,54 @@ function renderCheckoutPage() {
     formContainer.innerHTML = `
         <form class="checkout-form" onsubmit="placeOrder(event)">
             <div class="form-section">
-                <h3>📋 Shipping Information</h3>
+                <h3>📋 ${veloraCheckoutText('Shipping Information')}</h3>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Full Name *</label>
+                        <label>${veloraCheckoutText('Full Name')} *</label>
                         <input type="text" class="form-input" id="custName" required>
                     </div>
                     <div class="form-group">
-                        <label>Phone *</label>
+                        <label>${veloraCheckoutText('Phone')} *</label>
                         <input type="tel" class="form-input" id="custPhone" required>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Email</label>
+                    <label>${veloraCheckoutText('Email')}</label>
                     <input type="email" class="form-input" id="custEmail">
                 </div>
                 <div class="form-row" style="margin-top: 1rem;">
                     <div class="form-group">
-                        <label>City *</label>
+                        <label>${veloraCheckoutText('City')} *</label>
                         <input type="text" class="form-input" id="custCity" required>
                     </div>
                     <div class="form-group">
-                        <label>Address *</label>
+                        <label>${veloraCheckoutText('Address')} *</label>
                         <input type="text" class="form-input" id="custAddress" required>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Notes (optional)</label>
+                    <label>${veloraCheckoutText('Notes (optional)')}</label>
                     <textarea class="form-textarea" id="custNotes"></textarea>
                 </div>
             </div>
 
             <div class="form-section">
-                <h3>💳 Payment Method</h3>
+                <h3>💳 ${veloraCheckoutText('Payment Method')}</h3>
                 <div class="payment-methods">
                     <div class="payment-method selected" onclick="selectPayment('cod', this)">
                         <div class="payment-radio"></div>
                         <div class="payment-icon">💵</div>
                         <div class="payment-info">
-                            <div class="payment-name">Cash on Delivery</div>
-                            <div class="payment-desc">Pay when you receive</div>
+                            <div class="payment-name">${veloraCheckoutText('Cash on Delivery')}</div>
+                            <div class="payment-desc">${veloraCheckoutText('Pay when you receive')}</div>
                         </div>
                     </div>
                     <div class="payment-method" onclick="selectPayment('vodafone', this)">
                         <div class="payment-radio"></div>
                         <div class="payment-icon">📱</div>
                         <div class="payment-info">
-                            <div class="payment-name">Vodafone Cash</div>
-                            <div class="payment-desc">Transfer via wallet</div>
+                            <div class="payment-name">${veloraCheckoutText('Vodafone Cash')}</div>
+                            <div class="payment-desc">${veloraCheckoutText('Transfer via wallet')}</div>
                         </div>
                     </div>
                     <div class="payment-method" onclick="selectPayment('instapay', this)">
@@ -3893,14 +3898,14 @@ function renderCheckoutPage() {
                         <div class="payment-icon">⚡</div>
                         <div class="payment-info">
                             <div class="payment-name">InstaPay</div>
-                            <div class="payment-desc">Instant transfer</div>
+                            <div class="payment-desc">${veloraCheckoutText('Instant transfer')}</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <button type="submit" class="btn btn-primary btn-block btn-lg">
-                🎉 Place Order
+                🎉 ${veloraCheckoutText('Place Order')}
             </button>
         </form>
     `;
@@ -3918,22 +3923,22 @@ function renderCheckoutSummary() {
     const total = shipping === null ? null : subtotal + shipping;
 
     container.innerHTML = `
-        <h3>Summary</h3>
+        <h3>${veloraCheckoutText('Summary')}</h3>
         ${STATE.cart.map(item => `
             <div class="order-item">
                 <div class="order-item-emoji">${item.emoji}</div>
                 <div class="order-item-info">
                     <div class="order-item-name">${escapeHtml(item.name)}</div>
-                    <div class="order-item-qty">Qty: ${item.quantity}</div>
+                    <div class="order-item-qty">${veloraCheckoutText('Qty')}: ${item.quantity}</div>
                 </div>
                 <div class="order-item-price">${formatPrice(item.price * item.quantity)}</div>
             </div>
         `).join('')}
         <div class="order-total-row" style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid var(--border);">
-            <span>Subtotal</span><span>${formatPrice(subtotal)}</span>
+            <span>${veloraCheckoutText('Subtotal')}</span><span>${formatPrice(subtotal)}</span>
         </div>
         <div class="order-total-row">
-            <span>Shipping</span><span>${shipping === null ? '—' : (shipping === 0 ? '🎉 Free' : formatPrice(shipping))}</span>
+            <span>${veloraCheckoutText('Shipping')}</span><span>${shipping === null ? '—' : (shipping === 0 ? '🎉 ' + veloraCheckoutText('Free') : formatPrice(shipping))}</span>
         </div>
         <div class="order-total-row grand">
             <span>Total</span><span>${total === null ? '—' : formatPrice(total)}</span>
@@ -5105,11 +5110,11 @@ renderCartPage = function() {
                 `).join('')}
             </div>
             <div class="order-summary">
-                <h3>Summary</h3>
+                <h3>${veloraCheckoutText('Summary')}</h3>
                 ${couponHtml}
-                <div class="order-total-row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
+                <div class="order-total-row"><span>${veloraCheckoutText('Subtotal')}</span><span>${formatPrice(subtotal)}</span></div>
                 ${discount > 0 ? `<div class="order-total-row" style="color: var(--success); font-weight: 700;"><span>Discount</span><span>-${formatPrice(discount)}</span></div>` : ''}
-                <div class="order-total-row"><span>Shipping</span><span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
+                <div class="order-total-row"><span>${veloraCheckoutText('Shipping')}</span><span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
                 <div class="order-total-row grand"><span>Total</span><span>${formatPrice(total)}</span></div>
                 <button class="btn btn-primary btn-block btn-lg" style="margin-top: 1.5rem;" onclick="navigateTo('checkout')">
                     💳 Checkout
@@ -5135,25 +5140,25 @@ renderCheckoutSummary = function() {
     const total = shipping === null ? null : Math.max(0, subtotal - discount - giftCardDiscount) + shipping;
 
     container.innerHTML = `
-        <h3>Summary</h3>
+        <h3>${veloraCheckoutText('Summary')}</h3>
         ${STATE.cart.map(item => `
             <div class="order-item">
                 <div class="order-item-emoji">${item.emoji}</div>
                 <div class="order-item-info">
                     <div class="order-item-name">${escapeHtml(item.name)}</div>
-                    <div class="order-item-qty">Qty: ${item.quantity}</div>
+                    <div class="order-item-qty">${veloraCheckoutText('Qty')}: ${item.quantity}</div>
                 </div>
                 <div class="order-item-price">${formatPrice(item.price * item.quantity)}</div>
             </div>
         `).join('')}
         ${appliedCoupon ? `<div style="display: flex; justify-content: space-between; padding: 0.5rem 0; color: var(--success); font-weight: 700;"><span>🎟️ ${appliedCoupon.code}</span><span>-${formatPrice(discount)}</span></div>` : ''}
         <div class="order-total-row" style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid var(--border);">
-            <span>Subtotal</span><span>${formatPrice(subtotal)}</span>
+            <span>${veloraCheckoutText('Subtotal')}</span><span>${formatPrice(subtotal)}</span>
         </div>
         ${discount > 0 ? `<div class="order-total-row" style="color: var(--success); font-weight: 700;"><span>Discount</span><span>-${formatPrice(discount)}</span></div>` : ''}
         ${giftCardDiscount > 0 ? `<div class="order-total-row" style="color: var(--success); font-weight: 700;"><span>🎁 Gift card</span><span>-${formatPrice(giftCardDiscount)}</span></div>` : ''}
         <div class="order-total-row">
-            <span>Shipping</span><span>${shipping === 0 ? '🎉 Free' : formatPrice(shipping)}</span>
+            <span>${veloraCheckoutText('Shipping')}</span><span>${shipping === 0 ? '🎉 Free' : formatPrice(shipping)}</span>
         </div>
         <div class="order-total-row grand">
             <span>Total</span><span>${formatPrice(total)}</span>
@@ -6515,7 +6520,7 @@ renderAccountPage = function() {
                 <input type="text" class="form-input" value="${escapeHtml(STATE.user.name)}" readonly>
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
-                <label>Email</label>
+                <label>${veloraCheckoutText('Email')}</label>
                 <input type="email" class="form-input" value="${escapeHtml(STATE.user.email)}" readonly>
             </div>
 
