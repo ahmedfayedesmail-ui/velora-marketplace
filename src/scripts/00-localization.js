@@ -3218,11 +3218,11 @@ function renderCartSidebar() {
         </div>
         <div class="cart-summary-row">
             <span>Shipping</span>
-            <span>${shipping === 0 ? '🎉 Free' : formatPrice(shipping)}</span>
+            <span>${shipping === null ? 'Calculated at checkout' : (shipping === 0 ? '🎉 Free' : formatPrice(shipping))}</span>
         </div>
         <div class="cart-summary-row total">
             <span>Total</span>
-            <span>${formatPrice(total)}</span>
+            <span>${total === null ? '—' : formatPrice(total)}</span>
         </div>
         <div class="cart-actions">
             <button class="btn btn-primary btn-block" onclick="closeCart(); navigateTo('checkout');">
@@ -3280,8 +3280,8 @@ function renderCartPage() {
             <div class="order-summary">
                 <h3>Summary</h3>
                 <div class="order-total-row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
-                <div class="order-total-row"><span>Shipping</span><span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
-                <div class="order-total-row grand"><span>Total</span><span>${formatPrice(total)}</span></div>
+                <div class="order-total-row"><span>Shipping</span><span>${shipping === null ? 'Calculated at checkout' : (shipping === 0 ? 'Free' : formatPrice(shipping))}</span></div>
+                <div class="order-total-row grand"><span>Total</span><span>${total === null ? '—' : formatPrice(total)}</span></div>
                 <button class="btn btn-primary btn-block btn-lg" style="margin-top: 1.5rem;" onclick="navigateTo('checkout')">
                     💳 Checkout
                 </button>
@@ -4916,8 +4916,8 @@ renderCartSidebar = function() {
 
     const subtotal = getCartTotal();
     const discount = calculateDiscount();
-    const shipping = (subtotal - discount) >= 500 ? 0 : 30;
-    const total = Math.max(0, subtotal - discount) + shipping;
+    const shipping = getVeloraShippingPreview();
+    const total = shipping === null ? null : Math.max(0, subtotal - discount) + shipping;
 
     // Coupon section
     let couponHtml = '';
