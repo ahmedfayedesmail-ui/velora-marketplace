@@ -354,7 +354,7 @@
     if (!button) return;
     button.textContent = complete
       ? t('شوفي روتينك', 'See my routine')
-      : t('Build my routine', 'اعرفي روتينك');
+      : t('اعرفي روتينك', 'Build my routine');
     button.dataset.passportState = complete ? 'v2-complete' : 'needs-v2';
   }
 
@@ -429,7 +429,7 @@
     button.id = 'veloraRoutineEntry';
     button.className = 'btn btn-primary btn-lg';
     button.type = 'button';
-    button.textContent = t('Build my routine','اعرفي روتينك');
+    button.textContent = t('اعرفي روتينك','Build my routine');
     button.setAttribute('aria-label', t('اعرفي روتينك','Build my routine'));
     button.addEventListener('click', () => {
       handleEntryClick(button).catch((error) => {
