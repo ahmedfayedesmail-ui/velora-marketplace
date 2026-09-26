@@ -5734,7 +5734,7 @@ window.setVeloraLanguage = async function(code){
   }catch(_){return false;}
 };
 
-function getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'USD'; }
+function getVeloraDisplayCurrency(){ return getFromStorage('velora_currency',VELORA_CURRENCY) || 'EGP'; }
 function getSellerCurrency(seller){ return (seller && VELORA_CURRENCY_META[seller.currency]) ? seller.currency : getVeloraDisplayCurrency(); }
 function formatSellerPrice(value,seller){ return formatPrice(value,getSellerCurrency(seller)); }
 function saveSeller(seller){
@@ -9406,8 +9406,10 @@ function notifyOrderPlaced(orderId) {
 function initNotifications() {
     console.log('🔔 Initializing notifications...');
 
-    // Wait for DOM
+    // The authoritative S2-E notification runtime owns the public bell.
+    // The legacy local notification UI must not replace it after bootstrap.
     setTimeout(() => {
+        if (window.VELORA_AUTHORITATIVE_NOTIFICATIONS) return;
         if (STATE.user) {
             sendWelcomeNotification();
             injectNotificationBell();
@@ -10071,16 +10073,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
    ============================================================ */
 (function(){
   'use strict';
-  const seedProducts = [
-    {id:'mp-el-001',name:'Wireless Earbuds Pro',brand:'Velora Select',category:'electronics',subcategory:'Audio',emoji:'🎧',price:1299,oldPrice:1599,rating:4.7,reviewsCount:86,stock:34,badge:'hot',description:'Compact wireless earbuds with charging case and everyday battery life.',tags:['earbuds','audio','wireless','electronics']},
-    {id:'mp-el-002',name:'Smart Watch Active',brand:'Pulse Tech',category:'electronics',subcategory:'Wearables',emoji:'⌚',price:1899,oldPrice:2299,rating:4.5,reviewsCount:61,stock:21,badge:'bestseller',description:'A smart watch for activity tracking, notifications and everyday use.',tags:['watch','smartwatch','tech','electronics']},
-    {id:'mp-fa-001',name:'Everyday Street Sneakers',brand:'North Lane',category:'fashion',subcategory:'Shoes',emoji:'👟',price:1499,oldPrice:1799,rating:4.6,reviewsCount:74,stock:42,badge:'hot',description:'Comfortable everyday sneakers designed for casual city wear.',tags:['shoes','sneakers','fashion']},
-    {id:'mp-fa-002',name:'Classic Crossbody Bag',brand:'Mira Studio',category:'fashion',subcategory:'Accessories',emoji:'👜',price:999,oldPrice:1250,rating:4.4,reviewsCount:39,stock:18,description:'A compact crossbody bag with practical space for everyday essentials.',tags:['bag','fashion','accessories']},
-    {id:'mp-ho-001',name:'Minimal Desk Lamp',brand:'HomeForm',category:'home',subcategory:'Lighting',emoji:'💡',price:649,oldPrice:799,rating:4.6,reviewsCount:53,stock:27,badge:'bestseller',description:'Adjustable desk lamp for workspaces, reading corners and home offices.',tags:['lamp','home','desk','lighting']},
-    {id:'mp-ho-002',name:'Soft Throw Blanket',brand:'Cozy Home',category:'home',subcategory:'Living',emoji:'🛋️',price:549,oldPrice:699,rating:4.8,reviewsCount:112,stock:55,description:'A soft everyday throw for sofas, beds and relaxed evenings.',tags:['blanket','home','living']},
-    {id:'mp-sp-001',name:'Training Football',brand:'Goal Line',category:'sports',subcategory:'Football',emoji:'⚽',price:599,oldPrice:750,rating:4.5,reviewsCount:48,stock:40,description:'Durable football for regular training and casual matches.',tags:['football','sports','training']},
-    {id:'mp-sp-002',name:'Everyday Yoga Mat',brand:'MoveWell',category:'sports',subcategory:'Fitness',emoji:'🧘',price:749,oldPrice:899,rating:4.7,reviewsCount:67,stock:31,badge:'bestseller',description:'Comfortable exercise mat for stretching, yoga and home workouts.',tags:['yoga','fitness','sports','mat']}
-  ];
+  const seedProducts = [];
   function addSeedProducts(){
     if(!window.MAHA_DATA || !Array.isArray(MAHA_DATA.PRODUCTS)) return;
     for(const p of seedProducts) if(!MAHA_DATA.PRODUCTS.some(x=>x&&x.id===p.id)) MAHA_DATA.PRODUCTS.push(p);
