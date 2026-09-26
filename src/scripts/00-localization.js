@@ -3839,8 +3839,9 @@ function renderCheckoutSummary() {
     if (!container) return;
 
     const subtotal = getCartTotal();
-    const shipping = subtotal >= 500 ? 0 : 30;
-    const total = subtotal + shipping;
+    const quote = window.VELORA_SHIPPING_QUOTE;
+    const shipping = quote?.ok ? Math.max(0, Number(quote.total_shipping || 0)) : null;
+    const total = shipping === null ? null : subtotal + shipping;
 
     container.innerHTML = `
         <h3>Summary</h3>
