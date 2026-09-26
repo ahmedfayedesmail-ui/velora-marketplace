@@ -237,8 +237,8 @@
 <section class="page" id="page-guide">
 <div class="page-hero">
 <span class="page-hero-badge" data-velora-i18n="LEARN">LEARN</span>
-<h1>📚 Complete Guide</h1>
-<p>How to shop, sell, manage orders, and get the most from Velora.</p>
+<h1>📚 <span data-velora-i18n="Complete Guide">Complete Guide</span></h1>
+<p data-velora-i18n="How to shop, sell, manage orders, and get the most from Velora.">How to shop, sell, manage orders, and get the most from Velora.</p>
 </div>
 <div class="container">
 <div class="guide-grid" id="guideGrid">
@@ -250,8 +250,8 @@
 <section class="page" id="page-blog">
 <div class="page-hero">
 <span class="page-hero-badge" data-velora-i18n="ARTICLES">ARTICLES</span>
-<h1>📝 Blog</h1>
-<p>Marketplace stories, shopping tips, and seller insights.</p>
+<h1>📝 <span data-velora-i18n="Blog">Blog</span></h1>
+<p data-velora-i18n="Marketplace stories, shopping tips, and seller insights.">Marketplace stories, shopping tips, and seller insights.</p>
 </div>
 <div class="container">
 <div class="blog-grid" id="blogGrid">
@@ -263,8 +263,8 @@
 <section class="page" id="page-compare">
 <div class="page-hero">
 <span class="page-hero-badge" data-velora-i18n="COMPARE SMARTLY">COMPARE SMARTLY</span>
-<h1>⚖️ Smart Comparison</h1>
-<p>Choose any number of products and compare them in all details</p>
+<h1>⚖️ <span data-velora-i18n="Smart Comparison">Smart Comparison</span></h1>
+<p data-velora-i18n="Choose any number of products and compare them in all details">Choose any number of products and compare them in all details</p>
 </div>
 <div class="container">
 <div class="compare-search-wrap">
@@ -274,8 +274,8 @@
 <div class="compare-selected" id="compareSelected"></div>
 <div class="compare-empty" id="compareEmpty">
 <div class="empty-icon">⚖️</div>
-<h3>Start Comparison</h3>
-<p>Search for a product above and add it</p>
+<h3 data-velora-i18n="Start Comparison">Start Comparison</h3>
+<p data-velora-i18n="Search for a product above and add it">Search for a product above and add it</p>
 <div class="quick-searches">
 <button data-velora-i18n="Serum" onclick="quickCompareSearch('serum')">Serum</button>
 <button data-velora-i18n="Mascara" onclick="quickCompareSearch('mascara')">Mascara</button>
@@ -290,8 +290,8 @@
 <section class="page" id="page-reviews">
 <div class="page-hero">
 <span class="page-hero-badge" data-velora-i18n="REAL EXPERIENCES">REAL EXPERIENCES</span>
-<h1>💬 Real Reviews</h1>
-<p>Read real experiences and share yours</p>
+<h1>💬 <span data-velora-i18n="Real Reviews">Real Reviews</span></h1>
+<p data-velora-i18n="Read real experiences and share yours">Read real experiences and share yours</p>
 </div>
 <div class="container">
 <div id="reviewsContent">
@@ -302,8 +302,8 @@
 <!-- ============ FAVORITES PAGE ============ -->
 <section class="page" id="page-favorites">
 <div class="page-hero">
-<h1>❤️ My Wishlist</h1>
-<p>Products you loved are saved here</p>
+<h1>❤️ <span data-velora-i18n="My Wishlist">My Wishlist</span></h1>
+<p data-velora-i18n="Products you loved are saved here">Products you loved are saved here</p>
 </div>
 <div class="container">
 <div id="favoritesContent">
@@ -314,8 +314,8 @@
 <!-- ============ CART PAGE ============ -->
 <section class="page" id="page-cart">
 <div class="page-hero">
-<h1>🛒 Shopping Cart</h1>
-<p>Review your items and proceed to checkout</p>
+<h1>🛒 <span data-velora-i18n="Shopping Cart">Shopping Cart</span></h1>
+<p data-velora-i18n="Review your items and proceed to checkout">Review your items and proceed to checkout</p>
 </div>
 <div class="container">
 <div id="cartContent">
@@ -326,8 +326,8 @@
 <!-- ============ CHECKOUT PAGE ============ -->
 <section class="page" id="page-checkout">
 <div class="page-hero">
-<h1>💳 Checkout</h1>
-<p>Complete your order</p>
+<h1>💳 <span data-velora-i18n="Checkout">Checkout</span></h1>
+<p data-velora-i18n="Complete your order">Complete your order</p>
 </div>
 <div class="container">
 <div class="checkout-grid">
@@ -343,8 +343,8 @@
 <!-- ============ ORDERS PAGE ============ -->
 <section class="page" id="page-orders">
 <div class="page-hero">
-<h1>📦 My Orders</h1>
-<p>Track your orders</p>
+<h1>📦 <span data-velora-i18n="My Orders">My Orders</span></h1>
+<p data-velora-i18n="Track your orders">Track your orders</p>
 </div>
 <div class="container">
 <div id="ordersContent">
@@ -382,15 +382,15 @@
 <div class="cart-sidebar-overlay" id="cartOverlay" hidden aria-hidden="true" onclick="closeCart()"></div>
 <aside class="cart-sidebar" id="cartSidebar" hidden aria-hidden="true">
 <div class="cart-header">
-<h3>🛒 Shopping Cart</h3>
+<h3>🛒 <span data-velora-i18n="Shopping Cart">Shopping Cart</span></h3>
 <button onclick="closeCart()">✕</button>
 </div>
 <div class="cart-body" id="cartSidebarBody">
 <div class="cart-empty" aria-live="polite">
 <div class="empty-icon">🛒</div>
-<h4>Your cart is empty</h4>
-<p>Start shopping to add products</p>
-<button class="btn btn-primary" onclick="closeCart(); navigateTo('shop');">Shop Now</button>
+<h4 data-velora-i18n="Your cart is empty">Your cart is empty</h4>
+<p data-velora-i18n="Start shopping to add products">Start shopping to add products</p>
+<button class="btn btn-primary" onclick="closeCart(); navigateTo('shop');"><span data-velora-i18n="Shop Now">Shop Now</span></button>
 </div>
 </div>
 <div class="cart-footer" id="cartSidebarFooter">
@@ -403,7 +403,7 @@
 <div class="modal" id="searchModal">
 <div class="modal-content">
 <div class="modal-header">
-<h2>🔍 Search</h2>
+<h2>🔍 <span data-velora-i18n="Search">Search</span></h2>
 <button class="modal-close" onclick="closeModal('searchModal')">✕</button>
 </div>
 <input class="modal-search-input" id="modalSearchInput" oninput="handleModalSearch(this.value)" placeholder="Search for a product..." type="text"/>
@@ -441,7 +441,7 @@
 <div class="modal" id="compareModal">
 <div class="modal-content modal-wide">
 <div class="modal-header">
-<h2>⚖️ Comparison Result</h2>
+<h2>⚖️ <span data-velora-i18n="Comparison Result">Comparison Result</span></h2>
 <button class="modal-close" onclick="closeModal('compareModal')">✕</button>
 </div>
 <div id="compareModalContent">
@@ -489,10 +489,10 @@
 </div>
 <div class="footer-col">
 <h3 data-velora-i18n="Newsletter">Newsletter</h3>
-<p>Subscribe for latest offers</p>
+<p data-velora-i18n="Subscribe for latest offers">Subscribe for latest offers</p>
 <form class="newsletter-form" onsubmit="subscribeNewsletter(event)">
-<input placeholder="Your email" required="" type="email"/>
-<button type="submit">Subscribe</button>
+<input placeholder="Your email" data-velora-i18n-placeholder="Your email" required="" type="email"/>
+<button type="submit" data-velora-i18n="Subscribe">Subscribe</button>
 </form>
 </div>
 </div>
