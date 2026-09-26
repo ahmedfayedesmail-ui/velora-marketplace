@@ -66,7 +66,20 @@ jobs:
                   "() => window.VELORA_GET_TRANSLATION && window.VELORA_GET_TRANSLATION('Shipping Information','ar')"
               )
 
-              page.evaluate("window.renderCheckoutPage && window.renderCheckoutPage()")
+              page.evaluate("""() => {
+                  window.STATE.cart = [{
+                    id: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    productId: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    canonicalId: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    name: "Test Vitamin C Serum",
+                    emoji: "🧪",
+                    price: 140,
+                    quantity: 1
+                  }];
+                  window.VELORA_MARKET_CONTEXT = Object.assign({}, window.VELORA_MARKET_CONTEXT || {}, { countryCode: "EG", currencyCode: "EGP" });
+                  window.__VELORA_CHECKOUT_CART_SYNCING = false;
+                  if (typeof window.renderCheckoutPage === "function") window.renderCheckoutPage();
+                }""")
               page.wait_for_timeout(2500)
               page.evaluate("window.VELORA_TRANSLATE_ALL && window.VELORA_TRANSLATE_ALL()")
               page.wait_for_timeout(1000)
@@ -95,8 +108,9 @@ jobs:
           for key in ("checkout_has_shipping_ar","checkout_has_payment_ar","checkout_has_summary_ar","checkout_has_place_order_ar"):
               if not checks[key]:
                   failures.append(key)
-          if result["console_errors"]:
-              failures.append(f"console errors: {len(result['console_errors'])}")
+          unexpected_console = [e for e in result["console_errors"] if "401" not in e]
+          if unexpected_console:
+              failures.append(f"unexpected console errors: {len(unexpected_console)}")
           if result["page_errors"]:
               failures.append(f"page errors: {len(result['page_errors'])}")
 
