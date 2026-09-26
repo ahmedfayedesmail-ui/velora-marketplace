@@ -75,6 +75,16 @@ jobs:
                   lambda e: result["page_errors"].append(str(e))
               )
 
+              auth_token_responses = []
+              page.on(
+                  "response",
+                  lambda response: auth_token_responses.append({
+                      "status": response.status,
+                      "url_path": response.url.split("/auth/v1/")[-1].split("?")[0]
+                  })
+                  if "/auth/v1/token" in response.url else None
+              )
+
               response = page.goto(
                   url + "/#home",
                   wait_until="domcontentloaded",
@@ -91,7 +101,13 @@ jobs:
               page.locator("#loginPassword").fill(password)
               page.locator("#authFormContent button[type='submit']").click()
 
-              page.wait_for_timeout(3500)
+              page.wait_for_timeout(800)
+              result["checks"]["login_toast_text_immediate"] = (
+                  page.locator("#toast").inner_text()
+                  if page.locator("#toast").count() else ""
+              )
+              page.wait_for_timeout(2800)
+              result["checks"]["auth_token_response_statuses"] = auth_token_responses
 
               auth = page.evaluate("""
                 async () => {
@@ -112,7 +128,22 @@ jobs:
               )
 
               if not auth["hasSession"]:
-                  raise RuntimeError("AUTH_SESSION_NOT_CREATED")
+                  result["checks"]["login_toast_text_after_wait"] = (
+                      page.locator("#toast").inner_text()
+                      if page.locator("#toast").count() else ""
+                  )
+                  result["checks"]["auth_modal_active"] = (
+                      "active" in (page.locator("#authModal").get_attribute("class") or "")
+                      if page.locator("#authModal").count() else None
+                  )
+                  result["checks"]["auth_token_response_statuses"] = auth_token_responses
+                  result["passed"] = False
+                  result["failures"] = ["Authenticated Supabase session was not created"]
+                  browser.close()
+                  with open("browser-auth-cart-evidence.json", "w", encoding="utf-8") as f:
+                      json.dump(result, f, ensure_ascii=False, indent=2)
+                  print(json.dumps(result, ensure_ascii=False, indent=2))
+                  sys.exit(1)
 
               page.evaluate("() => navigateTo('shop')")
               page.wait_for_timeout(1200)
