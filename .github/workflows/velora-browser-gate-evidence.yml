@@ -44,19 +44,6 @@ jobs:
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
-              page.add_init_script("""() => {
-                  localStorage.setItem("maha_cart", JSON.stringify([{
-                    id: "21d977a0-111b-4bb4-9736-0f2994294d48",
-                    canonicalId: "21d977a0-111b-4bb4-9736-0f2994294d48",
-                    productId: "21d977a0-111b-4bb4-9736-0f2994294d48",
-                    name: "Test Vitamin C Serum",
-                    emoji: "🧪",
-                    price: 140,
-                    quantity: 1
-                  }]));
-                  localStorage.setItem("velora_language", "ar");
-              }""")
-
               page.on("console", lambda m: result["console_errors"].append(m.text) if m.type == "error" else None)
               page.on("pageerror", lambda e: result["page_errors"].append(str(e)))
 
@@ -68,6 +55,32 @@ jobs:
               result["checks"]["initial_dir"] = page.locator("html").get_attribute("dir")
 
               page.locator("#languageSelect").evaluate("(e) => { e.value = 'ar'; e.dispatchEvent(new Event('change', { bubbles: true })); }")
+              page.wait_for_timeout(3500)
+
+              result["checks"]["arabic_lang"] = page.locator("html").get_attribute("lang")
+              result["checks"]["arabic_dir"] = page.locator("html").get_attribute("dir")
+              result["checks"]["language_selector"] = page.locator("#languageSelect").input_value()
+
+              result["checks"]["translation_api_ar"] = page.evaluate(
+                  "() => window.VELORA_GET_TRANSLATION && window.VELORA_GET_TRANSLATION('Shipping Information','ar')"
+              )
+
+              page.evaluate("""() => {
+                  STATE.currentPage = "checkout";
+                  STATE.cart = [{
+                    id: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    canonicalId: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    productId: "21d977a0-111b-4bb4-9736-0f2994294d48",
+                    name: "Test Vitamin C Serum",
+                    emoji: "🧪",
+                    price: 140,
+                    quantity: 1
+                  }];
+                  document.querySelectorAll(".page").forEach(el => el.classList.remove("active"));
+                  document.getElementById("page-checkout")?.classList.add("active");
+                  if (typeof window.renderCheckoutPage !== "function") throw new Error("CHECKOUT_RENDER_UNAVAILABLE");
+                  window.renderCheckoutPage();
+              }""")
               page.wait_for_timeout(3500)
 
               result["checks"]["arabic_lang"] = page.locator("html").get_attribute("lang")
