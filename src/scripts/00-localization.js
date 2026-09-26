@@ -10107,6 +10107,12 @@ console.log('✅ Analytics + Events + Audit loaded!');
     languageCode: null
   };
 
+  // Canonical marketplace context/catalog initialization is shared so
+  // simultaneous boot/render callers cannot observe a half-initialized
+  // placeholder context or issue duplicate catalog requests.
+  let marketContextPromise = null;
+  const catalogInFlight = new Map();
+
   const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 
   async function getAuthenticatedProfile(){
@@ -10133,29 +10139,39 @@ console.log('✅ Analytics + Events + Audit loaded!');
   }
 
   async function loadMarketContext(){
-    const auth = await getAuthenticatedProfile();
-    const profile = auth?.profile || {};
-    const countryCode = (profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
-    let currencyCode = (profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
+    if (marketContextPromise) return marketContextPromise;
 
-    if (countryCode) {
-      try {
-        const { data: primary } = await client.from('country_currencies')
-          .select('currency_code,is_primary')
-          .eq('country_code', countryCode)
-          .eq('is_active', true)
-          .order('is_primary', { ascending: false })
-          .limit(5);
-        if (!currencyCode && primary?.length) currencyCode = primary.find(x => x.is_primary)?.currency_code || primary[0].currency_code;
-      } catch (_) {}
+    marketContextPromise = (async () => {
+      const auth = await getAuthenticatedProfile();
+      const profile = auth?.profile || {};
+      const countryCode = (profile.country_code || detectCountryFromLocale() || '').toUpperCase() || null;
+      let currencyCode = (profile.preferred_currency || localStorage.getItem('velora_currency') || '').toUpperCase() || null;
+
+      if (countryCode) {
+        try {
+          const { data: primary } = await client.from('country_currencies')
+            .select('currency_code,is_primary')
+            .eq('country_code', countryCode)
+            .eq('is_active', true)
+            .order('is_primary', { ascending: false })
+            .limit(5);
+          if (!currencyCode && primary?.length) currencyCode = primary.find(x => x.is_primary)?.currency_code || primary[0].currency_code;
+        } catch (_) {}
+      }
+
+      window.VELORA_MARKET_CONTEXT = {
+        countryCode,
+        currencyCode,
+        languageCode: profile.preferred_language || (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en')
+      };
+      return window.VELORA_MARKET_CONTEXT;
+    })();
+
+    try {
+      return await marketContextPromise;
+    } finally {
+      marketContextPromise = null;
     }
-
-    window.VELORA_MARKET_CONTEXT = {
-      countryCode,
-      currencyCode,
-      languageCode: profile.preferred_language || (typeof getVeloraLanguage === 'function' ? getVeloraLanguage() : 'en')
-    };
-    return window.VELORA_MARKET_CONTEXT;
   }
 
   async function loadRelevantCurrencies(){
@@ -10182,22 +10198,42 @@ console.log('✅ Analytics + Events + Audit loaded!');
   }
 
   async function loadCanonicalCatalog(options={}){
-    const ctx = window.VELORA_MARKET_CONTEXT || await loadMarketContext();
-    const { data, error } = await client.rpc('velora_get_marketplace_catalog', {
-      p_country_code: options.countryCode ?? null,
+    const existingCtx = window.VELORA_MARKET_CONTEXT;
+    const hasUsableContext = !!(existingCtx?.countryCode || existingCtx?.currencyCode);
+    const ctx = hasUsableContext ? existingCtx : await loadMarketContext();
+
+    const requestArgs = {
+      p_country_code: options.countryCode ?? ctx.countryCode ?? null,
       p_currency_code: options.currencyCode ?? ctx.currencyCode ?? null,
       p_category_slug: options.categorySlug ?? null,
       p_search: options.search ?? null,
       p_limit: options.limit ?? 48,
       p_offset: options.offset ?? 0
-    });
-    if (error) {
-      console.warn('Velora canonical catalog unavailable:', error.message);
-      return [];
+    };
+    const requestKey = JSON.stringify(requestArgs);
+
+    if (catalogInFlight.has(requestKey)) {
+      return catalogInFlight.get(requestKey);
     }
-    window.VELORA_CANONICAL_CATALOG = Array.isArray(data) ? data : [];
-    window.VELORA_CANONICAL_CATALOG_LOADED_AT = Date.now();
-    return window.VELORA_CANONICAL_CATALOG;
+
+    const request = (async () => {
+      const { data, error } = await client.rpc('velora_get_marketplace_catalog', requestArgs);
+      if (error) {
+        console.warn('Velora canonical catalog unavailable:', error.message);
+        return [];
+      }
+      window.VELORA_CANONICAL_CATALOG = Array.isArray(data) ? data : [];
+      window.VELORA_CANONICAL_CATALOG_LOADED_AT = Date.now();
+      window.VELORA_CANONICAL_CATALOG_REQUEST_KEY = requestKey;
+      return window.VELORA_CANONICAL_CATALOG;
+    })();
+
+    catalogInFlight.set(requestKey, request);
+    try {
+      return await request;
+    } finally {
+      catalogInFlight.delete(requestKey);
+    }
   }
 
   function injectCheckoutCountry(){
@@ -10428,9 +10464,13 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function renderCanonicalFeatured(){
     const container=document.getElementById('featuredProducts');
     if(!container) return;
-    const canonical=await refreshCanonicalCatalog({limit:8});
-    const products=canonical.length ? canonical.slice(0,8) : MAHA_DATA.PRODUCTS.filter(p=>p.badge==='bestseller'||p.badge==='hot').slice(0,8);
-    container.innerHTML=products.map(renderProductCard).join('');
+
+    const canonical=await refreshCanonicalCatalog({limit:48});
+    const products=canonical.slice(0,8);
+
+    container.innerHTML=products.length
+      ? products.map(renderProductCard).join('')
+      : '<div class="empty-state"><div class="empty-icon">🛍️</div><h3>Featured products are temporarily unavailable</h3><p>We could not load the canonical marketplace catalog. Please try again shortly.</p></div>';
   }
 
   async function renderCanonicalDeals(){
@@ -10491,10 +10531,9 @@ console.log('✅ Analytics + Events + Audit loaded!');
     if(page==='deals') return renderCanonicalDeals();
   };
 
-  // Initial canonical refresh after the existing Stage 7 boot completes.
-  setTimeout(()=>{
-    if(STATE.currentPage==='home') renderCanonicalFeatured();
-  },1200);
+  // Initial Home render is driven by loadPageContent('home').
+  // Do not schedule a second delayed catalog fetch here; Stage 7 boot and
+  // canonical rendering share the same context/in-flight request guard.
 })();
 
 
