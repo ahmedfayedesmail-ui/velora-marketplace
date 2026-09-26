@@ -386,6 +386,17 @@ const CORE_AR={
   'Velora Deals':'عروض Velora',
   'LIMITED-TIME OFFERS':'عروض لفترة محدودة',
   'Explore popular products and marketplace offers from stores you can trust.':'اكتشفي منتجات الجمال والعروض من متاجر تثقين بها.'
+,
+
+  'Shops':'المتاجر',
+  'Deals':'العروض',
+  'Sell on Velora':'البيع على Velora',
+  'Wishlist':'المفضلة',
+  'LEARN':'تعلّمي',
+  'ARTICLES':'المقالات',
+  'COMPARE SMARTLY':'قارني بذكاء',
+  'REAL EXPERIENCES':'تجارب حقيقية',
+  'A beauty-first marketplace connecting customers with trusted beauty stores and brands.':'سوق جمال يضع الجمال أولًا ويربطك بمتاجر وعلامات تجميل موثوقة.'
 
 };
 
