@@ -184,14 +184,48 @@ jobs:
                                       tag: el.tagName,
                                       id: el.id || null,
                                       className: typeof el.className === "string" ? el.className : null,
-                                      text: String(el.innerText || el.textContent || "").slice(0,180)
+                                      text: String(el.innerText || el.textContent || "").slice(0,180),
+                                      elementsFromPoint: document.elementsFromPoint(x,y).slice(0,8).map(n => ({
+                                          tag: n.tagName,
+                                          id: n.id || null,
+                                          className: typeof n.className === "string" ? n.className : null
+                                      }))
                                   };
                               }""",
                               {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2},
                           )
+                          result["checks"]["product_visit_store_style_diag"] = page.evaluate(
+                              """() => {
+                                  const button = Array.from(document.querySelectorAll("#productModalContent button"))
+                                    .find(b => /Visit Store/i.test(b.textContent || ""));
+                                  const modal = document.querySelector("#productModal");
+                                  const content = document.querySelector("#productModalContent");
+                                  if (!button) return null;
+                                  const cs = getComputedStyle(button);
+                                  const r = button.getBoundingClientRect();
+                                  const mr = modal ? modal.getBoundingClientRect() : null;
+                                  const cr = content ? content.getBoundingClientRect() : null;
+                                  return {
+                                      buttonRect: {x:r.x,y:r.y,width:r.width,height:r.height},
+                                      buttonPointerEvents: cs.pointerEvents,
+                                      buttonPosition: cs.position,
+                                      buttonZIndex: cs.zIndex,
+                                      buttonOpacity: cs.opacity,
+                                      modalRect: mr ? {x:mr.x,y:mr.y,width:mr.width,height:mr.height} : null,
+                                      contentRect: cr ? {x:cr.x,y:cr.y,width:cr.width,height:cr.height} : null
+                                  };
+                              }"""
+                          )
                   else:
                       result["checks"]["product_visit_store_hit_test_clear"] = False
                       result["checks"]["product_visit_store_hit_test_blocker"] = None
+
+                  try:
+                      visit.click(timeout=3000)
+                      result["checks"]["product_visit_store_normal_click_ok"] = True
+                  except Exception as exc:
+                      result["checks"]["product_visit_store_normal_click_ok"] = False
+                      result["checks"]["product_visit_store_normal_click_error"] = str(exc)[:500]
 
                   visit.click(force=True)
                   page.wait_for_timeout(1800)
