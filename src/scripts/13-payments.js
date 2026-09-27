@@ -43,8 +43,15 @@ const decorate=async()=>{
       box.dataset.veloraStage9='1';
       const ms=await paymentMethods();
       if(Array.isArray(ms)&&ms.length){
-        box.innerHTML=ms.map((m,i)=>{
-          const selected=(window.VELORA_PAYMENT_SELECTION?.id===m.id)||(!window.VELORA_PAYMENT_SELECTION?.id&&i===0);
+        const saved=window.VELORA_PAYMENT_SELECTION;
+        const savedId=saved?.id ? String(saved.id) : '';
+        const matched=savedId ? ms.find(m=>String(m.id)===savedId) : null;
+        const active=matched
+          ? {id:matched.id,code:matched.code}
+          : {id:ms[0].id,code:ms[0].code};
+        window.VELORA_PAYMENT_SELECTION=active;
+        box.innerHTML=ms.map((m)=>{
+          const selected=String(m.id)===String(active.id);
           const paymentName=tr(m.name);
           const paymentDesc=m.code==='card'
             ? tr('Card payment')
@@ -53,9 +60,7 @@ const decorate=async()=>{
               : tr(m.method_type||'Provider routed');
           return '<div class="payment-method'+(selected?' selected':'')+'" data-payment-code="'+esc(m.code)+'" data-payment-id="'+esc(m.id)+'" onclick="window.VELORA_SELECT_PAYMENT_METHOD(\''+esc(m.code)+'\',\''+esc(m.id)+'\',this)"><div class="payment-radio"></div><div class="payment-icon">💳</div><div class="payment-info"><div class="payment-name">'+esc(paymentName)+'</div><div class="payment-desc">'+esc(paymentDesc)+'</div></div></div>';
         }).join('');
-        if(!window.VELORA_PAYMENT_SELECTION){
-          window.VELORA_PAYMENT_SELECTION={code:ms[0].code,id:ms[0].id};
-        }
+        saveCheckoutDraft();
       }else{
         box.innerHTML='<div class="velora-op-note">'+esc(tr('No operational payment method is currently available.'))+'</div>';
       }
@@ -246,7 +251,7 @@ function bindCheckoutDraft(){
   restoreCheckoutDraft();
 }
 window.VELORA_SELECT_PAYMENT_METHOD=(code,id,el)=>{window.VELORA_PAYMENT_SELECTION={code,id};document.querySelectorAll('.payment-method').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');saveCheckoutDraft()};
-const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){window.__VELORA_CHECKOUT_REFERENCE=null;window.__VELORA_CHECKOUT_SUBMITTING=false;clearCheckoutCurrencyGate();const r=oldRender.apply(this,arguments);setTimeout(async()=>{bindCheckoutDraft();await syncCheckoutCurrencyGate();decorate();decorateGiftCard();decorateLegalConsent();try{const q=await refreshVeloraShippingQuote();if(typeof renderCheckoutSummary==='function'&&q)renderCheckoutSummary();const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=shippingQuoteStatus(q)}catch(e){const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=tr('Shipping quote unavailable.') }},100);return r};
+const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){window.__VELORA_CHECKOUT_REFERENCE=null;window.__VELORA_CHECKOUT_SUBMITTING=false;clearCheckoutCurrencyGate();const r=oldRender.apply(this,arguments);const box=document.querySelector('.payment-methods');if(box){box.dataset.veloraStage9='';box.innerHTML='<div class="velora-op-note">'+esc(tr('Loading payment methods…'))+'</div>';}setTimeout(async()=>{bindCheckoutDraft();await syncCheckoutCurrencyGate();decorate();decorateGiftCard();decorateLegalConsent();try{const q=await refreshVeloraShippingQuote();if(typeof renderCheckoutSummary==='function'&&q)renderCheckoutSummary();const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=shippingQuoteStatus(q)}catch(e){const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=tr('Shipping quote unavailable.') }},100);return r};
 function decorateShippingStatus(){
   const host=document.getElementById('checkoutSummary');
   if(!host||document.getElementById('veloraShippingQuoteStatus'))return;
