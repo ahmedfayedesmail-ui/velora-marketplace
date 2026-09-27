@@ -209,6 +209,13 @@ jobs:
                   if page.locator("#page-store").count() else False
               )
 
+              # Test isolation: close the product modal before opening auth.
+              page.evaluate("() => closeModal('productModal')")
+              result["checks"]["product_detail_modal_closed_before_auth"] = (
+                  "active" not in (page.locator("#productModal").get_attribute("class") or "")
+                  if page.locator("#productModal").count() else True
+              )
+
               page.evaluate("() => openAuthModal('login')")
               page.locator("#loginEmail").fill(email)
               page.locator("#loginPassword").fill(password)
