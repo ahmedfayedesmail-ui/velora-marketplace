@@ -295,6 +295,23 @@ jobs:
                   "active" in (page.locator("#page-store").get_attribute("class") or "")
                   if page.locator("#page-store").count() else False
               )
+
+              # Regression for the previously reported seller re-entry issue:
+              # opening Seller again must work without a page refresh.
+              page.evaluate("() => window.openSellerPlatform()")
+              page.wait_for_timeout(1200)
+              result["checks"]["seller_reentry_hash"] = page.url.split("#")[-1] == "seller"
+              result["checks"]["seller_reentry_active"] = (
+                  "active" in (page.locator("#sellerPlatform").get_attribute("class") or "")
+                  if page.locator("#sellerPlatform").count() else False
+              )
+              page.evaluate("() => window.closeSellerPlatform()")
+              page.wait_for_timeout(1200)
+              result["checks"]["seller_reentry_back_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
+              result["checks"]["seller_reentry_back_store_active"] = (
+                  "active" in (page.locator("#page-store").get_attribute("class") or "")
+                  if page.locator("#page-store").count() else False
+              )
               page.evaluate("() => { try { closeModal('sellerRegModal') } catch (_) {} }")
 
               browser.close()
@@ -327,6 +344,10 @@ jobs:
               "platform_route_seller_hash",
               "platform_return_store_hash",
               "platform_return_store_active",
+              "seller_reentry_hash",
+              "seller_reentry_active",
+              "seller_reentry_back_store_hash",
+              "seller_reentry_back_store_active",
           ]
 
           for key in required_true:
