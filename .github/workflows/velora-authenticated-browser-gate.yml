@@ -271,6 +271,12 @@ jobs:
               )
               result["checks"]["product_detail_visit_store_hit_test_clear"] = False
               if product_store_button.count() == 1 and product_store_button.is_visible():
+                  try:
+                      product_store_button.scroll_into_view_if_needed(timeout=3000)
+                      page.wait_for_timeout(250)
+                  except Exception as exc:
+                      result["checks"]["product_detail_visit_store_scroll_error"] = str(exc)[:500]
+
                   box = product_store_button.bounding_box()
                   if box and box["width"] > 0 and box["height"] > 0:
                       hit = page.evaluate(
@@ -283,9 +289,52 @@ jobs:
                           {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2},
                       )
                       result["checks"]["product_detail_visit_store_hit_test_clear"] = bool(hit)
-                  # The click handler itself is deterministic; force only bypasses a separate
-                  # overlay/hit-test issue so the route handler can still be verified.
-                  product_store_button.click(force=True)
+                      result["checks"]["product_detail_visit_store_style_diag"] = page.evaluate(
+                          """() => {
+                              const button = Array.from(document.querySelectorAll("#productModalContent button"))
+                                .find(b => /Visit Store/i.test(b.textContent || ""));
+                              const modal = document.querySelector("#productModal");
+                              const content = document.querySelector("#productModalContent");
+                              if (!button) return null;
+                              const cs = getComputedStyle(button);
+                              const r = button.getBoundingClientRect();
+                              const mr = modal ? modal.getBoundingClientRect() : null;
+                              const cr = content ? content.getBoundingClientRect() : null;
+                              return {
+                                  buttonRect: {x:r.x,y:r.y,width:r.width,height:r.height},
+                                  offsetParent: !!button.offsetParent,
+                                  clientRects: button.getClientRects().length,
+                                  pointerEvents: cs.pointerEvents,
+                                  visibility: cs.visibility,
+                                  display: cs.display,
+                                  opacity: cs.opacity,
+                                  position: cs.position,
+                                  zIndex: cs.zIndex,
+                                  overflowY: content ? getComputedStyle(content).overflowY : null,
+                                  scrollTop: content ? content.scrollTop : null,
+                                  scrollHeight: content ? content.scrollHeight : null,
+                                  clientHeight: content ? content.clientHeight : null,
+                                  modalRect: mr ? {x:mr.x,y:mr.y,width:mr.width,height:mr.height} : null,
+                                  contentRect: cr ? {x:cr.x,y:cr.y,width:cr.width,height:cr.height} : null
+                              };
+                          }"""
+                      )
+                  else:
+                      result["checks"]["product_detail_visit_store_style_diag"] = null
+
+                  try:
+                      product_store_button.click(timeout=3000)
+                      result["checks"]["product_detail_visit_store_normal_click_ok"] = True
+                  except Exception as exc:
+                      result["checks"]["product_detail_visit_store_normal_click_ok"] = False
+                      result["checks"]["product_detail_visit_store_normal_click_error"] = str(exc)[:1200]
+
+                  try:
+                      product_store_button.click(force=True, timeout=3000)
+                      result["checks"]["product_detail_visit_store_force_click_ok"] = True
+                  except Exception as exc:
+                      result["checks"]["product_detail_visit_store_force_click_ok"] = False
+                      result["checks"]["product_detail_visit_store_force_click_error"] = str(exc)[:1200]
                   page.wait_for_timeout(1600)
               result["checks"]["product_detail_visit_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
               result["checks"]["product_detail_visit_store_active"] = (
