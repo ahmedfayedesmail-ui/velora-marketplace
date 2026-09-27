@@ -493,8 +493,10 @@ jobs:
 
                       card_number = first_visible([
                           'input[autocomplete="cc-number"]',
+                          'input[name="number"]',
                           'input[name*="card" i][name*="number" i]',
                           'input[placeholder*="card number" i]',
+                          'input[placeholder="1234 1234 1234 1234"]',
                       ])
                       expiry = first_visible([
                           'input[autocomplete="cc-exp"]',
