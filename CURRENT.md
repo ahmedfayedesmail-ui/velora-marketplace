@@ -82,6 +82,9 @@ Fix commit: `79c8ed1b9e6d06417979a66d9d43081def92cd25`. The variants handler now
 ### Vercel deployment blocker — OBSERVED FACT
 GitHub status for `dc157...` reports `Deployment rate limited — retry in 24 hours.` No Vercel deployment for `79c8...`, `2cd...`, or `dc157...` is currently visible in the accessible deployment list. Browser runs #83/#84 therefore remain stale-Preview diagnostics, not validation of the current source.
 
+### Store deep-link startup RCA and fix — OBSERVED FACT
+The local-source browser gate exposed a distinct startup issue: a direct `#store/<uuid>` load could still end at the root before the Store page mounted. The smallest source fix is in `00-localization.js`: when the initial hash matches a valid store UUID, preserve `VELORA_STORE_ROUTE_ID`, activate `#page-store`, set `STATE.currentPage = 'store'`, and call the existing `loadPageContent('store')` without rewriting the hash. Commit: `cb1128e62619e200d5f235e58ed2b69a39409afd`. Runtime confirmation is pending on the new Browser Gate run.
+
 ### Navigation route-return RCA and fix — OBSERVED FACT
 `src/scripts/63-platform-router.js` previously stored only the parsed page name when entering a platform, so `store/<uuid>` became `store`. `goMarketplace()` also passed the stored target directly to `activateMarketplace()`, which expects separate `page, storeId` arguments.
 
