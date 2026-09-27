@@ -276,7 +276,8 @@ jobs:
                       hit = page.evaluate(
                           """({x, y}) => {
                               const el = document.elementFromPoint(x, y);
-                              const button = document.querySelector("#productModalContent button");
+                              const button = Array.from(document.querySelectorAll("#productModalContent button"))
+                                .find(b => /Visit Store/i.test(b.textContent || ""));
                               return !!(el && button && (el === button || button.contains(el)));
                           }""",
                           {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2},
