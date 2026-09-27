@@ -1,2 +1,2 @@
 paymob sandbox evidence trigger
-run=diagnostic-20260927-0818
+run=paymob-function-v3-20260927-0822
