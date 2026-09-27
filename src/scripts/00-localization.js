@@ -8792,6 +8792,84 @@ async function loadAdminGiftCardsFromDb(){
     }catch(err){host.innerHTML='<span>❌ '+escapeHtml(err.message||err)+'</span>';}
 }
 
+/* ============ PLATFORM SWITCHER RENDERER — RESTORED FROM PRE-REGRESSION SOURCE ============ */
+function renderPlatformSwitcher() {
+    if (!STATE.user) return '';
+
+    const platforms = [];
+    platforms.push({
+        id: 'marketplace',
+        name: 'Marketplace',
+        icon: '🛒',
+        color: '#d4708a'
+    });
+
+    const roles = Array.isArray(STATE.user.roles)
+        ? STATE.user.roles.map(r => String(r).toLowerCase())
+        : [];
+
+    const isSeller = !!(
+        STATE.user.sellerId ||
+        STATE.user.isSeller ||
+        roles.includes(ROLES.SELLER) ||
+        String(STATE.user.role || '').toLowerCase() === ROLES.SELLER
+    );
+
+    if (isSeller) {
+        platforms.push({
+            id: 'seller',
+            name: 'Seller Dashboard',
+            icon: '🏪',
+            color: '#4caf50'
+        });
+    }
+
+    const isAdminOrOwner =
+        roles.includes(ROLES.ADMIN) ||
+        roles.includes(ROLES.OWNER) ||
+        STATE.user.role === ROLES.ADMIN ||
+        STATE.user.role === ROLES.OWNER;
+
+    if (isAdminOrOwner) {
+        platforms.push({
+            id: 'admin',
+            name: 'Admin Panel',
+            icon: '⚙️',
+            color: '#2196f3'
+        });
+    }
+
+    if (roles.includes(ROLES.OWNER) || STATE.user.role === ROLES.OWNER) {
+        platforms.push({
+            id: 'owner',
+            name: 'Owner Center',
+            icon: '👑',
+            color: '#b8860b'
+        });
+    }
+
+    if (platforms.length <= 1) return '';
+
+    return `
+        <div class="platform-switcher" id="platformSwitcher">
+            <button class="platform-switcher-btn" onclick="togglePlatformMenu()">
+                <span>🔄</span>
+                <span>Switch Platform</span>
+            </button>
+            <div class="platform-switcher-menu" id="platformSwitcherMenu">
+                ${platforms.map(p => `
+                    <div class="platform-switcher-item"
+                        style="border-left-color: ${p.color};"
+                        onclick="window.switchPlatform('${p.id}')">
+                        <span>${p.icon}</span>
+                        <span>${p.name}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
 /* ============ INIT ============ */
 function initOwner() {
     console.log('👑 Owner Command Center ready!');
