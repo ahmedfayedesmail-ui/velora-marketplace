@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest source/runtime commit: `dc157200fdde96e809e6d18998a41a14da42183f` (`fix(localization): restore missing statement separator`). This commit also includes the Product Detail canonical-hydration fix from `79c8ed1b9e6d06417979a66d9d43081def92cd25` and browser diagnostics.
+Latest source/runtime commit: `dc157200fdde96e809e6d18998a41a14da42183f` (latest branch HEAD adds browser-test-only commits `437cf1edb27e71ff7b019a212713799f8966defb` and `9ab16f9fa851459dc49686d5aa638be25a2e1002`; application runtime source remains at `dc157...`) (`fix(localization): restore missing statement separator`). This commit also includes the Product Detail canonical-hydration fix from `79c8ed1b9e6d06417979a66d9d43081def92cd25` and browser diagnostics.
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -30,7 +30,7 @@ The detail contract returns product metadata, category/subcategory, ingredients,
 Source currency is preserved separately from display currency for cart safety.
 
 ## Next step
-1. Wait for a real Vercel deployment of `dc157200fdde96e809e6d18998a41a14da42183f`; the current Vercel integration is rate-limited, so the existing branch alias is stale.
+1. Wait for a real Vercel deployment of the current application source (`dc157200fdde96e809e6d18998a41a14da42183f`); the branch has since added browser-test-only fixture-reset commits `437cf1e...` and `9ab16f...`, but Vercel remains rate-limited so the existing branch alias is stale.
 2. Once a deployment for `dc157...` exists, rerun the authenticated Browser Gate and verify Product Detail -> Visit Store, Related Products, Shops -> Visit Store, and Back to Shops.
 3. Keep the strengthened existing Playwright gate as the critical regression gate; do not treat runs against the stale Preview as evidence for current source.
 
@@ -53,6 +53,11 @@ Source currency is preserved separately from display currency for cart safety.
 - Current Vercel build status: BLOCKED by connected Vercel `build-rate-limit` (`Deployment rate limited — retry in 24 hours.` observed on commit `dc157...`). The latest READY deployment in the accessible deployment list is commit `31cc7209357df97620c093709703d7561dce476f`; therefore Runs #83/#84 did not exercise `79c8...` or `dc157...` source changes.
 - Production: FROZEN
 
+
+## Latest Browser Gate hardening
+The authenticated browser workflow now resets the QA test product from the authenticated cart through the normal `window.removeFromCart()` path, waits for canonical cloud-cart sync, and asserts the product is absent before adding one unit. This addresses the observed accumulated-fixture condition that produced the 400 `velora_upsert_cart_item` response after repeated runs. This is a test-fixture change only; no application cart code, RPC, or schema was changed.
+- `437cf1edb27e71ff7b019a212713799f8966defb` — reset cart fixture before add.
+- `9ab16f9fa851459dc49686d5aa638be25a2e1002` — assert reset success/absence before add.
 
 ## Latest RCA / source-hardening changes
 ### Product Detail handler collision — OBSERVED FACT
