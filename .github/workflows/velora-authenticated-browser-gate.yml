@@ -362,6 +362,38 @@ jobs:
 
               page.evaluate("() => navigateTo('shop')")
               page.wait_for_timeout(1200)
+
+              # Test fixture reset: the authenticated test user may retain the
+              # QA product from an earlier run. Remove it through the normal
+              # cart path before adding one unit, so stock exhaustion from
+              # accumulated test state cannot masquerade as an app regression.
+              page.evaluate("(productId) => window.removeFromCart(productId)", test_product)
+              page.wait_for_timeout(1200)
+              reset_sync = page.evaluate("""
+                async () => {
+                  try {
+                    if (typeof window.veloraSyncCloudCart !== 'function') {
+                      return { ok: false, reason: "SYNC_API_UNAVAILABLE" };
+                    }
+                    return { ok: await window.veloraSyncCloudCart() };
+                  } catch (e) {
+                    return { ok: false, reason: String(e?.message || e) };
+                  }
+                }
+              """)
+              result["checks"]["cart_fixture_reset_sync_ok"] = bool(reset_sync.get("ok"))
+
+              reset_cart = page.evaluate("""
+                (productId) => {
+                  const cart = (typeof STATE !== 'undefined' && Array.isArray(STATE.cart)) ? STATE.cart : [];
+                  const item = cart.find(x =>
+                    String(x?.canonicalId || x?.productId || x?.id || "") === productId
+                  );
+                  return { hasProduct: !!item, quantity: Number(item?.quantity || 0) };
+                }
+              """, test_product)
+              result["checks"]["cart_fixture_reset_product_absent"] = not reset_cart["hasProduct"]
+
               page.evaluate("(productId) => window.addToCart(productId, 1)", test_product)
               page.wait_for_timeout(3000)
 
