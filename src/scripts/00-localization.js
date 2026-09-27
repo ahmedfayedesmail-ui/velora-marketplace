@@ -10679,7 +10679,9 @@ console.log('✅ Analytics + Events + Audit loaded!');
       storeId: row.store_id || null,
       storeName: row.store_name || '',
       sellerName: row.seller_name || '',
-      tags: Array.isArray(row.tags) ? row.tags : []
+      tags: Array.isArray(row.tags) ? row.tags : [],
+      skinTypes: Array.isArray(row.skin_types) ? row.skin_types : [],
+      concerns: Array.isArray(row.concerns) ? row.concerns : []
     };
   }
 
@@ -10693,6 +10695,41 @@ console.log('✅ Analytics + Events + Audit loaded!');
     return normalized;
   }
 
+  async function enrichCanonicalRelatedSignals(rows){
+    if(!Array.isArray(rows) || !rows.length || !client?.from) return rows;
+    const ids=[...new Set(rows.map(row=>row?.product_id||row?.id).filter(isUuid))];
+    if(!ids.length) return rows;
+
+    try{
+      // Related Products needs a small set of catalog signals that the
+      // marketplace list RPC intentionally does not expose. Read only the
+      // approved rows already returned by the canonical catalog call.
+      const {data,error}=await client.from('products')
+        .select('id,subcategory,brand,tags,skin_types,concerns')
+        .in('id',ids)
+        .eq('status','approved');
+
+      if(error || !Array.isArray(data)) return rows;
+
+      const byId=new Map(data.map(row=>[String(row.id),row]));
+      return rows.map(row=>{
+        const signal=byId.get(String(row?.product_id||row?.id));
+        if(!signal) return row;
+        return {
+          ...row,
+          subcategory: signal.subcategory ?? row.subcategory ?? null,
+          brand: signal.brand ?? row.brand ?? null,
+          tags: Array.isArray(signal.tags) ? signal.tags : (row.tags || []),
+          skin_types: Array.isArray(signal.skin_types) ? signal.skin_types : (row.skin_types || []),
+          concerns: Array.isArray(signal.concerns) ? signal.concerns : (row.concerns || [])
+        };
+      });
+    }catch(e){
+      console.warn('Canonical related-signal enrichment failed:', e);
+      return rows;
+    }
+  }
+
   async function refreshCanonicalCatalog(options={}){
     try{
       const rows = await window.veloraLoadCanonicalCatalog({
@@ -10703,7 +10740,8 @@ console.log('✅ Analytics + Events + Audit loaded!');
         limit: options.limit ?? 48,
         offset: options.offset ?? 0
       });
-      return mergeCanonicalIntoLegacy(rows);
+      const enriched=await enrichCanonicalRelatedSignals(rows);
+      return mergeCanonicalIntoLegacy(enriched);
     }catch(e){
       console.warn('Canonical catalog refresh failed:', e);
       return [];
