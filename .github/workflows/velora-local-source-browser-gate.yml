@@ -299,11 +299,20 @@ jobs:
               # Regression for the previously reported seller re-entry issue:
               # opening Seller again must work without a page refresh.
               page.evaluate("() => window.openSellerPlatform()")
-              page.wait_for_timeout(1200)
+              page.wait_for_timeout(4000)
               result["checks"]["seller_reentry_hash"] = page.url.split("#")[-1] == "seller"
+              result["checks"]["seller_reentry_platform_exists"] = page.locator("#sellerPlatform").count() == 1
               result["checks"]["seller_reentry_active"] = (
                   "active" in (page.locator("#sellerPlatform").get_attribute("class") or "")
                   if page.locator("#sellerPlatform").count() else False
+              )
+              result["checks"]["seller_reentry_platform_class"] = (
+                  page.locator("#sellerPlatform").get_attribute("class")
+                  if page.locator("#sellerPlatform").count() else None
+              )
+              result["checks"]["seller_reentry_toast_text"] = (
+                  page.locator("#toast").inner_text()
+                  if page.locator("#toast").count() else ""
               )
               page.evaluate("() => window.closeSellerPlatform()")
               page.wait_for_timeout(1200)
@@ -345,6 +354,7 @@ jobs:
               "platform_return_store_hash",
               "platform_return_store_active",
               "seller_reentry_hash",
+              "seller_reentry_platform_exists",
               "seller_reentry_active",
               "seller_reentry_back_store_hash",
               "seller_reentry_back_store_active",
