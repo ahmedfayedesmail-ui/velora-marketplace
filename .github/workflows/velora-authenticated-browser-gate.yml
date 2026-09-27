@@ -510,6 +510,10 @@ jobs:
               failures.append("Authenticated Supabase session was not created")
           if not c.get("state_user_present"):
               failures.append("Application STATE.user was not populated after login")
+          if not c.get("cart_fixture_reset_sync_ok"):
+              failures.append("Cart test fixture reset sync did not return true")
+          if not c.get("cart_fixture_reset_product_absent"):
+              failures.append("Test product remained in the authenticated cart fixture before add")
           if not c.get("canonical_cart_sync_ok"):
               failures.append("Canonical cloud cart sync did not return true")
           if not c.get("local_cart_has_test_product"):
