@@ -334,6 +334,45 @@ jobs:
           payment_action_started = False
           otp_observed = False
           if checkout_url:
+              # Transport isolation probe: compare a plain HTTPS GET with the browser result.
+              # This helps distinguish a provider/network 403 from a browser-automation-specific block.
+              try:
+                  probe_req = urllib.request.Request(
+                      checkout_url,
+                      method="GET",
+                      headers={
+                          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+                          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                      },
+                  )
+                  try:
+                      with urllib.request.urlopen(probe_req, timeout=30) as probe_resp:
+                          raw = probe_resp.read().decode("utf-8", errors="replace")
+                          evidence["transport_probe"] = {
+                              "http_status": probe_resp.status,
+                              "body_text": raw[:1000],
+                              "response_headers": {
+                                  k: probe_resp.headers.get(k)
+                                  for k in ["server","cf-ray","cf-cache-status","via","x-cache","content-type","content-length"]
+                                  if probe_resp.headers.get(k) is not None
+                              },
+                          }
+                  except urllib.error.HTTPError as exc:
+                      raw = exc.read().decode("utf-8", errors="replace")
+                      evidence["transport_probe"] = {
+                          "http_status": exc.code,
+                          "body_text": raw[:1000],
+                          "response_headers": {
+                              k: exc.headers.get(k)
+                              for k in ["server","cf-ray","cf-cache-status","via","x-cache","content-type","content-length"]
+                              if exc.headers.get(k) is not None
+                          },
+                      }
+              except Exception as exc:
+                  evidence["transport_probe"] = {
+                      "error": type(exc).__name__,
+                  }
+
               with sync_playwright() as p:
                   browser = p.chromium.launch(headless=True)
                   context = browser.new_context(viewport={"width": 1440, "height": 1000})
