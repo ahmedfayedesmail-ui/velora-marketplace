@@ -6175,6 +6175,31 @@ function switchPlatform(platformId) {
 }
 
 /* ============ SELLER REGISTRATION ============ */
+function openSellerEntryPoint() {
+    const user = STATE.user;
+    if (!user) {
+        return openSellerRegistration();
+    }
+
+    const roles = Array.isArray(user.roles)
+        ? user.roles.map(r => String(r).toLowerCase())
+        : [];
+
+    const isSeller = !!(
+        user.sellerId ||
+        user.isSeller ||
+        roles.includes(ROLES.SELLER) ||
+        String(user.role || '').toLowerCase() === ROLES.SELLER
+    );
+
+    if (isSeller) {
+        if (typeof window.VELORA_OPEN_SELLER === 'function') return window.VELORA_OPEN_SELLER();
+        if (typeof window.openSellerPlatform === 'function') return window.openSellerPlatform();
+    }
+
+    return openSellerRegistration();
+}
+
 function openSellerRegistration() {
     if (!STATE.user) {
         showToast('⚠️ Please login first', 'warning');
