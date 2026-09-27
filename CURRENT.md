@@ -30,16 +30,16 @@ The detail contract returns product metadata, category/subcategory, ingredients,
 Source currency is preserved separately from display currency for cart safety.
 
 ## Next step
-1. Wait for Vercel to accept a deployment for the current application source state. GitHub still reports the Vercel context as `Deployment rate limited — retry in 24 hours`; the newest READY deployment visible from Vercel is for test-only commit `014bdd...` and predates the current application source fix `cb1128...`.
-2. When a deployment matching the current application source is available, rerun the authenticated Preview Browser Gate against that exact deployment and verify the already-proven local flows: direct `store/<uuid>`, Shops → Visit Store → Back, Product Detail canonical hydration, Related Products exclusion, Product Detail → Visit Store, Arabic RTL, and `store/<uuid> → Seller → Marketplace` return.
-3. No additional application-code change is justified right now. Continue with the evidence-first rule: new source defect → smallest safe fix → source/DB verification → exact-SHA browser evidence.
+1. Deployment-layer blocker is cleared: Vercel deployment `dpl_6nqFAseXWVS1vtcikyeTLSFBUkMr` is **READY** and the GitHub Vercel status for commit `8aca74f990e57ff7c36570c444afccef73ee5b34` is **SUCCESS**.
+2. The authenticated Preview Browser Gate has now run against that deployment/branch alias and is **PASS**. The tested deployment SHA is `8aca...`; compare evidence shows `8aca...` differs from branch HEAD `209...` only in `CURRENT.md`, so the deployed application source is unchanged from the exact-source runtime gate that already passed.
+3. No additional application-code change is justified right now. Move to the next unresolved Stage A audit item using the same evidence-first path: inspect existing source → inspect DB contract/permissions → smallest safe change only if a concrete defect is proven → exact-SHA browser evidence. Production remains frozen.
 
 ## Evidence state
 - Product Detail source verification: PASS
 - Product Detail DB contract verification: PASS
 - Product Detail deployment evidence: PASS/READY observed on the earlier Preview; current branch source has since been browser-validated locally.
-- Product Detail Browser Gate: **local-source PASS** on current application source at branch HEAD `209ccb3f488099055d1dd199a94d6eaf965850fa` via run `36348263500` / job `108701761333`. The run served the exact checked-out `src/` tree locally. It passed canonical Store Detail startup, Shops → Store → Back, Product Detail hydration, Related Products exclusion, Visit Store hit-test + normal click, authenticated session, Arabic RTL, `store/<uuid> → Seller → Marketplace → exact store` return, and the guarded non-seller re-entry path. `console_errors=[]`, `page_errors=[]`, and `failures=[]`.
-- Vercel Preview Browser Gate: still PENDING because the connected Vercel integration continues to return `build-rate-limit`; do not treat the local-source PASS as deployed-Preview proof.
+- Product Detail Browser Gate: **local-source PASS** at branch HEAD `209ccb3...` via run `36348263500` / job `108701761333`, and **deployed-Preview PASS** via Authenticated Browser Gate run `36348789479` / job `108703247162` against `preview_url` with `tested_preview_sha=8aca74f990e57ff7c36570c444afccef73ee5b34`. The Preview run passed canonical Store Detail startup, Shops → Store → Back, Product Detail canonical hydration, Related Products exclusion, Visit Store hit-test + normal click, authenticated session, Arabic RTL, cart fixture reset, checkout navigation, and no runtime/console/page errors. `response_error_urls=[]`, `failures=[]`.
+- Vercel Preview Browser Gate: **PASS** on deployment `dpl_6nqFAseXWVS1vtcikyeTLSFBUkMr` (`velora-marketplace-4v4ki5eoy-ahmedconccc-7063.vercel.app`) through the authenticated workflow above. The branch alias `velora-marketplace-git-audit-full-gate-c558d2-ahmedconccc-7063.vercel.app` resolved to the same READY deployment. GitHub Vercel status is now `success` for `8aca...`.
 - Related Products source/DB evidence: PASS. The frontend enriches only approved UUIDs already returned by `velora_get_marketplace_catalog`; no catalog schema/contract change was made.
 - Related Products Browser Gate: local-source PASS on `209ccb3...` as part of the run above; deployed Preview evidence remains pending until a matching Vercel deployment exists.
 - Store Navigation source/DB evidence: PASS
@@ -51,11 +51,11 @@ Source currency is preserved separately from display currency for cart safety.
   - QA store RPC test returned `E2E Seller Store` plus 5 approved products.
   - Pending-store RPC test returned 0 rows.
 - Store Navigation Browser Gate: local-source PASS on `209ccb3...` (same run/job above), including direct `#store/<uuid>` startup, Shops → Visit Store, Back to Shops, Product Detail → Visit Store, and exact return to the Store Detail route after Seller platform exit. Deployed Preview evidence remains pending until Vercel serves a deployment matching the current application source.
-- Current Vercel build status: GitHub status on `209ccb3...` is `failure` for context `Vercel`, target `https://vercel.com/ahmedconccc-7063?upgradeToPro=build-rate-limit`, with description `Deployment rate limited — retry in 24 hours.` The latest READY deployment visible from Vercel is commit `014bdd3b67c9045be3964cb1a99daeb32a4cdc68`; it predates `cb1128...` and is therefore not evidence for the current startup/router source.
+- Current Vercel build status: **CLEAR / SUCCESS** for `8aca...`. Vercel deployment `dpl_6nqFAseXWVS1vtcikyeTLSFBUkMr` is READY, with no alias error. The deployment is based on the current branch tree; GitHub compare proves the only change after `209...` is `CURRENT.md`.
 - Production: FROZEN
 
-### Exact-SHA CI evidence at current branch HEAD `209ccb3f...`
-- `Velora Full Audit Gate` run `36348263468` / run #258: **SUCCESS**.
+### Exact-SHA CI evidence at verified branch state
+- `Velora Full Audit Gate` run `36348789535` / run #259 on `8aca...`: **SUCCESS**.
   - `Source + Security` job `108701761439`: **SUCCESS** — CodeQL, JavaScript syntax, static audit, script-manifest consistency, Semgrep, and Gitleaks all completed successfully.
   - `Dependency + Web Surface` job `108701761622`: **SUCCESS** — root/src dependency audits, Lighthouse, and OWASP ZAP baseline all completed successfully.
 - `Velora Staff Launch Gate Audit` run `36348263483` / run #108: **SUCCESS**.
@@ -138,17 +138,17 @@ The canonical handoff artifact is this file plus the active Git branch/history. 
 Do not recreate a giant handoff unless a future task specifically needs historical reconstruction.
 
 ## Current pause/resume point
-The router/startup fixes are now runtime-verified on the exact checked-out source. Resume at the deployment layer, not by reopening already-verified application code:
+The router/startup fixes are now runtime-verified on the exact checked-out source **and on the deployed Preview tree**. Resume at the next Stage A audit item, not by reopening already-verified Product Detail/Related Products/Store Navigation code:
 
-- Application source/runtime HEAD: `cb1128e62619e200d5f235e58ed2b69a39409afd`.
-- Branch HEAD: `209ccb3f488099055d1dd199a94d6eaf965850fa` (test-only guard change).
-- Exact-source local Browser Gate: PASS, run `36348263500` / job `108701761333`.
-- Full Audit: PASS, run `36348263468` / #258.
-- Staff Launch Gate: PASS, run `36348263483` / #108.
-- Authenticated Browser Gate: PASS, run `36348263462` / #111.
-- Vercel deployment matching the current application source: still unavailable/rate-limited; do not call the current Preview green until an exact-SHA deployment exists.
+- Application source/runtime commit: `cb1128e62619e200d5f235e58ed2b69a39409afd`.
+- Branch HEAD: `8aca74f990e57ff7c36570c444afccef73ee5b34` (documentation-only change after `209...`).
+- Exact-source local Browser Gate: PASS, run `36348789512` / #22.
+- Deployed Preview Authenticated Browser Gate: PASS, run `36348789479` / #112, tested SHA `8aca...`.
+- Full Audit: PASS, run `36348789535` / #259.
+- Staff Launch Gate: PASS, run `36348789546` / #109.
+- Vercel: READY + GitHub status SUCCESS for `8aca...`.
 
-The local-source workflow is `.github/workflows/velora-local-source-browser-gate.yml`; it now covers Store Detail startup, Shops → Store → Back, Product Detail canonical hydration, Related Products exclusion, Product Detail → Visit Store, Arabic RTL, and `store/<uuid> → Seller → Marketplace` exact return. Production remains FROZEN.
+Verified flows include Store Detail startup, Shops → Store → Back, Product Detail canonical hydration, Related Products exclusion, Product Detail → Visit Store, Arabic RTL, cart/checkout continuity, and `store/<uuid> → Seller → Marketplace` exact return. Production remains FROZEN.
 
 ### Navigation audit finding — RESOLVED / OBSERVED IN BROWSER
 The source defect was fixed in `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f`. The exact-source Browser Gate on `209ccb3...` confirms the full round-trip from `store/<uuid>` through Seller and back to the exact Store Detail route.
