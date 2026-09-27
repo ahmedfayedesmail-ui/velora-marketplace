@@ -8644,8 +8644,41 @@ async function loadAdminLegalFromDb(){
       const rows=result.data||[];
       const owner=Array.isArray(window.VELORA_ADMIN_ROLES)&&window.VELORA_ADMIN_ROLES.includes('owner');
       host.innerHTML='<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Document</th><th>Audience</th><th>Locale</th><th>Version</th><th>Status</th><th>Hash</th><th>Actions</th></tr></thead><tbody>'+
-        (rows.length?rows.map(d=>'<tr><td><strong>'+escapeHtml(d.title)+'</strong><div class="velora-op-muted">'+escapeHtml(d.document_type)+'</div></td><td>'+escapeHtml(d.audience)+'</td><td>'+escapeHtml(d.locale)+'</td><td>'+escapeHtml(d.version)+'</td><td>'+escapeHtml(d.status)+'</td><td><code>'+escapeHtml(String(d.content_hash).slice(0,16))+'…</code></td><td>'+((owner&&d.status==='approved')?'<button class="btn btn-primary" data-legal-publish="'+escapeHtml(d.id)+'">Publish</button>':'')+'</td></tr>').join(''):'<tr><td colspan="7" data-velora-i18n="No legal versions configured.">No legal versions configured.</td></tr>')+
+        (rows.length?rows.map(d=>{
+        const isQaFixture=String(d.version||'')==='0.0-QA-2026-09-27'&&String(d.review_reference||'')==='QA-RESTORE-LEGAL-2026-09-27';
+        const actions=(owner&&d.status==='approved')
+          ? '<button class="btn btn-primary" data-legal-publish="'+escapeHtml(d.id)+'">Publish</button>'
+          : ((owner&&d.status==='published'&&isQaFixture)
+            ? '<button class="btn btn-outline" data-legal-retire="'+escapeHtml(d.id)+'">Retire QA fixture</button>'
+            : '');
+        return '<tr><td><strong>'+escapeHtml(d.title)+'</strong><div class="velora-op-muted">'+escapeHtml(d.document_type)+'</div></td><td>'+escapeHtml(d.audience)+'</td><td>'+escapeHtml(d.locale)+'</td><td>'+escapeHtml(d.version)+'</td><td>'+escapeHtml(d.status)+'</td><td><code>'+escapeHtml(String(d.content_hash).slice(0,16))+'…</code></td><td>'+actions+'</td></tr>';
+      }).join(''):'<tr><td colspan="7" data-velora-i18n="No legal versions configured.">No legal versions configured.</td></tr>')+
         '</tbody></table></div>';
+      host.querySelectorAll('[data-legal-retire]').forEach(btn=>btn.addEventListener('click',async()=>{
+        if(!confirm('Retire this temporary Restore-Test QA legal fixture?'))return;
+        btn.disabled=true;
+        try{
+          const id=btn.getAttribute('data-legal-retire');
+          const current=(rows||[]).find(d=>String(d.id)===String(id));
+          if(!current)throw new Error('LEGAL_DOCUMENT_NOT_FOUND');
+          const x=await client.rpc('velora_upsert_legal_document',{
+            p_document_type:String(current.document_type||''),
+            p_audience:String(current.audience||'all'),
+            p_locale:String(current.locale||'en'),
+            p_version:String(current.version||''),
+            p_title:String(current.title||''),
+            p_body:String(current.body||''),
+            p_content_hash:String(current.content_hash||'')||null,
+            p_status:'retired',
+            p_requires_reacceptance:Boolean(current.requires_reacceptance),
+            p_jurisdiction_scope:null,
+            p_review_reference:String(current.review_reference||'')||null
+          });
+          if(x.error)throw x.error;
+          showToast('✅ QA legal fixture retired.','success');
+        }catch(e){showToast('❌ '+(e?.message||e),'error');btn.disabled=false;return;}
+        await loadAdminLegalFromDb();
+      }));
       host.querySelectorAll('[data-legal-publish]').forEach(btn=>btn.addEventListener('click',async()=>{
         btn.disabled=true;
         const x=await client.rpc('velora_publish_legal_document',{p_document_id:btn.getAttribute('data-legal-publish')});
