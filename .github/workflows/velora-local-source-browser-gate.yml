@@ -163,6 +163,11 @@ jobs:
               result["checks"]["product_visit_store_button"] = visit.count() == 1
               result["checks"]["product_visit_store_visible"] = visit.is_visible() if visit.count() == 1 else False
               if visit.count() == 1:
+                  try:
+                      visit.scroll_into_view_if_needed(timeout=3000)
+                      page.wait_for_timeout(250)
+                  except Exception as exc:
+                      result["checks"]["product_visit_store_scroll_error"] = str(exc)[:500]
                   box = visit.bounding_box()
                   if box and box["width"] > 0 and box["height"] > 0:
                       hit = page.evaluate(
@@ -226,8 +231,12 @@ jobs:
                   except Exception as exc:
                       result["checks"]["product_visit_store_normal_click_ok"] = False
                       result["checks"]["product_visit_store_normal_click_error"] = str(exc)[:500]
-
-                  visit.click(force=True)
+                      try:
+                          visit.click(force=True, timeout=3000)
+                          result["checks"]["product_visit_store_force_click_ok"] = True
+                      except Exception as force_exc:
+                          result["checks"]["product_visit_store_force_click_ok"] = False
+                          result["checks"]["product_visit_store_force_click_error"] = str(force_exc)[:500]
                   page.wait_for_timeout(1800)
 
               result["checks"]["product_visit_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
@@ -309,6 +318,7 @@ jobs:
               "product_visit_store_button",
               "product_visit_store_visible",
               "product_visit_store_hit_test_clear",
+              "product_visit_store_normal_click_ok",
               "product_visit_store_hash",
               "product_visit_store_active",
               "authenticated_session",
