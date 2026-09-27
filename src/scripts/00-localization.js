@@ -2535,11 +2535,7 @@ function openStore(storeId) {
     }
 
     window.VELORA_STORE_ROUTE_ID = storeId;
-    if (typeof window.navigateTo === 'function') window.navigateTo('store');
-
-    const url = new URL(window.location.href);
-    url.hash = 'store/' + encodeURIComponent(storeId);
-    window.history.replaceState({}, '', url);
+    window.location.hash = 'store/' + encodeURIComponent(storeId);
 }
 
 async function renderStoreDetail() {
