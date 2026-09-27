@@ -7,7 +7,7 @@ Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `au
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
-2. Related Products — confirmed data-contract gap; no fix applied yet.
+2. Related Products — source gap fixed in frontend enrichment; Browser Gate still required.
 3. Store Navigation — confirmed incomplete action; architecture audit pending.
 
 ## Last completed change
@@ -28,7 +28,8 @@ Audit and fix Related Products using the smallest canonical-data change that pre
 - Product Detail DB contract verification: PASS
 - Product Detail deployment evidence: PASS/READY observed on Preview
 - Product Detail Browser Gate: PENDING
-- Related Products contract gap: CONFIRMED
+- Related Products source/DB evidence: fix committed; Preview READY
+- Related Products Browser Gate: PENDING (external browser runner unavailable due wallet)
 - Store Navigation incomplete action: CONFIRMED
 - Production: FROZEN
 
@@ -44,7 +45,9 @@ Audit and fix Related Products using the smallest canonical-data change that pre
 - Consultant/reviewer is for RCA/review, not implementation ownership.
 
 ## Regression-test direction
-The project already has executable CI/browser evidence infrastructure. The target is to make the critical flows self-checking rather than relying on long handoffs:
+The project already has executable CI/browser evidence infrastructure. The target is to make the critical flows self-checking rather than relying on long handoffs. Current related-products fix enriches only the approved UUIDs already returned by the canonical catalog RPC; no DB schema/contract change was made.
+
+Critical flows:
 - canonical cart / routine add-all
 - checkout + idempotency
 - legal fail-closed
