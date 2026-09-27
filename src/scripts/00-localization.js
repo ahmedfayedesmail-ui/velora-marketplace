@@ -2517,12 +2517,126 @@ async function renderMarketplaceStores() {
             container.innerHTML = `<div class="velora-empty-store" style="grid-column:1/-1"><div style="font-size:3rem">🏪</div><h2>${typeof tr==='function' ? tr('Be one of the first stores on Velora') : 'Be one of the first stores on Velora'}</h2><p>${typeof tr==='function' ? tr('Velora is opening its marketplace to independent sellers and brands.') : 'Velora is opening its marketplace to independent sellers and brands.'}</p><button class="btn btn-primary" onclick="openSellerRegistration()">🚀 ${typeof tr==='function' ? tr('Become a Seller') : 'Become a Seller'}</button></div>`;
             return;
         }
-        container.innerHTML = stores.map(s => `<article class="velora-store-card"><div class="velora-store-icon">🏪</div><span class="section-label">${escapeHtml(s.category_name || 'MARKETPLACE STORE')}</span><h3>${escapeHtml(s.store_name || 'Velora Store')}</h3><p>${escapeHtml(s.product_description || (typeof tr==='function' ? tr('Discover products from this independent seller on Velora.') : 'Discover products from this independent seller on Velora.'))}</p><button class="btn btn-outline" onclick="showToast('🏪 ${typeof tr==='function' ? tr('Visit Store') : 'Visit Store'}', 'info')">${typeof tr==='function' ? tr('Visit Store') : 'Visit Store'}</button></article>`).join('');
+        container.innerHTML = stores.map(s => `<article class="velora-store-card"><div class="velora-store-icon">🏪</div><span class="section-label">${escapeHtml(s.category_name || 'MARKETPLACE STORE')}</span><h3>${escapeHtml(s.store_name || 'Velora Store')}</h3><p>${escapeHtml(s.product_description || (typeof tr==='function' ? tr('Discover products from this independent seller on Velora.') : 'Discover products from this independent seller on Velora.'))}</p><button class="btn btn-outline" onclick="openStore('${escapeHtml(String(s.store_id || ''))}')">${typeof tr==='function' ? tr('Visit Store') : 'Visit Store'}</button></article>`).join('');
     } catch (e) {
         console.error('Velora marketplace stores load failed:', e);
         container.innerHTML = `<div class="velora-empty-store" style="grid-column:1/-1"><div style="font-size:3rem">⚠️</div><h2>${typeof tr==='function' ? tr('Marketplace temporarily unavailable') : 'Marketplace temporarily unavailable'}</h2><p>${typeof tr==='function' ? tr('Please try again in a moment.') : 'Please try again in a moment.'}</p></div>`;
     }
 }
+
+function veloraIsUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+function openStore(storeId) {
+    if (!veloraIsUuid(storeId)) {
+        showToast('⚠️ ' + (typeof tr === 'function' ? tr('Store unavailable') : 'Store unavailable'), 'warning');
+        return;
+    }
+
+    window.VELORA_STORE_ROUTE_ID = storeId;
+    if (typeof window.navigateTo === 'function') window.navigateTo('store');
+
+    const url = new URL(window.location.href);
+    url.hash = 'store/' + encodeURIComponent(storeId);
+    window.history.replaceState({}, '', url);
+}
+
+async function renderStoreDetail() {
+    const container = document.getElementById('storeDetailContent');
+    if (!container) return;
+
+    const storeId = String(window.VELORA_STORE_ROUTE_ID || '');
+    if (!veloraIsUuid(storeId)) {
+        container.innerHTML = '<div class="velora-empty-store"><div style="font-size:3rem">🏪</div><h2>Store unavailable</h2><p>Please return to Shops and choose a store again.</p><button class="btn btn-outline" onclick="navigateTo(\'shops\')">Back to Shops</button></div>';
+        return;
+    }
+
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading store</h3><p>Loading this store and its available products…</p></div>';
+
+    try {
+        const db = window.mahaSupabase || window.supabaseClient || window.sb || null;
+        if (!db?.rpc) throw new Error('store_detail_rpc_unavailable');
+
+        if (typeof window.veloraLoadMarketContext === 'function') {
+            await window.veloraLoadMarketContext();
+        }
+        if (typeof window.veloraLoadRelevantCurrencies === 'function') {
+            await window.veloraLoadRelevantCurrencies();
+        }
+
+        const ctx = window.VELORA_MARKET_CONTEXT || {};
+        const currency = String(ctx.currencyCode || localStorage.getItem('velora_currency') || 'EGP').toUpperCase();
+        const country = String(ctx.countryCode || localStorage.getItem('velora_country') || 'EG').toUpperCase();
+
+        const r = await db.rpc('velora_get_store_detail', {
+            p_store_id: storeId,
+            p_country_code: country === '*' ? null : country,
+            p_currency_code: currency
+        });
+        if (r?.error) throw r.error;
+
+        const rows = Array.isArray(r?.data) ? r.data : [];
+        if (!rows.length || !rows[0]?.store_id) {
+            container.innerHTML = '<div class="velora-empty-store"><div style="font-size:3rem">🏪</div><h2>Store not available</h2><p>This store is not available in the current marketplace.</p><button class="btn btn-outline" onclick="navigateTo(\'shops\')">Back to Shops</button></div>';
+            return;
+        }
+
+        const store = rows[0];
+        const products = rows.filter(row => row?.product_id).map(row => ({
+            id: row.product_id,
+            canonicalId: row.product_id,
+            name: row.product_name || 'Product',
+            brand: row.brand || store.store_name || 'Velora Seller',
+            category: row.category_slug || row.category_name || 'all',
+            subcategory: row.subcategory || row.category_name || '',
+            description: row.product_description || '',
+            price: Number(row.display_price ?? row.price ?? 0),
+            oldPrice: row.original_price != null ? Number(row.original_price) : null,
+            rating: Number(row.rating ?? 0),
+            reviewsCount: Number(row.review_count ?? 0),
+            stock: Number(row.stock ?? 0),
+            badge: row.badge || '',
+            emoji: row.emoji || '📦',
+            images: Array.isArray(row.images) ? row.images : [],
+            currency: row.display_currency || row.product_currency || currency,
+            currency_code: row.product_currency || currency,
+            storeId: row.store_id || store.store_id,
+            storeName: row.store_name || store.store_name || '',
+            storeSlug: row.store_slug || store.store_slug || ''
+        }));
+
+        const logoUrl = /^https?:\/\//i.test(String(store.store_logo_url || '')) ? String(store.store_logo_url) : '';
+        const bannerUrl = /^https?:\/\//i.test(String(store.store_banner_url || '')) ? String(store.store_banner_url) : '';
+
+        container.innerHTML = `
+            <div class="velora-store-detail">
+                <div style="margin-bottom:1rem;"><button class="btn btn-outline" onclick="navigateTo('shops')">← Back to Shops</button></div>
+                ${bannerUrl ? `<div style="height:220px;border-radius:16px;overflow:hidden;background:var(--bg-alt);margin-bottom:1rem;"><img src="${escapeHtml(bannerUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
+                <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem;">
+                    ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="" style="width:76px;height:76px;border-radius:16px;object-fit:cover;border:1px solid var(--border);">` : '<div class="velora-store-icon">🏪</div>'}
+                    <div>
+                        <span class="section-label">STORE</span>
+                        <h1 style="margin:.25rem 0 0;">${escapeHtml(store.store_name || 'Velora Store')}</h1>
+                        <p style="margin:.35rem 0 0;color:var(--text-muted);">${escapeHtml(store.store_description || 'Discover products from this Velora store.')}</p>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:1rem;">
+                    <h2 style="margin:0;">Products</h2>
+                    <span style="color:var(--text-muted);">${products.length} product${products.length===1?'':'s'}</span>
+                </div>
+                <div class="products-grid">
+                    ${products.length ? products.map(renderProductCard).join('') : '<div class="empty-state"><div class="empty-icon">📦</div><h3>No products available</h3><p>This store has no approved products available right now.</p></div>'}
+                </div>
+            </div>
+        `;
+        if (typeof window.VELORA_TRANSLATE_ALL === 'function') window.VELORA_TRANSLATE_ALL();
+    } catch (e) {
+        console.error('Velora store detail load failed:', e);
+        container.innerHTML = '<div class="velora-empty-store"><div style="font-size:3rem">⚠️</div><h2>Store unavailable</h2><p>Please try again in a moment.</p><button class="btn btn-outline" onclick="navigateTo(\'shops\')">Back to Shops</button></div>';
+    }
+}
+
 
 function renderMarketplaceDeals() {
     const container = document.getElementById('dealsProducts');
@@ -2584,6 +2698,9 @@ function loadPageContent(page) {
             break;
         case 'shops':
             renderMarketplaceStores();
+            break;
+        case 'store':
+            void renderStoreDetail();
             break;
         case 'deals':
             renderMarketplaceDeals();
