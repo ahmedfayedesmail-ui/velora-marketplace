@@ -32,8 +32,8 @@ jobs:
 
       - name: Run authenticated browser evidence
         env:
-          PREVIEW_URL: https://velora-marketplace-5nv2ooto7-ahmedconccc-7063.vercel.app/
-          TESTED_PREVIEW_SHA: 795fa13609558c7ccf2a20456e56bf4808e1c677
+          PREVIEW_URL: https://velora-marketplace-git-audit-full-gate-c558d2-ahmedconccc-7063.vercel.app/
+          TESTED_PREVIEW_SHA: ${{ github.sha }}
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: |
@@ -45,6 +45,7 @@ jobs:
           email = os.environ.get("E2E_EMAIL", "")
           password = os.environ.get("E2E_PASSWORD", "")
           test_product = "21d977a0-111b-4bb4-9736-0f2994294d48"
+          test_store = "11111111-2222-4333-8444-555555555555"
 
           result = {
               "browser_evidence_schema": "v1",
@@ -102,6 +103,48 @@ jobs:
               result["checks"]["title"] = page.title()
               result["checks"]["initial_lang"] = page.locator("html").get_attribute("lang")
               result["checks"]["initial_dir"] = page.locator("html").get_attribute("dir")
+
+              # Anonymous discovery gates: Store Detail route + Product Detail related section.
+              page.goto(
+                  url + "/#store/" + test_store,
+                  wait_until="domcontentloaded",
+                  timeout=60000,
+              )
+              page.wait_for_timeout(1800)
+              store_text = page.locator("#storeDetailContent").inner_text() if page.locator("#storeDetailContent").count() else ""
+              result["checks"]["store_detail_route_active"] = (
+                  "active" in (page.locator("#page-store").get_attribute("class") or "")
+                  if page.locator("#page-store").count() else False
+              )
+              result["checks"]["store_detail_has_store_name"] = "E2E Seller Store" in store_text
+              result["checks"]["store_detail_has_test_product"] = "Test Vitamin C Serum" in store_text
+              result["checks"]["store_detail_product_count"] = sum(
+                  1 for name in (
+                      "Test Vitamin C Serum",
+                      "QA Seed Anti-Aging Treatment",
+                      "QA Seed Barrier Moisturizer",
+                      "QA Seed Cleanser",
+                      "QA Seed SPF 50 Protect",
+                  ) if name in store_text
+              )
+
+              page.goto(
+                  url + "/#shop",
+                  wait_until="domcontentloaded",
+                  timeout=60000,
+              )
+              page.wait_for_timeout(1000)
+              page.evaluate("(productId) => window.openProductDetail(productId)", test_product)
+              page.wait_for_timeout(1600)
+              detail_text = page.locator("#productModalContent").inner_text() if page.locator("#productModalContent").count() else ""
+              result["checks"]["product_detail_modal_active"] = (
+                  "active" in (page.locator("#productModal").get_attribute("class") or "")
+                  if page.locator("#productModal").count() else False
+              )
+              result["checks"]["product_detail_has_related_heading"] = "You May Also Like" in detail_text
+              result["checks"]["product_detail_related_excludes_source"] = (
+                  detail_text.count("Test Vitamin C Serum") == 1
+              )
 
               page.evaluate("() => openAuthModal('login')")
               page.locator("#loginEmail").fill(email)
@@ -238,6 +281,21 @@ jobs:
 
           if c.get("http_status") != 200:
               failures.append("HTTP status is not 200")
+          if not c.get("store_detail_route_active"):
+              failures.append("Store Detail route did not activate")
+          if not c.get("store_detail_has_store_name"):
+              failures.append("Store Detail did not render the canonical store")
+          if not c.get("store_detail_has_test_product"):
+              failures.append("Store Detail did not render the test product")
+          if c.get("store_detail_product_count") != 5:
+              failures.append("Store Detail did not render all 5 expected QA products")
+          if not c.get("product_detail_modal_active"):
+              failures.append("Product Detail modal did not activate")
+          if not c.get("product_detail_has_related_heading"):
+              failures.append("Product Detail did not render Related Products")
+          if not c.get("product_detail_related_excludes_source"):
+              failures.append("Related Products section may contain the source product")
+
           if not c.get("authenticated_session"):
               failures.append("Authenticated Supabase session was not created")
           if not c.get("state_user_present"):
