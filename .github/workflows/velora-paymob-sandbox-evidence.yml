@@ -54,6 +54,7 @@ jobs:
           import uuid
           import urllib.parse
           import urllib.request
+          import re
           from pathlib import Path
           from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
@@ -342,6 +343,19 @@ jobs:
                       page.goto(checkout_url, wait_until="domcontentloaded", timeout=60000)
                       page.wait_for_timeout(5000)
 
+                      evidence["playwright"]["url"] = page.url
+                      evidence["playwright"]["title"] = page.title()
+                      evidence["playwright"]["frame_urls"] = [frame.url for frame in page.frames]
+                      try:
+                          evidence["playwright"]["body_text"] = page.locator("body").inner_text(timeout=10000)[:5000]
+                      except Exception:
+                          evidence["playwright"]["body_text"] = ""
+                      evidence["playwright"]["iframe_count"] = page.locator("iframe").count()
+                      evidence["playwright"]["iframe_srcs"] = [
+                          page.locator("iframe").nth(i).get_attribute("src")
+                          for i in range(min(page.locator("iframe").count(), 20))
+                      ]
+
                       def visible_in_page_or_frames(selector):
                           try:
                               loc = page.locator(selector)
@@ -364,6 +378,34 @@ jobs:
                               if loc:
                                   return loc
                           return None
+
+                      # Unified Checkout may show payment-method selection before card fields.
+                      card_method = first_visible([
+                          "button:has-text(\"Card\")",
+                          "[role=\"button\"]:has-text(\"Card\")",
+                          "a:has-text(\"Card\")",
+                      ])
+                      if not card_method:
+                          for frame in page.frames:
+                              try:
+                                  loc = frame.get_by_text(re.compile(r"^(credit|debit)?\\s*card$", re.I), exact=True)
+                                  if loc.count() and loc.first.is_visible():
+                                      card_method = loc.first
+                                      break
+                              except Exception:
+                                  pass
+
+                      evidence["playwright"]["card_method_detected"] = bool(card_method)
+                      if card_method:
+                          try:
+                              card_method.click()
+                              evidence["playwright"]["card_method_selected"] = True
+                              page.wait_for_timeout(3000)
+                          except Exception as exc:
+                              evidence["playwright"]["card_method_selected"] = False
+                              evidence["failures"].append(f"Paymob card method click failed: {type(exc).__name__}")
+                      else:
+                          evidence["playwright"]["card_method_selected"] = False
 
                       card_number = first_visible([
                           'input[autocomplete="cc-number"]',
@@ -401,6 +443,19 @@ jobs:
                               except Exception:
                                   pass
                           evidence["playwright"]["visible_inputs"] = meta
+                          try:
+                              evidence["playwright"]["buttons"] = page.locator("button").all_inner_texts()[:100]
+                          except Exception:
+                              evidence["playwright"]["buttons"] = []
+                          try:
+                              evidence["playwright"]["links"] = page.locator("a").all_inner_texts()[:100]
+                          except Exception:
+                              evidence["playwright"]["links"] = []
+                          try:
+                              page.screenshot(path="paymob-checkout.png", full_page=True)
+                              evidence["playwright"]["screenshot"] = "paymob-checkout.png"
+                          except Exception:
+                              pass
                           evidence["failures"].append("Paymob card fields could not be identified")
                       else:
                           card_number.fill("5123456789012346")
@@ -547,6 +602,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: velora-paymob-sandbox-evidence-${{ github.run_id }}
-          path: paymob-sandbox-evidence.json
+          path: |
+            paymob-sandbox-evidence.json
+            paymob-checkout.png
           retention-days: 7
           if-no-files-found: error
