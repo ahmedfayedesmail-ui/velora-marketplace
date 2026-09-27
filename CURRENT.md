@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest application source/runtime commit: `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f` (`fix(router): preserve store deep-link return route`). Latest browser-gate-only commits are `437cf1edb27e71ff7b019a212713799f8966defb`, `9ab16f9fa851459dc49686d5aa638be25a2e1002`, `12d1acf17123ee5a537671b6c009ac4df36c2310`, `0be23386cc2edf0fb2ec44d55518d4b5a1d1ddd6`, and `ffe1e0756961639ca5619b4c3ca27c7f60e5a6d8`; the Product Detail and localization runtime fixes remain included in history.
+Latest application source/runtime commit: `dec8bc42b52ea7d7f76a7de2c7b18da485db43ef` (`fix(router): preserve store deep-link on startup`). The preceding router return-path fix is `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f`. Latest browser-gate/test-only commits include `437cf1edb27e71ff7b019a212713799f8966defb`, `9ab16f9fa851459dc49686d5aa638be25a2e1002`, `12d1acf17123ee5a537671b6c009ac4df36c2310`, `0be23386cc2edf0fb2ec44d55518d4b5a1d1ddd6`, `ffe1e0756961639ca5619b4c3ca27c7f60e5a6d8`, `25633bd877abff383b7b869d2bce551acee41266`, `6d1f6636d268b1c3088e78a5fabfff7aa2181562`, `3cda30135e64a2d1c182bda5df1226e0d991a9cd`, `cf6fa4610f9c4a4bed072689454326d6d0033991`, `014bdd3b67c9045be3964cb1a99daeb32a4cdc68`, and `e084022b3bd2bded0b84d19f834c2128d6cda548`.
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -37,8 +37,9 @@ Source currency is preserved separately from display currency for cart safety.
 ## Evidence state
 - Product Detail source verification: PASS
 - Product Detail DB contract verification: PASS
-- Product Detail deployment evidence: PASS/READY observed on Preview
-- Product Detail Browser Gate: PENDING on current source (runs #83/#84 were against stale Preview and are not valid current-code proof).
+- Product Detail deployment evidence: PASS/READY observed on the earlier Preview; current branch source has since been browser-validated locally.
+- Product Detail Browser Gate: **local-source PASS** at commit `dec8bc42b52ea7d7f76a7de2c7b18da485db43ef` via run `36347480534` / job `108699472244`. Evidence showed canonical hydration, Related Products exclusion, Visit Store visible, hit-test clear, normal click success, Store Detail activation, authenticated session, Arabic RTL, and exact store deep-link return through Seller; no console/page errors.
+- Vercel Preview Browser Gate: still PENDING because the connected Vercel integration continues to return `build-rate-limit`; do not treat the local-source PASS as deployed-Preview proof.
 - Related Products source/DB evidence: fix committed; Preview READY
 - Related Products Browser Gate: PENDING (external browser runner unavailable due wallet)
 - Store Navigation source/DB evidence: PASS
@@ -50,7 +51,7 @@ Source currency is preserved separately from display currency for cart safety.
   - QA store RPC test returned `E2E Seller Store` plus 5 approved products.
   - Pending-store RPC test returned 0 rows.
 - Store Navigation Browser Gate: current-code PENDING; however the deployed pre-fix browser gate already proved direct Store Detail, Shops -> Visit Store, and Back to Shops on the then-current Preview.
-- Current Vercel build status: BLOCKED by connected Vercel `build-rate-limit` (`Deployment rate limited — retry in 24 hours.` observed on commit `dc157...`). The latest READY deployment in the accessible deployment list is commit `31cc7209357df97620c093709703d7561dce476f`; therefore Runs #83/#84 did not exercise `79c8...` or `dc157...` source changes.
+- Current Vercel build status: BLOCKED by connected Vercel `build-rate-limit`; GitHub status on the latest branch commits still reports `Deployment rate limited — retry in 24 hours.` The latest known READY deployment is `437cf1ed...`, so the new `dec8...` startup deep-link fix is not yet deployed to the current Preview.
 - Production: FROZEN
 
 
@@ -59,6 +60,10 @@ Source currency is preserved separately from display currency for cart safety.
 To avoid losing the Vercel rate-limit window, a second browser workflow was added that serves the exact checked-out `src/` tree locally on the GitHub runner and exercises Store Detail, Shops -> Store -> Back, Product Detail canonical hydration, Related Products exclusion, Product Detail -> Visit Store, authenticated login, and the V5 Arabic locale switch. This provides runtime evidence for the current source without depending on a Vercel deployment. It is separate from the Vercel Preview gate and must not be presented as deployment evidence.
 - Workflow: `.github/workflows/velora-local-source-browser-gate.yml`
 - Commit: `12d1acf17123ee5a537671b6c009ac4df36c2310`
+
+
+### Startup store deep-link RCA and fix — OBSERVED FACT
+The local browser run at `cad6e1c5...` demonstrated that a fresh `#store/<uuid>` load was being reset to `/` with `VELORA_STORE_ROUTE_ID=null`. Source inspection found the cause in `00-localization.js`: its startup `validPages` list did not include store routes, so it fell back to `navigateTo('home')` before the platform router could parse `store/<uuid>`. Fix commit: `dec8bc42b52ea7d7f76a7de2c7b18da485db43ef`. The next local-source Browser Gate returned **PASS** on the same application source, including `initial_store_hash=store/<uuid>` and `store_route_active=true`.
 
 ## Latest Browser Gate hardening
 The authenticated browser workflow now resets the QA test product from the authenticated cart through the normal `window.removeFromCart()` path, waits for canonical cloud-cart sync, and asserts the product is absent before adding one unit. This addresses the observed accumulated-fixture condition that produced the 400 `velora_upsert_cart_item` response after repeated runs. This is a test-fixture change only; no application cart code, RPC, or schema was changed.
