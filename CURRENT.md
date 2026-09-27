@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest code commit: `07031b26e3047c2fdd3a28913b56802c9e984499`.
+Latest branch commit: `b24af9ffbb4686e10726b62950c2c0cfa1bcd7be` (browser-gate update).
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -18,7 +18,7 @@ Completed customer Store Detail navigation without changing the cart:
 - Added the `store` page and `#store/<store_uuid>` deep-link route.
 - `Shops → Visit Store` now enters the canonical Store Detail page.
 - Product Detail now links to the same Store Detail route using the hydrated canonical `storeId`.
-- The Restore-Test function is applied; matching migration file is committed at `supabase/migrations/20260927210000_s1_e_store_detail_read_contract.sql`.
+- The Restore-Test function is applied through the recorded migration `20260927190539 / s1_e_store_detail_read_contract`; the Git file is aligned at `supabase/migrations/20260927190539_s1_e_store_detail_read_contract.sql`.
 
 Related Products remains fixed by frontend enrichment of the approved UUIDs returned by the canonical catalog RPC; no catalog schema/contract change was made.
 
@@ -64,7 +64,7 @@ Source currency is preserved separately from display currency for cart safety.
 - Consultant/reviewer is for RCA/review, not implementation ownership.
 
 ## Regression-test direction
-The project already has executable CI/browser evidence infrastructure. The target is to make the critical flows self-checking rather than relying on long handoffs. Current related-products fix enriches only the approved UUIDs already returned by the canonical catalog RPC; no DB schema/contract change was made.
+The project already has executable CI/browser evidence infrastructure. The target is to make the critical flows self-checking rather than relying on long handoffs. The existing authenticated Playwright gate now covers Store Detail + Related Products as well as the existing cart/checkout path. Current related-products fix enriches only the approved UUIDs already returned by the canonical catalog RPC; no catalog schema/contract change was made.
 
 Critical flows:
 - canonical cart / routine add-all
