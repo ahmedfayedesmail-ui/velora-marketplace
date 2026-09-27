@@ -116,7 +116,9 @@ jobs:
           evidence["checks"]["auth_http_200"] = status == 200
           evidence["checks"]["authenticated_user"] = bool(access_token and user_id)
           if not access_token or not user_id:
-              evidence["failures"].append("Authenticated Supabase sessio          # Find the latest pending order owned by the authenticated test account.
+              evidence["failures"].append("Authenticated Supabase session was not returned")
+
+          # Find the latest pending order owned by the authenticated test account.
           # If none exists, create a Restore-Test fixture through the canonical authenticated order RPC.
           order = None
           if access_token and user_id:
