@@ -1,0 +1,377 @@
+name: Velora Paymob Sandbox Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-paymob-sandbox-evidence
+  cancel-in-progress: false
+
+jobs:
+  paymob-sandbox-evidence:
+    name: Paymob sandbox -> Intention -> Checkout -> Webhook evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: audit/full-gate-2026-09-25
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run Paymob sandbox evidence drill
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_RDyqYgvJyT37RiQ1PNxYuQ_ov_8ecea
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import uuid
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+
+          base = os.environ["SUPABASE_URL"].rstrip("/")
+          publishable_key = os.environ["SUPABASE_PUBLISHABLE_KEY"]
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
+          service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+          evidence = {
+              "schema": "paymob-sandbox-evidence-v1",
+              "environment": "restore-test",
+              "provider": "paymob",
+              "mode": "sandbox",
+              "workflow_run_id": int(os.environ.get("GITHUB_RUN_ID", "0") or 0),
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "playwright": {},
+              "db": {},
+              "failures": [],
+          }
+
+          def http_json(method, url, body=None, headers=None):
+              data = None
+              h = dict(headers or {})
+              if body is not None:
+                  data = json.dumps(body).encode("utf-8")
+                  h.setdefault("Content-Type", "application/json")
+              req = urllib.request.Request(url, method=method, data=data, headers=h)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      raw = resp.read().decode("utf-8")
+                      return resp.status, json.loads(raw) if raw else {}
+              except urllib.error.HTTPError as exc:
+                  raw = exc.read().decode("utf-8", errors="replace")
+                  try:
+                      payload = json.loads(raw) if raw else {}
+                  except Exception:
+                      payload = {"raw": raw[:500]}
+                  return exc.code, payload
+
+          if not email or not password:
+              evidence["failures"].append("E2E_EMAIL/E2E_PASSWORD repository secrets are missing")
+          if not service_key:
+              evidence["failures"].append("SUPABASE_SERVICE_ROLE_KEY repository secret is missing")
+          if evidence["failures"]:
+              Path("paymob-sandbox-evidence.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
+              print(json.dumps(evidence, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          # Authenticate the owned E2E account.
+          status, auth = http_json(
+              "POST",
+              f"{base}/auth/v1/token?grant_type=password",
+              {"email": email, "password": password},
+              {"apikey": publishable_key},
+          )
+          access_token = auth.get("access_token", "")
+          user_id = (auth.get("user") or {}).get("id", "")
+          evidence["checks"]["auth_http_200"] = status == 200
+          evidence["checks"]["authenticated_user"] = bool(access_token and user_id)
+          if not access_token or not user_id:
+              evidence["failures"].append("Authenticated Supabase session was not returned")
+
+          # Find the latest pending order owned by the authenticated test account.
+          order = None
+          if access_token and user_id:
+              query = urllib.parse.urlencode({
+                  "customer_id": f"eq.{user_id}",
+                  "status": "eq.pending",
+                  "payment_status": "eq.pending",
+                  "select": "id,order_number,total,currency,status,payment_status,created_at",
+                  "order": "created_at.desc",
+                  "limit": "1",
+              }, safe=",")
+              req = urllib.request.Request(
+                  f"{base}/rest/v1/orders?{query}",
+                  method="GET",
+                  headers={"apikey": publishable_key, "Authorization": f"Bearer {access_token}"},
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      rows = json.loads(resp.read().decode("utf-8"))
+                  order = rows[0] if rows else None
+              except Exception as exc:
+                  evidence["failures"].append(f"Pending-order lookup failed: {type(exc).__name__}")
+
+          evidence["checks"]["pending_order_found"] = bool(order)
+          if not order:
+              evidence["failures"].append("No pending order owned by the E2E account was found")
+
+          checkout = {}
+          checkout_url = None
+          if order and access_token:
+              status, checkout = http_json(
+                  "POST",
+                  f"{base}/functions/v1/velora-paymob-checkout",
+                  {
+                      "order_id": order["id"],
+                      "idempotency_key": f"paymob-evidence-{uuid.uuid4()}",
+                      "return_url": "https://velora-marketplace-5nv2ooto7-ahmedconccc-7063.vercel.app/",
+                  },
+                  {
+                      "apikey": publishable_key,
+                      "Authorization": f"Bearer {access_token}",
+                  },
+              )
+              checkout_url = checkout.get("checkout_url")
+              evidence["checks"]["checkout_function_http_200"] = status == 200
+              evidence["checks"]["paymob_intention_created"] = bool(
+                  checkout.get("ok") and checkout.get("intention_id") and checkout_url
+              )
+              if not checkout_url:
+                  evidence["failures"].append(
+                      f"Paymob checkout function did not return a checkout URL (http {status})"
+                  )
+
+          # Complete the sandbox checkout. Test data is documented by Paymob.
+          payment_action_started = False
+          otp_observed = False
+          if checkout_url:
+              with sync_playwright() as p:
+                  browser = p.chromium.launch(headless=True)
+                  context = browser.new_context(viewport={"width": 1440, "height": 1000})
+                  page = context.new_page()
+                  try:
+                      page.goto(checkout_url, wait_until="domcontentloaded", timeout=60000)
+                      page.wait_for_timeout(5000)
+
+                      def visible_in_page_or_frames(selector):
+                          try:
+                              loc = page.locator(selector)
+                              if loc.count() and loc.first.is_visible():
+                                  return loc.first
+                          except Exception:
+                              pass
+                          for frame in page.frames:
+                              try:
+                                  loc = frame.locator(selector)
+                                  if loc.count() and loc.first.is_visible():
+                                      return loc.first
+                              except Exception:
+                                  pass
+                          return None
+
+                      def first_visible(selectors):
+                          for selector in selectors:
+                              loc = visible_in_page_or_frames(selector)
+                              if loc:
+                                  return loc
+                          return None
+
+                      card_number = first_visible([
+                          'input[autocomplete="cc-number"]',
+                          'input[name*="card" i][name*="number" i]',
+                          'input[placeholder*="card number" i]',
+                      ])
+                      expiry = first_visible([
+                          'input[autocomplete="cc-exp"]',
+                          'input[name*="expiry" i]',
+                          'input[placeholder*="expiry" i]',
+                      ])
+                      cvv = first_visible([
+                          'input[autocomplete="cc-csc"]',
+                          'input[name*="cvv" i]',
+                          'input[name*="cvc" i]',
+                          'input[placeholder*="cvv" i]',
+                          'input[placeholder*="cvc" i]',
+                      ])
+
+                      evidence["playwright"]["checkout_loaded"] = bool(page.url)
+                      evidence["playwright"]["card_fields_detected"] = bool(card_number and expiry and cvv)
+
+                      if not (card_number and expiry and cvv):
+                          inputs = page.locator("input")
+                          meta = []
+                          for i in range(min(inputs.count(), 30)):
+                              el = inputs.nth(i)
+                              try:
+                                  if el.is_visible():
+                                      meta.append({
+                                          "name": el.get_attribute("name"),
+                                          "placeholder": el.get_attribute("placeholder"),
+                                          "autocomplete": el.get_attribute("autocomplete"),
+                                      })
+                              except Exception:
+                                  pass
+                          evidence["playwright"]["visible_inputs"] = meta
+                          evidence["failures"].append("Paymob card fields could not be identified")
+                      else:
+                          card_number.fill("5123456789012346")
+                          expiry.fill("01/39")
+                          cvv.fill("123")
+
+                          name_field = first_visible([
+                              'input[autocomplete="cc-name"]',
+                              'input[name*="cardholder" i]',
+                          ])
+                          if name_field:
+                              name_field.fill("TEST ACCOUNT")
+
+                          submit = first_visible([
+                              'button:has-text("Pay")',
+                              'button:has-text("Confirm")',
+                              'button:has-text("Continue")',
+                              'button[type="submit"]',
+                          ])
+                          if not submit:
+                              evidence["failures"].append("Paymob submit button could not be identified")
+                          else:
+                              submit.click()
+                              payment_action_started = True
+                              page.wait_for_timeout(8000)
+
+                          otp = first_visible([
+                              'input[name*="otp" i]',
+                              'input[placeholder*="otp" i]',
+                              'input[name*="verification" i]',
+                          ])
+                          if otp and otp.is_visible():
+                              otp_observed = True
+                              otp.fill("123456")
+                              confirm = first_visible([
+                                  'button:has-text("Verify")',
+                                  'button:has-text("Confirm")',
+                                  'button[type="submit"]',
+                              ])
+                              if confirm:
+                                  confirm.click()
+                              page.wait_for_timeout(8000)
+
+                          body = page.locator("body").inner_text(timeout=10000).lower()
+                          evidence["playwright"]["otp_observed"] = otp_observed
+                          evidence["playwright"]["completion_text_present"] = any(
+                              x in body for x in ("success", "successful", "approved", "thank you", "payment completed")
+                          )
+                  except PlaywrightTimeoutError:
+                      evidence["failures"].append("Paymob checkout page timed out")
+                  except Exception as exc:
+                      evidence["failures"].append(f"Paymob browser drill failed: {type(exc).__name__}")
+                  finally:
+                      context.close()
+                      browser.close()
+
+          evidence["checks"]["sandbox_payment_path_executed"] = payment_action_started
+
+          # Read-only post-payment evidence from Restore-Test.
+          if order:
+              headers = {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
+
+              req = urllib.request.Request(
+                  f"{base}/rest/v1/payment_attempts?order_id=eq.{urllib.parse.quote(order['id'])}"
+                  "&select=id,status,provider_payment_id,payment_reference,provider_session_id,created_at,completed_at,captured_at"
+                  "&order=created_at.desc&limit=5",
+                  method="GET",
+                  headers=headers,
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      attempts = json.loads(resp.read().decode("utf-8"))
+              except Exception:
+                  attempts = []
+
+              req = urllib.request.Request(
+                  f"{base}/rest/v1/provider_webhook_events?provider_code=eq.paymob"
+                  "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason"
+                  "&order=received_at.desc&limit=20",
+                  method="GET",
+                  headers=headers,
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      webhooks = json.loads(resp.read().decode("utf-8"))
+              except Exception:
+                  webhooks = []
+
+              latest_attempt = attempts[0] if attempts else None
+              evidence["db"]["payment_attempt_found"] = bool(latest_attempt)
+              evidence["db"]["attempt_status"] = latest_attempt.get("status") if latest_attempt else None
+              evidence["db"]["provider_payment_id_present"] = bool(
+                  latest_attempt and latest_attempt.get("provider_payment_id")
+              )
+
+              related = []
+              attempt_provider_payment_id = latest_attempt.get("provider_payment_id") if latest_attempt else None
+              for event in webhooks:
+                  if attempt_provider_payment_id and event.get("event_id") == str(attempt_provider_payment_id):
+                      related.append(event)
+                  elif latest_attempt and event.get("received_at"):
+                      related.append(event)
+
+              evidence["db"]["webhook_event_count_recent"] = len(related)
+              evidence["db"]["signed_webhook_verified"] = any(
+                  bool(event.get("signature_verified")) for event in related
+              )
+              evidence["db"]["processed_webhook_present"] = any(
+                  event.get("status") == "processed" and bool(event.get("processed_at"))
+                  for event in related
+              )
+
+          evidence["passed"] = (
+              evidence["checks"].get("authenticated_user", False)
+              and evidence["checks"].get("pending_order_found", False)
+              and evidence["checks"].get("checkout_function_http_200", False)
+              and evidence["checks"].get("paymob_intention_created", False)
+              and evidence["checks"].get("sandbox_payment_path_executed", False)
+              and evidence["db"].get("payment_attempt_found", False)
+              and evidence["db"].get("signed_webhook_verified", False)
+              and evidence["db"].get("processed_webhook_present", False)
+          )
+
+          Path("paymob-sandbox-evidence.json").write_text(
+              json.dumps(evidence, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload Paymob sandbox evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-paymob-sandbox-evidence-${{ github.run_id }}
+          path: paymob-sandbox-evidence.json
+          retention-days: 7
+          if-no-files-found: error
