@@ -11121,33 +11121,63 @@ console.log('✅ Analytics + Events + Audit loaded!');
   const originalOpenProductDetail=window.openProductDetail;
   window.openProductDetail=async function(productId){
     if(isUuid(productId)){
-      const existing=MAHA_DATA.PRODUCTS.find(p=>p.id===productId);
-      if(!existing){
+      const current=MAHA_DATA.PRODUCTS.find(p=>p.id===productId);
+      const needsHydration=!current || current._veloraDetailHydrated!==true;
+      if(needsHydration){
         try{
-          const {data,error}=await client.from('products')
-            .select('*,product_images(image_url,alt_text,sort_order,is_primary),stores(id,name,slug),categories(id,name,slug)')
-            .eq('id',productId).maybeSingle();
-          if(!error && data){
+          const ctx=window.VELORA_MARKET_CONTEXT||{};
+          const {data,error}=await client.rpc('velora_get_product_detail',{
+            p_product_id:productId,
+            p_country_code:ctx.countryCode||null,
+            p_currency_code:ctx.currencyCode||null
+          });
+          if(error) throw error;
+          const row=Array.isArray(data)?data[0]:data;
+          if(row){
             const canonical={
-              ...data,
-              id:data.id,
-              name:data.name,
-              price:Number(data.price||0),
-              oldPrice:data.original_price!=null?Number(data.original_price):null,
-              emoji:data.emoji||'📦',
-              subcategory:data.subcategory||data.categories?.name||'',
-              category:data.categories?.slug||data.category||'all',
-              brand:data.brand||data.stores?.name||'Velora Seller',
-              reviewsCount:Number(data.review_count||0),
-              images:(data.product_images||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(x=>x.image_url).filter(Boolean),
-              canonicalId:data.id,
-              sellerId:data.seller_id,
-              storeId:data.store_id||data.stores?.id||null,
-              storeName:data.stores?.name||''
+              ...(current||{}),
+              id:row.product_id||productId,
+              canonicalId:row.product_id||productId,
+              name:row.product_name||current?.name||'Product',
+              brand:row.brand||row.store_name||current?.brand||'Velora Seller',
+              category:row.category_slug||row.category_name||current?.category||'all',
+              subcategory:row.subcategory||row.category_name||current?.subcategory||'',
+              description:row.product_description||current?.description||'',
+              price:Number(row.display_price??row.price??current?.price??0),
+              oldPrice:row.original_price!=null?Number(row.original_price):(current?.oldPrice??null),
+              rating:Number(row.rating??current?.rating??0),
+              reviewsCount:Number(row.review_count??current?.reviewsCount??0),
+              reviewCount:Number(row.review_count??current?.reviewCount??0),
+              stock:Number(row.stock??current?.stock??0),
+              badge:row.badge||current?.badge||'',
+              emoji:row.emoji||current?.emoji||'📦',
+              images:Array.isArray(row.images)?row.images:(current?.images||[]),
+              ingredients:Array.isArray(row.ingredients)?row.ingredients:[],
+              benefits:Array.isArray(row.benefits)?row.benefits:[],
+              usage:typeof row.how_to_use==='string'?row.how_to_use:'',
+              howToUse:typeof row.how_to_use==='string'?row.how_to_use:'',
+              warnings:row.warnings??null,
+              skinTypes:Array.isArray(row.skin_types)?row.skin_types:[],
+              concerns:Array.isArray(row.concerns)?row.concerns:[],
+              tags:Array.isArray(row.tags)?row.tags:[],
+              seasonalFit:row.seasonal_fit??null,
+              currency:row.display_currency||row.product_currency||current?.currency||null,
+              currency_code:row.display_currency||row.product_currency||current?.currency_code||null,
+              displayCurrency:row.display_currency||row.product_currency||null,
+              displayPrice:row.display_price!=null?Number(row.display_price):null,
+              fxRate:row.fx_rate!=null?Number(row.fx_rate):null,
+              sellerId:current?.sellerId||null,
+              storeId:row.store_id||current?.storeId||null,
+              storeName:row.store_name||current?.storeName||'',
+              storeSlug:row.store_slug||current?.storeSlug||'',
+              sellerName:current?.sellerName||''
             };
+            canonical._veloraDetailHydrated=true;
             MAHA_DATA.PRODUCTS=MAHA_DATA.PRODUCTS.filter(p=>p.id!==productId).concat([canonical]);
           }
-        }catch(err){ console.warn('Velora product detail sync:',err); }
+        }catch(err){
+          console.warn('Velora product detail contract read failed:',err);
+        }
       }
     }
     return typeof originalOpenProductDetail==='function' ? originalOpenProductDetail.apply(this,arguments) : undefined;
