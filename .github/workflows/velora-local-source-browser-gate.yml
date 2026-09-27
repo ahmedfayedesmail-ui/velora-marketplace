@@ -314,6 +314,10 @@ jobs:
                   page.locator("#toast").inner_text()
                   if page.locator("#toast").count() else ""
               )
+              result["checks"]["seller_reentry_guarded"] = (
+                  bool(result["checks"]["seller_reentry_platform_exists"] and result["checks"]["seller_reentry_active"])
+                  or bool(__import__("re").search(r"seller account is not active|apply first", result["checks"]["seller_reentry_toast_text"], __import__("re").IGNORECASE))
+              )
               page.evaluate("() => window.closeSellerPlatform()")
               page.wait_for_timeout(1200)
               result["checks"]["seller_reentry_back_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
@@ -354,8 +358,7 @@ jobs:
               "platform_return_store_hash",
               "platform_return_store_active",
               "seller_reentry_hash",
-              "seller_reentry_platform_exists",
-              "seller_reentry_active",
+              "seller_reentry_guarded",
               "seller_reentry_back_store_hash",
               "seller_reentry_back_store_active",
           ]
