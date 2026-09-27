@@ -65,6 +65,11 @@ Fix commit: `79c8ed1b9e6d06417979a66d9d43081def92cd25`. The variants handler now
 
 ### Vercel deployment blocker — OBSERVED FACT
 GitHub status for `dc157...` reports `Deployment rate limited — retry in 24 hours.` No Vercel deployment for `79c8...`, `2cd...`, or `dc157...` is currently visible in the accessible deployment list. Browser runs #83/#84 therefore remain stale-Preview diagnostics, not validation of the current source.
+
+### Browser cart 400 — OBSERVED FACT / INFERRED
+Restore-Test `Test Vitamin C Serum` is `approved` with stock `23`. At the latest DB check, existing cart quantity for this product across Restore-Test carts was `26`; the browser evidence reported the authenticated local cart quantity as `24` after cloud sync. The `velora_upsert_cart_item(uuid,integer,text)` contract rejects an add when existing customer quantity plus requested quantity exceeds product stock. Because the workflow performs `window.addToCart(test_product, 1)` without first clearing the test user's cart, the observed HTTP 400 is consistent with `INSUFFICIENT_STOCK` and is not currently classified as a Product Detail defect. Exact server error text was not recovered because the log-query backend returned an error, so the RPC error code remains INFERRED rather than directly observed.
+Full Audit run #232 was cancelled after its source checks had already completed successfully (CodeQL, JS syntax, static audit, manifest consistency, Semgrep, Gitleaks); the second web-surface job completed successfully. No current-code Browser PASS exists because Vercel is rate-limited.
+
 ## Core rules
 - Do not rewrite the cart.
 - Do not add MutationObservers or arbitrary click listeners.
