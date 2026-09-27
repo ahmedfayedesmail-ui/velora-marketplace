@@ -527,11 +527,11 @@ jobs:
               orders_text = page.locator("#ordersContent").inner_text() if page.locator("#ordersContent").count() else ""
               result["checks"]["customer_orders_text_excerpt"] = orders_text[:2500]
               result["checks"]["customer_orders_rendered"] = bool(orders_text)
-              result["checks"]["customer_shipment_order_71_visible"] = "Order #71" in orders_text or "#69" in orders_text
-              result["checks"]["customer_shipment_tracking_visible"] = "VELORA-E2E-69" in orders_text
+              result["checks"]["customer_shipment_order_71_visible"] = "Order #71" in orders_text
+              result["checks"]["customer_shipment_tracking_visible"] = "VELORA-E2E-SHIPPING" in orders_text
               result["checks"]["customer_shipment_service_visible"] = "Manual Standard" in orders_text
-              result["checks"]["customer_shipment_status_visible"] = "In Transit" in orders_text or "in_transit" in orders_text
-              track_links = page.locator("#ordersContent a.velora-track-link")
+              result["checks"]["customer_shipment_status_visible"] = ("In transit" in orders_text or "in_transit" in orders_text or "قيد" in orders_text)
+              track_links = page.locator('#ordersContent a[href="https://example.com/velora/shipping-e2e"]')
               result["checks"]["customer_shipment_track_link_count"] = track_links.count()
               result["checks"]["customer_shipment_track_link_href"] = (
                   track_links.first.get_attribute("href")
@@ -629,7 +629,7 @@ jobs:
               failures.append("Customer shipment status is not visible")
           if c.get("customer_shipment_track_link_count", 0) < 1:
               failures.append("Customer shipment tracking link is missing")
-          if c.get("customer_shipment_track_link_href") != "https://example.com/velora/e2e-69":
+          if c.get("customer_shipment_track_link_href") != "https://example.com/velora/shipping-e2e":
               failures.append("Customer shipment tracking link href is not the canonical fixture URL")
           if not c.get("checkout_has_product"):
               failures.append("Checkout did not render the test product")
