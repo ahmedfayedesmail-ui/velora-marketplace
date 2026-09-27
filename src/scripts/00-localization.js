@@ -2870,20 +2870,29 @@ function renderFeaturedProducts() {
 
 /* ============ SHOP PAGE ============ */
 function renderShopProducts() {
+    // Once the canonical marketplace adapter is installed, every public
+    // storefront refresh must stay on the canonical Supabase catalog path.
+    // This also covers older direct callers such as category, clear-search,
+    // and sort actions without duplicating click handlers.
+    if (typeof window.veloraRefreshMarketplace === 'function') {
+        void window.veloraRefreshMarketplace();
+        return;
+    }
+
     const container = document.getElementById('shopProducts');
     if (!container) return;
 
-let products = discoverProductsAPI({
-    query: STATE.searchQuery,
-    filters: {
-        category: STATE.currentCategory !== 'all'
-            ? STATE.currentCategory
-            : undefined
-    },
-    sortKey: STATE.currentSort === 'featured'
-        ? 'default'
-        : STATE.currentSort
-});
+    let products = discoverProductsAPI({
+        query: STATE.searchQuery,
+        filters: {
+            category: STATE.currentCategory !== 'all'
+                ? STATE.currentCategory
+                : undefined
+        },
+        sortKey: STATE.currentSort === 'featured'
+            ? 'default'
+            : STATE.currentSort
+    });
 
     // Update counter
     const counter = document.getElementById('resultsCount');
@@ -10708,7 +10717,29 @@ console.log('✅ Analytics + Events + Audit loaded!');
     container.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading marketplace</h3><p>Finding products available in your region…</p></div>';
 
     const canonical=await refreshCanonicalCatalog({search:STATE.searchQuery});
-    let products=canonical;
+    let products=canonical.slice();
+
+    // Preserve the existing storefront sort controls without falling back
+    // to the retired legacy catalog.
+    switch(String(STATE.currentSort||'featured')){
+      case 'price-low':
+        products.sort((a,b)=>Number(a?.price||0)-Number(b?.price||0));
+        break;
+      case 'price-high':
+        products.sort((a,b)=>Number(b?.price||0)-Number(a?.price||0));
+        break;
+      case 'rating':
+        products.sort((a,b)=>Number(b?.rating||0)-Number(a?.rating||0)
+          || Number(b?.reviewsCount||0)-Number(a?.reviewsCount||0)
+          || String(a?.name||'').localeCompare(String(b?.name||'')));
+        break;
+      case 'name':
+        products.sort((a,b)=>String(a?.name||'').localeCompare(String(b?.name||'')));
+        break;
+      default:
+        break;
+    }
+
     if(!products.length && window.VELORA_CANONICAL_CATALOG_LOADED_AT){
       products=[];
     }
