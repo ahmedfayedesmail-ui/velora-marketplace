@@ -144,7 +144,7 @@
     if(use)details+="<section class=\"velora-detail-section\"><h4>🧴 How to Use</h4><p>"+esc(use)+"</p></section>";
     var best=p.bestFor||p.skinTypes||p.skinType;
     if(Array.isArray(best)&&best.length)details+="<section class=\"velora-detail-section\"><h4>🎯 Best For</h4><div class=\"velora-detail-chips\">"+best.map(function(x){return "<span>"+esc(x)+"</span>";}).join("")+"</div></section>";
-    content.innerHTML="<div class=\"velora-product-detail-grid\"><div class=\"velora-product-detail-media\">"+esc(p.emoji||"📦")+(discount>0?"<div class=\"velora-product-discount\">-"+discount+"%</div>":"")+"</div><div><div class=\"velora-product-subcategory\">"+esc(p.subcategory||"")+"</div><h2>"+esc(p.name)+"</h2><div class=\"velora-product-brand\">"+esc(p.brand||"")+"</div><div class=\"velora-product-rating\">"+(typeof renderStars==="function"?renderStars(p.rating):"")+" <span>"+esc(p.rating)+" ("+esc(p.reviewsCount||0)+" reviews)</span></div>"+pickerHtml(p,variants,selected)+variantMeta+"<div class=\"velora-price-row\"><span class=\"velora-effective-price\">"+formatPrice(price)+"</span></div><div class=\"velora-variant-stock\">"+(variants.length?(stock>0?stock+" available":"Out of stock"):"")+"</div><p class=\"velora-product-description\">"+esc(p.description||"")+"</p><div class=\"velora-product-actions\"><button class=\"btn btn-primary btn-lg\" "+(variants.length&&(!v||stock<=0)?"disabled":"")+" onclick=\"window.addToCartS2A('"+token(p.id)+"',1,"+(v?"'"+token(v.id)+"'":"null")+");closeModal('productModal')\">🛒 Add to Cart</button><button class=\"btn btn-outline btn-lg\" onclick=\"toggleFavorite('"+token(p.id)+"',this)\">"+(fav?"❤️":"🤍")+"</button></div></div></div>";
+    content.innerHTML="<div class=\"velora-product-detail-grid\"><div class=\"velora-product-detail-media\">"+esc(p.emoji||"📦")+(discount>0?"<div class=\"velora-product-discount\">-"+discount+"%</div>":"")+"</div><div><div class=\"velora-product-subcategory\">"+esc(p.subcategory||"")+"</div><h2>"+esc(p.name)+"</h2><div class=\"velora-product-brand\">"+esc(p.brand||"")+"</div><div class=\"velora-product-rating\">"+(typeof renderStars==="function"?renderStars(p.rating):"")+" <span>"+esc(p.rating)+" ("+esc(p.reviewsCount||0)+" reviews)</span></div>"+pickerHtml(p,variants,selected)+variantMeta+"<div class=\"velora-price-row\"><span class=\"velora-effective-price\">"+formatPrice(price)+"</span></div><div class=\"velora-variant-stock\">"+(variants.length?(stock>0?stock+" available":"Out of stock"):"")+"</div><p class=\"velora-product-description\">"+esc(p.description||"")+"</p><div class=\"velora-product-actions\"><button class=\"btn btn-primary btn-lg\" "+(variants.length&&(!v||stock<=0)?"disabled":"")+" onclick=\"window.addToCartS2A('"+token(p.id)+"',1,"+(v?"'"+token(v.id)+"'":"null")+");closeModal('productModal')\">🛒 Add to Cart</button><button class=\"btn btn-outline btn-lg\" onclick=\"toggleFavorite('"+token(p.id)+"',this)\">"+(fav?"❤️":"🤍")+"</button>"+(p.storeId?'<button class=\"btn btn-outline btn-lg\" onclick=\"closeModal(\'productModal\');openStore(\''+token(p.storeId)+'\')\">🏪 Visit Store</button>':'')+"</div></div></div>";
     var related=(typeof getRelatedProducts==="function")?getRelatedProducts(p.id,6):[];
     if(related.length){
       content.innerHTML+="<div class=\"velora-related\"><h3>✨ You May Also Like</h3><div class=\"velora-related-grid\">"+related.map(function(x){
@@ -164,6 +164,17 @@
     var modal=document.getElementById("productModal"),content=document.getElementById("productModalContent");
     if(modal&&content){modal.classList.add("active");document.body.style.overflow="hidden";content.innerHTML="<div class=\"velora-variant-loading\">Loading product options...</div>";}
     try{
+      /*
+       * Preserve canonical Product Detail hydration before this variant
+       * renderer takes ownership of the modal. Previously the existing
+       * catalog row caused this handler to short-circuit the canonical path.
+       */
+      if(typeof originalOpenProductDetail==="function"){
+        try{await originalOpenProductDetail(productId);}catch(_){}
+        p=(window.MAHA_DATA&&Array.isArray(MAHA_DATA.PRODUCTS))
+          ? MAHA_DATA.PRODUCTS.find(function(x){return x.id===productId;})
+          : p;
+      }
       var variants=await loadVariants(productId,true);
       var selected=seedSelection(productId,variants);
       renderProduct(p,variants,selected);
