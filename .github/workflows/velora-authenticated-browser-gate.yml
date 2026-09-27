@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+# The authenticated browser gate uses one shared Restore-Test E2E account/cart.
+# Serialize runs so rapid commits cannot mutate the same fixture concurrently.
+concurrency:
+  group: velora-authenticated-browser-gate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   authenticated-browser:
     name: Authenticated Browser -> Canonical E2E evidence
