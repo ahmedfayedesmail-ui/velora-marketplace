@@ -496,6 +496,23 @@ jobs:
                   "Your cart is empty" in checkout or "سلة التسوق فارغة" in checkout
               )
 
+              # Shipping/Tracking customer E2E: validate the controlled
+              # Restore-Test Order #69 shipment through the real customer UI.
+              page.evaluate("() => navigateTo('orders')")
+              page.wait_for_timeout(2600)
+              orders_text = page.locator("#ordersContent").inner_text() if page.locator("#ordersContent").count() else ""
+              result["checks"]["customer_orders_rendered"] = bool(orders_text)
+              result["checks"]["customer_shipment_order_69_visible"] = "Order #69" in orders_text or "#69" in orders_text
+              result["checks"]["customer_shipment_tracking_visible"] = "VELORA-E2E-69" in orders_text
+              result["checks"]["customer_shipment_service_visible"] = "Manual Standard" in orders_text
+              result["checks"]["customer_shipment_status_visible"] = "In Transit" in orders_text or "in_transit" in orders_text
+              track_links = page.locator("#ordersContent a.velora-track-link")
+              result["checks"]["customer_shipment_track_link_count"] = track_links.count()
+              result["checks"]["customer_shipment_track_link_href"] = (
+                  track_links.first.get_attribute("href")
+                  if track_links.count() else ""
+              )
+
               session_after = page.evaluate("""
                 async () => {
                   try {
@@ -575,6 +592,20 @@ jobs:
               failures.append("Test product quantity is less than 1")
           if c.get("checkout_has_empty_state"):
               failures.append("Checkout rendered an empty-cart state")
+          if not c.get("customer_orders_rendered"):
+              failures.append("Customer Orders page did not render")
+          if not c.get("customer_shipment_order_69_visible"):
+              failures.append("Customer Orders page did not render the controlled Order #69 shipment")
+          if not c.get("customer_shipment_tracking_visible"):
+              failures.append("Customer shipment tracking number is not visible")
+          if not c.get("customer_shipment_service_visible"):
+              failures.append("Customer shipment service is not visible")
+          if not c.get("customer_shipment_status_visible"):
+              failures.append("Customer shipment status is not visible")
+          if c.get("customer_shipment_track_link_count", 0) < 1:
+              failures.append("Customer shipment tracking link is missing")
+          if c.get("customer_shipment_track_link_href") != "https://example.com/velora/e2e-69":
+              failures.append("Customer shipment tracking link href is not the canonical fixture URL")
           if not c.get("checkout_has_product"):
               failures.append("Checkout did not render the test product")
           if not c.get("session_survived_checkout_navigation"):
