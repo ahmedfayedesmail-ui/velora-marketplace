@@ -8639,7 +8639,7 @@ async function loadAdminLegalFromDb(){
     const client=window.mahaSupabase||window.supabaseClient||window.sb;
     if(!client?.from)return;
     try{
-      const result=await client.from('legal_documents').select('id,document_type,audience,locale,version,title,content_hash,status,requires_reacceptance,effective_from,review_reference,reviewed_at,published_at,created_at').order('document_type').order('locale').order('version',{ascending:false});
+      const result=await client.from('legal_documents').select('id,document_type,audience,locale,version,title,body,content_hash,status,requires_reacceptance,jurisdiction_scope,effective_from,review_reference,reviewed_at,published_at,retired_at,created_at').order('document_type').order('locale').order('version',{ascending:false});
       if(result.error)throw result.error;
       const rows=result.data||[];
       const owner=Array.isArray(window.VELORA_ADMIN_ROLES)&&window.VELORA_ADMIN_ROLES.includes('owner');
