@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest branch commit: `b24af9ffbb4686e10726b62950c2c0cfa1bcd7be` (browser-gate update).
+Latest branch commit: `01d82792fde8879b1d42b6c7f55e2be1ae394a57` (browser regression-gate strengthening).
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -32,7 +32,7 @@ Source currency is preserved separately from display currency for cart safety.
 ## Next step
 1. Browser Gate Related Products on the latest Preview when browser tooling is available.
 2. Browser Gate Store Navigation from both Shops and Product Detail; verify deep-link `#store/<uuid>` and back navigation.
-3. Add the missing critical regression gate(s) for Product Detail / Related / Store using the existing CI/browser infrastructure, without creating a new test framework.
+3. Keep the strengthened existing Playwright gate as the critical regression gate for Product Detail / Related / Store; add new coverage only when a concrete gap is observed.
 
 ## Evidence state
 - Product Detail source verification: PASS
@@ -85,4 +85,4 @@ The canonical handoff artifact is this file plus the active Git branch/history. 
 Do not recreate a giant handoff unless a future task specifically needs historical reconstruction.
 
 ## Current pause/resume point
-Resume at **Next step #1**. Do not restart the Store audit. The Store source/DB implementation is already done; only browser evidence and the regression gate remain.
+Resume at **Next step #1**. Do not restart the Store audit. The Store source/DB implementation is already done; the existing Playwright gate is now strengthened to exercise Shops → Visit Store → Back to Shops and Product Detail → Visit Store. Runtime Browser PASS is still pending until an actual workflow run produces evidence.
