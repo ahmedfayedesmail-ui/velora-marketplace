@@ -183,8 +183,25 @@ jobs:
               # Product Detail -> Visit Store must land on the same canonical store route.
               product_store_button = page.locator("#productModalContent button").filter(has_text="Visit Store").first
               result["checks"]["product_detail_has_visit_store_button"] = product_store_button.count() == 1
-              if product_store_button.count() == 1:
-                  product_store_button.click()
+              result["checks"]["product_detail_visit_store_visible"] = (
+                  product_store_button.is_visible() if product_store_button.count() == 1 else False
+              )
+              result["checks"]["product_detail_visit_store_hit_test_clear"] = False
+              if product_store_button.count() == 1 and product_store_button.is_visible():
+                  box = product_store_button.bounding_box()
+                  if box and box["width"] > 0 and box["height"] > 0:
+                      hit = page.evaluate(
+                          """({x, y}) => {
+                              const el = document.elementFromPoint(x, y);
+                              const button = document.querySelector("#productModalContent button");
+                              return !!(el && button && (el === button || button.contains(el)));
+                          }""",
+                          {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2},
+                      )
+                      result["checks"]["product_detail_visit_store_hit_test_clear"] = bool(hit)
+                  # The click handler itself is deterministic; force only bypasses a separate
+                  # overlay/hit-test issue so the route handler can still be verified.
+                  product_store_button.click(force=True)
                   page.wait_for_timeout(1600)
               result["checks"]["product_detail_visit_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
               result["checks"]["product_detail_visit_store_active"] = (
@@ -355,6 +372,10 @@ jobs:
               failures.append("Product Detail did not render Related Products")
           if not c.get("product_detail_has_visit_store_button"):
               failures.append("Product Detail did not render Visit Store")
+          if not c.get("product_detail_visit_store_visible"):
+              failures.append("Product Detail Visit Store control is not visible")
+          if not c.get("product_detail_visit_store_hit_test_clear"):
+              failures.append("Product Detail Visit Store center point is obstructed by another element")
           if not c.get("product_detail_visit_store_hash"):
               failures.append("Product Detail -> Visit Store did not reach the canonical store hash")
           if not c.get("product_detail_visit_store_active"):
