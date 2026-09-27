@@ -71,6 +71,28 @@ jobs:
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              page.add_init_script("""
+              window.__VELORA_RUNTIME_ERRORS = [];
+              window.addEventListener("error", function(e) {
+                  window.__VELORA_RUNTIME_ERRORS.push({
+                      message: e.message || "",
+                      filename: e.filename || "",
+                      lineno: e.lineno || 0,
+                      colno: e.colno || 0,
+                      target: e.target && e.target.tagName ? e.target.tagName : ""
+                  });
+              });
+              window.addEventListener("unhandledrejection", function(e) {
+                  const reason = e.reason;
+                  window.__VELORA_RUNTIME_ERRORS.push({
+                      message: "Unhandled rejection: " + String(reason && reason.message || reason || ""),
+                      filename: "",
+                      lineno: 0,
+                      colno: 0,
+                      target: "unhandledrejection"
+                  });
+              });
+              """)
 
               page.on(
                   "console",
@@ -401,6 +423,7 @@ jobs:
               """)
 
               result["checks"]["session_survived_checkout_navigation"] = bool(session_after)
+              result["checks"]["runtime_error_events"] = page.evaluate("() => window.__VELORA_RUNTIME_ERRORS || []")
               result["checks"]["response_403_urls"] = [x["url"] for x in response_statuses if x["status"] == 403]
               result["checks"]["response_406_urls"] = [x["url"] for x in response_statuses if x["status"] == 406]
               result["checks"]["response_error_urls"] = [x for x in response_statuses if x["status"] >= 400]
