@@ -220,6 +220,22 @@ jobs:
               result["checks"]["post_login_lang"] = page.locator("html").get_attribute("lang")
               result["checks"]["post_login_dir"] = page.locator("html").get_attribute("dir")
 
+              # Platform-return regression: entering Seller from a store deep-link
+              # must return to the same store/<uuid> route, not just "store".
+              page.goto(base + "/#store/" + test_store, wait_until="domcontentloaded", timeout=60000)
+              page.wait_for_timeout(1000)
+              page.evaluate("() => window.openSellerPlatform()")
+              page.wait_for_timeout(1400)
+              result["checks"]["platform_route_seller_hash"] = page.url.split("#")[-1] == "seller"
+              page.evaluate("() => window.closeSellerPlatform()")
+              page.wait_for_timeout(1200)
+              result["checks"]["platform_return_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
+              result["checks"]["platform_return_store_active"] = (
+                  "active" in (page.locator("#page-store").get_attribute("class") or "")
+                  if page.locator("#page-store").count() else False
+              )
+              page.evaluate("() => { try { closeModal('sellerRegModal') } catch (_) {} }")
+
               browser.close()
 
           c = result["checks"]
