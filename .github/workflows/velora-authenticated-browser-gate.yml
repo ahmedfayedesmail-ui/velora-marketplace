@@ -500,7 +500,32 @@ jobs:
               # Restore-Test Order #71 shipment through the real customer UI.
               page.evaluate("() => navigateTo('orders')")
               page.wait_for_timeout(2600)
+              customer_orders_payload = page.evaluate("""
+                async () => {
+                  try {
+                    const orders = await window.veloraLoadCustomerOrders?.() || [];
+                    const order = orders.find(o => String(o?.order_number || "") === "71");
+                    return order ? {
+                      orderNumber: order.order_number,
+                      shipmentCount: Array.isArray(order.shipments) ? order.shipments.length : 0,
+                      shipments: Array.isArray(order.shipments) ? order.shipments.map(sh => ({
+                        id: sh?.id || null,
+                        carrier_code: sh?.carrier_code || null,
+                        service_name: sh?.service_name || null,
+                        tracking_number: sh?.tracking_number || null,
+                        tracking_url: sh?.tracking_url || null,
+                        status: sh?.status || null,
+                        estimated_delivery_at: sh?.estimated_delivery_at || null
+                      })) : []
+                    } : null;
+                  } catch (e) {
+                    return { error: String(e?.message || e) };
+                  }
+                }
+              """)
+              result["checks"]["customer_shipment_payload_diag"] = customer_orders_payload
               orders_text = page.locator("#ordersContent").inner_text() if page.locator("#ordersContent").count() else ""
+              result["checks"]["customer_orders_text_excerpt"] = orders_text[:2500]
               result["checks"]["customer_orders_rendered"] = bool(orders_text)
               result["checks"]["customer_shipment_order_71_visible"] = "Order #71" in orders_text or "#69" in orders_text
               result["checks"]["customer_shipment_tracking_visible"] = "VELORA-E2E-69" in orders_text
