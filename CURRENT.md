@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest branch commit: `01d82792fde8879b1d42b6c7f55e2be1ae394a57` (browser regression-gate strengthening).
+Latest substantive gate commit: `01d82792fde8879b1d42b6c7f55e2be1ae394a57` (browser regression-gate strengthening). Latest documentation commit may be newer; runtime work remains unchanged.
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -50,6 +50,7 @@ Source currency is preserved separately from display currency for cart safety.
   - QA store RPC test returned `E2E Seller Store` plus 5 approved products.
   - Pending-store RPC test returned 0 rows.
 - Store Navigation Browser Gate: PENDING (interactive browser runner currently unavailable due insufficient wallet balance).
+- Current Vercel build status for the newer gate commit: BLOCKED by the connected Vercel `build-rate-limit`; the last READY Preview alias remains on `3fd440c86b0a0f4a2f1e5f3256fd7d9fd24b510a`, whose runtime is unchanged by the later test-only/docs commits.
 - Production: FROZEN
 
 ## Core rules
@@ -85,4 +86,4 @@ The canonical handoff artifact is this file plus the active Git branch/history. 
 Do not recreate a giant handoff unless a future task specifically needs historical reconstruction.
 
 ## Current pause/resume point
-Resume at **Next step #1**. Do not restart the Store audit. The Store source/DB implementation is already done; the existing Playwright gate is now strengthened to exercise Shops → Visit Store → Back to Shops and Product Detail → Visit Store. Runtime Browser PASS is still pending until an actual workflow run produces evidence.
+Resume at **Next step #1**. Do not restart the Store audit. The Store source/DB implementation is already done; the existing Playwright gate is now strengthened to exercise Shops → Visit Store → Back to Shops and Product Detail → Visit Store. Runtime Browser PASS is still pending until an actual workflow run produces evidence. Vercel rate-limit failure must not be treated as an application/runtime defect.
