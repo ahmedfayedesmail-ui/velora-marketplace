@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest source/runtime commit: `dc157200fdde96e809e6d18998a41a14da42183f` (latest branch HEAD adds browser-test-only commits `437cf1edb27e71ff7b019a212713799f8966defb` and `9ab16f9fa851459dc49686d5aa638be25a2e1002`; application runtime source remains at `dc157...`) (`fix(localization): restore missing statement separator`). This commit also includes the Product Detail canonical-hydration fix from `79c8ed1b9e6d06417979a66d9d43081def92cd25` and browser diagnostics.
+Latest application source/runtime commit: `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f` (`fix(router): preserve store deep-link return route`). This branch also contains browser-test fixture hardening commits `437cf1edb27e71ff7b019a212713799f8966defb` and `9ab16f9fa851459dc49686d5aa638be25a2e1002`; the Product Detail and localization runtime fixes remain included in history.
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -30,7 +30,7 @@ The detail contract returns product metadata, category/subcategory, ingredients,
 Source currency is preserved separately from display currency for cart safety.
 
 ## Next step
-1. Wait for a real Vercel deployment of the current application source (`dc157200fdde96e809e6d18998a41a14da42183f`); the branch has since added browser-test-only fixture-reset commits `437cf1e...` and `9ab16f...`, but Vercel remains rate-limited so the existing branch alias is stale.
+1. Wait for a real Vercel deployment of the current application source (`07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f`); the branch contains browser-test fixture hardening commits as well, but Vercel remains rate-limited so the existing branch alias is stale.
 2. Once a deployment for `dc157...` exists, rerun the authenticated Browser Gate and verify Product Detail -> Visit Store, Related Products, Shops -> Visit Store, and Back to Shops.
 3. Keep the strengthened existing Playwright gate as the critical regression gate; do not treat runs against the stale Preview as evidence for current source.
 
@@ -77,6 +77,13 @@ Fix commit: `79c8ed1b9e6d06417979a66d9d43081def92cd25`. The variants handler now
 ### Vercel deployment blocker — OBSERVED FACT
 GitHub status for `dc157...` reports `Deployment rate limited — retry in 24 hours.` No Vercel deployment for `79c8...`, `2cd...`, or `dc157...` is currently visible in the accessible deployment list. Browser runs #83/#84 therefore remain stale-Preview diagnostics, not validation of the current source.
 
+### Navigation route-return RCA and fix — OBSERVED FACT
+`src/scripts/63-platform-router.js` previously stored only the parsed page name when entering a platform, so `store/<uuid>` became `store`. `goMarketplace()` also passed the stored target directly to `activateMarketplace()`, which expects separate `page, storeId` arguments.
+
+Fix commit: `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f`.
+
+Fix: preserve `store/<uuid>` in the return route and re-parse it before marketplace activation. The source-level defect is OBSERVED; browser/runtime impact is INFERRED until Browser Gate evidence confirms it.
+
 ### Browser cart 400 — OBSERVED FACT / INFERRED
 Restore-Test `Test Vitamin C Serum` is `approved` with stock `23`. At the latest DB check, existing cart quantity for this product across Restore-Test carts was `26`; the browser evidence reported the authenticated local cart quantity as `24` after cloud sync. The `velora_upsert_cart_item(uuid,integer,text)` contract rejects an add when existing customer quantity plus requested quantity exceeds product stock. Because the workflow performs `window.addToCart(test_product, 1)` without first clearing the test user's cart, the observed HTTP 400 is consistent with `INSUFFICIENT_STOCK` and is not currently classified as a Product Detail defect. Exact server error text was not recovered because the log-query backend returned an error, so the RPC error code remains INFERRED rather than directly observed.
 Full Audit run #232 was cancelled after its source checks had already completed successfully (CodeQL, JS syntax, static audit, manifest consistency, Semgrep, Gitleaks); the second web-surface job completed successfully. No current-code Browser PASS exists because Vercel is rate-limited.
@@ -114,7 +121,9 @@ The canonical handoff artifact is this file plus the active Git branch/history. 
 Do not recreate a giant handoff unless a future task specifically needs historical reconstruction.
 
 ## Current pause/resume point
-Resume at **Next step #1**. Do not restart the Store audit. The Store source/DB implementation is already done; the existing Playwright gate is now strengthened to exercise Shops → Visit Store → Back to Shops and Product Detail → Visit Store. Runtime Browser PASS is still pending until an actual workflow run produces evidence. Vercel rate-limit failure must not be treated as an application/runtime defect.
+Resume from the router deep-link fix at `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f`. The source defect was observed in `63-platform-router.js`: `store/<uuid>` was reduced to `store` when saved for platform return, and `goMarketplace()` did not re-parse a stored store route before activation. The fix preserves the full store route and re-parses it before activation. Browser/runtime impact remains unverified until a current Browser Gate run.
+
+The local-source browser workflow is `.github/workflows/velora-local-source-browser-gate.yml` and exercises the current `src/` without Vercel. Vercel remains blocked by the connected `build-rate-limit`. Do not treat stale Preview runs as evidence for the current source. Production remains FROZEN.
 
 ### Navigation audit finding — OBSERVED FACT from source
 `src/scripts/63-platform-router.js` stores `currentMarketplaceHash()` as the parsed page name only, so a `store/<uuid>` deep-link is reduced to `store` when entering a seller/admin/owner platform. `goMarketplace()` then calls `activateMarketplace(target)` without re-parsing a store route. This is an unverified browser-path finding, not yet classified as a runtime defect and not yet changed.
