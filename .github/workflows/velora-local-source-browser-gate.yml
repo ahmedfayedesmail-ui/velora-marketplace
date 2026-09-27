@@ -87,8 +87,10 @@ jobs:
               page.on("pageerror", lambda e: result["page_errors"].append({"message": str(e), "stack": getattr(e, "stack", None)}))
 
               response = page.goto(base + "/#store/" + test_store, wait_until="domcontentloaded", timeout=60000)
-              page.wait_for_timeout(2200)
+              page.wait_for_timeout(4000)
 
+              result["checks"]["initial_store_hash"] = page.url.split("#")[-1]
+              result["checks"]["initial_store_route_id"] = page.evaluate("() => window.VELORA_STORE_ROUTE_ID || null")
               result["checks"]["http_status"] = response.status if response else None
               result["checks"]["store_route_active"] = (
                   "active" in (page.locator("#page-store").get_attribute("class") or "")
@@ -172,8 +174,23 @@ jobs:
                           {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2},
                       )
                       result["checks"]["product_visit_store_hit_test_clear"] = bool(hit)
+                      if not hit:
+                          result["checks"]["product_visit_store_hit_test_blocker"] = page.evaluate(
+                              """({x,y}) => {
+                                  const el = document.elementFromPoint(x,y);
+                                  if (!el) return null;
+                                  return {
+                                      tag: el.tagName,
+                                      id: el.id || null,
+                                      className: typeof el.className === "string" ? el.className : null,
+                                      text: String(el.innerText || el.textContent || "").slice(0,180)
+                                  };
+                              }""",
+                              {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2},
+                          )
                   else:
                       result["checks"]["product_visit_store_hit_test_clear"] = False
+                      result["checks"]["product_visit_store_hit_test_blocker"] = None
 
                   visit.click(force=True)
                   page.wait_for_timeout(1800)
