@@ -119,8 +119,8 @@ jobs:
           if not access_token or not user_id:
               evidence["failures"].append("Authenticated Supabase session was not returned")
 
-          # Always create a fresh Restore-Test fixture for each evidence run.
-          # Reusing an older pending order can cause Paymob duplicate merchant-order-reference errors.
+          # Find the latest pending order owned by the authenticated test account.
+          # If none exists, create a Restore-Test fixture through the canonical authenticated order RPC.
           order = None
           if access_token and user_id:
               auth_headers = {
@@ -152,7 +152,7 @@ jobs:
                       f"Pending-order lookup failed: {type(exc).__name__}"
                   )
 
-              if True:
+              if not order:
                   product_query = urllib.parse.urlencode({
                       "status": "eq.approved",
                       "select": "id,name,stock,currency_code,price",
