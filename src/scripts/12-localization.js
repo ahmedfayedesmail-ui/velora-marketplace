@@ -508,7 +508,7 @@
   window.VELORA_SET_STOCK=(id,current)=>{const v=prompt('Enter new stock quantity:',String(current));if(v!==null)setStock(id,v)};
   window.VELORA_SET_SELLER_ORDER_STATUS=setSellerOrderStatus;
   window.VELORA_SAVE_SELLER_SETTINGS=saveSellerSettings;
-  window.VELORA_CLOSE_SELLER=()=>{const p=document.getElementById('sellerPlatform');if(p)p.classList.remove('active');document.body.style.overflow=''};
+  window.VELORA_CLOSE_SELLER=()=>{if(typeof window.closeSellerPlatform==='function')return window.closeSellerPlatform();};
   window.VELORA_OPEN_SELLER=openCanonicalSeller;
 
   window.VELORA_CANONICAL_ADMIN_SECTION=canonicalAdminSection;
