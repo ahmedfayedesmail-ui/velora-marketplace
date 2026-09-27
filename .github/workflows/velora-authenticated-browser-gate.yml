@@ -497,12 +497,12 @@ jobs:
               )
 
               # Shipping/Tracking customer E2E: validate the controlled
-              # Restore-Test Order #69 shipment through the real customer UI.
+              # Restore-Test Order #71 shipment through the real customer UI.
               page.evaluate("() => navigateTo('orders')")
               page.wait_for_timeout(2600)
               orders_text = page.locator("#ordersContent").inner_text() if page.locator("#ordersContent").count() else ""
               result["checks"]["customer_orders_rendered"] = bool(orders_text)
-              result["checks"]["customer_shipment_order_69_visible"] = "Order #69" in orders_text or "#69" in orders_text
+              result["checks"]["customer_shipment_order_71_visible"] = "Order #71" in orders_text or "#69" in orders_text
               result["checks"]["customer_shipment_tracking_visible"] = "VELORA-E2E-69" in orders_text
               result["checks"]["customer_shipment_service_visible"] = "Manual Standard" in orders_text
               result["checks"]["customer_shipment_status_visible"] = "In Transit" in orders_text or "in_transit" in orders_text
@@ -594,8 +594,8 @@ jobs:
               failures.append("Checkout rendered an empty-cart state")
           if not c.get("customer_orders_rendered"):
               failures.append("Customer Orders page did not render")
-          if not c.get("customer_shipment_order_69_visible"):
-              failures.append("Customer Orders page did not render the controlled Order #69 shipment")
+          if not c.get("customer_shipment_order_71_visible"):
+              failures.append("Customer Orders page did not render the controlled Order #71 shipment")
           if not c.get("customer_shipment_tracking_visible"):
               failures.append("Customer shipment tracking number is not visible")
           if not c.get("customer_shipment_service_visible"):
