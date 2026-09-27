@@ -46,7 +46,7 @@ jobs:
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          python - <<'PY'
+          xvfb-run -a python - <<'PY'
           import json
           import os
           import sys
@@ -374,7 +374,32 @@ jobs:
                   }
 
               with sync_playwright() as p:
-                  browser = p.chromium.launch(headless=True)
+                  # Differential check: Playwright's own HTTP client should behave like the
+                  # successful plain HTTPS probe if the provider URL is valid. This is not a
+                  # browser navigation and helps isolate Chromium-specific behavior.
+                  try:
+                      api_context = p.request.new_context(
+                          extra_http_headers={
+                              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+                              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                          }
+                      )
+                      api_response = api_context.get(checkout_url, timeout=30000)
+                      evidence["playwright_request_transport"] = {
+                          "http_status": api_response.status,
+                          "response_headers": {
+                              k: api_response.headers.get(k)
+                              for k in ["server","cf-ray","cf-cache-status","via","x-cache","content-type","content-length"]
+                              if api_response.headers.get(k) is not None
+                          },
+                      }
+                      api_context.dispose()
+                  except Exception as exc:
+                      evidence["playwright_request_transport"] = {"error": type(exc).__name__}
+
+                  # Headed Chromium under Xvfb: distinguish headless-only blocking from
+                  # normal browser navigation behavior without changing the product path.
+                  browser = p.chromium.launch(headless=False)
                   context = browser.new_context(viewport={"width": 1440, "height": 1000})
                   page = context.new_page()
                   try:
