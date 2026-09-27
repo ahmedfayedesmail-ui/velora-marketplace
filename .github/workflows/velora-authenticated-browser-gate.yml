@@ -77,7 +77,7 @@ jobs:
                   lambda m: result["console_errors"].append(m.text)
                   if m.type == "error" else None
               )
-              page.on("pageerror", lambda e: result["page_errors"].append(str(e)))
+              page.on("pageerror", lambda e: result["page_errors"].append({"message": str(e), "stack": getattr(e, "stack", None)}))
 
               auth_token_responses = []
               response_statuses = []
@@ -168,8 +168,51 @@ jobs:
                   timeout=60000,
               )
               page.wait_for_timeout(1000)
+              before_product = page.evaluate(
+                  """(productId) => {
+                      const p = (window.MAHA_DATA?.PRODUCTS || []).find(x => x.id === productId);
+                      return p ? {
+                          storeId: p.storeId || null,
+                          storeName: p.storeName || null,
+                          hydrated: p._veloraDetailHydrated === true,
+                      } : null;
+                  }""",
+                  test_product,
+              )
+              result["checks"]["product_detail_before_product_state"] = before_product
+              rpc_diag = page.evaluate(
+                  """async (productId) => {
+                      const db = window.mahaSupabase;
+                      if (!db?.rpc) return {error: "supabase_unavailable"};
+                      const ctx = window.VELORA_MARKET_CONTEXT || {};
+                      const r = await db.rpc("velora_get_product_detail", {
+                          p_product_id: productId,
+                          p_country_code: ctx.countryCode || null,
+                          p_currency_code: ctx.currencyCode || null,
+                      });
+                      return {
+                          error: r.error ? String(r.error.message || r.error) : null,
+                          rowCount: Array.isArray(r.data) ? r.data.length : (r.data ? 1 : 0),
+                          storeId: r.data?.[0]?.store_id || null,
+                      };
+                  }""",
+                  test_product,
+              )
+              result["checks"]["product_detail_rpc_diag"] = rpc_diag
               page.evaluate("(productId) => window.openProductDetail(productId)", test_product)
               page.wait_for_timeout(1600)
+              after_product = page.evaluate(
+                  """(productId) => {
+                      const p = (window.MAHA_DATA?.PRODUCTS || []).find(x => x.id === productId);
+                      return p ? {
+                          storeId: p.storeId || null,
+                          storeName: p.storeName || null,
+                          hydrated: p._veloraDetailHydrated === true,
+                      } : null;
+                  }""",
+                  test_product,
+              )
+              result["checks"]["product_detail_after_product_state"] = after_product
               detail_text = page.locator("#productModalContent").inner_text() if page.locator("#productModalContent").count() else ""
               result["checks"]["product_detail_modal_active"] = (
                   "active" in (page.locator("#productModal").get_attribute("class") or "")
