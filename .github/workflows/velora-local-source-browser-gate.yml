@@ -267,6 +267,20 @@ jobs:
               result["checks"]["authenticated_session"] = bool(auth["hasSession"])
               result["checks"]["authenticated_user_id"] = bool(auth["userId"])
 
+              # Shipment notification lifecycle gate: the Restore-Test shipment
+              # fixture emits an in-app notification when its authoritative status
+              # changes. Verify the authenticated customer can actually read that
+              # notification through the existing notification UI.
+              page.wait_for_timeout(1200)
+              if page.locator("#notifBell").count() == 1:
+                  page.locator("#notifBell .icon-btn").click()
+                  page.wait_for_timeout(500)
+              notifications_text = page.locator("#notifBell").inner_text() if page.locator("#notifBell").count() else ""
+              shipment_notification = page.locator("#notifBell .notif-item").filter(has_text="Shipment delivered").filter(has_text="order #71")
+              result["checks"]["shipment_notification_bell_present"] = page.locator("#notifBell").count() == 1
+              result["checks"]["shipment_notification_order_71_visible"] = shipment_notification.count() >= 1
+              result["checks"]["shipment_notification_type_or_body_visible"] = ("Shipment delivered" in notifications_text)
+
               locale_result = page.evaluate("""async () => {
                   try {
                       const fn = window.VELORA_V5_SET_LANGUAGE;
