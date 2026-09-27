@@ -54,6 +54,12 @@ Source currency is preserved separately from display currency for cart safety.
 - Production: FROZEN
 
 
+
+### Local source Browser Gate added
+To avoid losing the Vercel rate-limit window, a second browser workflow was added that serves the exact checked-out `src/` tree locally on the GitHub runner and exercises Store Detail, Shops -> Store -> Back, Product Detail canonical hydration, Related Products exclusion, Product Detail -> Visit Store, authenticated login, and the V5 Arabic locale switch. This provides runtime evidence for the current source without depending on a Vercel deployment. It is separate from the Vercel Preview gate and must not be presented as deployment evidence.
+- Workflow: `.github/workflows/velora-local-source-browser-gate.yml`
+- Commit: `12d1acf17123ee5a537671b6c009ac4df36c2310`
+
 ## Latest Browser Gate hardening
 The authenticated browser workflow now resets the QA test product from the authenticated cart through the normal `window.removeFromCart()` path, waits for canonical cloud-cart sync, and asserts the product is absent before adding one unit. This addresses the observed accumulated-fixture condition that produced the 400 `velora_upsert_cart_item` response after repeated runs. This is a test-fixture change only; no application cart code, RPC, or schema was changed.
 - `437cf1edb27e71ff7b019a212713799f8966defb` — reset cart fixture before add.
@@ -109,3 +115,6 @@ Do not recreate a giant handoff unless a future task specifically needs historic
 
 ## Current pause/resume point
 Resume at **Next step #1**. Do not restart the Store audit. The Store source/DB implementation is already done; the existing Playwright gate is now strengthened to exercise Shops → Visit Store → Back to Shops and Product Detail → Visit Store. Runtime Browser PASS is still pending until an actual workflow run produces evidence. Vercel rate-limit failure must not be treated as an application/runtime defect.
+
+### Navigation audit finding — OBSERVED FACT from source
+`src/scripts/63-platform-router.js` stores `currentMarketplaceHash()` as the parsed page name only, so a `store/<uuid>` deep-link is reduced to `store` when entering a seller/admin/owner platform. `goMarketplace()` then calls `activateMarketplace(target)` without re-parsing a store route. This is an unverified browser-path finding, not yet classified as a runtime defect and not yet changed.
