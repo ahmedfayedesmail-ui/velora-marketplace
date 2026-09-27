@@ -50,6 +50,9 @@ jobs:
           docker exec velora-dr-db psql -v ON_ERROR_STOP=1 -U postgres -d velora_restore -c \
             "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE SCHEMA auth; CREATE TABLE auth.users (id uuid PRIMARY KEY); CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS 'SELECT NULL::uuid';"
           echo "Bootstrapped minimal Supabase compatibility objects in isolated restore target."
+          docker run --rm -e DB_URL="$SUPABASE_DB_URL" -v "$PWD:/work" postgres:17-alpine sh -lc 'psql "$DB_URL" -Atc "select id from public.profiles where id is not null union select user_id from public.beauty_context_snapshots where user_id is not null union select user_id from public.push_subscriptions where user_id is not null union select id from public.users where id is not null union select user_id from public.velora_user_language_preferences where user_id is not null order by 1" > /work/auth-user-ids.txt'
+          docker run --rm --network velora-dr -v "$PWD:/work" postgres:17-alpine sh -lc 'psql "postgresql://postgres:RestoreOnly_2026!_@velora-dr-db:5432/velora_restore" -v ON_ERROR_STOP=1 -c "COPY auth.users(id) FROM STDIN" < /work/auth-user-ids.txt'
+          echo "Seeded isolated auth.users compatibility rows from Restore-Test references."
           docker run --rm --network velora-dr             -v "$PWD:/work"             postgres:17-alpine             sh -lc 'pg_restore --no-owner --no-acl --clean --if-exists -d "postgresql://postgres:RestoreOnly_2026!_@velora-dr-db:5432/velora_restore" /work/velora-app-backup.dump'
 
       - name: Verify source and restored integrity
