@@ -11162,7 +11162,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
               tags:Array.isArray(row.tags)?row.tags:[],
               seasonalFit:row.seasonal_fit??null,
               currency:row.display_currency||row.product_currency||current?.currency||null,
-              currency_code:row.display_currency||row.product_currency||current?.currency_code||null,
+              currency_code:row.product_currency||current?.currency_code||row.display_currency||null,
               displayCurrency:row.display_currency||row.product_currency||null,
               displayPrice:row.display_price!=null?Number(row.display_price):null,
               fxRate:row.fx_rate!=null?Number(row.fx_rate):null,
