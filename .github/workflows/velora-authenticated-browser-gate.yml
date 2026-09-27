@@ -171,6 +171,21 @@ jobs:
               result["checks"]["product_detail_open_product_function_source"] = page.evaluate(
                   "() => String(window.openProductDetail || '').slice(0, 180)"
               )
+              fn_diag = page.evaluate(
+                  """() => {
+                      const fn = window.openProductDetail;
+                      const src = typeof fn === "function" ? Function.prototype.toString.call(fn) : String(fn);
+                      return {
+                          type: typeof fn,
+                          name: typeof fn === "function" ? fn.name : null,
+                          hasCanonicalRpc: src.includes("velora_get_product_detail"),
+                          hasHydratedMarker: src.includes("_veloraDetailHydrated"),
+                          hasOriginalCall: src.includes("originalOpenProductDetail"),
+                          sourcePrefix: src.slice(0, 700),
+                      };
+                  }"""
+              )
+              result["checks"]["open_product_detail_runtime_source"] = fn_diag
               before_product = page.evaluate(
                   """(productId) => {
                       const p = (window.MAHA_DATA?.PRODUCTS || []).find(x => x.id === productId);
