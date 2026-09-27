@@ -128,6 +128,40 @@ jobs:
                   ) if name in store_text
               )
 
+              # Customer navigation gate: Shops -> Visit Store -> Back to Shops.
+              page.goto(
+                  url + "/#shops",
+                  wait_until="domcontentloaded",
+                  timeout=60000,
+              )
+              page.wait_for_timeout(1600)
+              shops_store_card = page.locator(".velora-store-card").filter(has_text="E2E Seller Store").first
+              result["checks"]["shops_rendered_expected_store_card"] = shops_store_card.count() == 1
+              if shops_store_card.count() == 1:
+                  shops_store_card.locator("button").first.click()
+                  page.wait_for_timeout(1600)
+              result["checks"]["shops_visit_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
+              result["checks"]["shops_visit_store_active"] = (
+                  "active" in (page.locator("#page-store").get_attribute("class") or "")
+                  if page.locator("#page-store").count() else False
+              )
+              result["checks"]["shops_visit_store_rendered"] = (
+                  "E2E Seller Store" in (
+                      page.locator("#storeDetailContent").inner_text()
+                      if page.locator("#storeDetailContent").count() else ""
+                  )
+              )
+              back_to_shops = page.locator("#storeDetailContent button").filter(has_text="Back to Shops").first
+              result["checks"]["store_back_to_shops_button"] = back_to_shops.count() == 1
+              if back_to_shops.count() == 1:
+                  back_to_shops.click()
+                  page.wait_for_timeout(800)
+              result["checks"]["store_back_to_shops_active"] = (
+                  "active" in (page.locator("#page-shops").get_attribute("class") or "")
+                  if page.locator("#page-shops").count() else False
+              )
+              result["checks"]["store_back_to_shops_hash"] = page.url.split("#")[-1] == "shops"
+
               page.goto(
                   url + "/#shop",
                   wait_until="domcontentloaded",
@@ -144,6 +178,18 @@ jobs:
               result["checks"]["product_detail_has_related_heading"] = "You May Also Like" in detail_text
               result["checks"]["product_detail_related_excludes_source"] = (
                   detail_text.count("Test Vitamin C Serum") == 1
+              )
+
+              # Product Detail -> Visit Store must land on the same canonical store route.
+              product_store_button = page.locator("#productModalContent button").filter(has_text="Visit Store").first
+              result["checks"]["product_detail_has_visit_store_button"] = product_store_button.count() == 1
+              if product_store_button.count() == 1:
+                  product_store_button.click()
+                  page.wait_for_timeout(1600)
+              result["checks"]["product_detail_visit_store_hash"] = page.url.split("#")[-1] == "store/" + test_store
+              result["checks"]["product_detail_visit_store_active"] = (
+                  "active" in (page.locator("#page-store").get_attribute("class") or "")
+                  if page.locator("#page-store").count() else False
               )
 
               page.evaluate("() => openAuthModal('login')")
@@ -289,10 +335,30 @@ jobs:
               failures.append("Store Detail did not render the test product")
           if c.get("store_detail_product_count") != 5:
               failures.append("Store Detail did not render all 5 expected QA products")
+          if not c.get("shops_rendered_expected_store_card"):
+              failures.append("Shops did not render the expected E2E Seller Store card")
+          if not c.get("shops_visit_store_hash"):
+              failures.append("Shops -> Visit Store did not reach the canonical store hash")
+          if not c.get("shops_visit_store_active"):
+              failures.append("Shops -> Visit Store did not activate Store Detail")
+          if not c.get("shops_visit_store_rendered"):
+              failures.append("Shops -> Visit Store did not render the canonical store")
+          if not c.get("store_back_to_shops_button"):
+              failures.append("Store Detail did not render Back to Shops")
+          if not c.get("store_back_to_shops_active"):
+              failures.append("Back to Shops did not activate Shops")
+          if not c.get("store_back_to_shops_hash"):
+              failures.append("Back to Shops did not restore the shops hash")
           if not c.get("product_detail_modal_active"):
               failures.append("Product Detail modal did not activate")
           if not c.get("product_detail_has_related_heading"):
               failures.append("Product Detail did not render Related Products")
+          if not c.get("product_detail_has_visit_store_button"):
+              failures.append("Product Detail did not render Visit Store")
+          if not c.get("product_detail_visit_store_hash"):
+              failures.append("Product Detail -> Visit Store did not reach the canonical store hash")
+          if not c.get("product_detail_visit_store_active"):
+              failures.append("Product Detail -> Visit Store did not activate Store Detail")
           if not c.get("product_detail_related_excludes_source"):
               failures.append("Related Products section may contain the source product")
 
