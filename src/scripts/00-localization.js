@@ -4463,6 +4463,17 @@ function initApp() {
     // 63-platform-router.js has a chance to parse it.
     if (storeRouteMatch) {
         window.VELORA_STORE_ROUTE_ID = storeRouteMatch[1];
+
+        // Mount the canonical store page immediately without rewriting the
+        // deep-link. The platform router will re-sync this same route after
+        // its own script has loaded.
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const storePage = document.getElementById('page-store');
+        if (storePage) storePage.classList.add('active');
+        STATE.currentPage = 'store';
+        if (typeof window.loadPageContent === 'function') {
+            window.loadPageContent('store');
+        }
     } else {
         const startPage = validPages.includes(hash) ? hash : 'home';
         navigateTo(startPage);
