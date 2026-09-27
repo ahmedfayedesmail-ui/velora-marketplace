@@ -103,7 +103,10 @@
         if (!PLATFORM_ROUTES.has(route)) return;
 
         if (!PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
-            returnHash = currentMarketplaceHash();
+            const marketplace = parseMarketplaceRoute(window.location.hash);
+            returnHash = marketplace.page === 'store' && marketplace.storeId
+                ? 'store/' + marketplace.storeId
+                : marketplace.page;
         }
 
         if (normalizeHash(window.location.hash) === route) {
@@ -116,13 +119,16 @@
 
     function goMarketplace() {
         const target = returnHash || 'home';
-        returnHash = target;
+        const marketplace = parseMarketplaceRoute(target);
+        returnHash = marketplace.page === 'store' && marketplace.storeId
+            ? 'store/' + marketplace.storeId
+            : marketplace.page;
         closeAllPlatforms();
 
         const url = new URL(window.location.href);
-        url.hash = target === 'home' ? '' : target;
+        url.hash = returnHash === 'home' ? '' : returnHash;
         window.history.replaceState({}, '', url);
-        activateMarketplace(target);
+        activateMarketplace(marketplace.page, marketplace.storeId);
     }
 
     function syncRoute() {
