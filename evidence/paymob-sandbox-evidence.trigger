@@ -1,2 +1,2 @@
 paymob sandbox evidence trigger
-run=paymob-unified-checkout-header-evidence-20260927-1523
+run=paymob-transport-vs-browser-20260927-1527
