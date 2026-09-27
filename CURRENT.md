@@ -141,7 +141,7 @@ Do not recreate a giant handoff unless a future task specifically needs historic
 The router/startup fixes are now runtime-verified on the exact checked-out source **and on the deployed Preview tree**. Resume at the next Stage A audit item, not by reopening already-verified Product Detail/Related Products/Store Navigation code:
 
 - Application source/runtime commit: `cb1128e62619e200d5f235e58ed2b69a39409afd`.
-- Branch HEAD: `8aca74f990e57ff7c36570c444afccef73ee5b34` (documentation-only change after `209...`).
+- Latest verified application/deployment tree: `8aca74f990e57ff7c36570c444afccef73ee5b34`. Subsequent branch commits in this phase are documentation-only evidence updates; the application source remains unchanged.
 - Exact-source local Browser Gate: PASS, run `36348789512` / #22.
 - Deployed Preview Authenticated Browser Gate: PASS, run `36348789479` / #112, tested SHA `8aca...`.
 - Full Audit: PASS, run `36348789535` / #259.
