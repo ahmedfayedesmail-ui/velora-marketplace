@@ -132,7 +132,10 @@ jobs:
                   wait_until="domcontentloaded",
                   timeout=60000,
               )
-              page.wait_for_timeout(1800)
+              # Direct deep-link rendering includes market-context and FX reads before
+              # the canonical store RPC, so allow the same async startup budget used
+              # by the local-source gate.
+              page.wait_for_timeout(4000)
               store_text = page.locator("#storeDetailContent").inner_text() if page.locator("#storeDetailContent").count() else ""
               result["checks"]["store_detail_route_active"] = (
                   "active" in (page.locator("#page-store").get_attribute("class") or "")
