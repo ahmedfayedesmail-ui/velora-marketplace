@@ -3074,7 +3074,8 @@ function openProductDetail(productId) {
             <div>
                 <div style="font-size: 0.8rem; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">${escapeHtml(product.subcategory)}</div>
                 <h2 style="font-size: 1.75rem; margin-bottom: 0.5rem;">${escapeHtml(product.name)}</h2>
-                <div style="color: var(--text-muted); font-size: 1rem; margin-bottom: 1rem;">${escapeHtml(product.brand)}</div>
+                <div style="color: var(--text-muted); font-size: 1rem; margin-bottom: 0.65rem;">${escapeHtml(product.brand)}</div>
+                ${product.storeId ? `<button class="btn btn-outline" style="margin-bottom:1rem;" onclick="closeModal('productModal'); openStore('${escapeHtml(String(product.storeId))}')">🏪 Visit Store</button>` : ''}
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem;">
                     <span style="font-size: 1.1rem;">${renderStars(product.rating)}</span>
                     <span style="color: var(--text-muted);">${product.rating} (${product.reviewsCount} reviews)</span>
