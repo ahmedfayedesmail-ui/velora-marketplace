@@ -317,6 +317,14 @@ jobs:
               evidence["checks"]["paymob_intention_created"] = bool(
                   checkout.get("ok") and checkout.get("intention_id") and checkout_url
               )
+              evidence["checkout_response_diagnostic"] = {
+                  "http_status": status,
+                  "ok": checkout.get("ok"),
+                  "status": checkout.get("status"),
+                  "code": checkout.get("code"),
+                  "error": checkout.get("error"),
+                  "provider_error": checkout.get("provider_error"),
+              }
               if not checkout_url:
                   evidence["failures"].append(
                       f"Paymob checkout function did not return a checkout URL (http {status})"
