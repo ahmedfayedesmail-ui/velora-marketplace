@@ -67,13 +67,13 @@ jobs:
               '''velora_launch_gates''',(select count(*) from public.velora_launch_gates)
             )"' | tee source-counts.json
 
-          docker run --rm --network velora-dr             postgres:17-alpine             psql "postgresql://postgres:RestoreOnly_2026!_@velora-dr-db:5432/velora_restore" -Atc             "select jsonb_build_object(
-              'orders',(select count(*) from public.orders),
-              'order_items',(select count(*) from public.order_items),
-              'products',(select count(*) from public.products),
-              'support_cases',(select count(*) from public.support_cases),
-              'velora_launch_gates',(select count(*) from public.velora_launch_gates)
-            )" | tee restored-counts.json
+          docker run --rm --network velora-dr             postgres:17-alpine             psql "postgresql://postgres:RestoreOnly_2026!_@velora-dr-db:5432/velora_restore" -Atc             "select row_to_json(q)::jsonb from (select
+              (select count(*) from public.orders) as orders,
+              (select count(*) from public.order_items) as order_items,
+              (select count(*) from public.products) as products,
+              (select count(*) from public.support_cases) as support_cases,
+              (select count(*) from public.velora_launch_gates) as velora_launch_gates
+            ) q" | tee restored-counts.json
 
           python - <<'PY'
           import json
