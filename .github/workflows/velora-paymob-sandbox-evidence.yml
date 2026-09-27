@@ -50,6 +50,7 @@ jobs:
           import json
           import os
           import sys
+          import time
           import uuid
           import urllib.parse
           import urllib.request
@@ -115,11 +116,15 @@ jobs:
           evidence["checks"]["auth_http_200"] = status == 200
           evidence["checks"]["authenticated_user"] = bool(access_token and user_id)
           if not access_token or not user_id:
-              evidence["failures"].append("Authenticated Supabase session was not returned")
-
-          # Find the latest pending order owned by the authenticated test account.
+              evidence["failures"].append("Authenticated Supabase sessio          # Find the latest pending order owned by the authenticated test account.
+          # If none exists, create a Restore-Test fixture through the canonical authenticated order RPC.
           order = None
           if access_token and user_id:
+              auth_headers = {
+                  "apikey": publishable_key,
+                  "Authorization": f"Bearer {access_token}",
+              }
+
               query = urllib.parse.urlencode({
                   "customer_id": f"eq.{user_id}",
                   "status": "eq.pending",
@@ -128,21 +133,166 @@ jobs:
                   "order": "created_at.desc",
                   "limit": "1",
               }, safe=",")
+
               req = urllib.request.Request(
                   f"{base}/rest/v1/orders?{query}",
                   method="GET",
-                  headers={"apikey": publishable_key, "Authorization": f"Bearer {access_token}"},
+                  headers=auth_headers,
               )
+
               try:
                   with urllib.request.urlopen(req, timeout=30) as resp:
                       rows = json.loads(resp.read().decode("utf-8"))
                   order = rows[0] if rows else None
               except Exception as exc:
-                  evidence["failures"].append(f"Pending-order lookup failed: {type(exc).__name__}")
+                  evidence["failures"].append(
+                      f"Pending-order lookup failed: {type(exc).__name__}"
+                  )
+
+              if not order:
+                  product_query = urllib.parse.urlencode({
+                      "status": "eq.approved",
+                      "select": "id,name,stock,currency_code,price",
+                      "order": "created_at.desc",
+                      "limit": "20",
+                  }, safe=",")
+
+                  product_req = urllib.request.Request(
+                      f"{base}/rest/v1/products?{product_query}",
+                      method="GET",
+                      headers=auth_headers,
+                  )
+
+                  try:
+                      with urllib.request.urlopen(product_req, timeout=30) as resp:
+                          products = json.loads(resp.read().decode("utf-8"))
+                  except Exception as exc:
+                      products = []
+                      evidence["failures"].append(
+                          f"Approved product lookup failed: {type(exc).__name__}"
+                      )
+
+                  fixture = None
+                  for product in products:
+                      variants_query = urllib.parse.urlencode({
+                          "product_id": f"eq.{product['id']}",
+                          "is_active": "eq.true",
+                          "select": "id,name,stock_quantity",
+                          "order": "created_at.asc",
+                          "limit": "5",
+                      }, safe=",")
+
+                      variants_req = urllib.request.Request(
+                          f"{base}/rest/v1/product_variants?{variants_query}",
+                          method="GET",
+                          headers=auth_headers,
+                      )
+
+                      try:
+                          with urllib.request.urlopen(variants_req, timeout=30) as resp:
+                              variants = json.loads(resp.read().decode("utf-8"))
+                      except Exception:
+                          variants = []
+
+                      available_variants = [
+                          v for v in variants
+                          if int(v.get("stock_quantity") or 0) > 0
+                      ]
+
+                      if available_variants:
+                          fixture = {
+                              "product_id": product["id"],
+                              "product_variant_id": available_variants[0]["id"],
+                              "quantity": 1,
+                          }
+                          break
+
+                      if not variants and int(product.get("stock") or 0) > 0:
+                          fixture = {
+                              "product_id": product["id"],
+                              "quantity": 1,
+                          }
+                          break
+
+                  if fixture:
+                      fixture_items = [fixture]
+
+                      quote_status, quote = http_json(
+                          "POST",
+                          f"{base}/rest/v1/rpc/velora_quote_cart_shipping",
+                          {
+                              "p_items": fixture_items,
+                              "p_country_code": "EG",
+                              "p_currency_code": "EGP",
+                          },
+                          auth_headers,
+                      )
+
+                      shipping = 0
+                      if quote_status == 200 and isinstance(quote, dict):
+                          if quote.get("requires_configuration"):
+                              evidence["failures"].append(
+                                  "Shipping configuration is required for the Restore-Test fixture"
+                              )
+                          else:
+                              shipping = float(quote.get("total_shipping", 0) or 0)
+                      else:
+                          evidence["failures"].append(
+                              f"Shipping quote failed for fixture order (http {quote_status})"
+                          )
+
+                      if not evidence["failures"]:
+                          checkout_reference = (
+                              f"paymob-evidence-{os.environ.get('GITHUB_RUN_ID', '0')}-"
+                              f"{uuid.uuid4()}"
+                          )
+
+                          create_status, created = http_json(
+                              "POST",
+                              f"{base}/rest/v1/rpc/velora_create_order",
+                              {
+                                  "p_items": fixture_items,
+                                  "p_currency": "EGP",
+                                  "p_shipping": shipping,
+                                  "p_customer_name": "PAYMOB EVIDENCE",
+                                  "p_customer_email": email,
+                                  "p_customer_notes": "PAYMOB_SANDBOX_EVIDENCE_FIXTURE",
+                                  "p_checkout_reference": checkout_reference,
+                              },
+                              auth_headers,
+                          )
+
+                          if (
+                              create_status == 200
+                              and isinstance(created, dict)
+                              and created.get("ok")
+                              and created.get("order_id")
+                          ):
+                              order = {
+                                  "id": created["order_id"],
+                                  "order_number": created.get("order_number"),
+                                  "total": created.get("total"),
+                                  "currency": created.get("currency", "EGP"),
+                                  "status": "pending",
+                                  "payment_status": "pending",
+                              }
+                              evidence["checks"]["fixture_order_created"] = True
+                          else:
+                              evidence["checks"]["fixture_order_created"] = False
+                              evidence["failures"].append(
+                                  f"Canonical fixture order creation failed (http {create_status})"
+                              )
+                  else:
+                      evidence["checks"]["fixture_order_created"] = False
+                      evidence["failures"].append(
+                          "No approved product or active variant with stock was found"
+                      )
 
           evidence["checks"]["pending_order_found"] = bool(order)
           if not order:
-              evidence["failures"].append("No pending order owned by the E2E account was found")
+              evidence["failures"].append(
+                  "No pending order owned by the E2E account was found"
+              )
 
           checkout = {}
           checkout_url = None
