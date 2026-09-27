@@ -180,7 +180,7 @@ function decorateGiftCard(){
 }
 let veloraShippingQuotePromise=null;
 async function refreshVeloraShippingQuote(){
-  const original=window.STATE?.cart||[];
+  const original=(typeof STATE!=='undefined' && Array.isArray(STATE.cart)) ? STATE.cart : [];
   const items=original.map(i=>({product_id:i.canonicalId||i.productId||i.id,quantity:Number(i.quantity||1)})).filter(i=>/^[0-9a-f-]{36}$/i.test(String(i.product_id))&&i.quantity>0);
   if(!items.length){window.VELORA_SHIPPING_QUOTE=null;return null}
   const country=String(document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG').toUpperCase();
@@ -196,8 +196,57 @@ function shippingQuoteStatus(q){
   if(q.ok)return tr('Shipping quote ready.')+' '+Number(q.total_shipping||0).toFixed(2)+' '+String(q.currency_code||'');
   return tr('Shipping configuration required for one or more sellers.');
 }
-window.VELORA_SELECT_PAYMENT_METHOD=(code,id,el)=>{window.VELORA_PAYMENT_SELECTION={code,id};document.querySelectorAll('.payment-method').forEach(x=>x.classList.remove('selected'));el.classList.add('selected')};
-const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){window.__VELORA_CHECKOUT_REFERENCE=null;window.__VELORA_CHECKOUT_SUBMITTING=false;clearCheckoutCurrencyGate();const r=oldRender.apply(this,arguments);setTimeout(async()=>{await syncCheckoutCurrencyGate();decorate();decorateGiftCard();decorateLegalConsent();try{const q=await refreshVeloraShippingQuote();if(typeof renderCheckoutSummary==='function'&&q)renderCheckoutSummary();const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=shippingQuoteStatus(q)}catch(e){const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=tr('Shipping quote unavailable.') }},100);return r};
+function veloraCheckoutDraftKey(){
+  try{
+    const userId=window.mahaSupabase?.auth ? null : null;
+    return 'velora_checkout_draft_v1';
+  }catch(_){ return 'velora_checkout_draft_v1'; }
+}
+function readCheckoutDraft(){
+  try{
+    const raw=sessionStorage.getItem(veloraCheckoutDraftKey());
+    const value=raw?JSON.parse(raw):null;
+    return value && typeof value==='object' ? value : {};
+  }catch(_){ return {}; }
+}
+function saveCheckoutDraft(){
+  try{
+    const fields=['custName','custPhone','custEmail','custCity','custAddress','custNotes'];
+    const draft={};
+    fields.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) draft[id]=String(el.value||'');
+    });
+    const selected=window.VELORA_PAYMENT_SELECTION;
+    if(selected?.id) draft.payment={id:String(selected.id),code:selected.code?String(selected.code):null};
+    sessionStorage.setItem(veloraCheckoutDraftKey(),JSON.stringify(draft));
+  }catch(_){}
+}
+function restoreCheckoutDraft(){
+  try{
+    const draft=readCheckoutDraft();
+    ['custName','custPhone','custEmail','custCity','custAddress','custNotes'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && draft[id]!=null) el.value=String(draft[id]);
+    });
+    if(draft.payment?.id){
+      window.VELORA_PAYMENT_SELECTION={
+        id:String(draft.payment.id),
+        code:draft.payment.code?String(draft.payment.code):null
+      };
+    }
+  }catch(_){}
+}
+function bindCheckoutDraft(){
+  const form=document.querySelector('#checkoutForm form.checkout-form, #checkoutForm .checkout-form');
+  if(!form || form.dataset.veloraDraftBound==='1') return;
+  form.dataset.veloraDraftBound='1';
+  form.addEventListener('input',saveCheckoutDraft);
+  form.addEventListener('change',saveCheckoutDraft);
+  restoreCheckoutDraft();
+}
+window.VELORA_SELECT_PAYMENT_METHOD=(code,id,el)=>{window.VELORA_PAYMENT_SELECTION={code,id};document.querySelectorAll('.payment-method').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');saveCheckoutDraft()};
+const oldRender=window.renderCheckoutPage;if(typeof oldRender==='function')window.renderCheckoutPage=function(){window.__VELORA_CHECKOUT_REFERENCE=null;window.__VELORA_CHECKOUT_SUBMITTING=false;clearCheckoutCurrencyGate();const r=oldRender.apply(this,arguments);setTimeout(async()=>{bindCheckoutDraft();await syncCheckoutCurrencyGate();decorate();decorateGiftCard();decorateLegalConsent();try{const q=await refreshVeloraShippingQuote();if(typeof renderCheckoutSummary==='function'&&q)renderCheckoutSummary();const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=shippingQuoteStatus(q)}catch(e){const s=document.getElementById('veloraShippingQuoteStatus');if(s)s.textContent=tr('Shipping quote unavailable.') }},100);return r};
 function decorateShippingStatus(){
   const host=document.getElementById('checkoutSummary');
   if(!host||document.getElementById('veloraShippingQuoteStatus'))return;
