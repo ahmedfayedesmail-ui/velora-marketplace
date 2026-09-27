@@ -41,7 +41,7 @@ jobs:
       - name: Run Paymob sandbox evidence drill
         env:
           SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
-          SUPABASE_PUBLISHABLE_KEY: sb_publishable_RDyqYgvJyT37RiQ1PNxYuQ_ov_8ecea
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_RDyqYgvJyT37RiQ1PNxYuQ_ov_8eceA
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
