@@ -12,7 +12,7 @@
 
     const PLATFORM_ROUTES = new Set(['seller', 'admin', 'owner']);
     const MARKETPLACE_PAGES = new Set([
-        'home', 'shop', 'shops', 'deals', 'guide', 'blog', 'compare', 'reviews',
+        'home', 'shop', 'shops', 'store', 'deals', 'guide', 'blog', 'compare', 'reviews',
         'favorites', 'cart', 'checkout', 'orders', 'account', 'legal'
     ]);
 
@@ -31,9 +31,16 @@
         return String(hash || '').replace(/^#/, '').split('?')[0] || '';
     }
 
+    function parseMarketplaceRoute(hash) {
+        const raw = String(hash || '').replace(/^#/, '').trim();
+        const storeMatch = raw.match(/^store\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+        if (storeMatch) return { page: 'store', storeId: storeMatch[1] };
+        if (MARKETPLACE_PAGES.has(raw)) return { page: raw, storeId: null };
+        return { page: 'home', storeId: null };
+    }
+
     function currentMarketplaceHash() {
-        const hash = normalizeHash(window.location.hash);
-        return MARKETPLACE_PAGES.has(hash) ? hash : 'home';
+        return parseMarketplaceRoute(window.location.hash).page;
     }
 
     function closeAllPlatforms() {
@@ -70,13 +77,25 @@
         return false;
     }
 
-    function activateMarketplace(page) {
+    function activateMarketplace(page, storeId) {
         closeAllPlatforms();
 
         if (!MARKETPLACE_PAGES.has(page)) page = 'home';
 
+        if (page === 'store' && storeId) {
+            window.VELORA_STORE_ROUTE_ID = storeId;
+        } else if (page !== 'store') {
+            window.VELORA_STORE_ROUTE_ID = null;
+        }
+
         if (typeof originalNavigateTo === 'function') {
             originalNavigateTo(page);
+        }
+
+        if (page === 'store' && storeId) {
+            const url = new URL(window.location.href);
+            url.hash = 'store/' + encodeURIComponent(storeId);
+            window.history.replaceState({}, '', url);
         }
     }
 
@@ -109,14 +128,16 @@
     function syncRoute() {
         if (syncing) return;
 
-        const route = normalizeHash(window.location.hash);
+        const rawRoute = String(window.location.hash || '').replace(/^#/, '');
+        const route = normalizeHash(rawRoute);
 
         if (PLATFORM_ROUTES.has(route)) {
             activatePlatform(route);
             return;
         }
 
-        activateMarketplace(route || 'home');
+        const marketplace = parseMarketplaceRoute(rawRoute);
+        activateMarketplace(marketplace.page, marketplace.storeId);
     }
 
     window.openSellerPlatform = function () {
@@ -186,7 +207,8 @@
     // page reload.
     window.addEventListener('velora:languagechange', function(){
         setTimeout(function(){
-            const route=normalizeHash(window.location.hash);
+            const rawRoute=String(window.location.hash || '').replace(/^#/, '');
+            const route=normalizeHash(rawRoute);
             if(PLATFORM_ROUTES.has(route)){
                 activatePlatform(route);
             } else {
@@ -196,7 +218,8 @@
     });
 
     function initialSync() {
-        const route = normalizeHash(window.location.hash);
+        const rawRoute = String(window.location.hash || '').replace(/^#/, '');
+        const route = normalizeHash(rawRoute);
 
         if (PLATFORM_ROUTES.has(route)) {
             let tries = 0;
