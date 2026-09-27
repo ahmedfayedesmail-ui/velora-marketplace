@@ -262,6 +262,9 @@ jobs:
               "authenticated_session",
               "authenticated_user_id",
               "arabic_locale_set_ok",
+              "platform_route_seller_hash",
+              "platform_return_store_hash",
+              "platform_return_store_active",
           ]
 
           for key in required_true:
