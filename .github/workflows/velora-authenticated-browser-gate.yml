@@ -168,6 +168,9 @@ jobs:
                   timeout=60000,
               )
               page.wait_for_timeout(1000)
+              result["checks"]["product_detail_open_product_function_source"] = page.evaluate(
+                  "() => String(window.openProductDetail || '').slice(0, 180)"
+              )
               before_product = page.evaluate(
                   """(productId) => {
                       const p = (window.MAHA_DATA?.PRODUCTS || []).find(x => x.id === productId);
