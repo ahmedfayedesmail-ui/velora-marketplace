@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest application source/runtime commit: `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f` (`fix(router): preserve store deep-link return route`). This branch also contains browser-test fixture hardening commits `437cf1edb27e71ff7b019a212713799f8966defb` and `9ab16f9fa851459dc49686d5aa638be25a2e1002`; the Product Detail and localization runtime fixes remain included in history.
+Latest application source/runtime commit: `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f` (`fix(router): preserve store deep-link return route`). Latest browser-gate-only commits are `437cf1edb27e71ff7b019a212713799f8966defb`, `9ab16f9fa851459dc49686d5aa638be25a2e1002`, `12d1acf17123ee5a537671b6c009ac4df36c2310`, `0be23386cc2edf0fb2ec44d55518d4b5a1d1ddd6`, and `ffe1e0756961639ca5619b4c3ca27c7f60e5a6d8`; the Product Detail and localization runtime fixes remain included in history.
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -123,7 +123,7 @@ Do not recreate a giant handoff unless a future task specifically needs historic
 ## Current pause/resume point
 Resume from the router deep-link fix at `07bc6b42e6bf6c91d40ae4a2cb012ca714b1ae2f`. The source defect was observed in `63-platform-router.js`: `store/<uuid>` was reduced to `store` when saved for platform return, and `goMarketplace()` did not re-parse a stored store route before activation. The fix preserves the full store route and re-parses it before activation. Browser/runtime impact remains unverified until a current Browser Gate run.
 
-The local-source browser workflow is `.github/workflows/velora-local-source-browser-gate.yml` and exercises the current `src/` without Vercel. Vercel remains blocked by the connected `build-rate-limit`. Do not treat stale Preview runs as evidence for the current source. Production remains FROZEN.
+The local-source browser workflow is `.github/workflows/velora-local-source-browser-gate.yml` and now also covers the regression `store/<uuid> → Seller → Marketplace`, asserting return to the exact store deep-link. No visible run result is available through the current GitHub connector for the push-triggered workflow, so this remains an added executable gate, not a PASS. Vercel remains blocked by the connected `build-rate-limit`. Do not treat stale Preview runs as evidence for the current source. Production remains FROZEN.
 
 ### Navigation audit finding — OBSERVED FACT from source
 `src/scripts/63-platform-router.js` stores `currentMarketplaceHash()` as the parsed page name only, so a `store/<uuid>` deep-link is reduced to `store` when entering a seller/admin/owner platform. `goMarketplace()` then calls `activateMarketplace(target)` without re-parsing a store route. This is an unverified browser-path finding, not yet classified as a runtime defect and not yet changed.
