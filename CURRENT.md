@@ -21,7 +21,9 @@ The detail contract returns product metadata, category/subcategory, ingredients,
 Source currency is preserved separately from display currency for cart safety.
 
 ## Next step
-Audit and fix Related Products using the smallest canonical-data change that preserves the existing catalog contract where possible. Then audit Store Navigation before implementing it.
+1. Browser Gate Related Products on the latest Preview when browser tooling is available.
+2. Design/implement Store Detail navigation only after preserving the existing public-read/RLS model; current audit shows no customer-facing store route or dedicated store-detail read contract.
+3. Then add the missing critical regression gate(s) rather than another large manual handoff.
 
 ## Evidence state
 - Product Detail source verification: PASS
@@ -30,7 +32,12 @@ Audit and fix Related Products using the smallest canonical-data change that pre
 - Product Detail Browser Gate: PENDING
 - Related Products source/DB evidence: fix committed; Preview READY
 - Related Products Browser Gate: PENDING (external browser runner unavailable due wallet)
-- Store Navigation incomplete action: CONFIRMED
+- Store Navigation: CONFIRMED INCOMPLETE
+  - Shops page exists and lists approved stores.
+  - Visit Store currently shows a toast only; no navigation.
+  - Platform router has no customer store route.
+  - No public store-detail RPC exists.
+  - stores has approved-row public SELECT RLS; products has approved-row public SELECT RLS.
 - Production: FROZEN
 
 ## Core rules
@@ -56,3 +63,11 @@ Critical flows:
 - seller/admin critical navigation
 
 A flow is not considered PASS merely because its source looks correct; it needs executable evidence at the appropriate layer.
+
+## Chat continuity
+The canonical handoff artifact is this file plus the active Git branch/history. A new chat should:
+1. Read CURRENT.md.
+2. Inspect the latest commit on audit/full-gate-2026-09-25.
+3. Verify Preview/DB evidence only as needed.
+4. Continue from the first unresolved item in Next step.
+Do not recreate a giant handoff unless a future task specifically needs historical reconstruction.
