@@ -5,7 +5,7 @@ Updated: 2026-09-27
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is frozen. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-Latest substantive gate commit: `01d82792fde8879b1d42b6c7f55e2be1ae394a57` (browser regression-gate strengthening). Latest documentation commit may be newer; runtime work remains unchanged.
+Latest source/runtime commit: `dc157200fdde96e809e6d18998a41a14da42183f` (`fix(localization): restore missing statement separator`). This commit also includes the Product Detail canonical-hydration fix from `79c8ed1b9e6d06417979a66d9d43081def92cd25` and browser diagnostics.
 
 Current focus:
 1. Product Detail canonical contract — source/DB work complete; Browser Gate still required.
@@ -30,15 +30,15 @@ The detail contract returns product metadata, category/subcategory, ingredients,
 Source currency is preserved separately from display currency for cart safety.
 
 ## Next step
-1. Browser Gate Related Products on the latest Preview when browser tooling is available.
-2. Browser Gate Store Navigation from both Shops and Product Detail; verify deep-link `#store/<uuid>` and back navigation.
-3. Keep the strengthened existing Playwright gate as the critical regression gate for Product Detail / Related / Store; add new coverage only when a concrete gap is observed.
+1. Wait for a real Vercel deployment of `dc157200fdde96e809e6d18998a41a14da42183f`; the current Vercel integration is rate-limited, so the existing branch alias is stale.
+2. Once a deployment for `dc157...` exists, rerun the authenticated Browser Gate and verify Product Detail -> Visit Store, Related Products, Shops -> Visit Store, and Back to Shops.
+3. Keep the strengthened existing Playwright gate as the critical regression gate; do not treat runs against the stale Preview as evidence for current source.
 
 ## Evidence state
 - Product Detail source verification: PASS
 - Product Detail DB contract verification: PASS
 - Product Detail deployment evidence: PASS/READY observed on Preview
-- Product Detail Browser Gate: PENDING
+- Product Detail Browser Gate: PENDING on current source (runs #83/#84 were against stale Preview and are not valid current-code proof).
 - Related Products source/DB evidence: fix committed; Preview READY
 - Related Products Browser Gate: PENDING (external browser runner unavailable due wallet)
 - Store Navigation source/DB evidence: PASS
@@ -49,10 +49,22 @@ Source currency is preserved separately from display currency for cart safety.
   - Approved Store + approved Products are enforced by existing RLS paths.
   - QA store RPC test returned `E2E Seller Store` plus 5 approved products.
   - Pending-store RPC test returned 0 rows.
-- Store Navigation Browser Gate: PENDING (interactive browser runner currently unavailable due insufficient wallet balance).
-- Current Vercel build status for the newer gate commit: BLOCKED by the connected Vercel `build-rate-limit`; the last READY Preview alias remains on `3fd440c86b0a0f4a2f1e5f3256fd7d9fd24b510a`, whose runtime is unchanged by the later test-only/docs commits.
+- Store Navigation Browser Gate: current-code PENDING; however the deployed pre-fix browser gate already proved direct Store Detail, Shops -> Visit Store, and Back to Shops on the then-current Preview.
+- Current Vercel build status: BLOCKED by connected Vercel `build-rate-limit` (`Deployment rate limited — retry in 24 hours.` observed on commit `dc157...`). The latest READY deployment in the accessible deployment list is commit `31cc7209357df97620c093709703d7561dce476f`; therefore Runs #83/#84 did not exercise `79c8...` or `dc157...` source changes.
 - Production: FROZEN
 
+
+## Latest RCA / source-hardening changes
+### Product Detail handler collision — OBSERVED FACT
+`src/scripts/52-s2a-variants.js` overwrote `window.openProductDetail` and, when a catalog row already existed, short-circuited the canonical hydration wrapper from `00-localization.js`. Runtime browser inspection showed `window.openProductDetail` ultimately came from the reviews wrapper in `53-s2c-reviews.js`, with `52-s2a-variants.js` underneath it. Direct browser RPC diagnostics confirmed `velora_get_product_detail` returned the correct `store_id`, while `_veloraDetailHydrated` stayed false.
+
+Fix commit: `79c8ed1b9e6d06417979a66d9d43081def92cd25`. The variants handler now invokes its captured original handler before variant rendering and the variant renderer includes the canonical Visit Store control.
+
+### Localization syntax error — OBSERVED FACT
+`Run #84` captured `Uncaught SyntaxError: Unexpected token 'else'` at `/scripts/12-localization.js`, line 160, column 1355. The exact source defect was a missing semicolon after `await window.VELORA_RENDER_TRUST()`. Fix commit: `dc157200fdde96e809e6d18998a41a14da42183f`.
+
+### Vercel deployment blocker — OBSERVED FACT
+GitHub status for `dc157...` reports `Deployment rate limited — retry in 24 hours.` No Vercel deployment for `79c8...`, `2cd...`, or `dc157...` is currently visible in the accessible deployment list. Browser runs #83/#84 therefore remain stale-Preview diagnostics, not validation of the current source.
 ## Core rules
 - Do not rewrite the cart.
 - Do not add MutationObservers or arbitrary click listeners.
