@@ -126,6 +126,51 @@ jobs:
               result["checks"]["initial_lang"] = page.locator("html").get_attribute("lang")
               result["checks"]["initial_dir"] = page.locator("html").get_attribute("dir")
 
+              # Auth contract gate: exercise the active register handler without
+              # creating a real account, and assert the deployed-host redirect is
+              # passed explicitly to Supabase signUp().
+              page.wait_for_timeout(800)
+              page.evaluate("""
+              () => {
+                  const auth = window.mahaSupabase && window.mahaSupabase.auth;
+                  if (!auth || typeof auth.signUp !== 'function') throw new Error('AUTH_SIGNUP_UNAVAILABLE');
+                  const original = auth.signUp;
+                  window.__VELORA_TEST_SIGNUP_CALL = null;
+                  auth.signUp = async function(args) {
+                      window.__VELORA_TEST_SIGNUP_CALL = args;
+                      return { data: { user: { id: 'browser-gate-fake-user', email: args.email }, session: null }, error: null };
+                  };
+                  window.__VELORA_TEST_RESTORE_SIGNUP = () => { auth.signUp = original; };
+                  openAuthModal('register');
+              }
+              """)
+              page.locator("#regName").fill("Browser Gate Redirect")
+              page.locator("#regEmail").fill("browser-gate-redirect@example.invalid")
+              page.locator("#regPhone").fill("01000000000")
+              page.locator("#regPassword").fill("BrowserGate123!")
+              page.locator("#authFormContent button[type='submit']").click()
+              page.wait_for_timeout(300)
+              signup_redirect = page.evaluate("""
+              () => {
+                  const call = window.__VELORA_TEST_SIGNUP_CALL;
+                  const expected = window.location.origin;
+                  try { if (typeof window.__VELORA_TEST_RESTORE_SIGNUP === 'function') window.__VELORA_TEST_RESTORE_SIGNUP(); } catch (e) {}
+                  return {
+                      called: !!call,
+                      emailRedirectTo: call && call.options ? call.options.emailRedirectTo || null : null,
+                      expectedOrigin: expected
+                  };
+              }
+              """)
+              result["checks"]["signup_redirect_handler_called"] = bool(signup_redirect.get("called"))
+              result["checks"]["signup_redirect_email_redirect_to"] = signup_redirect.get("emailRedirectTo")
+              result["checks"]["signup_redirect_expected_origin"] = signup_redirect.get("expectedOrigin")
+              result["checks"]["signup_redirect_matches_current_origin"] = (
+                  signup_redirect.get("emailRedirectTo") == signup_redirect.get("expectedOrigin")
+              )
+              if not result["checks"]["signup_redirect_matches_current_origin"]:
+                  result["failures"].append("Active signup handler did not pass the current hosted origin as emailRedirectTo")
+
               # Anonymous discovery gates: Store Detail route + Product Detail related section.
               page.goto(
                   url + "/#store/" + test_store,
