@@ -4455,11 +4455,18 @@ function initApp() {
 
     // Load page from URL
     const hash = window.location.hash.replace('#', '');
+    const storeRouteMatch = hash.match(/^store\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
     const validPages = ['home', 'shop', 'shops', 'deals', 'guide', 'blog', 'compare', 'reviews', 'favorites', 'cart', 'checkout', 'orders', 'account', 'legal'];
-    const startPage = validPages.includes(hash) ? hash : 'home';
 
-    // Navigate to start page
-    navigateTo(startPage);
+    // Preserve a canonical store deep-link for the later platform router.
+    // Calling navigateTo('home') here would erase store/<uuid> before
+    // 63-platform-router.js has a chance to parse it.
+    if (storeRouteMatch) {
+        window.VELORA_STORE_ROUTE_ID = storeRouteMatch[1];
+    } else {
+        const startPage = validPages.includes(hash) ? hash : 'home';
+        navigateTo(startPage);
+    }
 
     // Hide loading only after the authoritative V5 i18n boot completes.
     // This prevents the initial English DOM from being exposed while the
