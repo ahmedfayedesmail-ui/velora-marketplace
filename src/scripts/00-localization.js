@@ -6194,10 +6194,15 @@ handleRegister = async function(event) {
     }
 
     // --- Supabase Auth signUp ---
+    // The active register wrapper must preserve the deployed-host redirect
+    // contract from the canonical handler above. Without this, Supabase falls
+    // back to the project's Site URL (historically localhost in some setups).
+    const authRedirect = String(window.location?.origin || '');
     const { data, error } = await window.mahaSupabase.auth.signUp({
         email,
         password,
         options: {
+            emailRedirectTo: authRedirect,
             data: {
                 name: name,
                 phone: phone
