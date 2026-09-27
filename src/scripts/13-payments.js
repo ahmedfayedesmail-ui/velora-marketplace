@@ -261,7 +261,7 @@ window.placeOrder=async function(event){
     throw new Error('PAYMENT_METHOD_REQUIRED');
   }
 
-    const original=window.STATE?.cart||[];
+    const original=(typeof STATE!=='undefined' && Array.isArray(STATE.cart)) ? STATE.cart : [];
     const canonical=original.map(i=>({
       product_id:i.canonicalId||i.productId||i.id,
       product_variant_id:i.variantId||i.product_variant_id||null,
