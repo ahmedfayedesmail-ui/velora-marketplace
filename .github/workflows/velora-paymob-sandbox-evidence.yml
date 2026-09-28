@@ -150,6 +150,33 @@ jobs:
                       f"Pending-order lookup failed: {type(exc).__name__}"
                   )
 
+              # Keep each evidence drill isolated. Reuse a pending order only
+              # when it has no prior marketplace payment attempt.
+              if order:
+                  existing_attempt_query = urllib.parse.urlencode({
+                      "order_id": f"eq.{order['id']}",
+                      "purpose": "eq.marketplace_order",
+                      "select": "id,created_at",
+                      "order": "created_at.desc",
+                      "limit": "1",
+                  }, safe=",")
+                  existing_attempt_req = urllib.request.Request(
+                      f"{base}/rest/v1/payment_attempts?{existing_attempt_query}",
+                      method="GET",
+                      headers=auth_headers,
+                  )
+                  try:
+                      with urllib.request.urlopen(existing_attempt_req, timeout=30) as resp:
+                          existing_attempts = json.loads(resp.read().decode("utf-8"))
+                      if existing_attempts:
+                          order = None
+                          evidence["checks"]["fresh_fixture_required"] = True
+                  except Exception as exc:
+                      evidence["failures"].append(
+                          f"Existing payment-attempt hygiene lookup failed: {type(exc).__name__}"
+                      )
+                      order = None
+
               if not order:
                   product_query = urllib.parse.urlencode({
                       "status": "eq.approved",
