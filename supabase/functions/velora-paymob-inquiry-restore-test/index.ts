@@ -102,7 +102,6 @@ Deno.serve(async (req: Request) => {
   try {
     stage = "client_creation";
     outerStage = "client_creation";
-    const { createClient } = await import("npm:@supabase/supabase-js@2");
     const userClient = createClient(supabaseUrl, publishableKey, {
       global: { headers: { Authorization: `Bearer ${bearer}` } },
     });
