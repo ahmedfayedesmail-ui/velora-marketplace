@@ -329,8 +329,44 @@ jobs:
           otp_observed = False
           if checkout_url:
               with sync_playwright() as p:
-                  browser = p.chromium.launch(headless=True)
+                  try:
+                      probe_req = urllib.request.Request(
+                          checkout_url,
+                          method="GET",
+                          headers={
+                              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+                              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                          },
+                      )
+                      try:
+                          with urllib.request.urlopen(probe_req, timeout=30) as probe_resp:
+                              evidence["transport_probe"] = {
+                                  "http_status": probe_resp.status,
+                                  "response_headers": {
+                                      k: probe_resp.headers.get(k)
+                                      for k in ["server","cf-ray","cf-cache-status","content-type","content-length"]
+                                      if probe_resp.headers.get(k) is not None
+                                  },
+                              }
+                      except urllib.error.HTTPError as exc:
+                          evidence["transport_probe"] = {
+                              "http_status": exc.code,
+                              "response_headers": {
+                                  k: exc.headers.get(k)
+                                  for k in ["server","cf-ray","cf-cache-status","content-type","content-length"]
+                                  if exc.headers.get(k) is not None
+                              },
+                          }
+                  except Exception as exc:
+                      evidence["transport_probe"] = {"error": type(exc).__name__}
+
+              with sync_playwright() as p:
+                  # Reuse the historically successful headed Chromium mode from
+                  # the prior Paymob evidence run. This specifically tests whether the
+                  # 403 is headless-only without changing the product/provider path.
+                  browser = p.chromium.launch(headless=False)
                   context = browser.new_context(viewport={"width": 1440, "height": 1000})
+                  evidence["playwright"]["browser_mode"] = "headed"
                   page = context.new_page()
                   console_errors = []
                   page_errors = []
