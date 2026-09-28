@@ -2443,3 +2443,40 @@ Owner/Staff human intervention is reserved for governance, legal decisions, frau
 - No signed webhook was received during the run, so the end-to-end gate remains OPEN / NOT EVIDENCED.
 - No product payment code change is justified by this evidence.
 - The next safe action is to improve or replace only the payment evidence harness interaction after a concrete automation mismatch is established, while preserving the canonical Velora payment/webhook engines.
+
+---
+
+# MESSAGE 12.1 — PAYMOB EVIDENCE-HARNESS EVENT-ID MISMATCH FINDING
+Recorded 2026-09-28.
+
+## OBSERVED FACT
+The synchronized webhook source defines eventId = tx || eventType + ':' + attemptId, where tx = obj.id from the Paymob transaction callback.
+The current evidence workflow post-payment poll instead takes provider_payment_id from payment_attempts and queries provider_webhook_events.event_id = provider_payment_id.
+The current checkout/RPC contract populates provider_payment_id at provider-session attachment time with the Paymob Intention/session identifier when it is initially empty. The Restore-Test attempt inspected for run 36447221162 has:
+- payment attempt status: pending
+- provider session id: pi_test_d5e5ed2a64a243848a5399668a7bdf03
+- provider payment id: pi_test_d5e5ed2a64a243848a5399668a7bdf03
+- Paymob order id metadata: 620173370
+
+Therefore the evidence workflow is not guaranteed to find a future webhook even after Paymob successfully sends one, because the workflow is filtering on the session/intention identifier while the webhook handler records the transaction identifier as event_id.
+
+## DB CROSS-CHECK
+For the run-time window inspected (2026-09-28 15:40:00Z through 16:20:00Z), Restore-Test contained zero Paymob provider_webhook_events.
+Therefore this mismatch does NOT explain the absence of a webhook in run 36447221162; there was no webhook row to discover in that window.
+
+## CLASSIFICATION
+- Evidence-harness correlation bug: OPEN / VERIFIED AT L1+L2.
+- Root cause of the current missing webhook: NOT ESTABLISHED.
+- Provider-start failure: NOT INDICATED.
+- Product payment engine change: NOT JUSTIFIED.
+
+## ACTION FLOW IMPACT
+After a real provider callback arrives, evidence polling must correlate through the canonical payment-attempt/provider-order relationship or the actual transaction identifier recorded by the webhook handler. It must not assume payment_attempts.provider_payment_id is the callback event_id.
+
+The canonical payment state machine remains unchanged:
+EVENT → AUTH → GUARD → VALIDATION → payment_attempt=pending → Paymob Intention → provider session binding → customer/3DS → webhook → HMAC → correlation/dedupe → monotonic transition → order/payment sync → audit → financial/inventory side effects.
+
+## NEXT SAFE STEP
+Change only the evidence harness correlation logic, after preserving the canonical product/payment/webhook contracts. The harness should first identify the payment attempt by the known attempt id/provider-order correlation, then inspect relevant webhook events and bind a callback transaction id only after receipt.
+
+Do not use a newly green test as proof by itself; re-verify DB state, HMAC, order/payment transition, audit, and downstream side effects at the appropriate evidence layers.
