@@ -89,6 +89,30 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - This is not patched yet because the current product policy does not explicitly establish whether an account suspension should immediately disable Seller fulfillment/settings operations or allow fulfillment of existing obligations.
 - Do not invent this business rule in code. When governed, implement the smallest central enforcement path and regression-test Seller, Customer, Staff, and Owner behavior.
 
+### Seller paid-plan entitlement bypass — CLOSED at DB + CI/deployment level
+- **OBSERVED:** Staff approval previously trusted applicant-supplied `verification_data.plan`. With `plan='Pro'`, a customer application could become a Seller whose fallback entitlement was Pro even though `seller_subscriptions=0`.
+- Pro previously resolved to max_products 2500 and commission_rate 7.5; Free is 25 products and 12.5% commission. This was a real entitlement/financial bypass.
+- Commit `ca255cc27c637a44d5eaa41d6c4ec96d5e1f6b6b` changes `private.velora_review_seller_application()` to set the initial Seller plan to `free` regardless of applicant metadata.
+- Paid plans remain acquired only through the governed subscription purchase path; `velora_start_subscription_purchase()` resolves plan price server-side and creates a pending subscription/payment attempt.
+- Exact rollback-only exploit rerun after the fix returned `plan_name='Free'`, `is_paid=false`, `max_products=25`, `commission_rate=12.5`, `subscription_id=null` despite `verification_data.plan='Pro'`.
+- Exact Vercel Preview `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE` is READY on SHA `ca255...`.
+- Exact commit `ca255...` gates: Source + Security SUCCESS; Dependency + Web Surface SUCCESS; Authenticated Browser SUCCESS; Local Source Browser SUCCESS; Staff Launch SUCCESS; Vercel Preview Comments SUCCESS.
+
+### Subscription regional pricing — OPEN CONTRACT QUESTION / POTENTIAL INPUT-SPOOF GAP
+- **OBSERVED:** `velora_start_subscription_purchase(p_plan_id,p_country_code,p_billing_cycle,p_idempotency_key)` accepts caller-supplied `p_country_code`, and `velora_resolve_subscription_price()` uses it to select regional pricing.
+- Restore-Test regional pricing is materially different by country (for example Pro: EG 499 EGP/month vs BH 9.9 BHD/month), so country is a financial input, not mere presentation.
+- **INFERRED:** A malicious caller could potentially request another country's price unless the application/provider contract intentionally permits seller-selected billing country and the country is independently verified during payment.
+- Current available Seller planning docs explicitly leave subscription pricing as an Owner/Product decision; do not silently change the pricing rule. Keep this item open until the governed billing-country rule is explicit or additional runtime evidence proves the server independently binds country.
+
+### Account suspension semantics — OPEN POLICY / AUTHORIZATION GAP
+- **OBSERVED:** Staff suspension changes `profiles.status`, but at least one Seller operational RPC (Shipping Zone upsert) still allows execution because it checks Store ownership rather than active account status.
+- The self-reactivation path is now closed, but whether suspension should immediately block Seller fulfillment/settings is a policy decision because existing obligations may still need fulfillment.
+- Do not patch broad Seller-operation suspension enforcement until Owner/Operations defines the intended lifecycle rule.
+
+### Direct moderation integrity — CLOSED
+- `public.reviews` direct customer INSERT is blocked by RLS; canonical `velora_submit_review()` requires a delivered customer order item and creates `pending` verified-purchase reviews.
+- `beauty_feedback` direct customer INSERT remains supported for the existing feedback contract, but moderation attribution is now server-controlled by commit `ee834...`.
+
 ### Current security audit result — Restore-Test
 - `velora_run_security_attack_surface_audit()` completed with: RLS core `13/13 PASS`; policy coverage `30 PASS`; pinned search_path `PASS`; SECURITY DEFINER posture `PASS`; public/anon RPC surface `WARN` because 22 RPCs are executable by anon, but the audit reported `unguarded_public_dml=0`.
 - This is a posture warning, not evidence to blanket-revoke SECURITY DEFINER functions. Existing actor/ownership checks remain the governing pattern.
@@ -108,9 +132,9 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
 
 **Latest application/runtime/security commit:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`). The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `ee83420ee96c49e2535442af0b53447c9cc3cb31` (`fix(security): protect feedback moderation attribution`).
+**Current branch HEAD:** `ca255cc27c637a44d5eaa41d6c4ec96d5e1f6b6b` (`fix(security): prevent seller plan entitlement bypass`).
 
-**Latest deployed Preview:** Vercel deployment `dpl_DoE1iuFnc4yRAVkRdQW5Ck7Q2PxR`, READY, exact Git SHA `ee83420ee96c49e2535442af0b53447c9cc3cb31`.
+**Latest deployed Preview:** Vercel deployment `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE`, READY, exact Git SHA `ca255cc27c637a44d5eaa41d6c4ec96d5e1f6b6b`.
 
 ## Latest authoritative gate state — 2026-09-28
 
@@ -123,14 +147,14 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
   - Dependency + Web Surface: **SUCCESS** — root/src dependency audits, Lighthouse, OWASP ZAP baseline.
 
 
-### 2026-09-28 batch gate status — exact commit `ee834...`
+### 2026-09-28 batch gate status — exact commit `ca255...`
 - Local Source Browser Gate: **SUCCESS**.
 - Authenticated Browser Gate: **SUCCESS**.
 - Staff Launch Gate: **SUCCESS**.
 - Dependency + Web Surface: **SUCCESS**.
 - Source + Security: **SUCCESS**.
 - Vercel Preview Comments: **SUCCESS**.
-- Exact Preview: `dpl_DoE1iuFnc4yRAVkRdQW5Ck7Q2PxR`, READY, Git SHA `ee834...`.
+- Exact Preview: `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE`, READY, Git SHA `ca255...`.
 - Restore-Test contains the newly applied Store, Support Case, Transaction Message, and Shipping ownership guards. Production remains **FROZEN**.
 
 ### Shipping / tracking
