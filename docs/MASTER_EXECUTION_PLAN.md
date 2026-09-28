@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: f4529d30a7fb48576ce08b1e4fc8979345655e13
+Current observed branch HEAD: de45147717077a6b741e47748a81b5a415d59ec1
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3017,3 +3017,35 @@ CORRECTION:
 EVIDENCE:
 - The existing 35-seller implementation already uses velora_get_seller_financial_summary() and velora_request_seller_payout(), with the server performing the eligibility calculation.
 - Current payout settlement remains Staff/provider controlled and not browser-proven.
+
+
+### Continuation Final Aggregate Browser Gate Preparation — 2026-09-29
+
+CLASSIFICATION: GATE TOOLING READY / EXECUTION BLOCKED BY PREVIEW CAPACITY
+
+OBSERVED FACT:
+- A single workflow was prepared at .github/workflows/velora-final-aggregate-browser-gate.yml.
+- It accepts the exact READY Preview URL and exact deployed commit SHA as workflow inputs, then runs one authenticated Playwright Chromium pass covering:
+  - Customer login/session continuity
+  - canonical Customer Orders rendering
+  - checkout navigation/session continuity
+  - Seller login/session continuity
+  - Seller Dashboard open
+  - Seller route/hash state
+  - Seller close
+  - Seller re-entry
+  - Seller Back/Forward without a full document reload
+  - canonical close-alias equivalence
+- The workflow is read-only with respect to Velora commerce data; it does not place orders, issue payouts, change seller status, or mutate products.
+- Customer credentials reuse the existing E2E_EMAIL/E2E_PASSWORD GitHub secrets.
+- Seller Browser Gate requires dedicated SELLER_E2E_EMAIL/SELLER_E2E_PASSWORD secrets; customer credentials must not be converted into Seller proof.
+- The final aggregate gate intentionally remains separate from provider settlement and Production evidence.
+
+CURRENT BLOCK:
+- Current branch HEAD is de45147717077a6b741e47748a81b5a415d59ec1.
+- GitHub combined status for that exact commit reports only Vercel failure with target upgradeToPro=build-rate-limit.
+- Therefore no current exact-HEAD Preview exists to execute the final aggregate Browser Gate against.
+
+FINAL BROWSER EXECUTION RULE:
+- After Vercel capacity is restored, obtain the READY Preview for the exact current branch HEAD, supply its exact URL + SHA to the aggregate workflow, and record the result.
+- Browser PASS must not be inferred from source/DB/CI/Preview readiness.
