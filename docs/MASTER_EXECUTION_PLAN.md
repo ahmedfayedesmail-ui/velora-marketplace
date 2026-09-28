@@ -2541,3 +2541,38 @@ Manual intervention is reserved for genuine provider/API ambiguity, financial ex
 
 ## Next Research / Reuse Step
 Before any code or schema work, inspect the current Paymob merchant/API Explorer request shape available to the account and map its response fields onto the existing canonical payment transition logic. Do not create a second payment-status engine or scheduler.
+
+---
+
+# MESSAGE 12.4 — PAYMOB INQUIRY CREDENTIAL + AUTOMATION EXECUTION STATUS
+Recorded 2026-09-28.
+
+## Paymob Inquiry Credential Contract
+- Official Paymob Transaction Inquiry uses API Key -> 60-minute Bearer token, separate from the Secret Key used for Intention API. The official collection explicitly identifies API_KEY/auth_token for Transaction Inquiry and instructs merchants to retrieve API Key from Paymob Dashboard -> Settings -> Account Info; the API key is the same for Test and Live mode.
+- Velora source/runtime inspected for the canonical Paymob checkout path currently references PAYMOB_SECRET_KEY, PAYMOB_PUBLIC_KEY and PAYMOB_INTEGRATION_ID. No PAYMOB_API_KEY reference was found in the inspected execution-branch source/workflow search.
+- Therefore the Paymob Inquiry credential is currently NOT EVIDENCED as configured in the Velora runtime.
+- Do not ask the owner to paste any key into chat or commit it to GitHub. Paymob's official collection warns against committing API keys/secrets in files.
+
+## Automation Runtime Status
+- Restore-Test has exactly one active cron job: velora-notification-lifecycle (`* * * * *`, running velora_process_notification_lifecycle(100)).
+- No cron job currently invokes velora_process_automation_queue, reconciliation processing, or a Paymob inquiry operation.
+- Existing functions velora_process_automation_queue and velora_reconcile_automation_event are present, but automatic worker execution is NOT EVIDENCED.
+- Therefore the Action Flow design is present, but the asynchronous reconciliation execution leg is NOT yet operationally proven.
+
+## Classification
+- Action Flow primary payment path: PRESENT and provider-start observed.
+- Webhook completion path: OPEN / NOT EVIDENCED.
+- Reconciliation automation worker: OPEN / NOT EVIDENCED.
+- Paymob Inquiry API credential: BLOCKED BY CONFIGURATION / OWNER ACTION REQUIRED.
+- New scheduler: NOT BUILD YET. First reuse the existing automation queue if its semantics fit; only add scheduling after proving the gap and defining ownership/idempotency/limits.
+
+## ONLY OWNER INPUT CURRENTLY NEEDED
+Do not send the Paymob API key in chat. The owner only needs to add the Paymob API Key as a secure Restore-Test Edge Function secret (for example PAYMOB_API_KEY) through the Supabase secret-management path, then report only that the secret has been added. The value itself must never be pasted into the repository, workflow, or conversation.
+
+## Next Execution Sequence
+1. Once the secret is configured, verify its presence indirectly through a safe authenticated Inquiry test; do not expose the secret.
+2. Define the minimum Paymob Inquiry adapter contract against the official endpoint and existing payment-attempt identifiers.
+3. Reuse the existing reconciliation/automation data model where possible.
+4. Prove the reconciliation trigger/worker semantics before creating any cron job.
+5. Add the smallest scheduling/adapter change only if the existing infrastructure cannot deliver the required automatic recovery.
+6. Re-run Paymob evidence with corrected webhook correlation and verify the full Action Flow at each evidence layer.
