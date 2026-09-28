@@ -2834,3 +2834,131 @@ OBSERVED FACT:
 1. COMPLETE MASTER HANDOFF — every prior item remains active unless explicitly closed with evidence.
 2. RESEARCH / REUSE FIRST — find, research, compare, reuse/adapt, prove the gap, then build only what is justified.
 3. ACTION FLOW IN PARALLEL — normal operation automatic; human intervention only for genuine governance/legal/fraud/trust/provider/financial/release exceptions.
+
+
+---
+
+# MESSAGE 12.8 — PAYMOB FALLBACK WINDOW RESEARCH + AUTOMATION BOUNDARY
+Recorded 2026-09-28.
+
+## External / Prior-Art Research
+OBSERVED FACT:
+- Paymob's current documentation states:
+  - Transaction Processed Callbacks are the primary server-side mechanism for transaction updates.
+  - Transaction Inquiry APIs are for manual checks or as a fallback when a callback is missed.
+  - Callback payloads expose `id` as the transaction ID and `order.id` as the Paymob order identifier used for correlation.
+- Official Paymob API collections expose Transaction Inquiry by transaction ID, order ID, or merchant order ID.
+- Current Velora checkout sends `expiration: 3600` when creating the Paymob intention, meaning the payment intention lifetime is 1 hour unless otherwise changed.
+- Independent established payment-platform documentation similarly treats webhooks as the normal real-time path and secondary reconciliation/status APIs as gap detection/recovery tools; this supports the architecture choice but does not establish a Paymob callback SLA.
+
+## Restore-Test Data Evidence
+OBSERVED FACT:
+- Current Restore-Test has 37 Paymob marketplace payment attempts in `pending/requires_action/authorized`.
+- 36 are older than 60 minutes.
+- 35 are older than 70 minutes.
+- The oldest currently active pending-like attempt is from 2026-09-27 05:46:31 UTC.
+- These records include historical test activity, so they are NOT safe to mass-process merely because they are old.
+
+## Proposed Eligibility Contract — NOT YET ACTIVE
+INFERRED / DESIGN PROPOSAL:
+- Candidate window should begin only after the existing Paymob intention expiration (60 minutes) plus a small operational grace period.
+- A 70-minute threshold is currently a design proposal, not a provider SLA.
+- Candidate eligibility should additionally require:
+  - marketplace_order purpose
+  - active Paymob provider
+  - order still payment_pending
+  - Paymob order ID bound in payment metadata
+  - payment attempt still in a non-terminal state
+  - no already-processed matching provider webhook
+  - bounded batch size
+  - deterministic idempotency / lease semantics
+- Historical Restore-Test fixtures should be excluded from any first automatic-run cohort unless explicitly marked as eligible by the new contract.
+
+## Existing Automation Infrastructure
+OBSERVED FACT:
+- Restore-Test already has `pg_cron` 1.6.4, `pg_net` 0.20.4, and Vault available.
+- Exactly one active cron job currently exists:
+  `velora-notification-lifecycle` every minute.
+- No Paymob reconciliation cron or worker currently exists.
+- Existing `automation_events`, `automation_alerts`, reconciliation tables, and immediate trigger paths remain in place.
+- The current automation queue processor is staff-only and is therefore not a suitable unattended worker boundary without a deliberate service-identity design.
+
+## Architectural Decision
+CLOSED-DONE:
+- Do not create another queue framework.
+- Do not revive the legacy `velora_process_paymob_transaction_internal` callback processor.
+- Do not create a duplicate payment state machine.
+- Keep the shared marketplace transaction applicator as the canonical state-transition boundary.
+
+OPEN:
+- Define automatic worker identity and secure provider-credential access.
+- Define candidate leasing/bounded processing and retry semantics.
+- Define whether the existing cron can safely host the new worker or whether a dedicated cron entry is required.
+- Define financial/inventory side-effect ordering for inquiry-driven state changes.
+- Obtain actual Provider/L8 Inquiry execution evidence.
+
+## Security Boundary
+OBSERVED FACT:
+- The shared applicator is now service-role-only:
+  PUBLIC=false, anon=false, authenticated=false, service_role=true.
+- Its security-definer search path is pinned.
+- The existing webhook runtime v29 exactly matches the execution-branch source.
+
+## Action Flow — Fallback
+EVENT:
+payment remains non-terminal after intention expiry + grace.
+
+AUTH/ROLE:
+internal reconciliation worker only.
+
+GUARD:
+marketplace purpose + Paymob provider + payment-pending order + bound Paymob order ID + non-terminal attempt + no processed matching callback.
+
+VALIDATION:
+provider inquiry response must correlate to the same Paymob order/reference and return a recognized provider state.
+
+CANONICAL STATE TRANSITION:
+shared `velora_apply_paymob_marketplace_transaction`.
+
+AUTOMATIC SIDE EFFECTS:
+existing order/payment model sync + existing payment-failure inventory automation + existing audit/event triggers.
+
+AUDIT:
+record reconciliation source as inquiry and preserve provider transaction identifier.
+
+RETRY/IDEMPOTENCY:
+same state/reference must be safe to repeat; terminal states must not regress.
+
+NEXT EVENT:
+captured/failed/refunded/terminalized -> downstream commerce/financial events; unresolved/ambiguous -> controlled alert/escalation.
+
+RECOVER/ESCALATE:
+human involvement only for provider ambiguity, financial mismatch, fraud/trust concern, or repeated provider failure.
+
+## Current Status After Message 12.8
+CLOSED-DONE:
+- Paymob Inquiry transport foundation.
+- Shared payment transition contract.
+- Webhook uses shared marketplace applicator.
+- Applicator ACL hardening.
+- L4 transaction-safe transition and inventory side-effect tests.
+
+OPEN / NOT EVIDENCED:
+- Provider/L8 Inquiry invocation.
+- Automatic stale-pending worker.
+- Secure unattended worker identity.
+- Exact callback-correlation fix in the sandbox evidence harness.
+- Current-SHA Vercel READY deployment.
+- Full browser/provider payment completion.
+
+BLOCKED / PENDING:
+- Paymob provider launch gate BLOCKED / REQUIRED.
+- Webhook verification gate BLOCKED / REQUIRED.
+- Production infrastructure PENDING / REQUIRED.
+- Rollback/backup PENDING / REQUIRED.
+- Browser automation funding/tooling limitation carried forward.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF — nothing is dropped or silently superseded.
+2. RESEARCH / REUSE FIRST — no build without a proven gap and contract.
+3. ACTION FLOW IN PARALLEL — automation is the default; Owner/Staff only handle genuine exceptions and governance decisions.
