@@ -7682,7 +7682,7 @@ function editSellerProduct(productId) {
     openAddProductModal(productId);
 }
 
-async function setSellerProductAvailability(productId, targetStatus) {
+async async function setSellerProductAvailability(productId, targetStatus) {
     const seller = SELLER_STATE.currentSeller;
     const db = sellerProductDb();
     if (!seller || !db?.rpc) {
