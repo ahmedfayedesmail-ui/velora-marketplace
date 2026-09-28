@@ -2619,3 +2619,37 @@ CARRY-FORWARD:
 - customer-facing return UX
 - legacy 3-argument resolver retirement decision
 remain OPEN.
+
+
+### Continuation Security Advisor — RLS Enabled / No Policy Findings — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE FOR DIRECT CLIENT EXPOSURE / ADVISOR LINT RETAINED ONLY IF HOSTED SCANNER STILL REPORTS IT
+
+OBSERVED FACT:
+- The current Restore-Test public-schema scan finds four RLS-enabled tables with zero policies:
+  billing_instruments
+  paymob_card_tokenization_sessions
+  regional_pricing
+  seller_subscription_renewal_jobs
+- Both anon and authenticated have no SELECT/INSERT/UPDATE/DELETE privilege on all four public tables.
+- The two Advisor-listed private tables, private.beauty_catalog_revision and private.beauty_recommendation_rate_events, have no anon schema USAGE, no anon table DML, and no authenticated table SELECT/INSERT privilege. Authenticated has private-schema USAGE but direct table privileges remain denied.
+- Therefore the six historical Advisor no-policy findings do not establish direct client Data API exposure in the current Restore-Test grant model.
+- No blanket RLS policies, table grants, or revocations were added.
+
+INFERRED:
+- These findings are intentional internal/service-only contracts rather than proven customer-facing exposures.
+- Removing the warning by adding blanket policies would weaken the least-privilege model and is not justified by evidence.
+
+ACTION FLOW:
+Advisor finding
+-> identify table
+-> inspect schema exposure + direct grants + RLS
+-> classify internal-only vs client-facing
+-> retain current deny boundary
+-> no synthetic policy added
+-> periodically re-check if a new caller or grant appears.
+
+CARRY-FORWARD:
+- pg_net placement warning remains open because it is a live cron dependency.
+- hosted Auth leaked-password protection remains owner/platform configuration work.
+- final targeted Advisor coverage remains part of launch hardening.
