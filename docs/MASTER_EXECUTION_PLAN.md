@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 04b44cba3fad3a945e7f9845baa1a545c9b430f6
+Current observed branch HEAD: f4529d30a7fb48576ce08b1e4fc8979345655e13
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -2919,3 +2919,26 @@ Customer opens Orders -> canonical order state -> cancellable guard -> existing 
 Seller payout:
 Seller opens Payouts -> request canonical payout -> server eligibility -> pending payout + itemized rows + audit -> Staff/provider execution -> ledger + audit -> external settlement remains outside frontend authority.
 
+
+
+### Continuation Subscription State Auditability — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT / RUNTIME EVIDENCE DEFERRED
+
+OBSERVED FACT:
+- seller_subscriptions has no trigger-based audit history.
+- velora_sync_subscription_state is the canonical state reconciliation function for pending, active, past_due, cancelled, and expired states.
+- The function already owns all state transitions and renewal/expiry side effects, making it the correct place for a single audit event rather than adding a second trigger or audit engine.
+
+IMPLEMENTED:
+- Migration 20260929041000_audit_subscription_state_transitions.sql.
+- velora_sync_subscription_state now records seller_subscription_state_changed only when status, payment_status, payment_id, started_at, or expires_at actually changes.
+- Idempotent/no-op syncs do not create duplicate audit events.
+- Renewal-job cancellation and expiry notification cleanup remain on the same canonical function.
+
+VERIFICATION:
+- Migration applied successfully to Restore-Test.
+- Restore-Test currently has zero seller_subscriptions and zero renewal jobs, so no persistent runtime fixture was mutated for proof. The source/DB contract was verified directly; provider/legal subscription runtime proof remains deferred until valid test fixtures exist.
+
+NEXT:
+- Subscription cancel/upgrade/downgrade/replacement, proration, entitlement matrix, and provider settlement remain policy/provider-bound and are not to be guessed.
