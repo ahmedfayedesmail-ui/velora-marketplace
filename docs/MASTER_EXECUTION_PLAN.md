@@ -2374,3 +2374,61 @@ Recorded after source synchronization on 2026-09-28.
 - Sandbox payment completion/webhook: NOT EVIDENCED.
 - Current Vercel Preview for the latest execution SHA: PENDING because Vercel reports a `build-rate-limit` check failure and the latest READY deployment is `d62be049...`.
 - Current local-source Browser Gate at SHA `6e79d0e...`: PASS, including authenticated source-browser checks with no console/page errors.
+
+---
+
+# MESSAGE 12 — THREE GOVERNING CONDITIONS + CURRENT PAYMOB EVIDENCE
+Recorded 2026-09-28.
+
+## THREE MASTER GOVERNING CONDITIONS
+These remain mandatory for every Track / Phase / Gap / Research task / Fix / Verification / Future chat:
+
+### CONDITION 1 — COMPLETE MASTER HANDOFF
+Execute the entire Master Handoff from beginning to end.
+No item may be forgotten, silently removed, skipped, reset, or replaced without evidence.
+Closed/open/blocked/pending/not-evidenced items, dependencies, evidence requirements, policies, architectural constraints, research findings, unresolved questions, Action Flow, owners/responsibilities, historical fixes, security findings, and runtime findings remain in the Master until explicitly closed or superseded with evidence.
+When an item closes: update status, preserve evidence, move to the next unresolved item.
+When a new discovery appears: classify it, assign Track, record impact, owner/responsibility, evidence required, and continue the current execution lane unless genuinely blocked.
+
+### CONDITION 2 — RESEARCH / REUSE FIRST
+Do not build merely to build.
+For every gap:
+FIND → RESEARCH → COMPARE → REUSE / ADAPT → PROVE GAP → DEFINE CONTRACT → BUILD ONLY IF NECESSARY.
+Search broadly when warranted, including prior Velora source/history, DB/RPCs/UI/runtime/deployments, official provider documentation, established marketplace patterns, engineering posts, GitHub implementations, security guidance, and relevant real-world patterns.
+Prefer proven compatible approaches; adapt only what Velora actually needs.
+No duplicate engines, speculative architecture, casual schema/contract changes, or rebuilds of working canonical flows.
+
+### CONDITION 3 — ACTION FLOW IN PARALLEL
+Every capability is reviewed together with its Action Flow:
+EVENT → AUTH/ROLE → GUARD → VALIDATION → CANONICAL STATE TRANSITION → AUTOMATIC SIDE EFFECTS → AUDIT → RETRY/IDEMPOTENCY/DEDUPE → NEXT EVENT → RECOVER/ESCALATE ONLY WHEN NECESSARY.
+Normal platform operation must be automatic.
+Owner/Staff human intervention is reserved for governance, legal decisions, fraud/trust, policy decisions, financial/irreversible exceptions, provider disputes, release decisions, and genuine anomalies.
+
+## CURRENT PAYMOB RCA UPDATE
+- Run `36447221162`, SHA `b3ab770b32d2a19d69003177cdc78996dc9fb1fe`, failed only because the final completion conditions were not met.
+- Observed:
+  - authenticated user = true
+  - pending order = true
+  - checkout function HTTP 200 = true
+  - Paymob intention created = true
+  - sandbox payment path executed = true
+  - Paymob checkout HTTP 200 = true
+  - payment attempt exists and provider payment id exists
+  - attempt remains pending
+  - webhook count = 0
+  - signed webhook verified = false
+  - processed webhook = false
+  - completion text = false
+- The captured Paymob checkout screenshot shows the provider at: "Redirecting you to your bank for verification".
+- Therefore the current failure is consistent with the automation reaching a 3DS/bank-verification step but not completing the authentication flow; this is an evidence/automation completion gap, not evidence of an Intention API 400.
+- Paymob provider-start remains OBSERVED SUCCESSFUL.
+- Full provider completion remains OPEN / NOT EVIDENCED.
+- Do not change the payment engine or webhook engine merely to make this test green. First determine the correct current Paymob sandbox authentication/test path and whether the evidence workflow can execute it using supported test credentials/flow.
+
+## NEXT PAYMOB ACTION
+1. Research the current official Paymob sandbox 3DS/test-card completion path.
+2. Compare it with the evidence workflow's current Playwright interaction.
+3. Change the workflow only if a concrete test-flow mismatch is proven.
+4. Re-run exact SHA evidence.
+5. Verify webhook receipt, HMAC verification, monotonic state transition, order/payment synchronization, audit, inventory/commission side effects where applicable.
+6. Keep all results classified by evidence layer.
