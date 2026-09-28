@@ -269,7 +269,7 @@ begin
       ], null::text) as reason_codes
     from eligible e
   ),
-  top_results as (
+  best_per_product as (
     select *
     from (
       select
@@ -281,7 +281,13 @@ begin
       from scored s
     ) x
     where x.product_rank = 1
-    order by x.score desc, x.id
+  ),
+  numbered_results as (
+    select
+      b.*,
+      row_number() over (order by b.score desc, b.id) as result_position
+    from best_per_product b
+    order by b.score desc, b.id
     limit 5
   )
   select coalesce(
@@ -289,16 +295,16 @@ begin
       jsonb_build_object(
         'product_id', id,
         'product_variant_id', variant_id,
-        'position', row_number() over (order by score desc, id),
+        'position', result_position,
         'score', score,
         'reason_codes', reason_codes
       )
-      order by score desc, id
+      order by position
     ),
     '[]'::jsonb
   )
   into v_candidates
-  from top_results;
+  from numbered_results;
 
   if jsonb_array_length(v_candidates) = 0 then
     return jsonb_build_object(
