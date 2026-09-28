@@ -2531,3 +2531,55 @@ Seller edit event
 
 NEXT:
 Proceed to pending-order abandonment/reservation review. Do not invent an expiry duration until the existing payment/order/provider contracts and current prior art are reconciled and a defensible default is established or the item is explicitly left policy-blocked.
+
+
+### Continuation Pending Marketplace Orders / Paymob Expiration — 2026-09-29
+
+CLASSIFICATION: PAYMOB CARD EXPIRY PATH HARDENED / COD ABANDONMENT POLICY REMAINS OPEN
+
+OBSERVED FACT:
+- Canonical velora_create_order creates marketplace orders in pending, decrements inventory immediately, and creates a pending payment row.
+- public.orders has no expires_at; public.payment_attempts has no local expiry column.
+- COD orders intentionally remain pending after checkout and are handled by the seller order workflow, so a generic pending-order TTL would risk cancelling valid COD orders.
+- The current Paymob checkout Edge Function sends expiration:3600 seconds to Paymob's Intention API. Paymob documents expiration as the number of seconds before the payment intention expires and its payment link becomes invalid; its current documentation gives 3600 as a one-hour example. Transaction Inquiry is the documented programmatic reconciliation path. citeturn938046search0turn938046search1turn924615search4
+- The existing Paymob reconciliation worker claims stale pending/requires_action/authorized marketplace attempts after 70 minutes and retries with a bounded lease/backoff. Before this hardening, an attempt could reach exhausted + last_outcome=pending while the attempt/order/inventory remained pending.
+- Current Restore-Test inspection found 19 current Paymob reconciliation states in exhausted + last_outcome=pending; they are historical QA fixtures and were not silently mutated.
+- Current reconciliation also has a separate ambiguous/error path. Those states remain manual/escalation findings and are not automatically cancelled.
+
+IMPLEMENTED:
+- Migration 20260929012000_expire_exhausted_paymob_attempts.sql, corrected in commit 26d871eec2ffaf8e60b36a7bc32235940cce00d7.
+- The existing private.velora_record_paymob_reconciliation_result now, after 3 bounded pending inquiries and once the Paymob marketplace attempt is at least 60 minutes old, marks eligible Paymob marketplace attempts failed with PAYMOB_INTENTION_EXPIRED.
+- The implementation first locks the canonical payment attempt and never overrides a terminal state that a webhook may have established concurrently.
+- The existing trg_velora_release_inventory_after_failed_payment remains the sole inventory/order/payment compensation path; no second release engine was introduced.
+- Existing reconciliation state becomes completed after expiration. Ambiguous/error outcomes still exhaust into the existing high-severity reconciliation finding rather than being guessed as expired.
+- Only attempts explicitly carrying metadata.paymob_reconciliation_eligible=true are subject to the automated expiration rule.
+
+RESTORE-TEST VERIFICATION:
+- Transactional simulation with an exhausted pending Paymob attempt produced payment_attempt.status pending -> failed, failure_code PAYMOB_INTENTION_EXPIRED, order.status pending -> cancelled, order.payment_status pending -> failed, and reconciliation state completed with last_outcome failed.
+- The same transaction proved downstream side effects: product stock 15 -> 16, pending commission -> reversed, and payment_failed_inventory_released audit event created.
+- The probe was rolled back; the existing QA fixture was left unchanged.
+- A first implementation error was caught before application, corrected in Git, and the corrected migration then applied successfully.
+
+POLICY RESULT:
+- Paymob card/payment-intention abandonment now has a defensible provider-derived expiry boundary and automatic recovery.
+- Generic COD/pending-order abandonment remains OPEN because no equivalent provider expiry exists and an arbitrary TTL would be a business-policy decision.
+- Do not add a second generic order-expiry scheduler. The existing Paymob reconciliation cron is the automation boundary for Paymob.
+- Future generic COD abandonment requires an explicit operations policy covering how long a COD order may stay pending, whether inventory remains committed, and what seller/customer notifications occur before cancellation.
+
+ACTION FLOW:
+Paymob checkout intention created (1h provider expiry)
+-> local payment attempt pending
+-> reconciliation eligibility
+-> stale after 70m
+-> transaction inquiry
+-> bounded retry/backoff
+-> terminal provider result OR 3rd pending inquiry after provider expiry window
+-> local Paymob attempt failed with explicit expiry reason
+-> existing failed-payment trigger releases stock/reverses pending commissions/cancels order
+-> audit
+-> customer/seller notification through existing lifecycle
+-> ambiguous provider state => reconciliation finding + human escalation.
+
+CARRY-FORWARD:
+- Generic COD abandonment/reservation policy remains open.
+- Existing Paymob live/provider/Browser gates remain separate; this source/DB automation proof does not establish live settlement or Browser PASS.
