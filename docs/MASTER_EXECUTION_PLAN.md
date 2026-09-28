@@ -2211,3 +2211,34 @@ Everything from Messages 2/11 through 9/11 remains active:
 - Production remains frozen.
 - Research-before-build remains mandatory.
 - Action Flow remains parallel.
+
+### Continuation Update — 2026-09-28 — Runtime Parity
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT FOR LEGACY ORDER-ITEM STATUS DEPRECATION; SELLER DASHBOARD RE-ENTRY REMAINS OPEN / NOT EVIDENCED
+
+OBSERVED FACT:
+- The migration `supabase/migrations/20260928211000_deprecate_legacy_order_item_status_rpc.sql` was previously created on the historical `audit/full-gate-2026-09-25` branch. It has now been reconciled onto the current `audit/runtime-parity-2026-09-28` continuation branch in commit `5859fc1cff27ba7ae64f6ced93c1d3206eebb717`.
+- Restore-Test currently has `public.velora_update_order_item_status(uuid,text,text)` present with ACL execute granted only to `postgres` and `service_role`; `anon` and `authenticated` execution are not granted.
+- Restore-Test currently has no `public.order_items.status` column. The legacy function comment explicitly marks it DEPRECATED and directs clients/Data API not to call it.
+- This closes the source/DB parity gap for the deprecation decision without adding an `order_items.status` column and without touching Production.
+- The GitHub combined status for commit `5859fc1cff27ba7ae64f6ced93c1d3206eebb717` currently reports a Vercel failure whose target indicates `upgradeToPro=build-rate-limit`. This is deployment/platform capacity evidence, not evidence that the migration source is incorrect.
+- No new post-change Browser PASS or Paymob CI PASS is claimed from this commit.
+
+INFERRED:
+- The legacy order-item status contract is now most accurately tracked as deprecated/closed for client execution at L1-L4, while the historical incompatible implementation remains retained for forensic/compatibility purposes.
+- Seller Dashboard re-entry must not be treated as fixed merely because current source wiring is internally consistent.
+
+SELLER DASHBOARD RE-ENTRY — CURRENT SOURCE OBSERVATION:
+- `src/scripts/12-localization.js` supplies the canonical seller opener and assigns `window.openSellerPlatform=openCanonicalSeller`.
+- `src/scripts/63-platform-router.js` loads after that assignment and captures the canonical opener for its route activation.
+- The canonical seller UI close button uses `window.VELORA_CLOSE_SELLER()`, while the router separately exposes `window.closeSellerPlatform()`. These are distinct control surfaces.
+- This split is an OBSERVED source-level investigation target, not a proven root cause of the historical re-entry failure.
+- Do not add a new routing engine, MutationObserver, arbitrary click listeners, cache workarounds, or speculative refactors without browser reproduction.
+
+NEXT EVIDENCE:
+- Browser Gate must reproduce: Seller Dashboard open -> Back to Store/close -> re-enter in the same session without refresh.
+- Record hash before open, hash while seller is open, hash after close, auth/session presence, seller shell visibility, and whether the second activation reaches `canonicalSellerSection('dashboard')`.
+- Then test re-entry through both the platform switcher and any existing Seller Dashboard entry point, so we can identify the exact control path before making the smallest safe fix.
+
+ACTION FLOW:
+Detect route/re-entry failure -> verify hash/auth/session state -> execute the existing canonical seller activation -> verify visible seller shell and dashboard -> controlled route re-sync only when the observed failure is route state -> escalate only when auth/session is genuinely missing.
