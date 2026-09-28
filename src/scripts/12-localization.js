@@ -72,6 +72,8 @@
       let platform=document.getElementById('sellerPlatform');
       if(!platform){platform=document.createElement('div');platform.id='sellerPlatform';platform.className='seller-platform';document.body.appendChild(platform)}
       platform.innerHTML=canonicalSellerLayout(seller);
+      platform.hidden=false;
+      platform.setAttribute('aria-hidden','false');
       platform.classList.add('active');
       document.body.style.overflow='hidden';
       await canonicalSellerSection('dashboard');
