@@ -191,7 +191,7 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
 
 **Latest application/runtime/security commit:** `62d87648568fb57d515ac3d7adb1ae06ca1f315f` (`feat(action-flow): notify seller application result`).. The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `62d87648568fb57d515ac3d7adb1ae06ca1f315f` (`feat(action-flow): notify seller application result`)..
+**Current branch HEAD:** `3fd6ea5afb8707aa42ee9e0e302aa28d85add9b8` (`docs: update current handoff for action-flow hardening`)..
 
 **Latest deployed Preview:** `dpl_3pJDvKqQg1qugSgWe2RoSitNs25t`, READY, exact Git SHA `62d87648568fb57d515ac3d7adb1ae06ca1f315f`.
 
