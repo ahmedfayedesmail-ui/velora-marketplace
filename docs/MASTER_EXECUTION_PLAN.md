@@ -161,3 +161,60 @@ For each new work package:
 
 Messages 1/11 through 11/11 are treated as execution work packages, not passive notes. A message is not considered complete merely because its requirements have been written down; it is complete only when the applicable implementation and evidence gates are satisfied or the item is explicitly classified as OPEN/BLOCKED/PENDING/NOT EVIDENCED with the reason and next required evidence.
 
+
+
+# Execution Ledger — Message 2/11 and Message 3/11
+
+## Message 2/11 — Core Marketplace
+
+CLOSED-DONE:
+- Canonical server cart and canonical Routine -> Cart adapter retained; no cart rewrite and no duplicate cart engine.
+- Canonical checkout retained in src/scripts/13-payments.js with compatibility delegation only in 57-s2-checkout-e2e.js.
+- Checkout idempotency uses the existing stable checkout reference and in-flight submit guard.
+- Shipping uses the current store_shipping_zones/store_shipping_rates contract and velora_manual.
+- Current Restore-Test shipping fixture: Egypt — E2E Test Zone / EG / 30 EGP / 2–5 days.
+- Variant inventory contract exists: selected variant and parent aggregate stock are reconciled.
+- Payment failure trigger releases inventory, reverses pending commissions, fails payment, cancels the order, and audits the event.
+- A rolled-back DB negative-path test on Order 68 verified pending/pending + stock 13 -> cancelled/failed + stock 14, then rollback restored the original state.
+- The historical order_items.status bug is not present in the current order_items contract; no status column was added.
+
+OPEN / NOT EVIDENCED:
+- Legacy local checkout shipping display formula remains untouched until a current user-visible regression is reproduced.
+- Active variant Browser runtime is not evidenced because Restore-Test currently has zero active variants.
+- Browser / Provider / Production evidence remains separate gates.
+
+## Message 3/11 — Product Lifecycle + Seller Products + Cross-System
+
+CLOSED-DONE:
+- Product lifecycle enum verified as pending / approved / rejected / inactive.
+- Current code now uses canonical seller product RPCs for create/update/stock:
+  velora_seller_create_product_full
+  velora_seller_update_product_full
+  velora_seller_update_product
+- Seller availability UI now uses velora_seller_set_product_availability with approved <-> inactive actions.
+- Seller hard-delete UI was removed from the canonical Seller Products screen.
+- Restore-Test seller hard-delete contract was closed by migration 20260928132247_enforce_seller_product_lifecycle_no_delete.sql: DELETE policy dropped and DELETE privilege revoked for authenticated/anon.
+- Canonical seller RPC ACL verified: anon=false, authenticated=true, service_role=true.
+- Direct authenticated table DML on products is not permitted; current code path no longer uses direct product insert/update/delete for Seller Product operations.
+- Existing product status notification architecture is retained.
+- Product lifecycle authority remains staff-governed for status transitions.
+- Ads visibility function enforces campaign timing, approved product/seller/store, active package, and current positive inventory.
+- Temporary transaction test proved an active ad is visible with stock available and becomes invisible when the product is changed to OOS; transaction rolled back and no campaign data persisted.
+- Existing order-item product snapshots and purchase-linked beauty feedback remain separate historical context; no lifecycle delete cascade was introduced.
+
+PRODUCT IMAGES — RESEARCH COMPLETED:
+- Supabase current documentation confirms Storage uploads require Storage RLS policies and recommends treating storage schema metadata as read-only and using the Storage API for file operations. citeturn238850search1turn238850search13
+- Medusa's current architecture similarly separates file upload/storage from product image URL persistence; product records store image URLs after the file upload layer provides them. citeturn238850search2turn238850search4
+- Shopify's current documentation describes CDN-hosted MediaImage objects for product media. citeturn238850search14
+- Velora currently has zero Storage buckets and zero product_images rows, while the canonical full seller-product RPC already accepts an HTTPS image URL into products.images.
+- Decision: do not invent a new image service, Base64 scheme, or parallel media engine. Keep the existing HTTPS URL contract as the smallest current path. A real upload/storage implementation remains a later justified change only when an actual storage/upload requirement and ACL contract are established.
+
+BROWSER GATE:
+- A current Preview deployment exists for the exact post-change source commit, state READY.
+- Browser verification was attempted against that Preview but the available browser automation provider was unavailable because its wallet balance was insufficient. Therefore no Browser PASS is claimed.
+
+CLASSIFICATION:
+- OBSERVED FACT: source/DB changes above exist and were verified.
+- INFERRED: the Seller Products UI is now aligned with the intended lifecycle architecture.
+- NOT EVIDENCED: end-to-end Browser behavior for the current commit.
+- NOT EVIDENCED: provider settlement or Production behavior.
