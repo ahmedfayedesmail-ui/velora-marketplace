@@ -156,7 +156,7 @@ async function v39LoadAnalytics(){
        '<div class="velora-seller39-muted" style="margin-top:.25rem">'+v39Esc(v39t('Canonical seller sales analytics; advertising metrics are tracked separately and are not yet included.'))+'</div></div>'+
        '<span class="velora-seller39-pill">'+v39Esc(currency)+'</span>'+
       '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin-top:1rem">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-top:1rem">'+
        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('GMV'))+'</div><strong>'+v39Esc(money(s.gmv))+'</strong></div>'+
        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Net earnings'))+'</div><strong>'+v39Esc(money(s.net_earnings))+'</strong></div>'+
        '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Orders'))+'</div><strong>'+v39Esc(String(s.orders??0))+'</strong></div>'+
