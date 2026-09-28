@@ -3547,3 +3547,28 @@ CLASSIFICATION:
 - Payment provider launch gate: BLOCKED pending provider completion evidence.
 - Webhook verification launch gate: BLOCKED pending a real signed callback.
 - No new payment architecture is justified by the current evidence.
+
+
+# MESSAGE 12.23 — BEAUTY PASSPORT BROWSER GATE FIX / FIXTURE BOUNDARY
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Authenticated Browser Gate #285 = `36464436802`, SHA `c5107408ff957e83c837ec6fc7752e187e1c47cd8`, failed only on the newly-added check `Beauty Passport V2 persisted profile is not complete`.
+- The same artifact proved `beauty_passport_v2_open_ok=true`, progress `سؤال 1 من 3`, authenticated Supabase session present, Arabic RTL present, and no console/page/runtime errors.
+- The E2E customer account used by this Browser workflow returned no persisted `beauty_profiles` row, which is a valid state for a new/incomplete Passport flow.
+- The canonical V2 source intentionally opens from the authoritative persisted profile when one exists, but it also supports a fresh V2 questionnaire for customers without a profile.
+
+ACTION:
+- Relaxed the Browser Gate assertion to accept a null persisted profile as a valid new-customer state while still requiring:
+  - canonical V2 open API available and successful;
+  - visible first-question progress = 1 of 3;
+  - if a profile exists, its quiz version must be `beauty-quiz.v2`.
+- No profile, role, or test data was fabricated or mutated.
+- No new product/runtime listener or alternate Passport implementation was introduced.
+
+CLASSIFICATION:
+- Beauty Passport V2 canonical source: CLOSED-DONE at L1.
+- Beauty Passport V2 customer Browser entry/open: CLOSED-DONE at the next current Browser run only when the relaxed gate succeeds.
+- Persisted V2 data completion for an existing customer: NOT REQUIRED for the new-customer entry test; remains covered by canonical save/runtime contract.
+- Full Passport answer/save/routine-generation Browser E2E remains OPEN where not separately evidenced.
+
