@@ -33,6 +33,18 @@ Deno.serve(async (req) => {
     }
     if (!supabasePublishableKey) throw new Error("SUPABASE_PUBLISHABLE_KEY_NOT_CONFIGURED");
     const supabase = createClient(supabaseUrl, supabasePublishableKey, {global:{headers:{Authorization:authHeader}}});
+    const markInitializationFailed = async (attemptId: string, code: string, reason: string) => {
+      const {error} = await supabase.rpc("velora_mark_marketplace_payment_initialization_failed", {
+        p_payment_attempt_id: attemptId,
+        p_failure_code: code,
+        p_failure_reason: reason,
+      });
+      if (error) {
+        console.error("payment_initialization_compensation_failed", error.message);
+        return false;
+      }
+      return true;
+    };
 
     const {order_id,country_code="EG",idempotency_key,return_url} = body ?? {};
     if (!order_id || !idempotency_key) return json({ok:false,error:"missing_required_fields"},400);
@@ -65,11 +77,17 @@ Deno.serve(async (req) => {
           if (Object.prototype.hasOwnProperty.call(j, key)) safeProviderError[key] = j[key];
         }
       }
+      const compensated = await markInitializationFailed(
+        String(attempt.attempt_id),
+        "PAYMOB_INTENTION_CREATE_FAILED",
+        `Paymob intention creation failed with HTTP ${r.status}`
+      );
       return json({
         ok:false,
         status:"FAILED",
-        code:"PAYMOB_INTENTION_CREATE_FAILED",
+        code: compensated ? "PAYMOB_INTENTION_CREATE_FAILED" : "PAYMENT_INITIALIZATION_COMPENSATION_FAILED",
         payment_attempt_id:attempt.attempt_id,
+        local_payment_attempt_status: compensated ? "failed" : "pending",
         provider_http_status:r.status,
         provider_error:
           Object.keys(safeProviderError).length > 0
@@ -84,8 +102,47 @@ Deno.serve(async (req) => {
         provider_error_fields:safeProviderError,
       },502);
     }
-    const intentionId=j?.id, intentionOrderId=j?.intention_order_id ?? j?.order_id, clientSecret=j?.client_secret; if(!intentionId||!clientSecret) throw new Error("paymob_missing_client_secret"); if(!intentionOrderId) throw new Error("paymob_missing_order_id");
-    const {error:attachError}=await supabase.rpc("velora_attach_payment_provider_session",{p_payment_attempt_id:attempt.attempt_id,p_provider_code:"paymob",p_provider_session_id:String(intentionId),p_provider_order_id:String(intentionOrderId)}); if(attachError) throw attachError;
+    const intentionId=j?.id, intentionOrderId=j?.intention_order_id ?? j?.order_id, clientSecret=j?.client_secret;
+    if(!intentionId || !clientSecret || !intentionOrderId) {
+      const compensated = await markInitializationFailed(
+        String(attempt.attempt_id),
+        "PAYMOB_INTENTION_RESPONSE_INVALID",
+        "Paymob intention response did not contain the required checkout identifiers"
+      );
+      return json({
+        ok:false,
+        status:"FAILED",
+        code: compensated ? "PAYMOB_INTENTION_RESPONSE_INVALID" : "PAYMENT_INITIALIZATION_COMPENSATION_FAILED",
+        payment_attempt_id:attempt.attempt_id,
+        local_payment_attempt_status: compensated ? "failed" : "pending",
+      },502);
+    }
+
+    let attachError: Error | null = null;
+    for (let bindAttempt = 0; bindAttempt < 2; bindAttempt += 1) {
+      const {error}=await supabase.rpc("velora_attach_payment_provider_session",{
+        p_payment_attempt_id:attempt.attempt_id,
+        p_provider_code:"paymob",
+        p_provider_session_id:String(intentionId),
+        p_provider_order_id:String(intentionOrderId)
+      });
+      if (!error) { attachError = null; break; }
+      attachError = error;
+      if (bindAttempt === 0) await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    if (attachError) {
+      console.error("paymob_provider_session_bind_failed", attachError.message);
+      return json({
+        ok:false,
+        status:"FAILED",
+        code:"PAYMOB_PROVIDER_SESSION_BIND_FAILED",
+        payment_attempt_id:attempt.attempt_id,
+        intention_id:String(intentionId),
+        provider_order_id:String(intentionOrderId),
+        local_payment_attempt_status:"pending",
+        recovery:"retry_checkout_or_reconcile_provider_intention"
+      },502);
+    }
     const checkoutUrl=`${BASE}/unifiedcheckout/?publicKey=${encodeURIComponent(publicKey)}&clientSecret=${encodeURIComponent(clientSecret)}`;
     const paymob_payment_methods = Array.isArray(j?.payment_methods)
       ? j.payment_methods.map((m: Record<string, unknown>) => ({
