@@ -2432,3 +2432,14 @@ Owner/Staff human intervention is reserved for governance, legal decisions, frau
 4. Re-run exact SHA evidence.
 5. Verify webhook receipt, HMAC verification, monotonic state transition, order/payment synchronization, audit, inventory/commission side effects where applicable.
 6. Keep all results classified by evidence layer.
+
+---
+
+# PAYMOB 3DS RESEARCH CLOSURE NOTE — 2026-09-28
+- Official Paymob test-credentials reference confirms the workflow's Mastercard test card `5123456789012346`, expiry `01/39`, CVV `123`, is a valid sandbox card and is also the supported test path for 3DS.
+- Official Paymob testing guidance states that for custom Unified Checkout, the test completes only after the backend callback is received, HMAC verifies, and the order updates; opening checkout alone is insufficient.
+- Official guidance also recommends a Transaction Inquiry fallback for callback-missed/stuck-pending cases.
+- Current Velora run `36447221162` reached Paymob Unified Checkout successfully and the captured page showed a bank-verification/3DS handoff.
+- No signed webhook was received during the run, so the end-to-end gate remains OPEN / NOT EVIDENCED.
+- No product payment code change is justified by this evidence.
+- The next safe action is to improve or replace only the payment evidence harness interaction after a concrete automation mismatch is established, while preserving the canonical Velora payment/webhook engines.
