@@ -46,7 +46,7 @@ jobs:
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          python - <<'PY'
+          xvfb-run -a python - <<'PY'
           import json
           import os
           import sys
