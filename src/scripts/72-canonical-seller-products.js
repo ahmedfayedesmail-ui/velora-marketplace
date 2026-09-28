@@ -155,6 +155,38 @@ window.handleAddProduct=async function(event){
   }
 };
 
+
+async function loadSellerInventory(){
+  const host=document.getElementById('sellerContent'); if(!host)return;
+  try{
+    const x=await listMine();
+    const low=x.products.filter(p=>Number(p.stock||0)>0&&Number(p.stock||0)<5).length;
+    const out=x.products.filter(p=>Number(p.stock||0)<=0).length;
+    host.innerHTML='<div class="seller-kpi-grid">'+
+      '<div class="seller-kpi-card"><div class="seller-kpi-label">Products</div><div class="seller-kpi-value">'+esc(String(x.products.length))+'</div></div>'+
+      '<div class="seller-kpi-card"><div class="seller-kpi-label">Low stock</div><div class="seller-kpi-value">'+esc(String(low))+'</div></div>'+
+      '<div class="seller-kpi-card"><div class="seller-kpi-label">Out of stock</div><div class="seller-kpi-value">'+esc(String(out))+'</div></div>'+
+    '</div>'+
+    '<div class="seller-section-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.8rem;flex-wrap:wrap"><h3>📊 Canonical Inventory</h3><span style="color:var(--text-muted);font-size:.82rem">Stock is saved through the canonical product RPC.</span></div>'+
+    (x.products.length?'<div class="seller-table-wrap"><table class="seller-table"><thead><tr><th>Product</th><th>Stock</th><th>Status</th><th>Action</th></tr></thead><tbody>'+
+      x.products.map(p=>{
+        const s=Number(p.stock??0);
+        const state=s<=0?'Out of Stock':s<5?'Low Stock':'In Stock';
+        return '<tr><td><strong>'+esc(p.emoji||'📦')+' '+esc(p.name)+'</strong></td><td>'+esc(String(s))+'</td><td>'+esc(state)+'</td><td><button class="btn btn-outline velora-product-edit" data-product-id="'+esc(p.id)+'" type="button">✏️ Edit</button></td></tr>';
+      }).join('')+
+    '</tbody></table></div>':'<div class="seller-empty"><div class="empty-icon">📭</div><h4>No canonical products</h4></div>')+
+    '</div>';
+    bindSellerProductButtons();
+  }catch(e){
+    host.innerHTML='<div class="seller-section-card"><strong>Canonical inventory unavailable</strong><div style="margin-top:.4rem;color:var(--text-muted)">'+esc(e.message||e)+'</div></div>';
+  }
+}
+
+window.renderSellerInventory=function(){
+  setTimeout(loadSellerInventory,0);
+  return '<div class="seller-section-card"><div style="padding:1rem;color:var(--text-muted)">Loading canonical inventory…</div></div>';
+};
+
 window.confirmDeleteProduct=function(){
   showToast?.('ℹ️ Hard delete is intentionally not exposed in the canonical seller product lifecycle.','info');
 };
