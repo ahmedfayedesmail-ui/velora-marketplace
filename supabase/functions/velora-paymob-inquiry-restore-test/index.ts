@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const PAYMOB_BASE = "https://accept.paymob.com";
 const json = (payload: unknown, status = 200) =>
