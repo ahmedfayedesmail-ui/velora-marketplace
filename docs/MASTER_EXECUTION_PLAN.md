@@ -2480,3 +2480,33 @@ EVENT → AUTH → GUARD → VALIDATION → payment_attempt=pending → Paymob I
 Change only the evidence harness correlation logic, after preserving the canonical product/payment/webhook contracts. The harness should first identify the payment attempt by the known attempt id/provider-order correlation, then inspect relevant webhook events and bind a callback transaction id only after receipt.
 
 Do not use a newly green test as proof by itself; re-verify DB state, HMAC, order/payment transition, audit, and downstream side effects at the appropriate evidence layers.
+
+---
+
+# MESSAGE 12.2 — PAYMOB RECONCILIATION / PREVIEW STATUS UPDATE
+Recorded 2026-09-28.
+
+## Transaction Inquiry / Reconciliation Research
+- Current official Paymob guidance requires a Transaction Inquiry fallback for callbacks that are missed and for pending transactions/reconciliation.
+- Restore-Test public function inventory shows generic reconciliation infrastructure and transaction-loop functions, but no clearly dedicated Paymob Transaction Inquiry function/API adapter was found by name.
+- Existing legacy function velora_process_paymob_transaction_internal already performs server-side Paymob transaction reconciliation from a callback payload, but the active v27 webhook handler currently performs its own callback reconciliation path.
+- Classification: operational reconciliation fallback = OPEN / NOT EVIDENCED as a complete live Paymob inquiry flow.
+- Do not create a second reconciliation engine. First determine whether the generic reconciliation infrastructure can be adapted to Paymob Transaction Inquiry, then implement only the missing adapter if a real gap is proven.
+
+## Legacy Payment Processor Boundary
+- velora_process_paymob_transaction_internal is service_role-only and has no trigger dependency that calls it in the inspected Restore-Test database.
+- It is therefore a legacy/orphaned processor path relative to the active webhook handler, not a second path to activate casually.
+- Classification: OPEN / LEGACY REVIEW.
+- Action: dependency/reachability review and retirement decision remain open; do not delete or revive it merely for test purposes.
+
+## Vercel Preview
+- Vercel has a READY deployment for execution-branch SHA 59cae3fc97ff02ff2277ea0858ffd9e360aa6d43.
+- The latest documentation/evidence update is commit 6b4fd6f925a5f70a88372feafa5185811ffa282d, which has not yet been verified by a current-SHA Vercel deployment.
+- Classification: current-SHA Preview = PENDING / NOT EVIDENCED.
+- The existence of the READY 59ca deployment does not promote it to current-SHA evidence.
+
+## Governing Conditions Remain Unchanged
+- Complete Master Handoff: mandatory.
+- Research / Reuse First: mandatory.
+- Action Flow in parallel: mandatory.
+- Production remains FROZEN.
