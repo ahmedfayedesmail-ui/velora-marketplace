@@ -2256,3 +2256,28 @@ These three operating conditions are permanent and apply to the entire Velora ex
 EXECUTION NOTE:
 - These conditions do not close any product or evidence gate by themselves; they govern how all future work is performed and recorded.
 - Production remains FROZEN.
+
+### Continuation Security Review — 2026-09-28
+
+CLASSIFICATION: TARGETED SECURITY QUEUE ADVANCED; NO CODE/SCHEMA CHANGE REQUIRED FROM THIS REVIEW
+
+OBSERVED FACT:
+- The four public-schema Security Advisor "RLS enabled with no policy" tables currently have no SELECT privilege for `anon` or `authenticated`: `billing_instruments`, `paymob_card_tokenization_sessions`, `regional_pricing`, and `seller_subscription_renewal_jobs`.
+- The reviewed functions that reference those four tables are all restricted to `postgres` / `service_role` EXECUTE in the current Restore-Test ACL snapshot.
+- The two private-schema Advisor findings, `private.beauty_catalog_revision` and `private.beauty_recommendation_rate_events`, also have no SELECT privilege for `anon` or `authenticated`; their current direct table grants do not establish Data API exposure.
+- Therefore the current Advisor "RLS enabled / no policy" findings do not, by themselves, establish client Data API exposure for these six tables. Supabase's current API guidance treats table grants and RLS as separate controls and recommends explicit least-privilege grants; SECURITY DEFINER functions exposed through the Data API must likewise have deliberately scoped EXECUTE privileges. citeturn115976search0turn115976search3turn115976search2
+- `velora_get_commission_rate(uuid)` remains executable by `authenticated` and `service_role`, is SECURITY DEFINER, and is directly used by the canonical server-side `velora_create_order(...)` path. No direct caller for it was found in the currently inspected key frontend runtime files. Its cross-seller read scope is a business/security-policy decision; no permission change is made without that decision.
+- The current current count snapshot is 24 anon-executable public functions and 238 authenticated-executable public functions; this is an inventory signal, not a vulnerability count.
+
+INFERRED:
+- The six no-policy findings are currently best treated as contract-review items rather than proven Data API exposures.
+- For `velora_get_commission_rate`, a narrowly targeted EXECUTE decision is preferable to either a blanket revoke or leaving the scope unreviewed; no change is justified until intended client visibility is confirmed.
+
+NEXT ACTION:
+- Keep the four public tables service-only unless a concrete consumer contract requires client access; if one does, add the smallest RLS policy + grant pair required by that contract.
+- Keep the two private tables non-API-facing unless a concrete internal access path requires otherwise.
+- Obtain the owner/business decision on whether an authenticated client may call `velora_get_commission_rate(target_seller_id)` for an arbitrary seller. If not required, the smallest safe remediation is to revoke `authenticated` EXECUTE while retaining internal server-side callers. Do not apply this revocation yet.
+- Continue the remaining targeted Security Advisor queue without blanket revocation or blanket policy creation.
+
+ACTION FLOW:
+Detect security finding -> identify actual consumer -> verify schema/ACL/RLS -> classify intended exposure -> smallest targeted grant/revoke/policy -> negative-path proof -> re-run Advisor -> Browser Gate only when UI-facing -> recover/escalate for unresolved sensitive boundary.
