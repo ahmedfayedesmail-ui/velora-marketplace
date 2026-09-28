@@ -1311,3 +1311,390 @@ HYPOTHESIS / DISALLOWED CLAIM:
 - Beauty Passport/Routine/Recommendation browser evidence and customer Recommendation UX remain open.
 - Customer Beauty AI remains NOT DONE / ROADMAP; no AI engine is to be introduced here.
 - Production infrastructure and rollback/backup remain PENDING and outside Restore-Test changes.
+
+
+## Message 9/11 — Legal + Owner Dashboard / Governance Control Plane
+
+### Message 9 master conditions
+1. HANDOFF COMPLETENESS — Message 9 is appended to the same Master Execution Plan. Nothing from Messages 2/11 through 8/11 is deleted, overwritten, or considered closed merely because execution moved to Legal/Owner. All prior OPEN / BLOCKED / PENDING / NOT EVIDENCED items remain carry-forward.
+2. RESEARCH BEFORE BUILD — do not invent a second Owner dashboard engine, permission engine, legal engine, audit engine, release engine, or governance scheduler. Reuse existing canonical contracts and UI surfaces whenever the observed gap can be closed by connecting them. Research prior art first; implement only a concrete observed need.
+3. ACTION FLOW IN PARALLEL — Detect -> Decide -> Execute -> Verify -> Recover/Escalate remains active across Legal, Owner, Seller, Commerce, Payments, Trust, Release, and all other platform domains. Normal flows should self-complete through canonical contracts; human intervention remains for genuine governance/legal/provider/fraud/trust/refund/payout/release exceptions.
+
+### 82. Legal — Current Contract and Environment State
+CLASSIFICATION: BACKEND GOVERNANCE FOUNDATION CLOSED / PUBLISHABLE LEGAL CONTENT NOT PRESENT / RUNTIME EVIDENCE OPEN
+
+OBSERVED FACT:
+- Existing architecture includes legal_documents, versioning fields, content hashes, publication/effective-date state, legal_acceptances, server-side legal helpers, and RLS.
+- The historical handoff snapshot reported legal_documents = 0. That is a historical baseline and must be preserved as historical evidence only.
+- CURRENT Restore-Test database audit now shows legal_documents = 4 and legal_acceptances = 4.
+- CURRENT legal_documents status distribution is 4 retired, 0 published.
+- All four current rows are Restore-Test QA fixtures from 2026-09-27. They are not valid current production legal content.
+- CURRENT legal_acceptances are checkout acceptances tied to those retired QA versions. Acceptance records exist as evidence of the test flow; they do not create a currently published legal document.
+- Current RLS allows public/anonymous and authenticated reads only for documents that are published and effective, while staff can read all legal documents. legal_acceptances read is limited to the authenticated user's own records or staff.
+- Checkout remains fail-closed because there is no currently published applicable legal document. The established failure contract remains LEGAL_DOCUMENTS_NOT_PUBLISHED.
+- docs/legal/VELORA_EGYPT_LEGAL_DRAFT_PACK_2026-09-26.md remains DRAFT — DO NOT PUBLISH.
+- No legal publication is to be simulated, seeded as a fake proof, or inferred from retired QA rows.
+
+CURRENT LEGAL RPC CONTRACTS:
+- velora_upsert_legal_document(...) is authenticated + staff governed. It validates type/locale/version/title/body/status, computes the SHA-256 body hash server-side, validates any supplied client hash against the server hash, and requires Owner authority for approved/published/retired statuses.
+- velora_publish_legal_document(p_document_id,p_effective_from) is authenticated + explicit Owner role required. It requires the selected version to be approved, retires a prior published version for the same document_type + locale, publishes the selected version, and writes a legal_document_published audit event.
+- Legal Owner authority is therefore enforced server-side; UI visibility is not the authorization boundary.
+- No unpublish/rollback/legal-retire UI contract was newly invented. Existing retirement behavior must be treated as the canonical state transition until a separate observed policy/contract justifies another action.
+
+LEGAL UI OBSERVATION:
+- Existing renderAdminLegal()/loadAdminLegalFromDb() already use the canonical legal RPCs and already hide the Publish action unless the loaded UI role set contains owner and the row is approved.
+- Before Message 9, this existing Legal UI was not reachable from the current canonical Admin navigation.
+- Therefore the concrete observed gap was control-surface reachability, not absence of a legal backend.
+
+### 83. Owner Dashboard — First-Class Canonical Track
+CLASSIFICATION: OPEN / PARTIALLY CONNECTED
+
+OWNER PURPOSE:
+- Owner = governance + exception control.
+- Owner is NOT intended to be a human operator for every normal automated flow.
+- Normal customer/seller/operations paths should remain server-authoritative and automated.
+- Owner should enter where policy, high-impact exception, legal approval, fraud/trust review, settlement/reconciliation, launch control, or other explicitly governed action requires privileged intervention.
+
+CURRENT OWNER UI OBSERVATION:
+- The current canonical control surface is a shared Admin/Owner operations shell in src/scripts/12-localization.js.
+- Existing canonical sections include Dashboard, Sellers, Products, Orders, Users, Audit Logs, Seller Applications, Seller Onboarding, Promotions, Coupons, Gift Cards, and Trust & Compliance.
+- Gift Cards already has an explicit Owner-only UI guard; the server-side issuance RPC independently enforces Owner-only access.
+- Existing Release Control is added to the same Admin control surface by src/scripts/11-admin.js and uses the existing release control-plane RPCs.
+- A legacy owner analytics/audit implementation remains inside 00-localization.js, but there is no active legacy owner shell/DOM or canonical Owner state machine there. It must not be revived as a second Owner platform.
+- The current Owner dashboard is therefore NOT evidenced as fully closed for the complete governance scope.
+
+OWNER DASHBOARD STATUS:
+- OWNER DASHBOARD = OPEN.
+- Owner entry route + canonical Owner authorization preflight are now source-connected.
+- Legal is now reachable from the canonical admin/owner navigation through the existing Legal UI and canonical legal RPCs.
+- Full Owner governance completeness, action coverage, per-surface authority, end-to-end auditability, exception tooling, failure recovery, notification behavior, and Owner browser verification remain OPEN / NOT EVIDENCED where applicable.
+
+### 84. Owner Scope Audit Matrix
+RULE:
+- This is a working audit matrix, not proof that every row is currently granted.
+- Only actual DB/code evidence may promote a capability from NOT EVIDENCED.
+- Do not invent permission names or create a granular permission engine merely to fill this table.
+
+| Area / Action | Customer | Seller | Staff/Admin | Owner | Service Role |
+|---|---|---|---|---|---|
+| Own profile | contract-defined | contract-defined | limited / governance where supported | governance | backend only |
+| Seller product create | No | own seller scope via canonical seller RPCs | moderation/ops only where contract permits | governance | backend |
+| Product approval | No | No self-approval | staff via canonical product-status RPC | owner inherits current staff guard | backend |
+| Product deactivate/reactivate | No | own approved product availability contract | moderation where supported | governance | backend |
+| Own order read | yes | seller-scoped order visibility where contract exists | ops/staff where supported | governance | backend |
+| Own payment read | yes | seller-relevant scope only where supported | ops where supported | governance | backend |
+| Gift-card issuance | No | No | No direct grant evidenced | OWNER-ONLY | backend execution |
+| Legal drafting/version write | No | No | staff write for draft/in_review path | governance / approval authority | backend |
+| Legal publish | No | No | NOT GRANTED by current publish RPC | OWNER-ONLY | backend |
+| Seller suspension | No | No self-governance | staff via canonical seller-status RPC | owner currently satisfies staff guard | backend |
+| Promotion governance | No | seller-owned promotion writer NOT EVIDENCED | staff via canonical promotion contracts | owner currently satisfies staff guard | backend |
+| Payout request | own eligibility/request where supported | own seller scope | ops where supported | governance | backend |
+| Payout execution | No | No direct execution grant | staff via canonical execution RPC | owner currently satisfies staff guard | backend |
+| Release / launch control | No | No | staff control-plane access currently evidenced | governance through current staff contract | backend |
+| Trust / returns / disputes | customer-owned request paths where supported | own scoped paths where supported | staff governance where canonical contracts exist | owner currently satisfies current staff guards | backend |
+| User account governance | No | No | staff via canonical account-action contract where supported | owner currently satisfies current staff guard | backend |
+| Service-role operations | No | No | No | No frontend privilege | service/backend only |
+
+IMPORTANT AUTHORIZATION OBSERVATIONS:
+- Current role enum is exactly: customer, seller, admin, owner.
+- private.velora_has_role(required_role) is SECURITY DEFINER and checks user_roles for auth.uid().
+- private.velora_is_staff() is SECURITY DEFINER and currently evaluates to admin OR owner.
+- Therefore Owner currently inherits any function protected only by velora_is_staff(). This is an OBSERVED FACT about the current control model, not a statement that it is the final desired governance policy.
+- There is currently no independently evidenced fine-grained permission catalog. Do not invent one.
+- Service-role execution remains a backend/service identity, not a frontend convenience privilege.
+
+### 85. Canonical Owner Entry / Route Gap and Smallest Safe Fix
+CLASSIFICATION: OBSERVED GAP CLOSED AT SOURCE LEVEL / BROWSER PROOF OPEN
+
+OBSERVED PRE-FIX GAP:
+- src/scripts/63-platform-router.js declared owner as a platform route and captured originalOpenOwner from window.openOwnerPlatform.
+- Prior to this fix, src/scripts/00-localization.js did not contain a real active Owner platform implementation. Its fallback window.openOwnerPlatform routed to window.switchPlatform('owner'), while the legacy switchPlatform('owner') only displayed “Owner Center (coming next)” and did not open a real Owner surface.
+- This created a concrete route-to-no-op path: the router could recognize #owner while the captured opener did not provide a real Owner control surface.
+- The canonical Admin/Owner implementation already existed in 12-localization.js and correctly authenticated Admin/Owner roles.
+
+SMALLEST SAFE CHANGE IMPLEMENTED:
+- openCanonicalAdmin(requiredRole=null) now accepts an optional role requirement.
+- openCanonicalOwner() calls the existing canonical Admin shell with requiredRole='owner'.
+- Existing platform switch behavior now distinguishes admin and owner instead of treating both identically.
+- window.openOwnerPlatform is assigned to the canonical Owner opener before the platform router loads, so 63-platform-router.js captures a real Owner function rather than the legacy no-op fallback.
+- window.closeOwnerPlatform is mapped to the existing canonical Admin close surface.
+- Canonical navigation now labels the Dashboard as Owner Dashboard when the authenticated role set contains owner.
+- Existing Legal UI is exposed as a canonical Legal section and routes to renderAdminLegal(), reusing existing Legal RPCs and controls.
+- No new database table, enum, permission string, scheduler, analytics engine, audit engine, legal engine, or Owner engine was introduced.
+
+IMPLEMENTATION COMMIT:
+- c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8
+- file changed: src/scripts/12-localization.js
+- no Production change
+
+### 86. Legal + Owner Authorization Evidence
+CLASSIFICATION: L1-L4 BACKEND CONTRACT EVIDENCE / UI EVIDENCE OPEN
+
+OBSERVED FACT:
+- velora_issue_gift_card is explicitly OWNER-ONLY and has anon EXECUTE false.
+- velora_publish_legal_document has anon EXECUTE false, authenticated EXECUTE true, service_role EXECUTE true, and an explicit Owner check inside the function.
+- velora_upsert_legal_document has authenticated execution plus staff guard, with explicit Owner requirement for approved/published/retired status.
+- velora_set_seller_status, velora_set_product_status, velora_admin_update_order_status, velora_create_platform_promotion, velora_set_platform_promotion_active, velora_resolve_return, velora_record_payout_execution, velora_resolve_dispute, velora_resolve_privacy_request, velora_account_action, and velora_moderate_beauty_feedback are currently protected primarily by the existing staff guard. Their exact business rules remain authoritative.
+- Legal and governance writes are audited where the inspected function definitions explicitly insert audit_logs.
+- audit_logs itself is readable by staff only through the current RLS policy.
+- No RLS relaxation was made as part of Message 9.
+
+NOT EVIDENCED:
+- a complete Owner-only action catalog
+- a complete matrix separating Admin vs Owner for every high-impact operation
+- a complete browser proof that every privileged button is present only where intended
+- a complete negative-path matrix proving each unauthorized role is denied at runtime for every Owner-sensitive action.
+
+### 87. Owner Privileged-Action Standard
+For every privileged action, the audit checklist remains:
+
+Owner identity
+-> authorization
+-> input validation
+-> state transition
+-> side effects
+-> audit event
+-> failure handling
+-> idempotency where applicable
+-> notification if an existing canonical notification contract supports it
+-> final Browser proof whenever the action is UI-facing
+
+This checklist must be applied to:
+- Seller approval/suspension/moderation exceptions.
+- Product approval/rejection/deactivate/reactivate.
+- Order exception/cancellation/refund governance.
+- Payment attempt/capture/failure/provider-reference exception handling.
+- Refund/return resolution.
+- Subscription lifecycle and billing exceptions.
+- Advertising governance and billing exceptions.
+- Commission correction/reconciliation.
+- Payout execution/settlement/reconciliation.
+- Promotion creation/activation and later policy controls.
+- Gift-card issuance and exception handling.
+- Legal version creation, approval, publication, and acceptance evidence.
+- User account governance.
+- Fraud/trust decisions.
+- Platform setting changes.
+- Audit access.
+- Release/launch control.
+- Backup/rollback readiness controls.
+
+### 88. Release / Launch / Backup Governance Carry-Forward
+OBSERVED FACT:
+- Existing release control is already a separate control-plane surface and does not itself deploy code.
+- velora_run_launch_gate_audit() is staff-only and explicitly preserves payment_provider=blocked, webhook_verification=blocked, production_infra=pending, rollback_backup=pending, and shipping_provider=blocked/not-required according to the current evidence model.
+- The new Owner route does not override these launch-gate states.
+- Owner visibility of release/launch/backup state is therefore partially present through existing control-plane paths, but full Owner-specific browser evidence and end-to-end governance proof remain OPEN.
+- No backup/rollback claim is made from database structure alone.
+
+### 89. Legal / Owner Action Flow — Parallel
+LEGAL:
+Detect missing/changed legal requirement
+-> determine required document/version/jurisdiction/locale from canonical contract
+-> draft/review through existing legal workflow
+-> validate content + server-side SHA-256 hash
+-> require Owner approval for approved/published state
+-> publish exactly one applicable current version per document type + locale through canonical publisher
+-> record audit evidence
+-> expose only published/effective documents publicly
+-> force applicable commercial actions to fail closed when required legal documents are absent
+-> monitor acceptance/reacceptance requirements
+-> recover through legal version rollback/retirement only where the existing contract supports it
+-> escalate to Owner/Legal human decision for actual legal approval/content policy.
+
+OWNER / GOVERNANCE:
+Detect operational signal or exception
+-> determine whether canonical automation already handles the normal path
+-> if normal path exists, execute through the existing automation and do not involve Owner
+-> if privileged governance is required, authenticate user and resolve actual role(s)
+-> authorize using the existing canonical function guard
+-> validate action inputs/state transition
+-> execute canonical writer
+-> apply existing side effects/triggers
+-> write/read audit evidence
+-> retry only through existing idempotent mechanism where supported
+-> notify through existing notification contract when supported
+-> recover through existing canonical compensation/workflow
+-> escalate only when provider ambiguity, fraud/trust, exceptional refund, payout settlement, legal approval, release control, or other true governance exception remains.
+
+NO DUPLICATE ENGINE RULE:
+- Legal uses legal_documents/legal_acceptances + existing legal RPCs.
+- Owner operations use the canonical Admin/Owner control surface + existing domain RPCs.
+- Audit uses existing audit_logs and existing canonical audit/read paths.
+- Release uses existing release control plane.
+- Trust/returns/disputes use existing trust contracts.
+- Payments/webhooks use their existing canonical chain.
+- Do not create a second Owner engine, generic action dispatcher, generic permissions engine, or generic governance database without a new observed contract gap.
+
+### 90. Research-First Owner / Legal Prior Art
+RESEARCHED PATTERNS:
+- OWASP authorization guidance emphasizes least privilege, deny-by-default, explicit authorization checks, and logging authorization events.
+- Supabase documentation/security guidance distinguishes database grants from RLS policies and supports explicit review/testing of authorization behavior.
+- Microsoft Entra RBAC guidance emphasizes role-based access, privileged role separation, access review, and limiting sensitive operations.
+- Contentful's environment/permission model is useful prior art for separating environments and limiting privileged changes.
+- Existing marketplace/control-plane patterns reviewed in earlier messages (including Shopify/GitHub role models) reinforce using role-scoped administrative surfaces and keeping high-impact actions behind server-authoritative controls.
+
+VELORA DECISION:
+- Reuse these principles, not their product-specific permission names.
+- Keep Production protected.
+- Keep role determination in canonical user_roles / role helpers.
+- Keep authorization inside server-side contracts.
+- Keep auditability close to privileged state transitions.
+- Avoid inventing a new permission taxonomy unless the existing role model proves insufficient for a concrete observed requirement.
+- Avoid making Owner a manual approval step for automated routine flows.
+
+### 91. Message 9 Browser / Preview Evidence
+CLASSIFICATION: SOURCE PASS / DEPLOYMENT SIGNAL PRESENT / BROWSER PASS NOT EVIDENCED
+
+OBSERVED:
+- The Message 9 code change is committed as c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8.
+- GitHub combined commit status reports Vercel = success for the commit.
+- Exact-commit GitHub workflow-run lookup returned no workflow runs for c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8.
+- Vercel success is deployment/platform status, not Browser Gate proof.
+- TinyFish/browser automation has historically been unavailable in this track due to the external wallet/tool limitation; therefore no Browser PASS is claimed.
+
+BROWSER TARGETS REMAIN OPEN:
+- owner authentication: customer denied, seller denied, admin behavior as designed, owner succeeds
+- owner open -> close -> reopen without refresh
+- #owner route entry/re-entry after leaving other platforms
+- Owner Dashboard shell and navigation
+- Sellers moderation and suspension actions
+- Products moderation
+- Orders exception surface
+- Users governance surface
+- Audit Logs visibility
+- Promotions/Coupons/Gift Cards
+- Trust & Compliance
+- Legal section visibility and Owner-only Publish button
+- non-Owner cannot publish legal
+- Owner cannot bypass legal backend requirements
+- refresh/mobile/Arabic-English behavior
+- Release Control + launch-gate visibility where exposed
+
+### 92. Message 9 Execution Classification
+CLOSED-DONE:
+- Legal backend architecture and server-side hash/publication controls, subject to the absence of approved current legal content.
+- Current legal public read RLS shape for published/effective documents.
+- Explicit Owner-only server authorization for legal publication.
+- Existing Owner-only server authorization for gift-card issuance.
+- Current role enum discovery: customer / seller / admin / owner.
+- Current staff guard discovery: admin OR owner.
+- Concrete Owner route no-op gap at source level.
+- Canonical Owner opener wiring at source level.
+- Existing Legal UI made reachable from canonical Admin/Owner navigation at source level.
+- No duplicate governance/legal/permission engine introduced.
+
+OPEN / NOT EVIDENCED:
+- FULL OWNER DASHBOARD.
+- Complete Admin-vs-Owner privilege separation policy for every high-impact operation.
+- Full Owner browser gate.
+- Full legal Browser flow.
+- Current published legal content approved by Legal/Owner for any real launch.
+- Any claim that the DRAFT legal pack is publishable.
+- Complete owner notification/exception workflow coverage.
+- Full privileged-action audit matrix including negative tests for each role.
+- Unpublish/legal rollback UX if later business/legal policy requires it.
+- Payment/provider/production and all Message 8 carry-forward items.
+
+PENDING:
+- Production infrastructure and backup/rollback readiness remain pending.
+- Owner/legal release-readiness remains dependent on real legal approval and launch-control evidence.
+- Current provider settlement and Browser tooling evidence remain pending/blocked per Message 8.
+
+BLOCKED:
+- payment_provider remains BLOCKED / REQUIRED.
+- webhook_verification remains BLOCKED / REQUIRED.
+- shipping_provider remains BLOCKED / NOT REQUIRED.
+- Browser/provider evidence may remain blocked by external test tooling; do not convert that into code failure or browser pass.
+
+INFERRED:
+- The safest immediate Owner/Legal move is to strengthen reachability around already-canonical contracts rather than create a parallel Owner platform.
+- The current Owner role naturally acts as the governance superset of Admin because velora_is_staff() currently includes owner; whether selected actions should eventually be Owner-only is a policy decision, not a code assumption.
+
+HYPOTHESIS / DISALLOWED CLAIMS:
+- Do not claim that every staff action should be Owner-only.
+- Do not claim the current shared Admin/Owner shell constitutes a complete Owner dashboard.
+- Do not claim legal publication is ready merely because the publish RPC exists.
+- Do not claim the historical legal_documents=0 snapshot is still the current DB state.
+- Do not claim Browser PASS from Vercel success or source inspection.
+- Do not claim Production safety from Restore-Test DB evidence.
+
+### Message 9 Carry-Forward — Nothing Dropped
+The following remain active from earlier Messages and must continue into Message 10/11 and beyond:
+- canonical cart + legacy visible cart adapter; no cart rewrite.
+- routine -> cart canonical adapter and Browser evidence where still applicable.
+- checkout canonical path and stale visual shipping calculation observation.
+- manual shipping; no required external carrier integration.
+- variant inventory reconciliation and failed-payment release.
+- legacy order_items.status contract mismatch; do not add a status column casually.
+- abandoned pending-order/reservation policy remains OPEN; do not invent a TTL.
+- seller product lifecycle; seller delete remains prohibited.
+- seller post-approval re-review policy remains OPEN.
+- Seller Dashboard re-entry remains Browser-gated.
+- seller subscription lifecycle/UI/provider/browser policy gaps.
+- seller advertising reporting/attribution/pricing/provider/browser gaps.
+- commission policy/refund treatment.
+- payout execution/provider/reconciliation evidence.
+- promotion free_shipping/stacking/targeting/economics/reversal policy.
+- gift-card refund/cancel accounting/expiry/browser evidence.
+- returns customer UX/refund allocation/provider refund/return-window policy.
+- notifications browser delivery/push evidence.
+- Beauty Passport V2 / Routine / Recommendation browser evidence.
+- customer Recommendation UX.
+- customer Beauty AI remains NOT DONE / roadmap; do not introduce AI engine here.
+- Paymob Case C browser/live sandbox completion.
+- Paymob Case D webhook-failure replay/reconciliation.
+- payment_provider and webhook_verification launch gates remain blocked.
+- production_infra and rollback_backup remain pending.
+- Production remains frozen.
+- research before build remains mandatory.
+- Action Flow remains parallel across the entire platform.
+
+### Message 9 Evidence Ledger
+L1 SOURCE:
+- current canonical Admin/Owner source in src/scripts/12-localization.js
+- platform routing source in src/scripts/63-platform-router.js
+- existing Legal UI in src/scripts/00-localization.js
+- existing Release Control in src/scripts/11-admin.js
+
+L2 DB:
+- current Restore-Test legal documents, legal acceptances, audit logs, role counts, role helper definitions, function definitions, RLS policies.
+
+L3 ACL/RLS:
+- user_roles role model and RLS
+- Legal read policies
+- audit_logs staff-read policy
+- Owner-only legal publish contract
+- Owner-only gift-card issuance contract
+- staff-protected governance writers
+
+L4 NEGATIVE / TRANSACTION PATH:
+- Message 9 did not fabricate a new mutation test where no new DB contract required it.
+- Existing backend contract checks remain the source of authority.
+- Dedicated unauthorized-role negative browser/DB tests are OPEN where not yet evidenced.
+
+L5 CI:
+- no workflow run attached to commit c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8.
+
+L6 PREVIEW/DEPLOYMENT:
+- GitHub combined Vercel status = success for c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8.
+- This is deployment signal only.
+
+L7 BROWSER:
+- NOT EVIDENCED.
+
+L8 PROVIDER:
+- not applicable to Legal/Owner UI itself; payment/provider evidence remains carried from Message 8 and is still open/blocked.
+
+L9 PRODUCTION:
+- NOT EVIDENCED; Production remains frozen.
+
+### Message 9 Next Execution Order
+1. Continue the full Master Handoff rather than treating Message 9 as a reset.
+2. Keep Owner Dashboard = OPEN until the complete governance surface is audited.
+3. Continue auditing existing canonical control surfaces before adding anything new.
+4. For every Owner-sensitive action, build the actual role/guard matrix from code + DB first.
+5. Research any missing control-plane pattern before implementing a gap.
+6. Use Browser Gate only for claims that require UI/runtime evidence.
+7. Keep Legal fail-closed until real approved/published legal content exists.
+8. Continue Message 8 payment/provider lane in parallel; Message 9 does not supersede it.
