@@ -2471,3 +2471,63 @@ REMAINING EVIDENCE / NEXT STEP:
 CARRY-FORWARD:
 - All prior open/blocked/pending/not-evidenced items remain unchanged.
 - Next ordered Seller work remains Seller post-approval re-review policy, pending-order/reservation policy, then Seller onboarding Action Flow/audit coverage, unless Browser evidence reveals a new critical Seller routing defect.
+
+
+### Continuation Seller Product Re-Review Policy + Contract Hardening — 2026-09-29
+
+CLASSIFICATION: SAFEGUARD IMPLEMENTED / BUSINESS POLICY STILL REQUIRES OWNER CONFIRMATION
+
+OBSERVED FACT:
+- Current seller edit surface exposes price, stock, name, brand, category, subcategory, image URL, description, tags, and localized product content.
+- Prior lifecycle guard required all product status changes to be Staff-only, which would have made an automatic post-approval moderation loop impossible.
+- Direct authenticated/anon INSERT/UPDATE/DELETE privileges on `public.products` are currently false, so the Seller RPCs remain the controlled mutation boundary.
+- Existing ad visibility already requires an approved product and positive inventory; returning an edited approved product to `pending` therefore naturally suppresses ad visibility while moderation is pending.
+
+RESEARCH / POLICY BASIS:
+- Marketplace tooling commonly separates listing/content fields from seller-controlled offer fields. Shopify Marketplace Connect explicitly distinguishes Amazon listing content (images/title/description/identifiers) from seller offer values such as price and inventory; some marketplace channels also review price/relisting changes before activation. citeturn648611search9turn648611search6
+- Velora's conservative policy therefore treats:
+  - price and stock as operational offer changes that preserve lifecycle status;
+  - name, brand, category, subcategory, description, image, tags, emoji, and translations as material listing/content changes that require re-review when the current status is approved or rejected.
+  - pending remains pending;
+  - inactive remains inactive;
+  - rejected + material corrective edit becomes pending so Staff can review the corrected submission.
+
+IMPLEMENTED:
+- `velora_seller_update_product` now detects material simple-field changes and requests `pending` re-review for approved/rejected products.
+- `velora_seller_update_product_full` now detects material content changes and requests `pending` re-review for approved/rejected products while price/stock-only edits preserve lifecycle.
+- `velora_upsert_product_translation` now requests re-review for seller translation changes on approved/rejected products; Staff translation edits do not demote the product.
+- `private.velora_guard_product_mutation` now permits exactly one seller-driven lifecycle transition: owned approved/rejected product -> pending. All other seller-driven status changes remain blocked by `STATUS_CHANGE_REQUIRES_STAFF`.
+- No new table, column, duplicate moderation engine, or second status model was introduced.
+
+COMMITS:
+- `b3e74453cb2c0c1dc98ce420af437887f9163c7c` — seller material-edit re-review RPCs.
+- `6a531126e5bb1cef83b61e984db8a53fd79fe124` — allow the narrowly scoped seller -> pending transition.
+- `268580a5cb9793702bd7c9f10baadc797117adc9` — corrective translation locking implementation.
+
+RESTORE-TEST VERIFICATION:
+- Price-only edit: status remained `approved` with the updated price.
+- Simple material edit (brand): status became `pending`.
+- Full material edit (name/tags/image): status became `pending`.
+- Seller translation edit: status became `pending`.
+- All mutation probes were wrapped in transactions and rolled back; the QA product returned to its original state.
+- A first translation implementation failed safely before any write because PostgreSQL disallowed `FOR UPDATE` on the nullable side of a LEFT JOIN; this was corrected before the successful test.
+- Direct table privileges remain denied to both `anon` and `authenticated`.
+
+INFERRED:
+- The engineering safeguard now closes the source/DB contract gap: a Seller cannot materially change an approved/rejected listing and keep it commercially approved through the canonical Seller mutation paths.
+- The rule is intentionally conservative and should be treated as the working policy pending explicit owner/business confirmation; no automatic promotion back to approved is ever performed by the seller.
+
+ACTION FLOW:
+Seller edit event
+-> authenticate + ownership guard
+-> classify material vs offer-only change
+-> perform canonical update
+-> material edit on approved/rejected => pending
+-> approved-only catalog/ad eligibility automatically stops
+-> audit review-required event
+-> Staff reviews -> approve/reject
+-> seller notified through existing notification/status architecture
+-> no human intervention on ordinary price/stock changes.
+
+NEXT:
+Proceed to pending-order abandonment/reservation review. Do not invent an expiry duration until the existing payment/order/provider contracts and current prior art are reconciled and a defensible default is established or the item is explicitly left policy-blocked.
