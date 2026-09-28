@@ -22,10 +22,10 @@ jobs:
     timeout-minutes: 12
 
     steps:
-      - name: Checkout audit branch
+      - name: Checkout current evidence branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: audit/full-gate-2026-09-25
+          ref: ${{ github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
@@ -116,7 +116,8 @@ jobs:
           evidence["checks"]["auth_http_200"] = status == 200
           evidence["checks"]["authenticated_user"] = bool(access_token and user_id)
           if not access_token or not user_id:
-              evidence["failures"].append("Authenticated Supabase sessio          # Find the latest pending order owned by the authenticated test account.
+              evidence["failures"].append("Authenticated Supabase session could not be established")
+          # Find the latest pending order owned by the authenticated test account.
           # If none exists, create a Restore-Test fixture through the canonical authenticated order RPC.
           order = None
           if access_token and user_id:
@@ -504,6 +505,21 @@ jobs:
               evidence["db"]["provider_payment_id_present"] = bool(
                   latest_attempt and latest_attempt.get("provider_payment_id")
               )
+
+              order_rows = []
+              order_query = (
+                  f"{base}/rest/v1/orders?id=eq.{urllib.parse.quote(order['id'])}"
+                  "&select=id,status,payment_status,updated_at&limit=1"
+              )
+              req = urllib.request.Request(order_query, method="GET", headers=headers)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      order_rows = json.loads(resp.read().decode("utf-8"))
+              except Exception:
+                  order_rows = []
+              current_order = order_rows[0] if order_rows else None
+              evidence["db"]["order_status"] = current_order.get("status") if current_order else None
+              evidence["db"]["order_payment_status"] = current_order.get("payment_status") if current_order else None
               evidence["db"]["webhook_event_count_recent"] = len(webhooks)
               evidence["db"]["signed_webhook_verified"] = any(
                   bool(event.get("signature_verified")) for event in webhooks
@@ -520,8 +536,11 @@ jobs:
               and evidence["checks"].get("paymob_intention_created", False)
               and evidence["checks"].get("sandbox_payment_path_executed", False)
               and evidence["db"].get("payment_attempt_found", False)
+              and evidence["db"].get("attempt_status") == "captured"
               and evidence["db"].get("signed_webhook_verified", False)
               and evidence["db"].get("processed_webhook_present", False)
+              and evidence["db"].get("order_payment_status") == "paid"
+              and evidence["db"].get("order_status") == "confirmed"
           )
 
           Path("paymob-sandbox-evidence.json").write_text(
