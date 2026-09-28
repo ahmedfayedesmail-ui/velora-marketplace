@@ -2942,3 +2942,25 @@ VERIFICATION:
 
 NEXT:
 - Subscription cancel/upgrade/downgrade/replacement, proration, entitlement matrix, and provider settlement remain policy/provider-bound and are not to be guessed.
+
+
+### Continuation Shipping Creation Auditability — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW
+
+OBSERVED FACT:
+- velora_create_shipment is the canonical Seller/Staff shipment-creation contract and had no direct audit record before this continuation.
+- Existing velora_update_shipment_status already validates allowed shipment transitions and records shipment_status_updated.
+- Existing velora_submit_delivery_proof already records delivery_proof_submitted and moves eligible shipments to delivered.
+- Shipment lifecycle therefore already had audit coverage for status/proof, with only creation missing.
+
+IMPLEMENTED:
+- Migration 20260929043000_audit_shipment_creation.sql, commit 10d2974fb8ca5218857dc1ec053f0db6c17958ab.
+- velora_create_shipment now records shipment_created with order/store/item-count/carrier/service/tracking metadata after shipment + shipment_items are inserted.
+
+RESTORE-TEST VERIFICATION:
+- Seller transactional shipment creation on paid Order #76 produced an in_transit shipment and shipment_created audit evidence.
+- Transaction was rolled back; no shipment persisted.
+
+NO FURTHER SHIPPING ENGINE:
+- No duplicate shipment lifecycle, scheduler, carrier integration, or notification system was introduced.
