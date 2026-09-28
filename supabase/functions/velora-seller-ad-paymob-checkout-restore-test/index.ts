@@ -8,7 +8,7 @@ function billing(profile:Record<string,unknown>,seller:Record<string,unknown>){
   const name=String(profile.full_name||seller.store_name||"Velora Seller").trim()||"Velora Seller";
   const parts=name.split(/\s+/); const first=parts.shift()||"Velora"; const last=parts.join(" ")||"Seller";
   return {apartment:"NA",building:"NA",floor:"NA",street:"NA",city:"Cairo",state:"Cairo",country:"EG",postal_code:"NA",
-    first_name:first.slice(0,50),last_name:last.slice(0,50),email:String(profile.email||"").trim(),
+    first_name:first.slice(0,50),last_name:last.slice(0,50),email:(String(profile.email||"").trim()||String(Deno.env.get("VELORA_FALLBACK_SELLER_EMAIL")||"seller@velora.local").trim()),
     phone_number:String(seller.phone||"+200000000000").trim()||"+200000000000"};
 }
 Deno.serve(async(req:Request)=>{
