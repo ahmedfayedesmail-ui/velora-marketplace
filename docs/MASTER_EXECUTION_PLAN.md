@@ -3296,3 +3296,49 @@ THREE MASTER GOVERNING CONDITIONS:
 1. COMPLETE MASTER HANDOFF.
 2. RESEARCH / REUSE FIRST.
 3. ACTION FLOW IN PARALLEL.
+
+
+---
+
+# MESSAGE 12.15 — PAYMOB SCHEDULER LIVE PROOF + RLS EXPOSURE REVIEW
+Recorded 2026-09-28.
+
+## Scheduler Runtime Proof
+CLOSED-DONE:
+- Restore-Test Postgres cron job \`velora-paymob-reconciliation\` is active on \`*/5 * * * *\`.
+- Three consecutive observed pg_net worker responses at 17:20, 17:25, and 17:30 UTC returned HTTP 200 with:
+  \`ok=true, claimed=0, processed=0, results=[]\`.
+- This proves scheduled transport -> Edge Function -> secret validation -> candidate claim path -> safe no-candidate exit is operating in Restore-Test.
+- Fresh E2E attempts were younger than the 70-minute worker threshold and were therefore not auto-claimed. This is intended guard behavior.
+
+## RLS No-Policy Review
+OBSERVED FACT:
+- Security Advisor's six RLS-enabled/no-policy findings were checked for direct Data API privileges.
+- All six have RLS enabled and zero direct SELECT/INSERT/UPDATE/DELETE privileges for both anon and authenticated roles:
+  - private.beauty_catalog_revision
+  - private.beauty_recommendation_rate_events
+  - public.billing_instruments
+  - public.paymob_card_tokenization_sessions
+  - public.regional_pricing
+  - public.seller_subscription_renewal_jobs
+- Therefore these findings are currently policy-hygiene/internal-contract review items, not direct table privilege exposure.
+- No blanket policies or grants were added.
+
+## Current Platform Evidence
+OBSERVED FACT:
+- Vercel READY exists for the latest app-affecting commit \`542a0ddb7e62cfd4ed7878e36cc7b2c65cb1c360\`.
+- The current branch has later docs/CI commits, so strict current-SHA READY remains OPEN.
+- Staff Launch Gate and Local Source Browser Gate both succeeded on the diagnostics branch before later docs-only commits.
+
+## Remaining OPEN / NOT EVIDENCED
+- L8 Paymob Transaction Inquiry exact response/root cause.
+- Fresh browser/3DS completion and signed/processed webhook.
+- Natural stale eligible attempt being processed by the automatic worker.
+- Current-SHA Vercel READY.
+- Full Audit current run completion.
+- Paymob provider/webhook launch gates.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
