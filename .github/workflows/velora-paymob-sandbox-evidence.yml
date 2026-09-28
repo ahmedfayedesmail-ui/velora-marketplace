@@ -19,7 +19,7 @@ jobs:
   paymob-sandbox-evidence:
     name: Paymob sandbox -> Intention -> Checkout -> Webhook evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
 
     steps:
       - name: Checkout current evidence branch
@@ -512,24 +512,176 @@ jobs:
                           else:
                               submit.click()
                               payment_action_started = True
-                              page.wait_for_timeout(8000)
+                              evidence["playwright"]["payment_clicked"] = True
 
-                          otp = first_visible([
-                              'input[name*="otp" i]',
-                              'input[placeholder*="otp" i]',
-                              'input[name*="verification" i]',
-                          ])
-                          if otp and otp.is_visible():
-                              otp_observed = True
-                              otp.fill("123456")
-                              confirm = first_visible([
-                                  'button:has-text("Verify")',
-                                  'button:has-text("Confirm")',
-                                  'button[type="submit"]',
-                              ])
-                              if confirm:
-                                  confirm.click()
-                              page.wait_for_timeout(8000)
+                              # Keep the actual Paymob / Mastercard 3DS browser session alive.
+                              # Do not inject or fabricate OTP. While the browser remains open,
+                              # poll read-only provider evidence so we can distinguish a
+                              # browser-lifetime issue from a provider-side pending state.
+                              payment_attempt_id = checkout.get("payment_attempt_id")
+
+                              if not payment_attempt_id and service_key:
+                                  lookup_query = urllib.parse.urlencode({
+                                      "order_id": f"eq.{order['id']}",
+                                      "select": "id,status,provider_payment_id,created_at",
+                                      "order": "created_at.desc",
+                                      "limit": "1",
+                                  }, safe=",")
+                                  lookup_req = urllib.request.Request(
+                                      f"{base}/rest/v1/payment_attempts?{lookup_query}",
+                                      method="GET",
+                                      headers={
+                                          "apikey": service_key,
+                                          "Authorization": f"Bearer {service_key}",
+                                      },
+                                  )
+                                  try:
+                                      with urllib.request.urlopen(lookup_req, timeout=30) as resp:
+                                          lookup_rows = json.loads(resp.read().decode("utf-8"))
+                                      payment_attempt_id = lookup_rows[0]["id"] if lookup_rows else None
+                                  except Exception:
+                                      payment_attempt_id = None
+
+                              evidence["playwright"]["payment_attempt_id_available"] = bool(payment_attempt_id)
+
+                              def read_attempt_state():
+                                  if not service_key or not order:
+                                      return None
+                                  q = urllib.parse.urlencode({
+                                      "order_id": f"eq.{order['id']}",
+                                      "select": "id,status,provider_payment_id,created_at,completed_at,captured_at",
+                                      "order": "created_at.desc",
+                                      "limit": "1",
+                                  }, safe=",")
+                                  req = urllib.request.Request(
+                                      f"{base}/rest/v1/payment_attempts?{q}",
+                                      method="GET",
+                                      headers={
+                                          "apikey": service_key,
+                                          "Authorization": f"Bearer {service_key}",
+                                      },
+                                  )
+                                  try:
+                                      with urllib.request.urlopen(req, timeout=20) as resp:
+                                          rows = json.loads(resp.read().decode("utf-8"))
+                                      return rows[0] if rows else None
+                                  except Exception:
+                                      return None
+
+                              def read_webhook_evidence():
+                                  if not service_key:
+                                      return []
+                                  q = urllib.parse.urlencode({
+                                      "provider_code": "eq.paymob",
+                                      "select": "id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,payload",
+                                      "order": "received_at.desc",
+                                      "limit": "20",
+                                  }, safe=",")
+                                  req = urllib.request.Request(
+                                      f"{base}/rest/v1/provider_webhook_events?{q}",
+                                      method="GET",
+                                      headers={
+                                          "apikey": service_key,
+                                          "Authorization": f"Bearer {service_key}",
+                                      },
+                                  )
+                                  try:
+                                      with urllib.request.urlopen(req, timeout=20) as resp:
+                                          rows = json.loads(resp.read().decode("utf-8"))
+                                  except Exception:
+                                      return []
+                                  target = None
+                                  try:
+                                      target = str(
+                                          (attempt_state or {}).get("metadata", {}).get("paymob_order_id") or ""
+                                      ).strip()
+                                  except Exception:
+                                      target = ""
+                                  if not target:
+                                      return rows
+                                  matched = []
+                                  for event in rows:
+                                      payload = event.get("payload") or {}
+                                      obj = payload.get("obj") if isinstance(payload, dict) else {}
+                                      order_obj = obj.get("order") if isinstance(obj, dict) else {}
+                                      provider_order_id = str(
+                                          order_obj.get("id") if isinstance(order_obj, dict) else ""
+                                      ).strip()
+                                      if provider_order_id == target:
+                                          matched.append(event)
+                                  return matched
+
+                              attempt_state = read_attempt_state()
+                              if not payment_attempt_id and attempt_state:
+                                  payment_attempt_id = attempt_state.get("id")
+
+                              terminal_observed = False
+                              webhook_observed = False
+                              loop_started = time.time()
+                              while time.time() - loop_started < 240:
+                                  attempt_state = read_attempt_state()
+
+                                  inquiry_snapshot = None
+                                  if payment_attempt_id and access_token:
+                                      inquiry_status, inquiry_snapshot = http_json(
+                                          "POST",
+                                          f"{base}/functions/v1/velora-paymob-inquiry-restore-test",
+                                          {"payment_attempt_id": payment_attempt_id},
+                                          {
+                                              "apikey": publishable_key,
+                                              "Authorization": f"Bearer {access_token}",
+                                          },
+                                      )
+                                      evidence["playwright"]["last_inquiry_http_status"] = inquiry_status
+                                      evidence["playwright"]["last_inquiry"] = {
+                                          "ok": inquiry_snapshot.get("ok") if isinstance(inquiry_snapshot, dict) else None,
+                                          "paymob_order_id": inquiry_snapshot.get("paymob_order_id") if isinstance(inquiry_snapshot, dict) else None,
+                                          "provider_transaction_id": inquiry_snapshot.get("provider_transaction_id") if isinstance(inquiry_snapshot, dict) else None,
+                                          "pending": inquiry_snapshot.get("pending") if isinstance(inquiry_snapshot, dict) else None,
+                                          "success": inquiry_snapshot.get("success") if isinstance(inquiry_snapshot, dict) else None,
+                                          "is_captured": inquiry_snapshot.get("is_captured") if isinstance(inquiry_snapshot, dict) else None,
+                                          "data_migs_status": inquiry_snapshot.get("data_migs_status") if isinstance(inquiry_snapshot, dict) else None,
+                                          "data_migs_result": inquiry_snapshot.get("data_migs_result") if isinstance(inquiry_snapshot, dict) else None,
+                                          "data_txn_response_code": inquiry_snapshot.get("data_txn_response_code") if isinstance(inquiry_snapshot, dict) else None,
+                                      }
+                                      if (
+                                          isinstance(inquiry_snapshot, dict)
+                                          and inquiry_snapshot.get("ok")
+                                          and inquiry_snapshot.get("success") is True
+                                          and inquiry_snapshot.get("is_captured") is True
+                                      ):
+                                          terminal_observed = True
+
+                                  webhook_matches = read_webhook_evidence()
+                                  signed_processed = any(
+                                      bool(event.get("signature_verified"))
+                                      and event.get("status") == "processed"
+                                      and bool(event.get("processed_at"))
+                                      for event in webhook_matches
+                                  )
+                                  webhook_observed = signed_processed
+
+                                  evidence["playwright"]["webhook_match_count_while_browser_open"] = len(webhook_matches)
+                                  evidence["playwright"]["signed_processed_webhook_while_browser_open"] = signed_processed
+
+                                  otp = first_visible([
+                                      'input[name*="otp" i]',
+                                      'input[placeholder*="otp" i]',
+                                      'input[name*="verification" i]',
+                                  ])
+                                  if otp and otp.is_visible():
+                                      otp_observed = True
+                                      evidence["playwright"]["otp_observed"] = True
+
+                                  if terminal_observed or webhook_observed:
+                                      break
+                                  page.wait_for_timeout(10000)
+
+                              evidence["playwright"]["browser_session_observed_seconds"] = round(
+                                  time.time() - loop_started, 1
+                              )
+                              evidence["playwright"]["terminal_observed_while_browser_open"] = terminal_observed
+                              evidence["playwright"]["webhook_terminal_observed_while_browser_open"] = webhook_observed
 
                           body = page.locator("body").inner_text(timeout=10000).lower()
                           evidence["playwright"]["otp_observed"] = otp_observed
@@ -572,23 +724,55 @@ jobs:
 
                   webhook_query = (
                       f"{base}/rest/v1/provider_webhook_events?provider_code=eq.paymob"
-                      "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason"
-                      "&order=received_at.desc&limit=20"
+                      "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason,payload"
+                      "&order=received_at.desc&limit=50"
                   )
-                  if provider_payment_id:
-                      webhook_query = (
-                          f"{base}/rest/v1/provider_webhook_events"
-                          f"?provider_code=eq.paymob&event_id=eq.{urllib.parse.quote(str(provider_payment_id))}"
-                          "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason"
-                          "&limit=5"
-                      )
-
                   req = urllib.request.Request(webhook_query, method="GET", headers=headers)
                   try:
                       with urllib.request.urlopen(req, timeout=30) as resp:
-                          webhooks = json.loads(resp.read().decode("utf-8"))
+                          all_webhooks = json.loads(resp.read().decode("utf-8"))
                   except Exception:
-                      webhooks = []
+                      all_webhooks = []
+
+                  target_paymob_order_id = ""
+                  attempt_state_for_webhook = None
+                  if latest_attempt:
+                      attempt_meta_query = (
+                          f"{base}/rest/v1/payment_attempts"
+                          f"?id=eq.{urllib.parse.quote(str(latest_attempt.get('id')))}"
+                          "&select=id,metadata&limit=1"
+                      )
+                      meta_req = urllib.request.Request(attempt_meta_query, method="GET", headers=headers)
+                      try:
+                          with urllib.request.urlopen(meta_req, timeout=30) as resp:
+                              meta_rows = json.loads(resp.read().decode("utf-8"))
+                          attempt_state_for_webhook = meta_rows[0] if meta_rows else None
+                          target_paymob_order_id = str(
+                              (attempt_state_for_webhook or {}).get("metadata", {}).get("paymob_order_id") or ""
+                          ).strip()
+                      except Exception:
+                          target_paymob_order_id = ""
+
+                  webhooks = []
+                  for event in all_webhooks:
+                      payload = event.get("payload") or {}
+                      obj = payload.get("obj") if isinstance(payload, dict) else {}
+                      order_obj = obj.get("order") if isinstance(obj, dict) else {}
+                      provider_order_id = str(
+                          order_obj.get("id") if isinstance(order_obj, dict) else ""
+                      ).strip()
+                      if target_paymob_order_id and provider_order_id == target_paymob_order_id:
+                          webhooks.append({
+                              "id": event.get("id"),
+                              "event_id": event.get("event_id"),
+                              "event_type": event.get("event_type"),
+                              "signature_verified": event.get("signature_verified"),
+                              "status": event.get("status"),
+                              "received_at": event.get("received_at"),
+                              "processed_at": event.get("processed_at"),
+                              "retry_count": event.get("retry_count"),
+                              "failure_reason": event.get("failure_reason"),
+                          })
 
                   if any(bool(event.get("signature_verified")) and event.get("status") == "processed"
                          for event in webhooks):
