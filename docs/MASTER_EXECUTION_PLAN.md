@@ -433,3 +433,128 @@ OPEN / NOT EVIDENCED:
 The Action Flow continues in parallel with all later handoff messages:
 Detect -> Decide -> Execute -> Verify -> Recover/Escalate.
 For seller systems, automatic normal-path actions should be driven by existing canonical RPCs/jobs/triggers; human intervention remains restricted to seller approval, commercial-policy decisions, legal/provider ambiguity, refunds/exceptions, payout execution, suspension, and release control.
+
+## Message 5/11 — Promotions / Gift Cards / Returns / Notifications
+
+### 37. Promotions / Coupons
+CLASSIFICATION: CANONICAL ENGINE CLOSED / POLICY + CONTROL-SURFACE GAPS OPEN
+
+OBSERVED FACT:
+- Restore-Test currently has 1 coupon (WELCOME20), 0 coupon_redemptions, 0 promotions, and 0 promotion_redemptions.
+- WELCOME20 is currently percentage 20%, EGP, minimum order 200 EGP, maximum discount 500 EGP, global usage limit 1000, customer usage limit 1, first_order_only=true, platform-funded, active, no expiry.
+- Canonical coupon validation enforces authentication, active window, currency, minimum subtotal, global/customer usage limits, first-order-only, and percentage/fixed calculation with maximum discount cap.
+- Canonical coupon application is customer-owned-order locked, idempotent per coupon/order, records redemption, increments used_count, recalculates order total, and audits.
+- Canonical automatic promotion selection enforces active window, currency, global scope, minimum order and usage limits, then chooses by priority/creation order. It does not stack multiple promotions.
+- Canonical promotion creation and activation are Staff/Owner governed through RPCs and auditable. Creation supports percentage/fixed only and hard-sets stackable=false.
+- The DB coupons constraint still permits discount_type='free_shipping', while canonical coupon validate/apply reject unsupported types. This is a real contract mismatch and remains OPEN pending business decision; do not silently implement free-shipping semantics or remove the allowed type without policy.
+- Coupon/promotion creation from the current canonical Admin Center was not previously exposed. The smallest justified UI change was to surface the existing control planes rather than build a new engine.
+- Current canonical checkout integrates exactly one coupon OR the automatic best promotion, followed by an optional gift card as tender.
+- Negative-path DB probes verified WELCOME20 below minimum -> COUPON_MINIMUM_ORDER_NOT_MET, wrong currency -> COUPON_CURRENCY_MISMATCH, no active automatic promotion -> no promotion applied, and unauthorised promotion creation -> STAFF_ONLY.
+- No seller-owned coupon/promotion creation contract is currently evidenced. Current promotion scope is global.
+
+OPEN:
+- free_shipping contract decision
+- whether stacking/combination policy should ever change from current non-stackable MVP
+- exact promotion targeting policy beyond current global scope
+- seller-funded vs platform-funded coupon economics
+- reversal/refund treatment of coupon/promotion redemptions
+- abuse/rate-limit strategy beyond current usage/customer limits
+- coupon writer/management semantics if business requires changing the existing single WELCOME20 record
+
+### 38. Gift Cards
+CLASSIFICATION: SERVER FOUNDATION CLOSED / REFUND ACCOUNTING + RUNTIME EVIDENCE OPEN
+
+OBSERVED FACT:
+- Current Restore-Test gift_cards=0 and gift_card_transactions=0 after rollback.
+- velora_issue_gift_card is explicitly OWNER_ONLY, requires positive amount, active currency, future expiry if supplied, unique code, creates active card and issue transaction, and writes an audit record.
+- Gift-card constraints enforce initial_amount > 0, balance between 0 and initial, allowed statuses active/exhausted/expired/disabled, unique code, and restricted deletion.
+- velora_quote_gift_card supports partial balance application.
+- velora_apply_gift_card_to_order locks the customer order and gift card, protects against duplicate redemption, validates active/expiry/currency, applies up to remaining order total, can make the order paid when fully covered, writes a redeem transaction with idempotency key, updates card balance/status, creates a gift-card payment record, and audits.
+- No separate function was evidenced that automatically credits/reverses a gift card when an order is cancelled/refunded. Refund/cancellation-to-gift-card interaction is therefore OPEN.
+- No dedicated gift-card expiry scheduler was evidenced; expired cards are detected during use and marked expired on that path.
+- There is no independent gift-card ledger engine; current architecture uses gift_card_transactions plus the canonical payments row for an order fully/partially covered by gift card.
+- The smallest justified UI hardening was to expose the existing gift-card control plane in the canonical Admin Center and enforce an explicit Owner-role gate before rendering it. The underlying Owner-only RPC remains authoritative.
+
+OPEN:
+- gift-card refund/cancellation credit policy
+- accounting/reconciliation policy
+- expiry lifecycle policy beyond on-use expiry detection
+- issuance amount business limits beyond >0
+- fraud/abuse controls beyond unique codes, ownership and transaction idempotency
+- Browser/runtime evidence
+
+### 39. Customer Returns
+CLASSIFICATION: BACKEND FOUNDATION CLOSED / CUSTOMER UX + REFUND ACCOUNTING POLICY OPEN
+
+OBSERVED FACT:
+- Current returns=0 and return_items=0.
+- velora_request_return is already split-aware by store and item: customer ownership, delivered order, settled payment, valid store membership, per-item delivery proof, quantity validation, duplicate-return protection, per-line refund calculation, and audit.
+- Current returns status contract is requested / approved / rejected / in_transit / received / refunded / cancelled.
+- return_items protects order-item ownership via foreign keys and unique(return_id,order_item_id).
+- Current velora_resolve_return has two overloaded signatures with incompatible contracts:
+  1. legacy (uuid,text,text) allows requested/approved/rejected/received/refunded/closed without transition validation.
+  2. transition-aware (uuid,text,text,text,text,text) allows requested/approved/rejected/in_transit/received/refunded/cancelled, validates transitions, and requires refund evidence when moving to refunded.
+- Canonical Trust & Compliance UI in src/scripts/70-s1-d-trust-operations.js uses the transition-aware 6-argument resolver.
+- No automatic provider refund call was evidenced; the resolver records external refund evidence/reference.
+- Current partial-return refund calculation is unit_price * returned quantity and does not show explicit allocation of order-level coupon/promotion discount. This is an OPEN business/accounting policy gap.
+- No return-window enforcement is currently evidenced in the request function.
+- No new customer return UI was built in Message 5; the correct next step remains research + policy before any UX/contract expansion.
+
+RESEARCH-FIRST:
+- Prior-art review indicates modern commerce systems treat return eligibility, return state, and refund processing as related but distinct workflows. This supports retaining Velora's existing split-aware contract and avoiding a second return engine.
+
+OPEN:
+- return window
+- discount allocation on partial returns
+- shipping/tax refund policy
+- restocking policy
+- seller/customer vs staff resolution authority
+- actual refund provider integration
+- legacy 3-argument resolver retirement/compatibility decision
+- customer-facing return UX
+
+### 40. Notifications / Push
+CLASSIFICATION: ARCHITECTURE CLOSED / BROWSER DELIVERY EVIDENCE OPEN
+
+OBSERVED FACT:
+- Current Restore-Test has 38 notifications, 6 push-delivery records with delivered_at timestamps, and 3 push subscriptions (1 active, 2 inactive).
+- All notification/push/lifecycle tables have RLS enabled.
+- src/scripts/55-s2e-notifications.js is the authoritative public notification UI; it reads through canonical RPCs and does not treat localStorage as notification truth.
+- src/scripts/68-s1-d-mobile-push.js requires authenticated user/browser permission, registers /sw.js, subscribes through the existing VAPID key, persists via velora_register_push_subscription, and unregisters through the matching RPC.
+- trg_velora_notification_push_dispatch invokes the existing private push dispatcher on notification insert. The dispatcher calls the existing velora-dispatch-notification Edge Function using the internal secret.
+- Notification lifecycle processing is handled by the existing canonical lifecycle function and one active cron job: velora-notification-lifecycle / * * * * * / velora_process_notification_lifecycle(100).
+- No second notification engine, scheduler framework, or ad-hoc cron was added.
+- Endpoint ownership is protected by the hardened push-subscription contract.
+- Browser push end-to-end PASS is still NOT EVIDENCED.
+
+OPEN:
+- Browser proof of notification bell/read state
+- Browser proof of push enable/disable and actual device delivery
+- provider/service-worker delivery edge cases
+- stale subscription cleanup is implemented in the dispatcher but full browser evidence is pending
+
+### Message 5 implementation actually made
+OBSERVED FACT:
+- src/scripts/12-localization.js now exposes the existing commercial control planes in the canonical Admin Center: Promotions, Coupons, Gift Cards.
+- Gift Cards are explicitly Owner-gated before the existing issue/list UI is rendered.
+- These controls reuse existing RPCs and existing legacy rendering functions; no second promotion, coupon or gift-card engine was created.
+- Commit: 81096861caf5d09de87f1ed751d0668ff0432ee2.
+- Vercel created a READY Preview deployment for exactly this commit: deployment dpl_C1PCNHCU2pdtijx5mTMmxiznJFZT, URL https://velora-marketplace-8rgtwyi3m-ahmedconccc-7063.vercel.app.
+- Preview HTTP fetch returned 200 OK and served the updated deployment.
+- Browser Gate was attempted against this exact deployment but could not start because the TinyFish wallet balance was -$0.07. Therefore Browser PASS is NOT claimed and the attempt is not retryable until the wallet is funded.
+
+INFERRED:
+- The canonical Admin commercial control surface is now aligned with the existing backend authority for the surfaces exposed in Message 5.
+- The backend remains the source of truth for Owner/Staff authorization.
+
+HYPOTHESIS / OPEN:
+- The legacy overloaded 3-argument return resolver may be dead compatibility code, but no deletion/contract change is justified until usage and business policy are established.
+- Partial-return refund allocation may require a future policy/contract change once real commercial discount behavior is confirmed.
+
+### Message 5 Action Flow
+The Action Flow remains parallel:
+- Promotions: detect checkout/promotion request -> validate eligibility -> apply once -> record redemption -> audit -> later reversal/reconciliation if policy permits.
+- Gift Cards: detect issuance/redeem -> Owner/customer authorization -> validate balance/expiry/currency -> lock/apply -> record transaction/payment -> audit -> exception/reconciliation.
+- Returns: detect request -> validate order/store/item delivery -> create split return -> staff transition -> external refund evidence -> record refund -> audit -> reconcile/escalate.
+- Notifications: detect event -> create notification -> push dispatch -> delivery/disable stale endpoint -> lifecycle job when due -> audit/recover.
+No new automation framework or scheduler was introduced.
