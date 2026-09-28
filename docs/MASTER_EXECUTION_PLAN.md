@@ -2299,3 +2299,22 @@ INFERRED:
 
 ACTION FLOW:
 Detect Advisor warning -> identify live dependency -> verify scheduler contract -> research compatible relocation path -> smallest safe infrastructure change only if required -> re-run cron/reconciliation proof -> re-run Advisor -> escalate only for hosted-extension/platform constraints.
+
+### Continuation Commercial Visibility — Commission Rate — 2026-09-28
+
+CLASSIFICATION: PARKED / LOW PRIORITY; INTERNAL FINANCIAL CALCULATION REMAINS CANONICAL
+
+DIRECTION:
+- Treat velora_get_commission_rate(target_seller_id) as an internal financial calculation, not a customer-priority surface.
+- Do not create a new customer-facing commission-rate feature merely because the RPC exists.
+- Do not revoke authenticated EXECUTE yet; first prove all internal callers and run a negative-path check so canonical order creation remains unaffected.
+
+RESEARCH NOTE:
+- Major marketplaces publish seller-facing fee schedules/tools while keeping the actual transaction calculation governed by seller economics and platform contracts. This is useful prior art, but not a direct Velora contract.
+- Amazon publishes referral-fee schedules by category and Seller Central fee tools.
+- eBay publishes selling-fee tables and seller financial-statement views.
+- Etsy shows sale-based fees in the seller Payment account.
+- Future seller-facing fee disclosure should therefore be a deliberate product/UX contract, separate from this internal cross-seller RPC.
+
+PRIORITY:
+- This is below launch-critical payment/provider evidence, production readiness, rollback/backup, legal readiness, security hardening, Browser Gate evidence, and core marketplace correctness.
