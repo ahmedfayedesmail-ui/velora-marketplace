@@ -94,46 +94,49 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
   }
 
-  const { createClient } = await import("npm:@supabase/supabase-js@2");
-  const userClient = createClient(supabaseUrl, publishableKey, {
-    global: { headers: { Authorization: `Bearer ${bearer}` } },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  if (userError || !userData.user) return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
-
-  let input: Record<string, unknown> = {};
+  let stage = "client_creation";
   try {
-    input = await req.json();
-  } catch {
-    return json({ ok: false, code: "INVALID_JSON" }, 400);
-  }
+    const { createClient } = await import("npm:@supabase/supabase-js@2");
+    stage = "client_creation";
+    const userClient = createClient(supabaseUrl, publishableKey, {
+      global: { headers: { Authorization: `Bearer ${bearer}` } },
+    });
 
-  const paymentAttemptId = typeof input.payment_attempt_id === "string"
-    ? input.payment_attempt_id.trim()
-    : "";
-  if (!paymentAttemptId) return json({ ok: false, code: "PAYMENT_ATTEMPT_REQUIRED" }, 400);
+    stage = "user_auth";
+    const { data: userData, error: userError } = await userClient.auth.getUser();
+    if (userError || !userData.user) return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
 
-  const { data: attempt, error: attemptError } = await userClient
-    .from("payment_attempts")
-    .select("id,order_id,purpose,status,metadata,provider_id")
-    .eq("id", paymentAttemptId)
-    .eq("user_id", userData.user.id)
-    .eq("purpose", "marketplace_order")
-    .maybeSingle();
+    stage = "input_validation";
+    let input: Record<string, unknown> = {};
+    try {
+      input = await req.json();
+    } catch {
+      return json({ ok: false, code: "INVALID_JSON" }, 400);
+    }
 
-  if (attemptError) {
-    return json({ ok: false, code: "PAYMENT_ATTEMPT_LOOKUP_FAILED" }, 500);
-  }
-  if (!attempt) return json({ ok: false, code: "PAYMENT_ATTEMPT_NOT_FOUND" }, 404);
+    const paymentAttemptId = typeof input.payment_attempt_id === "string"
+      ? input.payment_attempt_id.trim()
+      : "";
+    if (!paymentAttemptId) return json({ ok: false, code: "PAYMENT_ATTEMPT_REQUIRED" }, 400);
 
-  const providerOrderId = String(attempt.metadata?.paymob_order_id || "").trim();
-  if (!providerOrderId) return json({ ok: false, code: "PAYMOB_ORDER_ID_MISSING" }, 422);
+    stage = "attempt_lookup";
+    const { data: attempt, error: attemptError } = await userClient
+      .from("payment_attempts")
+      .select("id,order_id,purpose,status,metadata,provider_id")
+      .eq("id", paymentAttemptId)
+      .eq("user_id", userData.user.id)
+      .eq("purpose", "marketplace_order")
+      .maybeSingle();
 
-  const apiKey = getApiKey();
-  if (!apiKey) return json({ ok: false, code: "PAYMOB_API_KEY_MISSING" }, 503);
+    if (attemptError) {
+      return json({ ok: false, code: "PAYMENT_ATTEMPT_LOOKUP_FAILED" }, 500);
+    }
+    if (!attempt) return json({ ok: false, code: "PAYMENT_ATTEMPT_NOT_FOUND" }, 404);
 
-  let stage = "provider_auth";
-  try {
+    const providerOrderId = String(attempt.metadata?.paymob_order_id || "").trim();
+    if (!providerOrderId) return json({ ok: false, code: "PAYMOB_ORDER_ID_MISSING" }, 422);
+
+    stage = "provider_auth";
     const auth = await generateToken(apiKey);
     if (!auth.response.ok || !auth.token) {
       return json(
