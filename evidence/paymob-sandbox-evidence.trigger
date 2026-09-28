@@ -69,3 +69,6 @@ paymob-integration-metadata-v11-2026-09-28T18:35Z
 
 
 paymob-3ds-state-record-v12-2026-09-28T18:36Z
+
+
+paymob-post-inquiry-3ds-state-v13-2026-09-28T18:37Z
