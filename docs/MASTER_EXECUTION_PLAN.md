@@ -2342,3 +2342,35 @@ No duplicate payment engine, release engine, or scheduler.
 8. Reconcile payment/order/commission/inventory/audit after provider outcome.
 9. Update launch gates only with evidence-layer-correct claims.
 10. Production remains FROZEN. Supabase Pro is NOT a Paymob debugging fix and must remain a later Production Infrastructure / Backup / Rollback readiness step.
+
+---
+
+# MESSAGE 11.1 — PAYMOB SOURCE PARITY CLOSURE UPDATE
+Recorded after source synchronization on 2026-09-28.
+
+## Proven Source/Runtime Parity
+- `velora-paymob-checkout`
+  - Runtime v16
+  - runtime checksum `e7e40a2ca314cbd3db765bcf71770dff8e23a78de7a481789ef7a650e4da4386`
+  - branch source blob `793df778d41fcd2af0b086dafcbc55ec289622e0`
+  - exact source parity verified against deployed runtime.
+- `velora-paymob-webhook-restore-test`
+  - Runtime v27
+  - runtime checksum `0cf2bace769549fb6184c54419a9a947487e766a47303f4a23f303cee995d1d1`
+  - branch source blob `8d98214fa7170c7ff1d1b7e70c655b63f3b22d74`
+  - exact source parity verified against deployed runtime.
+- Shared webhook HMAC helper remained unchanged and matched runtime/provenance source.
+- No Supabase Edge Function was redeployed by this source-parity synchronization.
+
+## Current Branch Changes
+- Added missing canonical checkout source and `deno.json` from the verified Restore-Test runtime.
+- Updated webhook source to the verified Restore-Test v27 runtime source.
+- Updated the Master Plan on the execution branch.
+- Added a trigger-only commit to run the Paymob sandbox evidence workflow against the synchronized source branch.
+
+## Evidence Classification
+- Source/runtime parity: CLOSED-DONE at L1 provenance level.
+- Provider-start: OBSERVED successful on prior exact-HEAD run; current provider completion run remains OPEN until run `36447221162` finishes.
+- Sandbox payment completion/webhook: NOT EVIDENCED.
+- Current Vercel Preview for the latest execution SHA: PENDING because Vercel reports a `build-rate-limit` check failure and the latest READY deployment is `d62be049...`.
+- Current local-source Browser Gate at SHA `6e79d0e...`: PASS, including authenticated source-browser checks with no console/page errors.
