@@ -589,8 +589,12 @@ jobs:
                                   confirm.click()
                               page.wait_for_timeout(8000)
 
+                          page.wait_for_timeout(5000)
                           body = page.locator("body").inner_text(timeout=10000).lower()
+                          u = urllib.parse.urlsplit(page.url)
+                          evidence["playwright"]["final_url"] = urllib.parse.urlunsplit((u.scheme, u.netloc, u.path, "", ""))
                           evidence["playwright"]["otp_observed"] = otp_observed
+                          evidence["playwright"]["post_submit_body_text"] = body[:5000]
                           evidence["playwright"]["completion_text_present"] = any(
                               x in body for x in ("success", "successful", "approved", "thank you", "payment completed")
                           )
@@ -599,6 +603,12 @@ jobs:
                   except Exception as exc:
                       evidence["failures"].append(f"Paymob browser drill failed: {type(exc).__name__}")
                   finally:
+                      evidence["playwright"]["browser_telemetry"] = browser_telemetry
+                      try:
+                          page.screenshot(path="paymob-checkout.png", full_page=True)
+                          evidence["playwright"]["screenshot"] = "paymob-checkout.png"
+                      except Exception:
+                          pass
                       context.close()
                       browser.close()
 
