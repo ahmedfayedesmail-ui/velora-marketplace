@@ -8,6 +8,9 @@ This repository is the source-of-truth rebuild of the Velora Marketplace fronten
 - Script execution order is preserved to minimize behavior drift during the migration.
 - Secrets are not stored in source control.
 
+## Master execution
+Read `docs/MASTER_EXECUTION_PLAN.md` before continuing any platform work. It is the single continuous execution contract for audit, hardening, automation, governance, and readiness.
+
 ## Local preview
 ```bash
 npm run serve
