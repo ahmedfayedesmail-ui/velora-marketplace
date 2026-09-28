@@ -1698,3 +1698,516 @@ L9 PRODUCTION:
 6. Use Browser Gate only for claims that require UI/runtime evidence.
 7. Keep Legal fail-closed until real approved/published legal content exists.
 8. Continue Message 8 payment/provider lane in parallel; Message 9 does not supersede it.
+
+
+## Message 10/11 — Security + Auth + Localization + Operations
+
+### Message 10 master conditions
+1. HANDOFF COMPLETENESS — Message 10 is appended to the same Master Execution Plan. Nothing from Messages 2/11 through 9/11 is removed, reset, silently reclassified, or forgotten. All prior OPEN / BLOCKED / PENDING / NOT EVIDENCED items remain carry-forward.
+2. RESEARCH BEFORE BUILD — use targeted remediation only. Inspect actual contracts, prior art, Supabase guidance, and real runtime evidence before changing security/auth/localization/operations. Do not build a new security engine, permission engine, notification service, accounting ledger, shipping backend, or localization engine merely to make a checklist look complete.
+3. ACTION FLOW IN PARALLEL — Detect -> Decide -> Execute -> Verify -> Recover/Escalate stays active across security, authentication, localization, legal, seller, commerce, payments, trust, financial operations, and release control. Normal operation should remain automated wherever canonical contracts support it; Owner/Staff intervention is reserved for genuine policy, fraud/trust, legal, financial exception, provider, or release boundaries.
+
+### 90. Security / RBAC — Current Targeted Advisor Audit
+CLASSIFICATION: OPEN SECURITY HARDENING / NO BLANKET REVOCATION JUSTIFIED
+
+CURRENT SUPABASE SECURITY ADVISOR OBSERVED FACTS (Restore-Test, 2026-09-28):
+- rls_enabled_no_policy: 6 findings.
+  - private.beauty_catalog_revision
+  - private.beauty_recommendation_rate_events
+  - public.billing_instruments
+  - public.paymob_card_tokenization_sessions
+  - public.regional_pricing
+  - public.seller_subscription_renewal_jobs
+- extension_in_public: 1 WARN for pg_net installed in public schema.
+- anon_security_definer_function_executable: 7 WARNs for public read-style SECURITY DEFINER functions.
+- authenticated_security_definer_function_executable: 215 WARNs.
+- auth_leaked_password_protection: 1 WARN — leaked password protection is disabled.
+
+TARGETED EXPOSURE CHECK:
+- Current direct table grants for anon and authenticated are FALSE for:
+  - billing_instruments
+  - paymob_card_tokenization_sessions
+  - regional_pricing
+  - seller_subscription_renewal_jobs
+- RLS is enabled on all four of those public tables.
+- Therefore the Advisor warning about RLS enabled with no policy does NOT by itself establish public Data API exposure for these four tables.
+- Do not add blanket policies or blanket revocations simply to remove the lint warning. Review each table's intended access model first.
+
+SECURITY DEFINER SYSTEM-WIDE OBSERVATION:
+- Current Restore-Test has 251 public SECURITY DEFINER functions in total.
+- 215 are executable by authenticated.
+- 7 are executable by anon.
+- 0 of the 251 definitions are missing an explicit SET search_path according to the targeted metadata check.
+- A heuristic identified 16 authenticated-executable functions without an obvious auth.uid / velora_is_staff / velora_has_role token. This is a review queue, not proof of vulnerability: some are intentionally public-style reads or wrappers that delegate to guarded canonical functions.
+- Therefore classification remains TARGETED REMEDIATION, not "251 vulnerabilities."
+
+TARGETED SENSITIVE FUNCTION REVIEW:
+- Inspected current definitions for payment, cart, legal, seller, product, payout, release, integration, AI-governance, localization, and order-state control functions.
+- The reviewed SECURITY DEFINER functions use pinned search_path settings and explicit authentication/role checks where their action is privileged.
+- High-impact writers such as seller/product/order governance, payout execution, release control, integration control, AI decision review, and legal publication include staff/owner guards as appropriate to their current contracts.
+- Current payment RPCs remain authenticated-only at the Data API privilege layer where previously hardened.
+- velora_publish_legal_document remains explicit Owner-only.
+- velora_issue_gift_card remains explicit Owner-only.
+- No second permission engine was introduced.
+
+INTENTIONAL PUBLIC-STYLE SECURITY DEFINER CANDIDATES:
+The current Advisor's seven anon-executable SECURITY DEFINER functions are all read-oriented in the inspected definitions:
+- velora_get_active_seller_ads
+- velora_get_fx_rate
+- velora_get_i18n_catalog
+- velora_get_localized_content
+- velora_get_marketplace_catalog
+- velora_get_required_legal_documents
+- velora_list_active_promotions
+
+OBSERVED:
+- These functions are STABLE/read-style in the inspected definitions, use pinned search_path, and do not contain the normal write verbs identified by the targeted scan.
+- Some are expected public marketplace reads by design (catalog, FX, active ads, active published legal documents, promotions, localization).
+
+OPEN SECURITY REVIEW QUEUE:
+- Explicitly determine whether velora_get_commission_rate(target_seller_id) should be callable by any authenticated user because it currently has auth EXECUTE without a direct auth/role guard in its definition.
+- Explicitly review the small set of "no obvious auth token" authenticated functions that are not clearly public reads or guarded wrappers.
+- Review the pg_net public-schema warning before any extension move; do not relocate an extension without compatibility/dependency proof.
+- Review the six no-policy tables against their actual service/data-access contract before choosing a targeted policy or leaving them intentionally service-only.
+- Do not treat the Advisor's raw count as the number of actionable vulnerabilities.
+
+RESEARCH-FIRST BASIS:
+- Current Supabase documentation recommends least-privilege execution grants, careful review of SECURITY DEFINER functions, pinned search paths, and RLS for exposed tables. citeturn206077search0turn206077search2turn206077search5
+- Supabase security guidance explicitly describes revoking function EXECUTE case-by-case rather than default blanket revocation when public functions are intentional. citeturn206077search0turn206077search8
+- OWASP authorization guidance emphasizes least privilege and deny-by-default rather than permissive defaults. citeturn206077search1
+
+### 91. Authentication Configuration
+CLASSIFICATION: OPEN FINAL READINESS ITEM
+
+OBSERVED FACT:
+- Supabase Security Advisor currently reports auth_leaked_password_protection as WARN: leaked password protection is disabled.
+- Current Supabase password-auth guidance describes leaked-password protection as a security control for password-based authentication. citeturn206077search4turn206077search9
+- Current project metadata confirms Restore-Test is ACTIVE_HEALTHY on PostgreSQL 17.6.1.166, but it does not expose every hosted Auth configuration switch required for final readiness review.
+- Therefore final Auth configuration is NOT fully evidenced.
+
+OPEN:
+- leaked-password protection enablement/review.
+- final email verification/session/password policy review.
+- any final production Auth settings, redirect/origin, recovery, and sensitive-session controls required by the actual production deployment model.
+- No production-readiness claim until the final Auth configuration is explicitly verified.
+
+RULE:
+- Do not infer production Auth readiness from successful login tests alone.
+- Do not enable a risky production-facing Auth change on Restore-Test without understanding its user-impact contract.
+
+### 92. Localization — Script Authority
+OBSERVED FACT:
+Current intended script order remains:
+00-localization.js -> 10-localization.js -> 12-localization.js -> 50-localization.js -> 51-localization.js -> 56-s2d-admin.js -> 63-platform-router.js
+
+Current roles:
+- 00-localization.js: legacy locale API/state and compatibility layer.
+- 50-localization.js: global locale/country/currency/timezone state wrapper and server context persistence.
+- 51-localization.js: V5 i18n kernel and current language mutation authority.
+
+### 93. Localization — Current Runtime Contract
+CLASSIFICATION: SOURCE-LEVEL HARDENING PRESENT / BROWSER PARITY OPEN
+
+OBSERVED FACT:
+- 51-localization.js exposes window.VELORA_V5_SET_LANGUAGE.
+- Its setLang(code) validates the locale, calls paintLocale(locale) immediately, and only then starts asynchronous persistence (persistLocale) and catalog loading (loadDbCatalog).
+- paintLocale() synchronously commits locale state, localStorage, document language, direction, translation rendering, and the existing locale-change events.
+- Therefore the source currently satisfies the key "do not await before changing what the user sees" invariant.
+- 50-localization.js loadContext() explicitly avoids calling the legacy language setter and preserves a locally chosen valid locale instead of allowing server context to overwrite a newer local choice.
+- 50-localization.js still contains a compatibility setVeloraLanguage wrapper, but 51-localization.js loads after it and then assigns window.setVeloraLanguage = setLang. Thus the final loaded browser API is V5's synchronous setter.
+- Existing 51-localization.js still contains a MutationObserver and render-capture compatibility mechanism. This predates Message 10; do not add another MutationObserver or refactor this architecture blindly.
+
+IMPORTANT STATUS:
+- Source-level V5 authority is OBSERVED.
+- Browser/re-entry/mobile/Arabic-English runtime behavior is NOT EVIDENCED.
+- The earlier proposed V5-authoritative direction should therefore be treated as "implemented at source level, Browser proof still required", not as a Browser PASS.
+- Do not claim the race is fully closed until the current Browser Gate proves locale persistence and re-render behavior under realistic navigation/renders.
+
+TARGETED BROWSER TESTS:
+- EN -> AR -> EN -> refresh.
+- locale switch during active Seller/Admin/Owner surfaces.
+- locale switch followed by platform close/reopen.
+- locale switch while dynamic HTML is rendered.
+- country/currency/date locale persistence after refresh.
+- language selection with signed-out and signed-in states.
+- mobile/RTL layout behavior.
+- no stale server-context overwrite after a new local user choice.
+
+### 94. Season Engine
+CLASSIFICATION: CLOSED-DETERMINISTIC / BROWSER BEHAVIOR OPEN
+
+OBSERVED FACT:
+- Canonical season helper is private.beauty_season_for_date(p_date).
+- It maps Dec/Jan/Feb -> winter, Mar/Apr/May -> spring, Jun/Jul/Aug -> summer, Sep/Oct/Nov -> autumn.
+- Current project date is 2026-09-28, so the deterministic calendar currently resolves to autumn.
+- private.velora_beauty_context() uses Africa/Cairo as its time zone and derives the season from this calendar helper.
+- Season is deterministic context; it is not an AI-generated output.
+- No new season engine is justified.
+
+### 95. QA Catalog
+CLASSIFICATION: OBSERVED RESTORE-TEST SNAPSHOT
+
+CURRENT approved EGP QA products:
+- Test Vitamin C Serum — stock 23 — EGP 140
+- QA Seed Cleanser — stock 13 — EGP 100
+- QA Seed Barrier Moisturizer — stock 19 — EGP 120
+- QA Seed Anti-Aging Treatment — stock 18 — EGP 160
+- QA Seed SPF 50 Protect — stock 19 — EGP 100
+
+CURRENT OBSERVED FACT:
+- Exactly five approved EGP products were returned by the current QA query.
+- This is a test-environment snapshot and must NOT be interpreted as the intended production catalog size or commercial assortment.
+
+### 96. Product Image / Storage
+CLASSIFICATION: OPEN / NOT EVIDENCED
+
+CURRENT Restore-Test:
+- product_images = 0
+- storage.buckets = 0
+- No proven canonical product-image upload RPC.
+
+DECISION:
+- Do not build Base64 storage, an arbitrary image service, a random upload API, or a second product-media model.
+- Keep current HTTPS image URL contract.
+- Revisit only when a real seller/customer upload requirement and a concrete Storage/RLS contract are evidenced.
+
+### 97. Seller Shipping
+CLASSIFICATION: CANONICAL FOUNDATION PRESENT
+
+CURRENT Restore-Test:
+- store shipping zones = 1
+- store shipping rates = 1
+- shipping carriers = 1
+- shipping quotes = 0
+- manual rates = 1
+- Current carrier model remains velora_manual.
+- Manual fulfillment is accepted as the launch model; no new carrier backend is justified by the current evidence.
+- Maintain seller ownership rules and existing shipping page/RPCs.
+
+### 98. Notifications
+CLASSIFICATION: EXISTING CANONICAL SYSTEM / BROWSER DELIVERY OPEN
+
+CURRENT Restore-Test snapshot:
+- notifications = 38
+- notification lifecycle jobs = 0
+- push deliveries = 6
+- push subscriptions = 3
+
+RULE:
+- Reuse existing notification lifecycle + push dispatcher architecture.
+- Do not build another notification service or scheduler.
+- Remaining Browser evidence for bell/read/push lifecycle/device behavior stays OPEN.
+
+### 99. Financial Model
+CLASSIFICATION: CANONICAL CROSS-SYSTEM CHAIN PRESENT / FULL E2E RECONCILIATION OPEN
+
+Required conceptual chain:
+Order -> Payment -> Commission -> Seller Earnings -> Payout Request -> Provider Execution -> Settlement -> Reconciliation
+
+OBSERVED CURRENT SNAPSHOT:
+- orders = 13
+- payment_attempts = 36
+- payments = 11
+- commissions = 15
+- payouts = 0
+- seller_payout_items = 0
+- ledger_entries = 2
+
+RULES:
+- Every stage retains its own state.
+- "Payout eligible" is NOT equivalent to "paid."
+- "Payment captured" is NOT equivalent to external settlement unless provider evidence proves settlement.
+- Existing commission, payout, payment, ledger and webhook contracts remain authoritative.
+- No new general-purpose ledger engine is justified.
+
+OPEN:
+- full browser/provider settlement proof.
+- provider execution evidence for payouts.
+- reconciliation drill across captured payment -> commission -> eligibility -> payout -> external execution -> ledger.
+- refund/cancellation effects across financial objects.
+- exceptions where provider state and local state disagree.
+
+### 100. Promotion / Gift Card / Payment Interactions
+CLASSIFICATION: CROSS-SYSTEM TESTING OPEN
+
+Required future negative/positive matrix:
+Promotion:
+order creation -> discount calculation -> payment -> cancellation/refund -> redemption reversal rules
+
+Gift Card:
+redeem -> balance decrement -> payment-state relation -> cancellation/refund -> balance restoration if contract requires
+
+Payment failure:
+provider-start failure -> payment-attempt failure -> canonical inventory/order/payment/commission recovery
+
+CURRENT SNAPSHOT:
+- promotions = 0
+- promotion_redemptions = 0
+- gift_cards = 0
+- gift_card_transactions = 0
+
+RULE:
+- Existing canonical RPC contracts define current behavior.
+- Do not invent refund/reversal/accounting semantics merely to make the interaction matrix appear complete.
+- Cross-system evidence must include failure handling and idempotency where applicable.
+- Action Flow should automatically execute normal cross-system paths; Owner/Staff only enters genuine exceptions.
+
+### 101. Legal / Checkout
+CLASSIFICATION: CLOSED-FAIL-CLOSED CONTRACT / CONTENT READINESS OPEN
+
+OBSERVED FACT:
+- Normal checkout requires Terms of Service and Privacy Policy.
+- Current applicable published legal set is absent because current legal rows are retired QA fixtures.
+- Therefore checkout fails closed with the existing LEGAL_DOCUMENTS_NOT_PUBLISHED contract.
+- This is intentional safety behavior, not a bug to be bypassed.
+- No fake publication or "temporary" legal acceptance should be introduced.
+
+### 102. Fraud / Trust
+CLASSIFICATION: NORMAL AUTOMATED PATH + GOVERNED EXCEPTIONS
+
+Owner/Staff human intervention is appropriate for:
+- suspected fraud
+- exceptional financial cases
+- exceptional refunds
+- account restrictions
+- irreversible governance decisions
+
+Normal transaction handling remains automated through canonical order/payment/trust/workflow contracts.
+
+### 103. Auditability
+CLASSIFICATION: ARCHITECTURE PRESENT / COVERAGE DRILL OPEN
+
+High-impact state changes expected to remain auditable where the architecture already provides events:
+- product status
+- product availability
+- payment transitions
+- provider session binding
+- webhook processing
+- seller governance
+- gift-card issuance
+- legal publication
+- financial exceptions
+- suspension/account actions
+- release control
+
+OBSERVED:
+- Multiple reviewed functions write explicit audit_logs records.
+- audit_logs is staff-readable through the existing RLS policy.
+- Do not add a second generic audit system.
+- Remaining task is coverage verification: identify any high-impact canonical writer without an appropriate audit event and fix only when a real gap is proven.
+
+### 104. Seller Advertising Accounting
+CLASSIFICATION: OPEN POLICY / ACCOUNTING EVIDENCE
+
+Still requires explicit classification of:
+- campaign spend
+- amount payable
+- captured amount
+- platform revenue
+- seller earnings
+- refund/reversal amount
+- attribution metrics
+
+RULE:
+- Do not introduce a ledger schema just to populate a dashboard.
+- Research prior marketplace advertising accounting models and inspect existing Velora payment/commission/ledger contracts first.
+- Build only the smallest missing contract if an actual operational gap is proven.
+- Do not assume ad campaign active means payment settled or recognized revenue.
+
+### 105. Message 10 Action Flow — Parallel
+
+SECURITY:
+Detect Advisor finding
+-> identify exposed object / intended audience
+-> inspect grants
+-> inspect RLS
+-> inspect SECURITY DEFINER + search_path
+-> inspect authorization checks
+-> inspect side effects/audit
+-> research current Supabase guidance
+-> choose targeted remediation OR explicitly document intentional exposure
+-> test
+-> re-run Advisor
+-> Browser Gate when UI-facing
+-> recover/escalate for unresolved sensitive boundary
+
+AUTH:
+Detect auth configuration drift/readiness issue
+-> compare current hosted configuration to required launch policy
+-> apply only approved configuration change
+-> verify login/signup/recovery/session behavior
+-> verify negative/authz paths
+-> record readiness evidence
+-> escalate only for actual account/security policy decision
+
+LOCALIZATION:
+Detect locale change/request
+-> resolve V5 locale state synchronously
+-> paint locale + direction
+-> persist asynchronously
+-> load canonical translation catalog
+-> refresh active surface
+-> verify state survives navigation/refresh
+-> recover to known locale without page-reload dependency
+
+OPERATIONS:
+Detect lifecycle signal
+-> decide whether existing canonical automation already handles it
+-> execute existing Action Flow / RPC / scheduler
+-> verify resulting state
+-> recover through existing idempotent path
+-> Owner/Staff only on policy/financial/fraud/provider/release exception
+
+FINANCIAL:
+Detect order/payment/commercial transition
+-> validate canonical order/payment state
+-> apply existing promotion/gift-card/commission contracts
+-> create/update payment state
+-> propagate cancellation/failure/refund side effects through existing triggers
+-> calculate payout eligibility only from finalized governed state
+-> record payout execution only when external execution evidence exists
+-> reconcile
+-> escalate provider/financial mismatch to human governance
+
+NO DUPLICATE ENGINE RULE:
+- Security uses Supabase Advisor + existing DB ACL/RLS.
+- Auth uses Supabase Auth + existing session/role model.
+- Localization uses V5 kernel + existing global-context layer.
+- Notifications use existing lifecycle/push system.
+- Financials use existing order/payment/commission/payout/ledger contracts.
+- Shipping uses existing manual carrier foundation.
+- Promotions/gift cards use existing canonical commercial engines.
+- Do not create parallel infrastructure merely to "complete" the checklist.
+
+### Message 10 Evidence Ledger
+L1 SOURCE:
+- current security-sensitive database function definitions
+- 50-localization.js and 51-localization.js
+- current operational scripts/control surfaces
+
+L2 DB:
+- current Security Advisor findings
+- public-table grants/RLS checks
+- current QA catalog
+- season helper
+- storage/product-images state
+- shipping state
+- notifications state
+- financial counts
+
+L3 ACL/RLS:
+- targeted SECURITY DEFINER review
+- authenticated/anon EXECUTE review
+- no-policy table grant review
+- existing role/staff/Owner guards
+- Legal/Owner and payment control boundaries carried forward
+
+L4 NEGATIVE / TRANSACTION:
+- Message 10 added no speculative mutation.
+- Previous Message 8 negative-path evidence remains authoritative and carried forward.
+- New unauthorized-role drills for the remaining security review queue remain OPEN.
+
+L5 CI:
+- no dedicated Message 10 CI run is claimed.
+- Existing Vercel status from the Message 9 source change remains deployment signal only.
+
+L6 PREVIEW:
+- Message 9 code commit has a successful Vercel combined status.
+- No new Message 10 Preview PASS is claimed because no new code change was required.
+
+L7 BROWSER:
+- NOT EVIDENCED for Security/Auth/Localization/Operations current gates.
+- Browser Gate remains mandatory before claiming current runtime parity.
+
+L8 PROVIDER:
+- Payment settlement/provider evidence remains OPEN/BLOCKED from Message 8.
+- Seller ad accounting/provider evidence remains OPEN.
+
+L9 PRODUCTION:
+- NOT EVIDENCED; Production Supabase remains FROZEN.
+- Final Auth configuration, infrastructure, backup/rollback remain readiness work.
+
+### Message 10 Execution Classification
+CLOSED-DONE / VERIFIED:
+- Targeted Security Advisor inventory established.
+- No missing SET search_path found in the 251 public SECURITY DEFINER functions reviewed by the metadata heuristic.
+- Known public-style anon SECURITY DEFINER candidates were inspected and are read-oriented with pinned search_path.
+- Four flagged public tables have RLS enabled and no anon/authenticated table grants, so no immediate Data API exposure was established by the targeted check.
+- Current V5 localization source already commits locale before awaits.
+- Deterministic season engine confirmed.
+- Current five-product QA EGP snapshot confirmed.
+- Current zero-image/zero-bucket Storage snapshot confirmed.
+- Manual shipping foundation confirmed.
+- Existing notification system and current counts confirmed.
+- Current financial object counts confirmed.
+- Legal checkout fail-closed behavior confirmed.
+
+OPEN / NOT EVIDENCED:
+- final Auth configuration/readiness
+- leaked password protection enablement/review
+- targeted review of the 16 "no obvious auth guard" SECURITY DEFINER candidates
+- decision for velora_get_commission_rate exposure scope
+- pg_net public-schema warning review
+- six no-policy table contracts
+- complete high-impact audit coverage
+- current Browser localization race/runtime proof
+- Browser proof for Security/Auth/Operations surfaces
+- seller ad accounting classification
+- financial cross-system reconciliation drill
+- promotion/gift-card/payment interaction drills
+
+BLOCKED / PENDING:
+- payment_provider remains BLOCKED / REQUIRED
+- webhook_verification remains BLOCKED / REQUIRED
+- production_infra remains PENDING / REQUIRED
+- rollback_backup remains PENDING / REQUIRED
+- Browser/provider tooling limitations remain carried forward
+
+INFERRED:
+- Current security posture is better treated as a finite targeted-remediation queue than as a blanket "SECURITY DEFINER = vulnerability" condition.
+- The current Localization architecture already reflects the intended V5-before-await invariant at source level, but runtime/browser evidence is still needed to close the operational claim.
+- The least disruptive operational path remains reuse of canonical Action Flow and existing control-plane components.
+
+HYPOTHESIS / DISALLOWED:
+- Do not claim the 251 SECURITY DEFINER warnings are 251 vulnerabilities.
+- Do not claim the six no-policy tables are exposed without a grant.
+- Do not claim leaked-password protection is enabled.
+- Do not claim the locale race is Browser-resolved.
+- Do not claim payment capture equals external settlement.
+- Do not claim payout eligibility equals payout execution.
+- Do not claim the QA catalog is the production assortment.
+- Do not claim Product Image upload exists.
+- Do not claim Browser PASS from source/DB/Vercel evidence.
+
+### Message 10 Carry-Forward
+Everything from Messages 2/11 through 9/11 remains active:
+- cart canonical/legacy adapter; no cart rewrite.
+- routine-to-cart adapter and Browser evidence status.
+- checkout canonical path and stale visual shipping formula observation.
+- manual shipping accepted; no required external carrier integration.
+- inventory/variant reconciliation and failed-payment release.
+- legacy order_items.status mismatch; no casual status column addition.
+- abandoned pending-order/reservation policy open; no invented TTL.
+- seller product lifecycle; Seller Delete prohibited.
+- post-approval seller re-review policy open.
+- Seller Dashboard re-entry Browser-gated.
+- subscription policy/runtime/provider/browser gaps.
+- ads reporting/attribution/pricing/provider/accounting gaps.
+- commission policy/refund treatment.
+- payout provider execution/reconciliation.
+- promotions free_shipping/stacking/targeting/economics/reversal.
+- gift-card refund/cancel accounting/expiry/Browser.
+- returns UX/refund allocation/provider refund/window.
+- notifications Browser push/delivery.
+- Beauty Passport V2 / Routine / Recommendation browser evidence.
+- customer Recommendation UX.
+- customer Beauty AI NOT DONE / roadmap.
+- Paymob Case C Browser/live sandbox completion.
+- Paymob Case D webhook-failure replay/reconciliation.
+- Owner Dashboard complete governance/browser/negative-path coverage.
+- Legal approved/published content readiness and Browser flow.
+- payment_provider and webhook_verification blocked.
+- production_infra and rollback_backup pending.
+- Production remains frozen.
+- Research-before-build remains mandatory.
+- Action Flow remains parallel.
