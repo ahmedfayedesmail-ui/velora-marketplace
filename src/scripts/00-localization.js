@@ -10910,7 +10910,14 @@ console.log('✅ Analytics + Events + Audit loaded!');
     const result=typeof originalUpdateQuantity==='function' ? originalUpdateQuantity.apply(this,arguments) : undefined;
     if(isUuid(productId)){
       const afterItem=STATE.cart.find(i=>i.id===productId);
-      pushCartItem(productId,Number(afterItem?.quantity||0),'absolute');
+      const after=Number(afterItem?.quantity||0);
+      if(after<=0){
+        pushCartItem(productId,0,'absolute');
+      }else if(Number(change||0)>0){
+        pushCartItem(productId,Number(change),'increment');
+      }else{
+        pushCartItem(productId,after,'absolute');
+      }
     }
     return result;
   };
