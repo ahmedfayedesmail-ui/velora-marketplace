@@ -6801,50 +6801,61 @@ const PRODUCT_STATUS_INFO = {
 /* ============ SELLER STATE ============ */
 const SELLER_STATE = {
     currentSection: 'dashboard',
-    currentSeller: null
+    currentSeller: null,
+    products: null,
+    productsSellerId: null
 };
 
-/* ============ SELLER PRODUCTS STORAGE ============ */
+/* ============ SELLER PRODUCTS — CANONICAL SUPABASE READ MODEL ============ */
+function sellerProductDb() {
+    return window.mahaSupabase || window.supabaseClient || window.db || window.sb;
+}
+
+function normalizeCanonicalSellerProduct(p) {
+    const images = Array.isArray(p?.images) ? p.images : [];
+    return {
+        ...p,
+        sellerId: p.seller_id,
+        storeId: p.store_id,
+        oldPrice: p.original_price,
+        reviewsCount: p.review_count,
+        imageUrl: images[0] || '',
+        image: images[0] || '',
+        createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+        updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now(),
+        status: p.status || PRODUCT_STATUS.PENDING,
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        images
+    };
+}
+
+async function loadCanonicalSellerProducts(seller) {
+    const db = sellerProductDb();
+    if (!db?.rpc) throw new Error('Supabase client unavailable');
+    const own = await db.rpc('velora_get_own_seller');
+    if (own?.error) throw own.error;
+    const canonicalSeller = Array.isArray(own.data) ? own.data[0] : own.data;
+    const sellerId = canonicalSeller?.id || seller?.id;
+    if (!sellerId) throw new Error('SELLER_NOT_FOUND');
+    const r = await db.from('products').select('id,seller_id,store_id,name,brand,category,subcategory,description,price,original_price,stock,status,rating,review_count,badge,emoji,images,ingredients,benefits,how_to_use,warnings,skin_types,concerns,tags,created_at,updated_at,currency_code,slug').eq('seller_id', sellerId).order('created_at', { ascending: false });
+    if (r?.error) throw r.error;
+    SELLER_STATE.productsSellerId = sellerId;
+    SELLER_STATE.products = (r.data || []).map(normalizeCanonicalSellerProduct);
+    return SELLER_STATE.products;
+}
+
 function getSellerProducts(sellerId) {
-    const all = getFromStorage('maha_seller_products', {});
-    return all[sellerId] || [];
+    if (SELLER_STATE.products && (!sellerId || String(SELLER_STATE.productsSellerId) === String(sellerId))) return SELLER_STATE.products;
+    return [];
 }
 
-function saveSellerProducts(sellerId, products) {
-    const all = getFromStorage('maha_seller_products', {});
-    all[sellerId] = products;
-    saveToStorage('maha_seller_products', all);
-}
-
-function addSellerProduct(sellerId, product) {
-    const products = getSellerProducts(sellerId);
-    product.id = product.id || generateId('prod');
-    product.sellerId = sellerId;
-    product.createdAt = Date.now();
-    product.updatedAt = Date.now();
-    product.status = product.status || PRODUCT_STATUS.PENDING;
-    products.push(product);
-    saveSellerProducts(sellerId, products);
-    return product;
-}
-
-function updateSellerProduct(sellerId, productId, updates) {
-    const products = getSellerProducts(sellerId);
-    const idx = products.findIndex(p => p.id === productId);
-    if (idx === -1) return false;
-    products[idx] = { ...products[idx], ...updates, updatedAt: Date.now() };
-    saveSellerProducts(sellerId, products);
-    return products[idx];
-}
-
-function deleteSellerProduct(sellerId, productId) {
-    const products = getSellerProducts(sellerId).filter(p => p.id !== productId);
-    saveSellerProducts(sellerId, products);
-    return true;
+function canonicalSellerProductUpdate(productId, sellerId, patch) {
+    const db = sellerProductDb();
+    return db.from('products').update(patch).eq('id', productId).eq('seller_id', sellerId);
 }
 
 /* ============ OPEN SELLER PANEL ============ */
-function openSellerPlatformCore() {
+async function openSellerPlatformCore() {
     if (!STATE.user) {
         showToast('⚠️ Please login first', 'warning');
         return;
@@ -6858,6 +6869,9 @@ function openSellerPlatformCore() {
     }
 
     SELLER_STATE.currentSeller = seller;
+    SELLER_STATE.products = null;
+    SELLER_STATE.productsSellerId = null;
+    try { await loadCanonicalSellerProducts(seller); } catch (error) { console.warn('Velora canonical seller products load:', error); showToast('⚠️ Could not load canonical products. Please try again.', 'warning'); }
 
     let platform = document.getElementById('sellerPlatform');
     if (!platform) {
@@ -7636,37 +7650,25 @@ function openAddProductModal(editId) {
 
 async function handleAddProduct(event, editId) {
     event.preventDefault();
-    const seller = SELLER_STATE.currentSeller;
-    if (!seller) return;
-    const errorEl=document.getElementById('apFormError'); const fail=(m)=>{if(errorEl){errorEl.textContent=m;errorEl.style.display='block';}showToast(m,'warning');};
-    const name=document.getElementById('apName')?.value.trim();
-    const brand=document.getElementById('apBrand')?.value.trim();
-    const category=document.getElementById('apCategory')?.value;
-    const price=Number(document.getElementById('apPrice')?.value);
-    const oldPriceRaw=Number(document.getElementById('apOldPrice')?.value);
-    const stock=Number(document.getElementById('apStock')?.value);
-    const description=document.getElementById('apDescription')?.value.trim();
-    if(!name||name.length<3) return fail('⚠️ Enter a valid product name.');
-    if(!brand) return fail('⚠️ Enter the brand name.');
-    if(!category) return fail('⚠️ Select a category.');
-    if(!Number.isFinite(price)||price<=0) return fail('⚠️ Enter a valid price.');
-    if(!Number.isInteger(stock)||stock<0) return fail('⚠️ Enter a valid stock quantity.');
-    if(!description) return fail('⚠️ Add a product description.');
+    const seller=SELLER_STATE.currentSeller, db=sellerProductDb();
+    if(!seller||!db?.rpc)return;
+    const errorEl=document.getElementById('apFormError'), fail=m=>{if(errorEl){errorEl.textContent=m;errorEl.style.display='block';}showToast(m,'warning');};
     const file=document.getElementById('apImageFile')?.files?.[0]||null;
-    const url=document.getElementById('apImageUrl')?.value.trim()||'';
-    let imageUrl=url;
-    if(file){ if(!file.type.startsWith('image/'))return fail('⚠️ Please select an image file.'); if(file.size>5*1024*1024)return fail('⚠️ Image must be 5 MB or smaller.'); imageUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=reject;r.readAsDataURL(file);}); }
-    const oldPrice=Number.isFinite(oldPriceRaw)&&oldPriceRaw>0?oldPriceRaw:null;
-    const tags=(document.getElementById('apTags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
-    const emoji=(document.getElementById('apEmoji')?.value||'📦').trim()||'📦';
-    const products=getSellerProducts(seller.id).slice();
-    let product=editId?products.find(p=>String(p.id)===String(editId)):null;
-    if(editId&&!product)return fail('❌ Product not found.');
-    const data={name,brand,category,subcategory:document.getElementById('apSubcategory')?.value.trim()||'General',price,oldPrice,emoji,stock,description,tags,rating:product?.rating||5,reviewsCount:product?.reviewsCount||0,status:product?.status||PRODUCT_STATUS.PENDING,imageUrl:imageUrl||product?.imageUrl||product?.image||''};
-    if(!data.imageUrl)return fail('⚠️ Add a product image by uploading a file or providing an image URL.');
-    if(product){Object.assign(product,data,{updatedAt:Date.now()});saveSellerProducts(seller.id,products);}
-    else { addSellerProduct(seller.id,data); }
-    seller.totalProducts=getSellerProducts(seller.id).length; saveSeller(seller); closeModal('addProductModal'); showToast(editId?'✅ Product updated successfully.':'✅ Product added and sent for review.','success'); setTimeout(()=>showSellerSection('products'),150);
+    if(file)return fail('⚠️ Restore-Test has no product media Storage bucket yet. Use an image URL instead.');
+    const name=document.getElementById('apName')?.value.trim(), brand=document.getElementById('apBrand')?.value.trim(), category=document.getElementById('apCategory')?.value;
+    const price=Number(document.getElementById('apPrice')?.value), oldPriceRaw=Number(document.getElementById('apOldPrice')?.value), stock=Number(document.getElementById('apStock')?.value);
+    const description=document.getElementById('apDescription')?.value.trim(), subcategory=document.getElementById('apSubcategory')?.value.trim()||null, imageUrl=document.getElementById('apImageUrl')?.value.trim()||'';
+    const tags=(document.getElementById('apTags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean), emoji=(document.getElementById('apEmoji')?.value||'📦').trim()||'📦';
+    if(!name||name.length<3)return fail('⚠️ Enter a valid product name.'); if(!brand)return fail('⚠️ Enter the brand name.'); if(!category)return fail('⚠️ Select a category.');
+    if(!Number.isFinite(price)||price<=0)return fail('⚠️ Enter a valid price.'); if(!Number.isInteger(stock)||stock<0)return fail('⚠️ Enter a valid stock quantity.'); if(!description)return fail('⚠️ Add a product description.'); if(!imageUrl)return fail('⚠️ Add a product image URL.');
+    const oldPrice=Number.isFinite(oldPriceRaw)&&oldPriceRaw>0?oldPriceRaw:null, currency=String(getSellerCurrency(seller)||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase(), sellerId=SELLER_STATE.productsSellerId||seller.id;
+    try{
+      let productId=editId;
+      if(editId){const r=await db.rpc('velora_seller_update_product',{p_product_id:editId,p_price:price,p_stock:stock,p_category:category,p_brand:brand,p_name:name});if(r?.error)throw r.error;}
+      else{const r=await db.rpc('velora_seller_create_product',{p_name:name,p_sku:'VEL-'+Date.now().toString(36).toUpperCase(),p_price:price,p_stock:stock,p_category:category,p_brand:brand,p_currency:currency});if(r?.error)throw r.error;productId=r.data;}
+      const extras=await canonicalSellerProductUpdate(productId,sellerId,{subcategory,description,original_price:oldPrice,emoji,tags,images:[imageUrl]}); if(extras?.error)throw extras.error;
+      await loadCanonicalSellerProducts(seller); closeModal('addProductModal'); showToast(editId?'✅ Product updated in canonical catalog.':'✅ Product created and sent for review.','success'); setTimeout(()=>showSellerSection('products'),150);
+    }catch(error){console.error('Velora canonical product save:',error);fail('❌ '+(error?.message||'Could not save product.'));}
 }
 
 
@@ -7675,13 +7677,7 @@ function editSellerProduct(productId) {
     openAddProductModal(productId);
 }
 
-function confirmDeleteProduct(productId) {
-    if (!confirm('Delete this product?')) return;
-    const seller = SELLER_STATE.currentSeller;
-    deleteSellerProduct(seller.id, productId);
-    showToast('🗑️ Product deleted', 'info');
-    showSellerSection('products');
-}
+function confirmDeleteProduct(){ showToast('ℹ️ Product deletion is intentionally disabled in the canonical lifecycle. Use the future archive/inactive workflow instead of hard-delete.','info'); }
 
 /* ============ UPDATE MAHA API ============ */
 // Always route legacy and new seller actions to the real Seller Dashboard
