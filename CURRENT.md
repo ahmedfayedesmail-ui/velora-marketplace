@@ -131,6 +131,20 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - Privacy Requests / Consent / Legal Acceptance: direct table writes remain blocked; workflow mutations use authenticated/staff RPC contracts.
 - Orders / Order Items / Payments / Payment Attempts: direct customer mutation is blocked; canonical checkout revalidates financial state server-side.
 
+### Store direct-update hardening — CLOSED at DB + CI/deployment level
+- **OBSERVED:** Seller-owned Store UPDATE policy allowed direct changes to sensitive `stores.country_code` and `stores.currency_code`, even though the canonical Seller UI does not use direct Store UPDATE and governed RPCs exist for Store mutations.
+- Commit `4c7a4d696c531a16045e72558f60be0d4b663b3a` removed the direct authenticated Store UPDATE policy and revoked authenticated UPDATE on `public.stores`.
+- Restore-Test proof: direct Seller UPDATE returned `permission denied`; the existing Seller currency RPC and Staff status RPC remained executable in rollback-only regression tests.
+- No schema change and Production remained frozen.
+
+### Paymob webhook verification — SOURCE CLOSED / RUNTIME EVIDENCE STILL BLOCKED
+- **OBSERVED SOURCE:** `velora-paymob-webhook-restore-test` verifies callback HMAC with HMAC-SHA512, constant-time hex comparison, and provider-specific secret resolution before processing the callback.
+- Paymob's current documentation requires HMAC verification for transaction callbacks and states callbacks are the backend source of truth for payment status. citeturn0search0turn0search3
+- Sandbox evidence workflow `36382825773` executed Auth → intention → Paymob checkout successfully. Paymob checkout loaded HTTP 200 and the payment form was detected.
+- **Runtime blocker:** the browser drill did not complete the sandbox payment; `payment_attempt.status=pending`, no provider webhook event was recorded, and therefore `signature_verified=false` / processed webhook evidence was unavailable.
+- This is **NOT evidence of an HMAC implementation failure**. It is an external sandbox payment-completion evidence gap. Do not claim the cryptographic webhook gate PASS until an actual signed callback is observed and recorded.
+- Live Paymob settlement remains unverified and must not be claimed.
+
 ### Current security audit result — Restore-Test
 - `velora_run_security_attack_surface_audit()` completed with: RLS core `13/13 PASS`; policy coverage `30 PASS`; pinned search_path `PASS`; SECURITY DEFINER posture `PASS`; public/anon RPC surface `WARN` because 22 RPCs are executable by anon, but the audit reported `unguarded_public_dml=0`.
 - This is a posture warning, not evidence to blanket-revoke SECURITY DEFINER functions. Existing actor/ownership checks remain the governing pattern.
@@ -150,7 +164,7 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
 
 **Latest application/runtime/security commit:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`). The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `41c609eb1b404ba31abb36d36a21ce1802a5444d` (`fix(security): prevent push endpoint reassignment`).
+**Current branch HEAD:** `60fbb018a7de8b1d84d789ea916b16c93ef2802b` (`test(paymob): run sandbox webhook evidence drill`).
 
 **Latest deployed Preview:** pending exact latest deployment verification for commit `41c609...`; the prior exact deployment `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE` remains READY on `ca255...`.
 
