@@ -2510,3 +2510,34 @@ Recorded 2026-09-28.
 - Research / Reuse First: mandatory.
 - Action Flow in parallel: mandatory.
 - Production remains FROZEN.
+
+---
+
+# MESSAGE 12.3 — PAYMOB INQUIRY / RECONCILIATION GAP CONFIRMED
+Recorded 2026-09-28.
+
+## Official Paymob Research
+- Current official Paymob documentation (Last Updated August 4, 2026) states that Transaction Inquiry APIs retrieve transaction details by transaction ID, Paymob order ID, or merchant order ID and are intended as a secondary mechanism alongside callbacks.
+- Official Paymob integration guidance requires Transaction Inquiry as a fallback for pending orders whose callback did not arrive, for periodic reconciliation, and for support/admin lookups.
+- Inquiry uses the legacy API-key -> short-lived auth-token flow, distinct from the Intention API Secret Key flow.
+- Official guidance warns that the exact merchant-order-id query shape may vary by region/account and should be confirmed from the merchant API Explorer before hardcoding.
+
+## Velora Restore-Test Inventory
+- Generic reconciliation infrastructure exists in the database: reconciliation_runs, reconciliation_findings, automation_events and related reconciliation helpers.
+- Restore-Test currently has 0 reconciliation_runs, 0 open reconciliation_findings, 0 reconciliation automation_events, 0 transaction_updates, and 0 transaction_messages.
+- A Paymob-specific Transaction Inquiry adapter/function was not identified in the inspected public function inventory by a dedicated Paymob inquiry/reconciliation name.
+- Legacy service_role-only function velora_process_paymob_transaction_internal exists, but it is callback-payload processing rather than an Inquiry API adapter and has no inspected trigger dependency invoking it.
+
+## Classification
+- Paymob Transaction Inquiry capability: OPEN / NOT EVIDENCED.
+- Existing generic reconciliation framework: PRESENT but operational execution is NOT EVIDENCED in Restore-Test.
+- Need for a new scheduler: NOT PROVEN and therefore DO NOT BUILD yet.
+- Need for a small Paymob Inquiry adapter: LIKELY GAP, but exact API request shape must be confirmed from the merchant account/API Explorer before contract design.
+
+## Action Flow
+Primary: customer payment -> Paymob checkout -> verified webhook -> canonical payment/order transition.
+Fallback: pending payment beyond defined reconciliation window -> existing automation/reconciliation trigger -> Paymob Inquiry -> normalize provider outcome -> apply the SAME canonical payment transition contract -> audit -> idempotent downstream side effects -> close/recover finding.
+Manual intervention is reserved for genuine provider/API ambiguity, financial exception, or irreversible dispute.
+
+## Next Research / Reuse Step
+Before any code or schema work, inspect the current Paymob merchant/API Explorer request shape available to the account and map its response fields onto the existing canonical payment transition logic. Do not create a second payment-status engine or scheduler.
