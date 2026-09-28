@@ -49,13 +49,31 @@ async function v39LoadSubscription(){
    const ent=await v39Rpc('velora_get_seller_entitlement');
    if(ent.error)throw ent.error;
    const client=window.supabaseClient||window.sb;
-   const [plansR,legalR]=await Promise.all([
-     client.from('subscription_plans').select('id,name,monthly_price,yearly_price,currency_code,commission_rate,max_products,features').eq('is_active',true).order('monthly_price'),
-     client.rpc('velora_get_required_legal_documents',{p_locale:String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase(),p_audience:'seller'})
+   const [plansR,legalR,storeR]=await Promise.all([
+     client.from('subscription_plans').select('id,name,commission_rate,max_products,features').eq('is_active',true).order('monthly_price'),
+     client.rpc('velora_get_required_legal_documents',{p_locale:String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase(),p_audience:'seller'}),
+     client.from('stores').select('country_code,currency_code').eq('id',e.store_id).eq('status','approved').maybeSingle()
    ]);
    if(plansR.error)throw plansR.error;
    if(legalR.error)throw legalR.error;
-   const plans=(plansR.data||[]).filter(p=>String(p.name).toLowerCase()!=='free');
+   if(storeR.error)throw storeR.error;
+   const store=storeR.data||{};
+   const sellerCountry=String(store.country_code||window.VELORA_MARKET_CONTEXT?.countryCode||'EG').toUpperCase();
+   const basePlans=(plansR.data||[]).filter(p=>String(p.name).toLowerCase()!=='free');
+   const plans=await Promise.all(basePlans.map(async p=>{
+     const [monthlyR,yearlyR]=await Promise.all([
+       client.rpc('velora_resolve_subscription_price',{p_plan_id:p.id,p_country_code:sellerCountry,p_billing_cycle:'monthly'}),
+       client.rpc('velora_resolve_subscription_price',{p_plan_id:p.id,p_country_code:sellerCountry,p_billing_cycle:'yearly'})
+     ]);
+     if(monthlyR.error)throw monthlyR.error;
+     if(yearlyR.error)throw yearlyR.error;
+     const monthly=Array.isArray(monthlyR.data)?monthlyR.data[0]:monthlyR.data;
+     const yearly=Array.isArray(yearlyR.data)?yearlyR.data[0]:yearlyR.data;
+     if(!monthly?.currency_code||monthly.price==null||!yearly?.currency_code||yearly.price==null){
+       throw new Error('REGIONAL_SUBSCRIPTION_PRICING_UNAVAILABLE');
+     }
+     return {...p,regional_monthly_price:monthly.price,regional_yearly_price:yearly.price,regional_currency_code:monthly.currency_code};
+   }));
    const sellerLegalDocs=(Array.isArray(legalR.data)?legalR.data:[]).filter(d=>['seller_agreement','seller_subscription','seller_commission'].includes(d.document_type));
    const sellerLegalTypes=new Set(sellerLegalDocs.map(d=>d.document_type));
    const sellerLegalReady=['seller_agreement','seller_subscription','seller_commission'].every(type=>sellerLegalTypes.has(type));
@@ -75,7 +93,7 @@ async function v39LoadSubscription(){
        (plans.length?
        '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.7rem;margin-top:1rem">'+
          '<label><span class="velora-seller39-muted">'+v39Esc(v39t('Plan'))+'</span>'+
-         '<select id="v39Plan" class="form-input" style="margin-top:.3rem">'+plans.map(p=>'<option value="'+v39Esc(p.id)+'" data-m="'+v39Esc(p.monthly_price)+'" data-y="'+v39Esc(p.yearly_price)+'" data-c="'+v39Esc(p.currency_code)+'">'+v39Esc(p.name)+'</option>').join('')+'</select></label>'+
+         '<select id="v39Plan" class="form-input" style="margin-top:.3rem">'+plans.map(p=>'<option value="'+v39Esc(p.id)+'" data-m="'+v39Esc(p.regional_monthly_price)+'" data-y="'+v39Esc(p.regional_yearly_price)+'" data-c="'+v39Esc(p.regional_currency_code)+'">'+v39Esc(p.name)+'</option>').join('')+'</select></label>'+
          '<label><span class="velora-seller39-muted">'+v39Esc(v39t('Billing cycle'))+'</span>'+
          '<select id="v39Cycle" class="form-input" style="margin-top:.3rem"><option value="monthly">'+v39Esc(v39t('Monthly (30 days)'))+'</option><option value="yearly">'+v39Esc(v39t('Yearly'))+'</option></select></label>'+
        '</div>'+
@@ -95,7 +113,7 @@ async function v39LoadSubscription(){
      button.disabled=true;
      if(statusEl)statusEl.textContent=v39t('Starting secure checkout…');
      try{
-       const country=(window.VELORA_MARKET_CONTEXT?.countryCode||document.getElementById('veloraCountryCode')?.value||e.country_code||'EG').toUpperCase();
+       const country=sellerCountry;
        if(!activePaid&&!sellerLegalReady){if(statusEl)statusEl.textContent=v39t('Seller subscription terms are not published yet.');button.disabled=false;return;}
        if(!activePaid&&!v39El('v39LegalConsent')?.checked){if(statusEl)statusEl.textContent=v39t('Legal acceptance is required before subscription checkout.');button.disabled=false;return;}
        if(!activePaid){
