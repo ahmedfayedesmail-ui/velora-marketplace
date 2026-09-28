@@ -7264,7 +7264,7 @@ function renderSellerProductCard(product) {
                 <div class="seller-product-stock">📦 Stock: ${product.stock || 0}</div>
                 <div class="seller-product-actions">
                     <button onclick="editSellerProduct('${product.id}')">✏️ Edit</button>
-                    <button class="danger" onclick="confirmDeleteProduct('${product.id}')">🗑️</button>
+                    ${product.status === PRODUCT_STATUS.APPROVED ? `<button onclick="setSellerProductAvailability('${product.id}', 'inactive')">⏸️ Deactivate</button>` : product.status === PRODUCT_STATUS.INACTIVE ? `<button onclick="setSellerProductAvailability('${product.id}', 'approved')">▶️ Reactivate</button>` : ''}
                 </div>
             </div>
         </div>
@@ -7680,6 +7680,43 @@ async function handleAddProduct(event, editId) {
 function editSellerProduct(productId) {
     if (!SELLER_STATE.currentSeller) { showToast('⚠️ Seller profile not found.', 'warning'); return; }
     openAddProductModal(productId);
+}
+
+async function setSellerProductAvailability(productId, targetStatus) {
+    const seller = SELLER_STATE.currentSeller;
+    const db = sellerProductDb();
+    if (!seller || !db?.rpc) {
+        showToast('⚠️ Seller profile not found.', 'warning');
+        return;
+    }
+    const target = String(targetStatus || '').toLowerCase();
+    const product = getSellerProducts(seller.id).find(p => String(p.id) === String(productId));
+    if (!product) {
+        showToast('⚠️ Product not found in the canonical catalog.', 'warning');
+        return;
+    }
+    const prompt = target === 'inactive'
+        ? 'Deactivate this product? It will stop appearing in the marketplace until reactivated.'
+        : 'Reactivate this product? It will become available in the marketplace again.';
+    if (!window.confirm(prompt)) return;
+    try {
+        const r = await db.rpc('velora_seller_set_product_availability', {
+            p_product_id: productId,
+            p_status: target
+        });
+        if (r?.error) throw r.error;
+        await loadCanonicalSellerProducts(seller);
+        showToast(
+            target === 'inactive'
+                ? '✅ Product deactivated and hidden from the marketplace.'
+                : '✅ Product reactivated and visible in the marketplace.',
+            'success'
+        );
+        setTimeout(() => showSellerSection('products'), 100);
+    } catch (error) {
+        console.error('Velora seller product availability:', error);
+        showToast('❌ ' + (error?.message || 'Could not change product availability.'), 'warning');
+    }
 }
 
 function confirmDeleteProduct(){ showToast('ℹ️ Product deletion is intentionally disabled in the canonical lifecycle. Use the future archive/inactive workflow instead of hard-delete.','info'); }
