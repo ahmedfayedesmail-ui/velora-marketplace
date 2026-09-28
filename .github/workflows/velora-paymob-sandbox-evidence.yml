@@ -636,7 +636,10 @@ jobs:
                               pass
                           evidence["failures"].append("Paymob card fields could not be identified")
                       else:
-                          card_number.fill("5123456789012346")
+                          # Differential sandbox run: Paymob-documented alternate Mastercard.
+                          # This is test-only and does not alter the canonical checkout contract.
+                          evidence["playwright"]["test_card_variant"] = "mastercard_alt_0008"
+                          card_number.fill("5123450000000008")
                           expiry.fill("01/39")
                           cvv.fill("123")
 
