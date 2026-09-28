@@ -2281,3 +2281,21 @@ NEXT ACTION:
 
 ACTION FLOW:
 Detect security finding -> identify actual consumer -> verify schema/ACL/RLS -> classify intended exposure -> smallest targeted grant/revoke/policy -> negative-path proof -> re-run Advisor -> Browser Gate only when UI-facing -> recover/escalate for unresolved sensitive boundary.
+
+### Continuation Infrastructure Review — pg_net — 2026-09-28
+
+CLASSIFICATION: DEPENDENCY CONFIRMED; RELOCATION NOT JUSTIFIED
+
+OBSERVED FACT:
+- Restore-Test has extension `pg_net` version `0.20.4` installed in schema `public`.
+- The active `cron.job` entry `velora-paymob-reconciliation` runs every five minutes and directly calls `net.http_post(.../velora-paymob-reconciliation-restore-test...)`.
+- Therefore the Security Advisor `extension_in_public` warning corresponds to a live operational dependency, not an unused extension artifact.
+- A metadata scan of public SECURITY DEFINER function definitions did not find `net.%` references; the dependency is instead in the `cron.job` command itself.
+- No extension relocation was performed. Moving pg_net would require a compatibility/dependency plan and re-verification of the reconciliation scheduler.
+
+INFERRED:
+- The least disruptive posture is to retain the current pg_net placement for now and keep the Advisor warning as an OPEN infrastructure review item rather than performing a speculative migration.
+- Any future relocation must preserve the cron/http dependency and be proven at the database and scheduler layers before considering Browser/provider effects.
+
+ACTION FLOW:
+Detect Advisor warning -> identify live dependency -> verify scheduler contract -> research compatible relocation path -> smallest safe infrastructure change only if required -> re-run cron/reconciliation proof -> re-run Advisor -> escalate only for hosted-extension/platform constraints.
