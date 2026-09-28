@@ -828,3 +828,203 @@ CARRY-FORWARD:
    For every system, continue:
    Detect -> Decide -> Execute -> Verify -> Recover/Escalate
    Normal platform operation should run automatically end-to-end wherever the canonical architecture supports it. Human intervention is reserved for genuine exceptions: business-policy decisions, seller approval/suspension, legal publication, fraud/trust cases, exceptional refunds, provider ambiguity, payout/provider settlement, and release control.
+
+
+## Message 7/11 — Beauty Question Design + Product State + AI
+
+### 60. Beauty Question Design
+CLASSIFICATION: DECISION CLOSED FOR CURRENT V2 / FUTURE EVOLUTION OPEN
+
+RESEARCH OBSERVED:
+- Clinique currently demonstrates that a short three-question skincare quiz can be used to key recommendations to skin type and concern rather than requiring a long intake. urlClinique skincare services and 3-question quizhttps://www.clinique.com/services
+- Current skincare recommendation research also shows that richer recommendation systems may incorporate ingredient analysis and skin-condition/goal signals, but this does not prove that every available dimension should become a mandatory customer question. urlPubMed — deep learning skincare product recommendation and ingredient analysishttps://pubmed.ncbi.nlm.nih.gov/38411029/
+- A 2026 dermatology intake study found most surveyed patients preferred focusing on one or two concerns rather than expanding the first interaction into a large set of concerns. This supports minimizing questionnaire burden, while recognizing that the study is clinical-intake research and not a Velora ecommerce experiment. urlPubMed — 4-question patient-centered dermatology intake studyhttps://pubmed.ncbi.nlm.nih.gov/42459240/
+- Egyptian 2026 dermocosmetic consensus work supports context-specific ingredient selection and explicitly reports substantial uncertainty across ingredient/scenario combinations; this reinforces that Velora should not let an LLM invent ingredient suitability or medical-style conclusions. urlPubMed — Egyptian National Consensus on Dermocosmetic Ingredient Selectionhttps://pubmed.ncbi.nlm.nih.gov/41537948/
+
+DECISION:
+- Keep the current V2 customer entry at three questions:
+  skin_type
+  goal
+  routine_budget
+- Do not add concern, texture, effect, avoidance, shopping-priority, age, photo analysis, ingredient intolerance, or other fields merely because the database has optional columns.
+- The existing optional profile fields remain available only as future controlled evolution points.
+- A future question is justified only when evidence shows it has high signal, cannot be safely inferred, changes routine/product selection materially, and provides enough durable customer value to offset extra friction.
+
+QUESTION EVOLUTION RULE:
+Research -> signal value -> inferability -> decision impact -> persistence value -> privacy/UX review -> contract mapping -> implementation -> verification.
+No speculative questionnaire expansion.
+
+### 61. Product State × Beauty
+CLASSIFICATION: CURRENT-STATE SAFETY CLOSED / BROWSER EVIDENCE OPEN
+
+OBSERVED FACT:
+- Canonical V2 recommendation requires approved Beauty products, EGP currency, positive availability, and budget fit.
+- Canonical routine applies the same core approved/current-availability guard and can mark required steps unavailable instead of fabricating replacement products.
+- Historical purchase/feedback is stored separately and is reused as historical learning context; current recommendation availability is not treated as historical memory.
+- Transaction-safe negative-path tests on Restore-Test verified:
+  inactive product -> excluded from Recommendation
+  rejected product -> excluded from Recommendation
+  product with base stock=0 and no active stocked variant -> excluded from Recommendation
+  OOS product in Routine -> not selected; routine returned partial where that product was a required slot
+- An initial OOS probe was corrected because the test temporarily restored stock before calling the Routine. The corrected probe confirmed the intended current-state behavior.
+- Variant-aware interpretation remains important: base product stock=0 is not commercially OOS when an active stocked variant exists. The canonical engine correctly treats a stocked variant as current availability.
+
+CORE RULE:
+CURRENT AVAILABILITY != HISTORICAL MEMORY.
+No future AI or recommendation layer may bypass canonical product state, approval, inventory, currency, or budget guards.
+
+### 62. AI Status
+CLASSIFICATION: CUSTOMER BEAUTY AI NOT DONE / GOVERNANCE AI-ASSISTED FOUNDATION EXISTS
+
+OBSERVED FACT:
+- Restore-Test currently has tables:
+  ai_decision_runs
+  ai_decision_signals
+- Current counts are:
+  ai_decision_runs=0
+  ai_decision_signals=0
+  proposed=0
+  requires_human_approval=0
+  executed=0
+- Current repository has no OpenAI/LLM/GPT/Anthropic/Gemini implementation in the inspected application/runtime source.
+- Current AI-named governance functions are rule-assisted decision tooling, not a customer beauty LLM:
+  velora_generate_ai_signals
+  velora_get_ai_decision_center
+  velora_update_ai_decision
+- velora_generate_ai_signals currently scans deterministic platform conditions such as open reconciliation findings, recent payment failures, and shipment exceptions and creates review signals.
+- Therefore do NOT label current deterministic recommendation/routine code as AI and do NOT claim Beauty AI is implemented.
+
+### 63. AI Architecture
+CLASSIFICATION: ROADMAP / NOT IMPLEMENTED
+
+RESEARCH / ARCHITECTURE DECISION:
+- The preferred future boundary remains:
+  Customer input -> AI interpretation -> structured candidate intent -> canonical validation -> deterministic recommendation/routine -> AI explanation -> Customer.
+- This aligns with current OpenAI guidance that structured outputs constrain model data flow and that function calling is appropriate when a model bridges to tools/data/functions. urlOpenAI — Structured Outputshttps://developers.openai.com/api/docs/guides/structured-outputs urlOpenAI — agent safety and structured outputshttps://developers.openai.com/api/docs/guides/agent-builder-safety
+- The LLM must never own the product catalog, inventory, monetary state, seller governance, refund decision, or order mutation boundary.
+- No AI implementation is justified in Message 7 because the canonical deterministic V2 recommendation/routine path exists and the observed customer-AI runtime is absent.
+
+### 64. AI Must Never
+CLASSIFICATION: POLICY CLOSED / IMPLEMENTATION NOT YET REQUIRED
+
+Non-negotiable future constraints:
+- never invent products, ingredients, availability, pricing, or catalog facts
+- never make unsupported medical claims
+- never bypass approval, stock, budget, currency, or canonical eligibility
+- never mutate orders, payments, commissions, payouts, gift-card balances, refunds, seller status, fraud decisions, or irreversible governance
+- never replace canonical DB/business rules
+- never create a second unexplained reason-code system
+
+### 65. AI Failure Model
+CLASSIFICATION: ROADMAP / NOT IMPLEMENTED
+
+Required future safe handling:
+- AI unavailable -> deterministic fallback
+- invalid structured output -> discard
+- canonical constraint violation -> canonical rejection
+- timeout -> bounded safe retry
+- ambiguous interpretation -> deterministic/safe path
+- provider/model uncertainty -> do not mutate durable commerce state
+
+No live AI fallback path exists today because no customer AI runtime exists.
+
+### 66. AI Explainability
+CLASSIFICATION: CONTRACT DIRECTION CLOSED / AI IMPLEMENTATION OPEN
+
+OBSERVED CANONICAL REASON CODES:
+- goal_match
+- concern_match
+- texture_match
+- effect_match
+- preference_match
+- availability_match
+- existing V2 routine also uses skin_type_match, step_match, budget_fit, feedback_positive, and seasonal_fit where applicable.
+
+RULE:
+- Reuse canonical reason codes and underlying rule evidence.
+- AI explanation may translate/explain existing evidence but may not invent evidence or a parallel opaque score/reason taxonomy.
+- Truthful product labels must distinguish:
+  deterministic
+  rule-based
+  AI-assisted
+  AI-driven
+- Current V2 recommendation/routine are deterministic/rule-based, not AI-driven.
+
+### 67. Beauty Browser Gate — Future
+CLASSIFICATION: NOT EVIDENCED
+
+Required Browser Gate remains:
+guest -> auth
+incomplete Passport -> questions
+complete Passport -> edit
+change one field -> preserve other saved answers
+save -> routine
+reasons visible
+Arabic -> English
+Account -> Beauty Journey
+refresh persistence
+mobile quiz
+mobile results
+mobile routine
+product cards
+Add All
+purchase-linked feedback
+
+Current blocker:
+- Browser verification for the current branch is not evidenced; the previously used browser automation provider had an insufficient wallet balance. Do not convert source/DB/CI results into Browser PASS.
+
+### Message 7 Action Flow — Parallel
+Beauty customer flow:
+Detect Passport entry/change
+-> authenticate
+-> validate canonical V2 contract
+-> persist profile
+-> emit profile-updated event
+-> refresh deterministic routine when fingerprint changes
+-> derive current recommendations through canonical V2 eligibility
+-> use historical feedback/purchase signals only as contextual inputs
+-> enforce product state and availability
+-> present explainable rule evidence
+-> add selected routine items through the existing Routine -> Cart adapter
+-> checkout remains canonical
+-> failure/recovery remains bounded and auditable.
+
+AI future flow:
+Detect intent
+-> AI interpretation (future)
+-> strict structured candidate intent
+-> canonical validation
+-> deterministic product/routine selection
+-> optional AI explanation grounded only in returned evidence
+-> safe fallback on any AI failure
+-> human escalation only for genuine governance/policy/provider exceptions.
+
+### Message 7 Execution / Research Gate
+OBSERVED FACT:
+- No speculative Passport question expansion was made.
+- Product state safeguards were verified with transaction-safe negative paths.
+- AI audit found a small existing rule-assisted governance foundation, but no customer beauty LLM runtime.
+- No duplicate recommendation/routine/feedback/replenishment engine was introduced.
+- No OpenAI/LLM dependency was added.
+- Two Message 6 fixes remain the current source/DB baseline:
+  1. canonical Recommendation V2 public wrapper ACL/runtime fix
+  2. canonical Beauty Passport V2 exact token contract hardening
+
+NOT EVIDENCED:
+- Browser behavior for Passport/Routine/Recommendation/Feedback.
+- Customer-facing Recommendation UX.
+- Actual customer AI runtime.
+- Provider/Production behavior.
+
+CARRY-FORWARD:
+- All OPEN/BLOCKED/PENDING/NOT EVIDENCED items from Messages 2 through 6 remain active and are not removed by Message 7 completion.
+- Production remains frozen.
+- Browser/provider evidence remains a separate gate.
+
+### Message 7 Master Conditions — Non-Negotiable
+1. HANDOFF COMPLETENESS:
+   Continue the same Master Handoff with every prior item, dependency, policy gap, ACL/RLS detail, evidence layer, blocked item, and carry-forward item preserved.
+2. RESEARCH BEFORE BUILD:
+   Do not build merely because a feature can be built. Search proven prior art/documentation/implementations and reuse canonical contracts first. Build only where an observed gap remains and no suitable existing path covers it.
+3. ACTION FLOW IN PARALLEL:
+   Continue Detect -> Decide -> Execute -> Verify -> Recover/Escalate across the whole platform. Normal paths must operate automatically wherever the current architecture supports it; human input is reserved for real business-policy, governance, provider, fraud/trust, exceptional refund, payout, and release-control boundaries.
