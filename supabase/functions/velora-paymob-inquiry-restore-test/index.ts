@@ -132,6 +132,7 @@ Deno.serve(async (req: Request) => {
   const apiKey = getApiKey();
   if (!apiKey) return json({ ok: false, code: "PAYMOB_API_KEY_MISSING" }, 503);
 
+  let stage = "provider_auth";
   try {
     const auth = await generateToken(apiKey);
     if (!auth.response.ok || !auth.token) {
@@ -145,6 +146,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    stage = "provider_inquiry";
     const inquiryResponse = await fetch(
       `${PAYMOB_BASE}/api/ecommerce/orders/transaction_inquiry`,
       {
@@ -196,6 +198,7 @@ Deno.serve(async (req: Request) => {
       {
         ok: false,
         code: "PAYMOB_INQUIRY_REQUEST_FAILED",
+        stage,
         error_class: error instanceof Error ? error.name : "Error",
       },
       502,
