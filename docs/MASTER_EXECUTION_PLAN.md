@@ -2365,3 +2365,25 @@ OWNER ACTIONS WHEN READY:
 PRIORITY:
 - Supabase Auth hardening is a launch-readiness item, not a customer-facing feature build.
 - Vercel capacity is an execution/evidence prerequisite because it can block new Preview deployments and therefore block Browser evidence.
+
+### Continuation Security Heuristic Closure — 2026-09-28
+
+CLASSIFICATION: TARGETED HEURISTIC REVIEW CLOSED FOR CURRENT QUEUE; NO FURTHER BLANKET REVOCATION JUSTIFIED
+
+OBSERVED FACT:
+- The prior heuristic queue of authenticated-executable SECURITY DEFINER functions with no obvious `auth.uid` / staff-role token has been narrowed after current Restore-Test inspection.
+- The four write-capable-looking wrappers (`velora_create_order_with_commercials`, `velora_create_order_with_coupon`, and the public payment-attempt overloads) delegate into canonical functions that enforce authentication/ownership or purpose guards. `velora_create_order` checks `auth.uid()`; the six-argument payment-attempt implementation checks `auth.uid()`, purpose, order ownership, subscription ownership, and idempotency.
+- `velora_get_beauty_context()` delegates to `private.velora_beauty_context()`, whose implementation explicitly checks `auth.uid()` and raises `AUTH_REQUIRED` before reading/writing the user-scoped beauty context snapshot.
+- `velora_assert_checkout_currency`, operational checkout-currency/payment-method lookups, and the marketplace/public read functions are read-oriented contracts by design.
+- `velora_get_required_legal_documents`, active promotions, active seller ads, FX, localization catalogs/content, and marketplace catalog are intentionally public-style read surfaces with existing anon grants where applicable.
+- `velora_get_commission_rate(uuid)` has been separately scoped to internal execution and is no longer client-executable.
+
+INFERRED:
+- The "no obvious auth guard" heuristic does not currently identify an unmitigated privileged writer in the reviewed set.
+- The appropriate remaining security work is contract-specific Advisor review, not blanket revocation.
+
+REMAINING SECURITY QUEUE:
+- six no-policy table contracts (intent/exposure review remains)
+- pg_net placement warning review (live dependency documented; no relocation yet)
+- final high-impact audit coverage where not already proven
+- final hosted Auth configuration
