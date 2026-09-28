@@ -2769,3 +2769,68 @@ NEXT EXECUTION ORDER:
 1. COMPLETE MASTER HANDOFF — unchanged and mandatory.
 2. RESEARCH / REUSE FIRST — unchanged and mandatory.
 3. ACTION FLOW IN PARALLEL — unchanged and mandatory.
+
+
+---
+
+# MESSAGE 12.7 — PAYMOB APPLICATOR ACL HARDENING + CURRENT RUNTIME CHECK
+Recorded 2026-09-28.
+
+## New Security Finding
+CLASSIFICATION: OBSERVED FACT -> CLOSED-DONE
+
+OBSERVED FACT:
+- Initial ACL verification of the new shared Paymob transaction applicator reported EXECUTE=true for anon/authenticated despite the explicit revoke from those roles.
+- Root cause was grant inheritance from PostgreSQL PUBLIC; revoking only from anon/authenticated did not remove PUBLIC execute.
+- No customer-facing runtime invocation of the applicator was promoted from this intermediate state.
+- The concrete fix was:
+  `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated`
+  followed by:
+  `GRANT EXECUTE ... TO service_role`
+- Hardening migration:
+  `supabase/migrations/20260928200000_harden_paymob_transaction_applicator_execute.sql`
+- Restore-Test migration application succeeded.
+- Final ACL verification:
+  - PUBLIC execute = false
+  - anon execute = false
+  - authenticated execute = false
+  - service_role execute = true
+- SECURITY DEFINER remains enabled with pinned search_path.
+
+## Security / Action Flow Impact
+Authorization:
+EVENT -> backend service invocation -> service-role guard -> input validation -> canonical transaction transition -> order/payment synchronization -> existing triggers -> audit.
+
+The browser/customer roles cannot execute the internal applicator directly.
+No new permission engine was introduced.
+
+## Runtime / Evidence Check
+OBSERVED FACT:
+- Paymob webhook runtime version 29 remains ACTIVE and its deployed index.ts exactly matches the execution-branch source.
+- The shared applicator transaction tests remain rollback-only:
+  - captured -> confirmed/paid
+  - failed -> cancelled/failed
+  - failed-payment inventory release exercised
+  - duplicate -> changed=false
+- Provider/L8 execution remains NOT EVIDENCED.
+- Current Inquiry Edge Function invocation remains NOT EVIDENCED.
+- Function log query for the latest checked window returned no invocation rows for the Inquiry or v29 webhook functions.
+
+## Evidence Harness Status
+- Current workflow source has been restored to the last known valid version after the intermediate malformed correlation patch was reverted.
+- The known correlation issue remains OPEN: the valid workflow still historically filters webhook evidence by `provider_payment_id`, while the webhook event_id is transaction-based.
+- No green CI claim is made from the attempted patch.
+- Vercel still does not show a current execution-branch READY deployment in the latest inspected list and reports `build-rate-limit` failure status for current-branch checks.
+
+## Next Safe Execution
+1. Keep the shared applicator as the sole marketplace state-transition contract.
+2. Use the configured Inquiry adapter only as a read/fallback boundary until Provider/L8 invocation evidence exists.
+3. Resolve the CI correlation mismatch with a clean, validated workflow source change before relying on the evidence gate.
+4. Define stale-pending reconciliation timing and worker semantics from the existing checkout expiration/callback contract and prior art.
+5. Only then implement an automatic reconciliation worker/schedule if the existing infrastructure cannot satisfy the Action Flow.
+6. Continue every Master Handoff item in parallel.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF — every prior item remains active unless explicitly closed with evidence.
+2. RESEARCH / REUSE FIRST — find, research, compare, reuse/adapt, prove the gap, then build only what is justified.
+3. ACTION FLOW IN PARALLEL — normal operation automatic; human intervention only for genuine governance/legal/fraud/trust/provider/financial/release exceptions.
