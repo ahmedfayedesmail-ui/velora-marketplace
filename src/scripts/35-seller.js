@@ -93,7 +93,7 @@ async function v39LoadSubscription(){
        (plans.length?
        '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.7rem;margin-top:1rem">'+
          '<label><span class="velora-seller39-muted">'+v39Esc(v39t('Plan'))+'</span>'+
-         '<select id="v39Plan" class="form-input" style="margin-top:.3rem">'+plans.map(p=>'<option value="'+v39Esc(p.id)+'" data-m="'+v39Esc(p.regional_monthly_price)+'" data-y="'+v39Esc(p.regional_yearly_price)+'" data-c="'+v39Esc(p.regional_currency_code)+'">'+v39Esc(p.name)+'</option>').join('')+'</select></label>'+
+         '<select id="v39Plan" class="form-input" style="margin-top:.3rem">'+plans.map(p=>'<option value="'+v39Esc(p.id)+'" data-m="'+v39Esc(p.regional_monthly_price)+'" data-y="'+v39Esc(p.regional_yearly_price)+'" data-c="'+v39Esc(p.regional_currency_code)+'" data-max="'+v39Esc(p.max_products==null?'':p.max_products)+'" data-commission="'+v39Esc(p.commission_rate)+'">'+v39Esc(p.name)+'</option>').join('')+'</select></label>'+
          '<label><span class="velora-seller39-muted">'+v39Esc(v39t('Billing cycle'))+'</span>'+
          '<select id="v39Cycle" class="form-input" style="margin-top:.3rem"><option value="monthly">'+v39Esc(v39t('Monthly (30 days)'))+'</option><option value="yearly">'+v39Esc(v39t('Yearly'))+'</option></select></label>'+
        '</div>'+
@@ -106,7 +106,22 @@ async function v39LoadSubscription(){
      '</div>';
    const planEl=v39El('v39Plan'),cycleEl=v39El('v39Cycle'),priceEl=v39El('v39Price'),button=v39El('v39Subscribe'),statusEl=v39El('v39SubStatus');
    if(activePaid){if(planEl)planEl.disabled=true;if(cycleEl)cycleEl.disabled=true;if(statusEl)statusEl.textContent=v39t('Upgrade / change flow will be added only with a governed replacement policy.');}
-   const refreshPrice=()=>{const o=planEl?.selectedOptions?.[0];if(!o||!priceEl)return;const val=cycleEl?.value==='yearly'?o.dataset.y:o.dataset.m;priceEl.textContent=v39t('Price')+': '+val+' '+(o.dataset.c||'');};
+   const refreshPrice=()=>{
+ const o=planEl?.selectedOptions?.[0];if(!o||!priceEl)return;
+ const monthly=Number(o.dataset.m||0), yearly=Number(o.dataset.y||0);
+ const val=cycleEl?.value==='yearly'?yearly:monthly;
+ const annualEquivalent=monthly*12;
+ const saving=annualEquivalent>0&&yearly>0?Math.max(0,Math.round((1-(yearly/annualEquivalent))*100)):0;
+ const max=o.dataset.max===''?v39t('Unlimited'):o.dataset.max;
+ const commission=o.dataset.commission||'';
+ priceEl.innerHTML=
+   v39Esc(v39t('Price'))+': <strong>'+v39Esc(Number(val).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}))+' '+v39Esc(o.dataset.c||'')+'</strong>'+
+   (cycleEl?.value==='yearly'&&saving>0?' · '+v39Esc(v39t('Save'))+' '+v39Esc(String(saving))+'%':'')+
+   '<div class="velora-seller39-muted" style="margin-top:.3rem">'+
+   v39Esc(v39t('Product limit'))+': '+v39Esc(max)+' · '+
+   v39Esc(v39t('Commission rate'))+': '+v39Esc(commission)+'%'+
+   '</div>';
+};
    planEl?.addEventListener('change',refreshPrice);cycleEl?.addEventListener('change',refreshPrice);refreshPrice();
    button?.addEventListener('click',async()=>{
      if(!planEl||!cycleEl)return;
