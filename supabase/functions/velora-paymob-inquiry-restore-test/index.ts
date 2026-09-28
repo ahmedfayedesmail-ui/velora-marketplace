@@ -223,6 +223,34 @@ Deno.serve(async (req: Request) => {
               ? inquiry.message.slice(0, 160)
               : null,
         provider_transaction_id: inquiry.id ?? null,
+        integration_id: inquiry.integration_id ?? null,
+        is_3d_secure: inquiry.is_3d_secure ?? null,
+        error_occured: inquiry.error_occured ?? null,
+        is_live: inquiry.is_live ?? null,
+        data_gateway_integration_pk:
+          inquiry.data && typeof inquiry.data === "object"
+            ? (inquiry.data as Record<string, unknown>).gateway_integration_pk ?? null
+            : null,
+        data_migs_result:
+          inquiry.data && typeof inquiry.data === "object"
+            ? (inquiry.data as Record<string, unknown>).migs_result ?? null
+            : null,
+        data_txn_response_code:
+          inquiry.data && typeof inquiry.data === "object"
+            ? (inquiry.data as Record<string, unknown>).txn_response_code ?? null
+            : null,
+        data_migs_authentication_status:
+          inquiry.data && typeof inquiry.data === "object"
+            && (inquiry.data as Record<string, unknown>).migs_order
+            && typeof (inquiry.data as Record<string, unknown>).migs_order === "object"
+            ? ((inquiry.data as Record<string, unknown>).migs_order as Record<string, unknown>).authenticationStatus ?? null
+            : null,
+        data_migs_status:
+          inquiry.data && typeof inquiry.data === "object"
+            && (inquiry.data as Record<string, unknown>).migs_order
+            && typeof (inquiry.data as Record<string, unknown>).migs_order === "object"
+            ? ((inquiry.data as Record<string, unknown>).migs_order as Record<string, unknown>).status ?? null
+            : null,
         pending: inquiry.pending ?? null,
         success: inquiry.success ?? null,
         is_refunded: inquiry.is_refunded ?? null,
