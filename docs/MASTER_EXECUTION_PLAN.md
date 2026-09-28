@@ -3259,3 +3259,40 @@ OPEN / NOT EVIDENCED:
 1. COMPLETE MASTER HANDOFF.
 2. RESEARCH / REUSE FIRST.
 3. ACTION FLOW IN PARALLEL.
+
+
+---
+
+# MESSAGE 12.14 — PAYMOB INQUIRY DIAGNOSTICS + WORKER ACL NEGATIVE TEST
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Paymob Inquiry adapter version 3 is ACTIVE in Restore-Test.
+- v3 moved stage diagnostics to cover client creation, authenticated user lookup, attempt lookup, provider auth, and provider inquiry. No secret values are returned.
+- Runs #31-#34 consistently showed:
+  - authenticated test account succeeded;
+  - canonical Paymob checkout and Intention creation succeeded;
+  - fresh payment attempt and Paymob order ID were created;
+  - Inquiry POST returned HTTP 502;
+  - no signed/processed webhook was observed in those runs.
+- Run #34 artifact still did not retain \`code/stage\` because the HTTP helper can convert non-JSON error bodies to a \`raw\` field, and the artifact projection did not yet persist that field.
+- Therefore the exact internal stage/root cause of the 502 remains OPEN; do not attribute it to Paymob, credentials, or request shape yet.
+
+CLOSED-DONE:
+- Worker privileged RPC negative contract tested in SQL:
+  - authenticated role calling public claim wrapper -> SERVICE_ROLE_REQUIRED.
+  - anon role calling public result wrapper -> SERVICE_ROLE_REQUIRED.
+- No persistent mutation from these negative tests.
+- Existing worker transport positive test remains HTTP 200 / claimed=0 / processed=0.
+- Existing worker invalid-secret test remains HTTP 401.
+
+OPEN:
+- Capture \`raw\` error body from a post-v3 Inquiry invocation.
+- Determine whether the 502 occurs in authenticated lookup, Paymob auth-token generation, or Transaction Inquiry HTTP.
+- Keep L8 Provider gate BLOCKED until a real provider response is captured.
+- Automatic stale eligible-worker execution still requires a naturally aged eligible attempt.
+
+THREE MASTER GOVERNING CONDITIONS:
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
