@@ -45,7 +45,7 @@ begin
   where kind in ('subscription_expiry_t5','subscription_expiry_t1')
     and status='pending'
     and payload->>'subscription_series_id' = v_series
-    and payload->>'expires_at' is distinct from v_expires_at::text;
+    and (payload->>'expires_at')::timestamptz is distinct from v_expires_at;
 
   insert into public.notification_lifecycle_jobs(
     user_id, kind, due_at, entity_type, entity_id, dedupe_key, payload
