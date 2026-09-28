@@ -67,6 +67,29 @@ Deno.serve(async (req: Request) => {
       { global: { headers: { Authorization: authHeader } } },
     );
 
+    const getServiceKey = () => {
+      const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.default) return String(parsed.default);
+        } catch (_) {}
+      }
+      return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    };
+    const recoverProviderSession = async (paymentAttemptId: string, providerSessionId: string, providerOrderId: string) => {
+      const serviceKey = getServiceKey();
+      if (!serviceKey) throw new Error("SUPABASE_SERVER_CREDENTIALS_MISSING");
+      const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
+      const {data,error} = await admin.rpc("velora_recover_paymob_provider_session", {
+        p_payment_attempt_id: paymentAttemptId,
+        p_provider_session_id: providerSessionId,
+        p_provider_order_id: providerOrderId,
+      });
+      if (error) throw error;
+      return data;
+    };
+
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData?.user) return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
 
@@ -224,20 +247,96 @@ Deno.serve(async (req: Request) => {
     const intentionId = paymobJson?.id;
     const intentionOrderId = paymobJson?.intention_order_id ?? paymobJson?.order_id;
     const clientSecret = paymobJson?.client_secret;
-    if (!intentionId || !clientSecret || !intentionOrderId) {
+    if (!intentionId || !intentionOrderId) {
       throw new Error("PAYMOB_MISSING_INTENTION_FIELDS");
     }
+    if (!clientSecret) {
+      try {
+        const recovery = await recoverProviderSession(
+          paymentAttemptId,
+          String(intentionId),
+          String(intentionOrderId),
+        );
+        return json({
+          ok: false,
+          status: "FAILED",
+          code: "PAYMOB_CLIENT_SECRET_MISSING",
+          subscription_id: start.subscription_id,
+          payment_attempt_id: start.payment_attempt_id,
+          provider_session_recovered: Boolean(recovery?.ok),
+          local_payment_attempt_status: "pending",
+          recovery: "retry_subscription_checkout",
+        }, 502);
+      } catch (recoveryError) {
+        console.error(
+          "subscription_provider_session_recovery_failed",
+          recoveryError instanceof Error ? recoveryError.message : "unknown_error",
+        );
+        return json({
+          ok: false,
+          status: "FAILED",
+          code: "PAYMOB_PROVIDER_SESSION_RECOVERY_FAILED",
+          subscription_id: start.subscription_id,
+          payment_attempt_id: start.payment_attempt_id,
+          local_payment_attempt_status: "pending",
+          recovery: "manual_reconciliation_required",
+        }, 502);
+      }
+    }
 
-    const { data: attach, error: attachError } = await supabase.rpc(
-      "velora_attach_subscription_payment_provider_session",
-      {
-        p_payment_attempt_id: start.payment_attempt_id,
-        p_provider_code: "paymob",
-        p_provider_session_id: String(intentionId),
-        p_provider_order_id: String(intentionOrderId),
-      },
-    );
-    if (attachError) throw attachError;
+    let attachError: Error | null = null;
+    let attach: unknown = null;
+    for (let bindAttempt = 0; bindAttempt < 2; bindAttempt += 1) {
+      const { data: attachData, error } = await supabase.rpc(
+        "velora_attach_subscription_payment_provider_session",
+        {
+          p_payment_attempt_id: start.payment_attempt_id,
+          p_provider_code: "paymob",
+          p_provider_session_id: String(intentionId),
+          p_provider_order_id: String(intentionOrderId),
+        },
+      );
+      if (!error) {
+        attach = attachData;
+        attachError = null;
+        break;
+      }
+      attachError = error;
+      if (bindAttempt === 0) await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    if (attachError) {
+      try {
+        const recovery = await recoverProviderSession(
+          paymentAttemptId,
+          String(intentionId),
+          String(intentionOrderId),
+        );
+        return json({
+          ok: false,
+          status: "FAILED",
+          code: "PAYMOB_PROVIDER_SESSION_BIND_RECOVERED",
+          subscription_id: start.subscription_id,
+          payment_attempt_id: start.payment_attempt_id,
+          provider_session_recovered: Boolean(recovery?.ok),
+          local_payment_attempt_status: "pending",
+          recovery: "retry_subscription_checkout",
+        }, 502);
+      } catch (recoveryError) {
+        console.error(
+          "subscription_provider_session_recovery_failed",
+          recoveryError instanceof Error ? recoveryError.message : "unknown_error",
+        );
+        return json({
+          ok: false,
+          status: "FAILED",
+          code: "PAYMOB_PROVIDER_SESSION_BIND_FAILED",
+          subscription_id: start.subscription_id,
+          payment_attempt_id: start.payment_attempt_id,
+          local_payment_attempt_status: "pending",
+          recovery: "manual_reconciliation_required",
+        }, 502);
+      }
+    }
 
     return json({
       ok: true,
@@ -253,25 +352,35 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     if (paymentAttemptId) {
-      try {
-        await markInitializationFailed(
-          supabase,
-          paymentAttemptId,
-          error instanceof Error ? error.name || "SUBSCRIPTION_CHECKOUT_FAILED" : "SUBSCRIPTION_CHECKOUT_FAILED",
-          error instanceof Error ? error.message : "subscription_paymob_checkout_failed",
-          !providerIntentCreated,
-        );
-      } catch (reconcileError) {
+      if (providerIntentCreated) {
         console.error(
-          "subscription_payment_initialization_reconcile_failed",
-          reconcileError instanceof Error ? reconcileError.message : "unknown_error",
+          "subscription_provider_intent_unexpected_failure",
+          error instanceof Error ? error.message : "unknown_error",
         );
+      } else {
+        try {
+          await markInitializationFailed(
+            supabase,
+            paymentAttemptId,
+            error instanceof Error ? error.name || "SUBSCRIPTION_CHECKOUT_FAILED" : "SUBSCRIPTION_CHECKOUT_FAILED",
+            error instanceof Error ? error.message : "subscription_paymob_checkout_failed",
+            true,
+          );
+        } catch (reconcileError) {
+          console.error(
+            "subscription_payment_initialization_reconcile_failed",
+            reconcileError instanceof Error ? reconcileError.message : "unknown_error",
+          );
+        }
       }
     }
     return json({
       ok: false,
       status: "FAILED",
       error: error instanceof Error ? error.message : "subscription_paymob_checkout_failed",
+      payment_attempt_id: paymentAttemptId,
+      local_payment_attempt_status: providerIntentCreated ? "pending" : null,
+      recovery: providerIntentCreated ? "retry_subscription_checkout_or_reconcile_provider_intention" : null,
     }, 400);
   }
 });
