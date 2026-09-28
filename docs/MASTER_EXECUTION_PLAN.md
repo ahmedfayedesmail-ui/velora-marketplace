@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: d6a57dd5004c60f2ede656cc75fef1f5df645e47
+Current observed branch HEAD: 04b44cba3fad3a945e7f9845baa1a545c9b430f6
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -2712,3 +2712,100 @@ Seller material edit
 
 CARRY-FORWARD:
 - No Browser Gate yet; aggregate Browser Gate will verify the complete Seller flow later.
+
+
+### Continuation Seller Profile / Store Projection Synchronization — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB; AGGREGATE BROWSER GATE DEFERRED
+
+OBSERVED FACT:
+- The approved Seller test account had different profile/store projections before the fix: sellers.store_name/store_slug differed from stores.name/slug.
+- Canonical Seller Settings used velora_update_seller_profile, while canonical Seller Dashboard reads the store projection for country/currency and seller profile fields.
+- The existing RPC updated only public.sellers, creating a real source/projection drift path.
+- stores has a unique slug constraint and there is at most one current store row per owner in Restore-Test.
+
+IMPLEMENTED:
+- Migration 20260929024000_sync_seller_profile_store_projection.sql, commit b904c2105e8f60d6d723e69433601dccc672b19c.
+- Existing velora_update_seller_profile now locks and updates the owned seller plus its owned store projection in one transaction.
+- Name, slug, description, and logo_url are synchronized; country/currency/language/status remain governed by the store contract and are not overwritten from seller profile fields.
+- Any unique/conflict failure rolls back the entire transaction; no partial seller/store drift is left behind.
+- Commit 04b44cba3fad3a945e7f9845baa1a545c9b430f6 refreshes window.VELORA_CANONICAL_STORE after a successful profile save so the current session does not retain a stale store projection in memory.
+- No schema change, duplicate profile engine, or second source of truth was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Transactional Seller RPC update showed sellers and stores carrying the same new name/slug/description/logo_url while preserving EG/EGP/approved store state.
+- Transaction was rolled back; no QA fixture mutation persisted.
+
+ACTION FLOW:
+Seller edits Store Profile
+-> authenticate + seller ownership
+-> lock seller + store projection
+-> update both atomically
+-> audit seller_profile_updated with store_projection_synced=true
+-> refresh canonical Seller + Store session state
+-> subsequent Seller Dashboard reads remain coherent.
+
+### Continuation Seller Suspension / Store / Catalog Boundary — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT
+
+OBSERVED FACT:
+- velora_set_seller_status is Staff-only.
+- It synchronizes seller status and store status: approved -> approved, suspended -> suspended, rejected -> rejected, pending -> pending.
+- velora_marketplace_catalog filters for product.status=approved AND store.status=approved.
+- Therefore Seller suspension cannot leave the Store projection approved through the canonical status mutation path, and suspended stores are excluded from the public marketplace catalog.
+- The status operation is audited and uses the existing notification trigger; no parallel suspension engine was created.
+
+VERIFICATION:
+- Transactional suspension/restore probe exercised the canonical RPC and transaction rollback; final seller/store state returned to approved/approved.
+- Public catalog definition independently confirmed the approved-product + approved-store guard.
+- Browser evidence remains deferred to the aggregate gate.
+
+### Continuation Privileged Authorization Negative Paths — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT L1-L4
+
+OBSERVED FACT:
+- Customer execution of gift-card issuance, seller status mutation, product status mutation, payout execution, platform promotion creation, and account action all fail at their Staff/Owner authorization guards before privileged work.
+- Admin execution of Owner-only gift-card issuance fails with OWNER_ONLY.
+- Owner execution of gift-card issuance succeeded inside a transaction and was rolled back.
+- Legal publication: Customer and Admin both fail with LEGAL_OWNER_APPROVAL_REQUIRED; Owner passes the Owner guard and then correctly fails with LEGAL_DOCUMENT_REQUIRED when no document id is supplied.
+- Admin attempting to upsert a legal document directly into approved status fails with LEGAL_OWNER_APPROVAL_REQUIRED; Customer fails with STAFF_ONLY.
+- velora_account_action anonymous EXECUTE was removed; current ACL is postgres + authenticated + service_role, with anon=false. This was the smallest justified hardening because the function is a privileged write surface and has no anonymous caller.
+
+ACTION FLOW:
+Identity
+-> role resolution
+-> server-side authorization guard
+-> input/state validation
+-> canonical writer
+-> side effects
+-> audit
+-> notification/recovery where supported.
+
+### Continuation Financial Reconciliation Drill — 2026-09-29
+
+CLASSIFICATION: NO NEW LIVE FINANCIAL MISMATCH PROVEN
+
+OBSERVED FACT:
+- Current Restore-Test reconciliation snapshot: paid_orders=5, captured_marketplace_attempts=3, paid_payment_rows=2, commissions=18, ledger_entries=6, payouts=0, payout_items=0.
+- There are 2 paid orders without captured marketplace attempts: Order 71 is the known shipping-browser-gate fixture; Order 100001 is the known BROWSER_E2E_PRECONDITION fixture.
+- There is 1 captured marketplace attempt without a paid payment row: Order 75, explicitly marked PAYMOB_SANDBOX_EVIDENCE_FIXTURE with provider payment id 543773877 and checkout reference paymob-evidence-36473635960-525448fa-ab19-4730-8f33-68922eac2f8c.
+- Current queries also prove 0 captured attempts whose parent order is not paid, 0 orphan commissions, and 0 orphan order-linked ledger lines.
+- No financial data repair was performed; known QA fixtures remain intact.
+
+INFERRED:
+- The current financial mismatch report is fixture/data-provenance noise rather than a newly proven live checkout defect.
+
+### Continuation Vercel Delivery Capacity — 2026-09-29
+
+CLASSIFICATION: BLOCKED BY EXTERNAL PLATFORM CAPACITY
+
+OBSERVED FACT:
+- Latest READY Preview is deployment dpl_2vtMbEQJYS7mcibPqRMBtfW8sqFG from commit b1e5f5c0861fc2ee34daea3b9a2446f33269e34f.
+- Current commits after that point (including the Seller notification, profile/store synchronization, and security hardening changes) report Vercel combined status failure with target https://vercel.com/ahmedconccc-7063?upgradeToPro=build-rate-limit.
+- Therefore final source/DB changes currently do not have a verified latest Preview deployment.
+- No Production deployment was attempted and Production remains frozen.
+
+NEXT:
+- Once the Vercel capacity blocker is resolved, allow/create the normal Preview deployment for the current branch head and run the aggregate Browser Gate against that exact commit.
