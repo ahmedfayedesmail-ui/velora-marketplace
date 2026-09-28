@@ -3572,3 +3572,51 @@ CLASSIFICATION:
 - Persisted V2 data completion for an existing customer: NOT REQUIRED for the new-customer entry test; remains covered by canonical save/runtime contract.
 - Full Passport answer/save/routine-generation Browser E2E remains OPEN where not separately evidenced.
 
+
+
+# MESSAGE 12.24 — PAYMOB RECONCILIATION WORKER PROVEN NATURALLY / INTEGRATION 5920533 CONFIRMED
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- The oldest eligible Paymob attempt became naturally stale (>70 minutes) without timestamp manipulation.
+- Cron `velora-paymob-reconciliation` at 18:35 UTC produced HTTP 200 response `net._http_response.id=131`:
+  `claimed=2, processed=2`; both reconciled attempts normalized to `pending` and entered reconciliation state `waiting`.
+- Reconciliation state recorded real provider transaction IDs, HTTP 200, `last_outcome=pending`, and a future `next_attempt_at`.
+- A later identical transport invocation using the Vault secret internally produced HTTP 200 response `net._http_response.id=132` with `claimed=1, processed=1`, outcome `pending`, state `waiting`.
+- Therefore the stale claim, provider Inquiry fallback, pending normalization, retry state, and automatic worker transport are CLOSED-DONE. The worker is not the source of the Paymob gate failure.
+
+OBSERVED FACT:
+- Paymob Sandbox Evidence Run #46 = `36466073119` confirmed Intention response:
+  - status `intended`
+  - integration ID `5920533`
+  - method type `online`
+  - currency `EGP`
+  - live `false`
+- Hosted Checkout returned HTTP 200 / READY.
+- Post-payment Order Inquiry returned HTTP 200, exact order correlation, real transaction ID, `pending=true`, `success=false`, `is_captured=false`.
+- Run #47 repeated the same pending transaction pattern.
+- Run #44 already established successful Mastercard ACS/callback-gateway transport and no gateway request failure during the 3DS handoff.
+
+CLASSIFICATION:
+- Paymob Intention/Checkout: CLOSED-DONE L8.
+- Paymob test integration binding: CLOSED-DONE L8.
+- Paymob Order-ID Inquiry: CLOSED-DONE L8.
+- Automatic reconciliation pending path: CLOSED-DONE L8/L4.
+- 3DS completion: OPEN / NOT EVIDENCED.
+- Signed + processed transaction webhook: OPEN / NOT EVIDENCED.
+- Capture/settlement: OPEN / NOT EVIDENCED.
+- Payment Provider Launch Gate: BLOCKED only by real provider completion evidence.
+- Webhook Verification Launch Gate: BLOCKED only by a real signed + processed callback.
+
+NO ARCHITECTURE CHANGE:
+- Do not replace Unified Checkout.
+- Do not create a second payment state machine.
+- Do not bypass HMAC.
+- Do not mark pending as paid from Inquiry.
+- Do not manufacture a webhook event.
+- Do not use synthetic webhook tooling as proof of a real provider callback.
+
+NEXT / FINAL PAYMOB GATE:
+- Finish the currently-running final 3DS-state evidence run only to read the safe post-payment transaction fields.
+- After that, stop diagnostic code churn.
+- The remaining evidence required for launch is a real terminal Paymob transaction followed by a signed, processed webhook and canonical local transition.
