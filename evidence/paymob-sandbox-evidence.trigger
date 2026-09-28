@@ -66,3 +66,6 @@ paymob-3ds-state-diagnostic-v10-2026-09-28T18:20Z
 
 
 paymob-integration-metadata-v11-2026-09-28T18:35Z
+
+
+paymob-3ds-state-record-v12-2026-09-28T18:36Z
