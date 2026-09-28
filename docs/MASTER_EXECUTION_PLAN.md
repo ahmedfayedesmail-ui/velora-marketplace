@@ -2344,3 +2344,24 @@ REMAINING EVIDENCE:
 
 ACTION FLOW:
 Order/commercial event -> canonical order validation -> internal commission calculation -> commission/ledger state transition -> audit -> reconciliation. Client direct commission lookup is denied by ACL; no human intervention is required in the normal path.
+
+### Continuation Auth / Deployment Readiness — 2026-09-28
+
+CLASSIFICATION: OWNER-HOSTED-CONFIGURATION ACTION REQUIRED; NO APPLICATION CODE CHANGE JUSTIFIED
+
+OBSERVED FACT:
+- Restore-Test organization `Maha Beauty` is currently on the Supabase `free` plan.
+- Current Supabase documentation states leaked-password protection is available on Pro Plan and above, and the current pricing page lists leaked password protection as not included on Free. citeturn354297search0turn354297search2
+- Therefore the existing Security Advisor `auth_leaked_password_protection` warning cannot be closed by application code or a speculative database migration while the organization remains on Free.
+- Current Restore-Test project status remains ACTIVE_HEALTHY on PostgreSQL 17.6.1.166.
+- Current Vercel deployment evidence includes a `build-rate-limit` upgrade-to-Pro signal. Current Vercel documentation says Hobby is usage-capped and Pro provides additional usage capacity; Vercel's deployment-disabled guidance also identifies upgrading to Pro as a recovery path when account limits are hit. citeturn127111search0turn127111search6
+- We have not independently asserted the Vercel team's exact plan from the project metadata connector; the deployment signal is the observed evidence.
+
+OWNER ACTIONS WHEN READY:
+- Supabase: upgrade the Restore-Test/launch organization when final Auth hardening is ready, then enable/re-verify leaked-password protection and complete the remaining hosted Auth settings review.
+- Vercel: resolve the current deployment-rate-limit/plan capacity blocker before a new Preview-based Browser Gate cycle; no code change is required to "fix" a platform quota.
+- These are external platform/account actions. Do not change Production as part of this step.
+
+PRIORITY:
+- Supabase Auth hardening is a launch-readiness item, not a customer-facing feature build.
+- Vercel capacity is an execution/evidence prerequisite because it can block new Preview deployments and therefore block Browser evidence.
