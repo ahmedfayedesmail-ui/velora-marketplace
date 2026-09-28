@@ -88,7 +88,7 @@ function openProductForm(existing){
     '<div class="form-row"><div class="form-group"><label>Price *</label><input class="form-input" type="number" id="vcpPrice" min="0" step="0.01" required value="'+esc(existing?.price??'')+'"></div><div class="form-group"><label>Old Price</label><input class="form-input" type="number" id="vcpOriginalPrice" min="0" step="0.01" value="'+esc(existing?.original_price??'')+'"></div></div>'+
     '<div class="form-row"><div class="form-group"><label>Stock *</label><input class="form-input" type="number" id="vcpStock" min="0" step="1" required value="'+esc(existing?.stock??0)+'"></div><div class="form-group"><label>Product Icon</label><input class="form-input" id="vcpEmoji" maxlength="16" value="'+esc(existing?.emoji||'📦')+'"></div></div>'+
     '<div class="form-group"><label>Description *</label><textarea class="form-input" id="vcpDescription" rows="4" required>'+esc(existing?.description||'')+'</textarea></div>'+
-    '<div class="form-group"><label>Product Image URL *</label><input class="form-input" type="url" id="vcpImageUrl" required value="'+esc(image)+'" placeholder="https://..."><small style="color:var(--text-muted)">Image storage is not provisioned in Restore-Test, so the canonical seller flow accepts a URL only.</small></div>'+
+    '<div class="form-group"><label>Product Image URL '+(existing?'':'*')+'</label><input class="form-input" type="url" id="vcpImageUrl" '+(existing?'':'required')+' value="'+esc(image)+'" placeholder="https://..."><small style="color:var(--text-muted)">Image storage is not provisioned in Restore-Test, so the canonical seller flow accepts a URL only.'+(existing?' On edit, leave blank to keep the existing image.':'')+'</small></div>'+
     '<div class="form-group"><label>Tags</label><input class="form-input" id="vcpTags" value="'+esc(Array.isArray(existing?.tags)?existing.tags.join(', '):'')+'" placeholder="tag1, tag2"></div>'+
     '<div id="vcpError" style="display:none;color:var(--error);background:rgba(244,67,54,.08);padding:.8rem;border-radius:10px;margin-bottom:1rem"></div>'+
     '<div style="display:flex;gap:.75rem;justify-content:flex-end"><button type="button" class="btn btn-outline" onclick="closeModal(\'addProductModal\')">Cancel</button><button type="submit" class="btn btn-primary">'+esc(existing?'💾 Save Changes':'✅ Add Product')+'</button></div>'+
@@ -130,7 +130,7 @@ window.handleAddProduct=async function(event){
     if(!Number.isFinite(price)||price<0)return fail('⚠️ Enter a valid price.');
     if(!Number.isInteger(stock)||stock<0)return fail('⚠️ Enter a valid stock quantity.');
     if(!description)return fail('⚠️ Add a product description.');
-    if(!/^https?:\/\//i.test(imageUrl))return fail('⚠️ Add a valid http(s) image URL.');
+    if(imageUrl&&!/^https?:\/\//i.test(imageUrl))return fail('⚠️ Add a valid http(s) image URL.');
     if(!Number.isFinite(originalPrice??0) && originalPrice!==null)return fail('⚠️ Enter a valid old price.');
     const client=db(); if(!client?.rpc)throw new Error('Supabase client unavailable');
     const b=document.querySelector('#sellerCanonicalProductForm button[type="submit"]'); if(b)b.disabled=true;
