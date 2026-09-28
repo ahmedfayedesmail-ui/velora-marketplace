@@ -2632,3 +2632,140 @@ No automatic fallback trigger is claimed yet.
 4. Define the stale-pending reconciliation window, bounded batch size, idempotency/dedupe behavior, and service identity before adding any scheduler.
 5. Only then add the smallest automatic worker/schedule needed to close the proven gap.
 6. Rerun the Paymob sandbox evidence path with corrected webhook correlation and verify L1-L8 separately.
+
+
+---
+
+# MESSAGE 12.6 — PAYMOB SHARED TRANSACTION APPLICATOR + EVIDENCE HARNESS STATUS
+Recorded 2026-09-28.
+
+## Shared Canonical Transaction Transition
+CLASSIFICATION: L1/L2 SOURCE + DB CONTRACT CLOSED; LIVE PROVIDER EVIDENCE OPEN
+
+OBSERVED FACT:
+- A single service-role-only DB function now exists:
+  `public.velora_apply_paymob_marketplace_transaction(uuid,text,text,text)`
+- The function validates:
+  - service-role execution
+  - marketplace_order payment purpose
+  - Paymob provider binding
+  - existing Paymob order correlation
+  - allowed normalized transaction states
+- It applies a monotonic payment transition:
+  pending / requires_action / authorized / captured / failed / refunded / cancelled
+- It synchronizes the canonical marketplace order/payment read models and preserves the existing failed-payment trigger chain.
+- Repeated same-state/same-transaction application returns `changed=false` and does not create a second reconciliation audit event.
+- Migration:
+  `supabase/migrations/20260928195500_paymob_marketplace_transaction_applicator.sql`
+- Restore-Test migration application succeeded.
+- Migration source is committed on the execution branch.
+
+## Webhook Reuse
+OBSERVED FACT:
+- Restore-Test Paymob webhook is now deployed as version 29 and calls the shared applicator for the `marketplace_order` domain.
+- Subscription and seller-ad branches remain on their existing canonical paths.
+- Exact Git source/runtime comparison for webhook version 29 is equal:
+  - Git source bytes: 12,862
+  - deployed runtime bytes: 12,862
+  - exact content equality: true
+  - runtime remains `verify_jwt=false` because Paymob HMAC authenticates the external callback inside the function.
+
+## L4 Transaction-Safe Verification
+OBSERVED FACT:
+- Captured simulation on a pending Paymob marketplace attempt changed the order to:
+  - status = confirmed
+  - payment_status = paid
+- Failed simulation changed:
+  - payment_attempt = failed
+  - order = cancelled
+  - order payment_status = failed
+- Failed simulation also exercised the existing inventory-release trigger:
+  - product stock 18 -> 19 inside the transaction
+- Duplicate captured application returned:
+  - status = captured
+  - changed = false
+- Every mutation test was performed inside a transaction and rolled back.
+- Follow-up database read confirmed the real Restore-Test state returned to:
+  - payment_attempt = pending
+  - original Paymob provider_payment_id preserved
+  - order = pending / payment pending
+
+CLASSIFICATION:
+- Shared transition contract: CLOSED-DONE at L1-L4.
+- Provider settlement: NOT EVIDENCED.
+- Production: FROZEN.
+
+## Evidence Harness Correlation
+OBSERVED FACT:
+- The previous harness incorrectly correlated webhook events by `payment_attempts.provider_payment_id`, which initially stores the Paymob Intention/session identifier.
+- The active webhook records `event_id` from the Paymob transaction identifier.
+- A targeted workflow patch was attempted, but the intermediate version introduced malformed duplicated Python indentation/code.
+- That malformed workflow was immediately replaced with the last known valid workflow version before any green-result claim was made.
+- Current execution branch therefore has a VALID workflow, but the original event-id correlation behavior remains OPEN and is not yet promoted to fixed evidence-harness behavior.
+- No product payment runtime was weakened or changed to accommodate the CI harness.
+
+## Vercel / Preview
+OBSERVED FACT:
+- The latest execution-branch commits currently report a Vercel `build-rate-limit` failure status.
+- Latest READY deployment currently observed is still for commit `37f110c532973260136d4a64d8fa86ffb52321eb`, the earlier Inquiry-adapter source commit.
+- No current READY Vercel deployment for the latest execution-branch commit is evidenced at this point.
+- This is deployment/platform evidence, not Browser evidence and not proof that the payment backend is broken.
+
+## Paymob Inquiry Status
+OBSERVED FACT:
+- `PAYMOB_API_KEY` was configured as a Restore-Test Edge Function secret by Owner action.
+- Inquiry adapter exists and is ACTIVE version 1 with `verify_jwt=true`.
+- The available tool surface cannot directly invoke the deployed Edge Function and the local runtime environment has no outbound DNS/network path, so provider-auth/inquiry HTTP execution is NOT EVIDENCED.
+- No secret value was exposed.
+
+## Action Flow — Updated
+PRIMARY:
+EVENT -> AUTH -> GUARD -> VALIDATION -> payment_attempt=pending -> Paymob Intention -> provider binding -> customer/3DS -> verified HMAC webhook -> dedupe -> shared transaction applicator -> order/payment synchronization -> audit -> existing financial/inventory side effects.
+
+FALLBACK:
+PENDING BEYOND DEFINED RECONCILIATION WINDOW -> identify payment_attempt + Paymob order ID -> Transaction Inquiry -> normalize provider result -> SAME shared transaction applicator -> audit/idempotent side effects -> close/recover -> Owner/Staff only for genuine provider ambiguity/financial exception.
+
+AUTOMATION:
+- Immediate trigger/reconciliation actions already occur for relevant payment/reconciliation events.
+- Periodic stale-pending detection is still NOT EVIDENCED.
+- No scheduler has been added.
+- The next step is to define the reconciliation window and prove the existing automation execution contract before any scheduler change.
+
+## Current Classification
+CLOSED-DONE:
+- Owner secret configuration action complete.
+- Paymob Inquiry adapter source/deployment foundation.
+- Shared marketplace transaction-state applicator.
+- Webhook runtime uses shared applicator.
+- L4 captured/failed/duplicate transition behavior with rollback.
+- Existing failed-payment inventory recovery remains canonical.
+
+OPEN / NOT EVIDENCED:
+- Current provider Inquiry HTTP success/auth evidence.
+- Full customer 3DS/browser completion.
+- Current CI webhook-correlation fix.
+- Periodic stale-pending detector and automatic reconciliation worker.
+- Full cross-system payment -> commission -> inventory -> audit reconciliation after a real provider outcome.
+- Current-SHA Vercel READY Preview.
+- Browser Gate.
+
+BLOCKED / PENDING:
+- `payment_provider` launch gate = BLOCKED / REQUIRED.
+- `webhook_verification` launch gate = BLOCKED / REQUIRED.
+- `production_infra` = PENDING / REQUIRED.
+- `rollback_backup` = PENDING / REQUIRED.
+- Browser automation provider/tooling limitations remain carried forward.
+
+NEXT EXECUTION ORDER:
+1. Preserve the valid workflow and do not claim its correlation bug is fixed until a clean commit can be produced and CI proves it.
+2. Complete a real Provider/L8 Inquiry execution path using the configured secret, without exposing the secret.
+3. Research and define the stale-pending reconciliation window from the existing Paymob checkout expiration/callback contract and established reconciliation practice.
+4. Prove the existing automation worker semantics and service identity.
+5. Only if a concrete scheduling gap remains, implement the smallest automatic scheduler/worker.
+6. Re-run the Paymob sandbox path and verify Browser/provider/database/audit/financial effects separately.
+7. Keep all earlier Master Handoff items active in parallel; nothing in Messages 2/11 through 12.5 is removed by this message.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF — unchanged and mandatory.
+2. RESEARCH / REUSE FIRST — unchanged and mandatory.
+3. ACTION FLOW IN PARALLEL — unchanged and mandatory.
