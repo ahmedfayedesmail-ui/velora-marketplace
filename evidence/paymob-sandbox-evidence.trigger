@@ -60,3 +60,6 @@ paymob-alt-card-differential-2026-09-28T18:40Z
 
 
 paymob-3ds-telemetry-2026-09-28T18:55Z
+
+
+paymob-3ds-state-diagnostic-v10-2026-09-28T18:20Z
