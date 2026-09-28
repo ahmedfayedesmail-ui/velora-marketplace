@@ -1028,3 +1028,286 @@ CARRY-FORWARD:
    Do not build merely because a feature can be built. Search proven prior art/documentation/implementations and reuse canonical contracts first. Build only where an observed gap remains and no suitable existing path covers it.
 3. ACTION FLOW IN PARALLEL:
    Continue Detect -> Decide -> Execute -> Verify -> Recover/Escalate across the whole platform. Normal paths must operate automatically wherever the current architecture supports it; human input is reserved for real business-policy, governance, provider, fraud/trust, exceptional refund, payout, and release-control boundaries.
+
+## Message 8/11 — Payments + Webhook / Current Active Execution Lane
+
+### 68. Current Lane Authority
+CLASSIFICATION: ACTIVE EXECUTION LANE
+
+OBSERVED FACT:
+- Payments + Webhook remains the current active execution lane.
+- Beauty Passport and Owner/Governance were added to this same Master Plan and did not replace or pause the payment/webhook lane.
+- Current work remains Restore-Test only. Production is frozen.
+
+NON-NEGOTIABLE MASTER CONDITIONS:
+1. HANDOFF COMPLETENESS — continue the full Master Handoff with every prior item, dependency, policy gap, ACL/RLS detail, evidence layer, blocked item, pending item, and NOT EVIDENCED item preserved. Nothing disappears when execution moves between messages.
+2. RESEARCH BEFORE BUILD — Existing Contract -> Research -> Observed Gap -> Actual Need -> Smallest Safe Change. Research prior art/documentation/implementations first; reuse canonical Velora paths; build only where a real observed gap remains. No duplicate payment/webhook engine.
+3. ACTION FLOW IN PARALLEL — Detect -> Decide -> Execute -> Verify -> Recover/Escalate. Normal platform operation should complete automatically wherever the canonical architecture supports it. Human intervention is limited to true exceptions such as provider ambiguity, fraud/trust, exceptional refunds, governance, payout/provider settlement, legal publication, and release control.
+
+### 69. Payment Route
+OBSERVED FACT:
+- Restore-Test payment route is Paymob test/Card for EG/EGP and COD for EG/EGP.
+- Other providers are inactive for the current execution scope.
+
+### 70. Canonical Payment RPCs
+OBSERVED FACT:
+- velora_create_payment_attempt is authenticated-only for customer use; anon EXECUTE is false.
+- velora_get_payment_route is authenticated-only; anon EXECUTE is false.
+- velora_set_order_payment_method is authenticated-only and enforces authenticated ownership/payment-state constraints.
+- Current payment-attempt contract enforces authentication, allowed purpose, idempotency-key bounds, country validation, order ownership, payable-order state, positive amount, and route resolution.
+- Current set-payment-method contract requires the owned order, pending payment status, active payment method, and an operational route; current Restore-Test operational allowance is COD or Paymob card/test.
+
+ACL OBSERVATION:
+- Current Restore-Test also has velora_attach_payment_provider_session 3-arg and 4-arg overloads; both are SECURITY DEFINER with anon=false, authenticated=true, service_role=true.
+
+### 71. Payment / Order RLS
+OBSERVED FACT:
+- orders RLS is enabled. Customer SELECT is limited to customer_id = auth.uid(); staff SELECT is allowed through the staff guard.
+- payment_attempts RLS is enabled. Customer SELECT is limited to own user_id, with staff access.
+- payments RLS is enabled. Customer SELECT is limited to payments belonging to their own orders, with staff access.
+- No RLS weakening was introduced for payment testing.
+
+### 72. Provider Session Binding
+OBSERVED FACT:
+- Canonical 4-argument binding function is velora_attach_payment_provider_session(uuid,text,text,text).
+- It requires auth.uid(), locks the owned payment attempt/order relationship, validates provider/session fields, requires provider_order_id for Paymob, stores provider_session_id/provider_payment_id and metadata.paymob_order_id, and writes payment_provider_session_attached audit evidence.
+- The current Paymob checkout runtime uses the 4-argument form, not the weaker 3-argument overload.
+- A server-authoritative recovery function exists separately: velora_recover_paymob_provider_session(uuid,text,text), with authenticated EXECUTE explicitly revoked and service_role EXECUTE only.
+
+### 73. Provider-Start Failure Gap — CURRENT STATE AFTER HARDENING
+CLASSIFICATION: SOURCE/DB CONTRACT GAP CLOSED; LIVE PROVIDER EVIDENCE OPEN
+
+OBSERVED FACT:
+- Current Git source contains supabase/functions/velora-paymob-checkout/index.ts.
+- Current Restore-Test deployment velora-paymob-checkout is ACTIVE version 16 with verify_jwt=true.
+- Direct comparison of deployed runtime content and the Git branch source showed exact content parity for index.ts (12,519 bytes in both), so the earlier source/runtime parity concern is now superseded at the current runtime level.
+- Current checkout sequence remains: authenticated payment-attempt creation -> Paymob POST /v1/intention/ -> provider-session binding -> Unified Checkout URL.
+- Current implementation explicitly compensates provider-start failures by calling velora_mark_marketplace_payment_initialization_failed(...).
+- If Paymob intention creation returns non-2xx, the function records a local marketplace payment-attempt failure and returns a controlled failure response instead of intentionally leaving the attempt pending.
+- If the intention response lacks required identifiers, the same canonical initialization-failure path is used.
+- If client_secret is missing after a valid intention, the runtime invokes the server-authoritative Paymob session recovery path; if recovery fails, it returns manual_reconciliation_required rather than inventing a second payment engine.
+- If provider-session binding fails, the runtime retries the canonical bind once and then invokes the same server-authoritative recovery function; unrecovered ambiguity returns manual_reconciliation_required.
+
+CURRENT SUPPORTING MIGRATIONS:
+- 20260928093030_marketplace_payment_initialization_failure_contract_20260928
+- 20260928093550_recover_paymob_provider_session_20260928
+- Existing downstream failure recovery remains canonical through trg_velora_release_inventory_after_failed_payment -> private.velora_release_inventory_after_failed_marketplace_payment().
+
+### 74. Payment Action-Failure Cases A-E
+
+#### Case A — Attempt created -> provider intention fails
+CLASSIFICATION: CLOSED-DONE AT L1-L4 / PROVIDER RUNTIME EVIDENCE OPEN
+
+OBSERVED FACT:
+- velora_mark_marketplace_payment_initialization_failed is authenticated-only; anon=false; authenticated=true; service_role=true.
+- The function only operates on an owned marketplace-order payment attempt and is idempotent for terminal states.
+- Controlled Restore-Test transactional probe on Order #68 / payment attempt dd223161-93e3-4770-9de4-d58c8abc0cce produced:
+  attempt pending -> failed
+  order pending -> cancelled
+  order payment_status pending -> failed
+  pending payment read-model -> failed
+  payment_failed_inventory_released audit count -> 1
+- The same probe was rolled back. Follow-up read verified the attempt/order/payment state returned to pending/pending.
+- Trigger definition observed: AFTER UPDATE OF status on payment_attempts WHEN new.status='failed', executing private.velora_release_inventory_after_failed_marketplace_payment().
+- Therefore provider-start failure compensation and the downstream inventory/order/payment failure path are one canonical chain; no second failure engine is required.
+
+#### Case B — Provider intention exists -> local provider-session binding fails
+CLASSIFICATION: BACKEND RECOVERY CONTRACT CLOSED / AMBIGUOUS LIVE PROVIDER EVENT OPEN
+
+OBSERVED FACT:
+- velora_recover_paymob_provider_session is service_role-only and validates Paymob purpose, terminal state, existing provider_order_id conflicts, and existing provider_session_id conflicts.
+- A controlled Restore-Test recovery attempt with a mismatched provider order ID correctly raised PAYMOB_RECOVERY_PROVIDER_ORDER_CONFLICT. This proves conflict protection is active.
+- A controlled same-binding recovery on a pending Paymob attempt preserved the existing session/order binding and returned the expected pending state. The transaction was rolled back.
+- Runtime code uses the recovery path after canonical binding fails and returns a retry or manual reconciliation outcome rather than silently proceeding with an unbound external intention.
+
+#### Case C — Session ready -> payment/customer failure
+CLASSIFICATION: BACKEND PATH CLOSED / BROWSER + LIVE PROVIDER EVIDENCE NOT EVIDENCED
+
+OBSERVED FACT:
+- Current Paymob webhook v27 maps provider transaction state into the canonical payment_attempt status using a monotonic transition function.
+- Marketplace captured -> order payment_status paid, and a pending order becomes confirmed on the captured transition.
+- Failed/refunded states are propagated to payment/order read models through the existing webhook reconciliation path.
+- The downstream failed-payment path remains the same canonical inventory/order/payment path rather than introducing another engine.
+
+NOT EVIDENCED:
+- real customer/browser sandbox completion on the current runtime
+- live provider settlement
+- Production behavior
+
+#### Case D — Webhook failure
+CLASSIFICATION: OPEN / NOT EVIDENCED OPERATIONAL RECOVERY POLICY
+
+OBSERVED FACT:
+- Current webhook records a provider event, processes the canonical payment/subscription/seller-ad branch, and marks the webhook event processed only after successful handling.
+- Current provider_webhook_events records retain payload hash, signature verification, status, failure_reason, received_at, processed_at, and retry_count fields.
+- The current implementation does not justify creation of a second internal webhook retry engine.
+
+OPEN:
+- end-to-end evidence for downstream processing failure followed by a successful replay/retry
+- explicit provider retry/replay behavior under a genuine failed callback
+- operational reconciliation path for an externally completed payment whose callback remains unprocessed
+
+RULE:
+Do not invent a second scheduler/queue here. Reuse provider retry behavior and existing provider_webhook_events state; add a Velora replay helper only if an observed operational gap proves it is needed.
+
+#### Case E — Duplicate webhook
+CLASSIFICATION: CLOSED-DONE AT WEBHOOK CONTRACT
+
+OBSERVED FACT:
+- Current webhook derives eventId from transaction ID (or a deterministic fallback), computes a payload SHA-256 hash, and checks provider_webhook_events before processing.
+- An already-processed event with the same payload hash is returned as duplicate=true with state_change='none'.
+- A same-event payload mismatch is rejected with WEBHOOK_EVENT_PAYLOAD_MISMATCH.
+- Payment status transitions are monotonic: captured stays captured unless refund arrives; failed/cancelled remain terminal; authorized/requires_action can move only through allowed forward/terminal states.
+- Restore-Test currently contains processed Paymob webhook events with signature_verified=true and status=processed.
+
+### 75. Paymob Webhook Security / Runtime
+OBSERVED FACT:
+- velora-paymob-webhook-restore-test is ACTIVE version 27 and verify_jwt=false.
+- verify_jwt=false is intentional because this external provider callback is authenticated inside the function using Paymob HMAC verification.
+- Current webhook uses HMAC-SHA512 with constant-time comparison and correlates the Paymob order ID to Velora's payment_attempts metadata/paymob_order_id relationship.
+- Current source also preserves subscription and seller-ad payment branches instead of creating a separate marketplace-only webhook engine.
+- Direct comparison of deployed runtime and Git source showed exact content parity for the current webhook index.ts (15,078 bytes in both).
+
+RESEARCH-FIRST SUPPORTING EVIDENCE:
+- Paymob's current Create Intention documentation specifies POST /v1/intention/, secret-key Token authorization, amount in cents, matching currency/integration requirements, and response identifiers including intention_order_id, id, and client_secret. It also describes notification_url and redirection_url behavior. 
+  Source: https://developers.paymob.com/paymob-docs/intention-apis/create-intention
+- Paymob's current Transaction Callback documentation describes server-side POST callbacks and says order.id is used to correlate the received transaction with the order bound during intention creation. 
+  Source: https://developers.paymob.com/paymob-docs/manage-callback/transaction-callbacks
+- Paymob's current HMAC documentation describes HMAC-based callback verification, consistent with treating the webhook as publicly reachable at the HTTP layer while enforcing provider authenticity inside the handler. 
+  Source: https://developers.paymob.com/paymob-docs/developers/webhook-callbacks-and-hmac/hmac/hmac-for-card-tokens
+- Paymob provides a webhook testing tool for inspecting success/failure/refund/void/capture callbacks before production. 
+  Source: https://developers.paymob.com/paymob-docs/developers/webhook-callbacks-and-hmac/webhook-testing-tool
+- Adyen's current idempotency documentation describes safe retries with idempotency keys and asynchronous server-to-server webhooks as a resilience pattern for missing responses/timeouts. 
+  Source: https://docs.adyen.com/development-resources/api-idempotency
+- Stripe's current webhook/idempotency documentation remains useful prior art for asynchronous event handling and safe retry semantics; Velora should reuse those principles without introducing provider-specific copies of the same canonical state machine. 
+  Sources: https://docs.stripe.com/webhooks and https://docs.stripe.com/api/idempotent_requests
+
+### 76. Restore-Test Webhook Evidence
+CLASSIFICATION: OBSERVED RESTORE-TEST EVIDENCE / NOT LIVE SETTLEMENT PROOF
+
+OBSERVED FACT:
+- Current Restore-Test contains two processed Paymob webhook records with signature_verified=true, status=processed, retry_count=0.
+- Historical processed events included one event moving a payment attempt to captured and the corresponding order payment_status to paid.
+- This proves Restore-Test webhook processing occurred; it does not prove live Paymob settlement or Production delivery.
+
+### 77. Paymob Sandbox Evidence Workflow
+CLASSIFICATION: CI EVIDENCE PATH EXISTS / CURRENT FULL PASS NOT EVIDENCED
+
+OBSERVED FACT:
+- .github/workflows/velora-paymob-sandbox-evidence.yml implements the intended path:
+  Auth -> fixture/pending order -> velora-paymob-checkout -> Paymob intention -> sandbox payment/browser drill -> DB payment attempt/webhook polling -> final order/payment state -> evidence artifact.
+- Workflow expects captured payment_attempt, processed verified webhook, order payment_status paid, and order status confirmed before declaring the run passed.
+- The latest previously confirmed Run #4 (36296512312, 2026-09-27 05:12 UTC, SHA fe339f2c...) is historical evidence against the older runtime state. It failed because checkout returned HTTP 400 without a checkout URL; no Paymob intention or sandbox payment path was confirmed. The current v16 deployment happened later and must be judged independently.
+
+### 78. Current Source / Runtime Parity Reconciliation
+CLASSIFICATION: CLOSED-DONE FOR CURRENT CHECKOUT + WEBHOOK SOURCE PARITY / HISTORICAL NOTE RETAINED
+
+OBSERVED FACT:
+- The earlier provenance note said GitHub code search could not locate a matching checkout source. Direct current Git fetch resolved this as a code-search/index visibility problem rather than evidence that the source was absent.
+- Current Git contains both:
+  supabase/functions/velora-paymob-checkout/index.ts
+  supabase/functions/velora-paymob-checkout/deno.json
+  supabase/functions/velora-paymob-webhook-restore-test/index.ts
+  supabase/functions/velora-paymob-webhook-restore-test/deno.json
+- Current deployed versions are checkout v16 and webhook v27, and their deployed index.ts contents exactly match the Git branch files.
+- Therefore the earlier runtime/source parity gap is SUPERSEDED for the current runtime. The historical provenance document docs/audit/PAYMOB_RUNTIME_PROVENANCE_2026-09-28.md must remain as historical evidence and must not be treated as the current version record.
+
+### 79. Current Payment Evidence Snapshot
+OBSERVED FACT:
+- Restore-Test currently reports 13 orders, 36 payment_attempts, 11 payments, and 2 processed Paymob webhook events.
+- Several pending marketplace payment attempts for Order #62 currently have provider_session_id/provider_payment_id values already attached; this is test-state evidence, not settlement proof.
+- Multiple pending attempts remain from earlier evidence drills. This reinforces the previously carried OPEN policy/automation question for abandoned pending orders. Do not solve that policy by inventing a TTL during Message 8.
+
+### 80. Launch Gates — Payment/Provider
+STATUS:
+- payment_provider -> BLOCKED / REQUIRED
+- webhook_verification -> BLOCKED / REQUIRED
+- production_infra -> PENDING / REQUIRED
+- rollback_backup -> PENDING / REQUIRED
+- shipping_provider -> BLOCKED / NOT REQUIRED (manual fulfillment accepted)
+
+REASON:
+- Backend/source/DB contracts are substantially hardened, but the current record still lacks the required current Browser + provider-level settlement evidence and Production-readiness evidence.
+- No claim of live Paymob settlement PASS is permitted.
+
+### 81. Message 8 Action Flow — Parallel
+Detect provider-start attempt
+-> authenticate customer
+-> validate canonical order/payment route/idempotency
+-> create canonical payment_attempt
+-> call Paymob Intention API
+-> if provider-start fails: mark marketplace initialization failed
+-> trigger canonical downstream inventory/order/payment/commission recovery
+-> if intention succeeds: bind provider session
+-> if bind fails: recover provider session server-authoritatively or escalate manual reconciliation
+-> present provider checkout
+-> receive HMAC-verified webhook
+-> dedupe by provider event + payload hash
+-> apply monotonic payment transition
+-> synchronize canonical order/payment read models
+-> audit
+-> retry/reconcile only through existing provider/event-state mechanisms
+-> human exception only for genuine provider ambiguity, fraud/trust, exceptional refund, payout/settlement, or release control.
+
+NO DUPLICATE ENGINE RULE:
+- Payment failure recovery remains the existing payment_attempt trigger/helper.
+- Provider-session recovery remains the existing service-role recovery function.
+- Webhook handling remains the existing Paymob webhook function plus provider_webhook_events.
+- Do not add a parallel payment failure engine, webhook scheduler, or separate reconciliation model without a new observed gap.
+
+### 82. Message 8 Execution Classification
+CLOSED-DONE:
+- Current Paymob checkout source/runtime parity.
+- Authenticated-only canonical payment RPC ACL baseline.
+- Payment/order/payments RLS baseline.
+- Provider session binding owner gate and Paymob order binding guard.
+- Case A provider-start failure compensation at source/DB, including downstream inventory/order/payment recovery, with rollback proof.
+- Case B provider-session recovery contract, conflict protection, and service-role-only ACL.
+- Case E duplicate/monotonic webhook contract.
+
+OPEN / NOT EVIDENCED:
+- Case C current Browser/real sandbox payment completion.
+- Case D full operational webhook-failure replay/reconciliation evidence.
+- Current customer Browser Gate for payment UI.
+- Current provider settlement evidence.
+- Production infrastructure/backup/rollback evidence.
+- Abandoned pending-order/reservation business policy remains carried forward.
+
+BLOCKED:
+- payment_provider launch gate until provider-level evidence is obtained.
+- webhook_verification launch gate until current verified provider evidence is obtained.
+- Browser/provider automation remains unavailable when its external provider/tooling is not usable; do not convert this into a source/DB PASS.
+
+INFERRED:
+- The current payment-start architecture now has a coherent single canonical compensation chain for the observed provider-start failure cases, while remaining intentionally conservative about external-provider ambiguity.
+
+HYPOTHESIS / DISALLOWED CLAIM:
+- Do not infer the exact historical HTTP 400 root cause from Run #4. The historical root cause remains unresolved because available logs did not prove it.
+- Do not blame credentials, RLS, provider outage, account configuration, or browser cache without new evidence.
+
+### Message 8 Evidence Discipline
+- L1 Source: current Git checkout/webhook sources and workflow inspected.
+- L2 DB: current RPC/function definitions, RLS, payment tables, and webhook event records inspected.
+- L3 ACL/RLS: payment functions and tables verified.
+- L4 Negative Path: Case A transactional failure compensation and Case B session recovery/conflict tested with rollback.
+- L5 CI: historical sandbox workflow failure retained; current v16 must be independently re-run to establish new CI evidence.
+- L6 Preview: no current Message 8 payment UI Preview PASS claimed merely from source changes.
+- L7 Browser: NOT EVIDENCED.
+- L8 Provider: NOT EVIDENCED for current full settlement chain.
+- L9 Production: NOT EVIDENCED; Production remains frozen.
+
+### Message 8 Carry-Forward
+- All unresolved items from Messages 2/11 through 7/11 remain active and are NOT deleted by Message 8.
+- Seller Dashboard re-entry remains Browser-gated.
+- Seller post-approval re-review policy, abandoned pending-order/reservation policy, and legacy order-item status contract remain open.
+- Subscription commercial policy/runtime/browser gaps remain open.
+- Ads reporting/attribution/pricing/provider evidence remain open.
+- Commission policy/refund treatment remains open.
+- Payout provider execution/reconciliation evidence remains open.
+- Promotions free_shipping/stacking/targeting/economics/reversal policy gaps remain open.
+- Gift-card refund/cancel accounting/expiry policy and Browser evidence remain open.
+- Returns customer UX/refund allocation/provider refund/window policy remain open.
+- Notifications Browser push/delivery evidence remains open.
+- Beauty Passport/Routine/Recommendation browser evidence and customer Recommendation UX remain open.
+- Customer Beauty AI remains NOT DONE / ROADMAP; no AI engine is to be introduced here.
+- Production infrastructure and rollback/backup remain PENDING and outside Restore-Test changes.
