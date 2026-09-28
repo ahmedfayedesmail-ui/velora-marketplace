@@ -2653,3 +2653,28 @@ CARRY-FORWARD:
 - pg_net placement warning remains open because it is a live cron dependency.
 - hosted Auth leaked-password protection remains owner/platform configuration work.
 - final targeted Advisor coverage remains part of launch hardening.
+
+
+### Continuation Anonymous SECURITY DEFINER Review — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE FOR CURRENT ANON SECURITY-DEFINER QUEUE
+
+OBSERVED FACT:
+- Current Restore-Test query of all public SECURITY DEFINER functions with anon EXECUTE returns seven functions:
+  velora_get_active_seller_ads
+  velora_get_fx_rate
+  velora_get_i18n_catalog
+  velora_get_localized_content
+  velora_get_marketplace_catalog
+  velora_get_required_legal_documents
+  velora_list_active_promotions
+- All seven are read-oriented public marketplace/configuration surfaces; no seller/order/payment/gift-card/payout/legal-write operation appears in this anon SECURITY DEFINER set.
+- velora_account_action was separately observed with anon EXECUTE in its ACL, but it is not SECURITY DEFINER; its staff guard therefore does not create a privileged SECURITY DEFINER anonymous execution path.
+- No blanket anonymous revocation was made.
+
+INFERRED:
+- The current anon SECURITY DEFINER warning set is aligned with intentional public read surfaces, subject to continued function-specific review.
+- The previous heuristic concern about anonymous privileged writers is closed for the currently inspected set.
+
+ACTION FLOW:
+Advisor warning -> enumerate anon SECURITY DEFINER -> inspect function direction/guards -> classify public read vs privileged write -> retain intentional reads -> deny/escalate only if a privileged writer appears.
