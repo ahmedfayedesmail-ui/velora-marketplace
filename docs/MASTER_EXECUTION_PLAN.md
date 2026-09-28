@@ -3411,3 +3411,33 @@ CLASSIFICATION:
 1. COMPLETE MASTER HANDOFF — no dropped item.
 2. RESEARCH / REUSE FIRST — existing working patterns and canonical contracts are reused before building.
 3. ACTION FLOW IN PARALLEL — payment state transition, financial side effects, audit and reconciliation remain automatic within canonical boundaries; human action only for genuine exceptions.
+
+
+# MESSAGE 12.18 — PAYMOB INQUIRY V7 BOOT PROOF + V8 REDACTED STAGE DIAGNOSTIC
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Paymob Sandbox Evidence Run #39 = `36460744721`, SHA `18a1e1ce000383cee6bb010cc5a57cfc8edfdaa9`, failed with HTTP 502 from the Inquiry adapter.
+- Restore-Test Inquiry v7 emitted a Supabase function log `booted (time: 30ms)` for the exact failing execution. Therefore v7 was loaded and started; this is not currently classified as a module BOOT_ERROR.
+- Gateway response header was `EDGE_FUNCTION_ERROR` and the evidence harness received no structured application error fields (`code/stage/error_class` were null).
+- The same run proved: authenticated user, pending order, checkout HTTP 200, Paymob intention created, Inquiry attempt found, and Paymob checkout page HTTP 200. No signed/processed webhook was observed.
+- Vercel/CI current source gates on the subsequent code commit remained successful on the prior stable commit `e8c326fb61e7f3ce57f5ba2dde597371e9227ced`; the current diagnostic HEAD gates are still running.
+
+INFERENCE:
+- Removing the duplicate dynamic import did not by itself prove the Inquiry RCA; Run #39 still returned the same 502 behavior.
+- Because the function boot event exists, the next diagnostic boundary is inside the request path or the gateway's handling of the function's explicit 5xx response, not deployment loading.
+
+ACTION:
+- v8 adds only redacted console diagnostics for Paymob auth HTTP status/token-present and Inquiry HTTP status/content-type; no provider payload, token, or secret is logged.
+- v8 is ACTIVE with checksum `d2c7cd5da98cac0c4fe25ee610f82c7cc56498a9017dc64bb2a8bbaf44d604f0`.
+- Paymob Sandbox Evidence Run #40 = `36461710115`, SHA `1e5a8e9462a3f910960c02a7fb894f92984f9b7f`, currently QUEUED.
+
+CLASSIFICATION:
+- Paymob Inquiry L8: OPEN / NOT EVIDENCED.
+- Paymob signed/processed webhook: OPEN / NOT EVIDENCED.
+- Provider settlement/live capture: BLOCKED until L8 evidence exists.
+
+THREE MASTER GOVERNING CONDITIONS:
+1. COMPLETE MASTER HANDOFF — no dropped item.
+2. RESEARCH / REUSE FIRST — working Paymob patterns are used before new architecture.
+3. ACTION FLOW IN PARALLEL — provider state, canonical state, automatic side effects, audit, retry/idempotency and reconciliation remain one chain.
