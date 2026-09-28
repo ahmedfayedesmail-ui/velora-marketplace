@@ -146,6 +146,8 @@
     const stores=groupStores(order.items);
     const canReturn=String(order.status||'').toLowerCase()==='delivered'
       && ['paid','refunded'].includes(String(order.payment_status||'').toLowerCase());
+    const canCancel=['pending','confirmed'].includes(String(order.status||'').toLowerCase())
+      && String(order.payment_status||'').toLowerCase()==='pending';
 
     return '<article class="velora-customer-order">'+
       '<div class="velora-customer-order-head">'+
@@ -180,8 +182,9 @@
           '</div>'
         ).join('') : '<div class="velora-op-muted">'+esc(t('No items found for this order.','لم يتم العثور على عناصر لهذا الطلب.'))+'</div>')+
       '</div>'+
-      '<div style="display:flex;justify-content:flex-end;margin-top:1rem;font-weight:900;">'+
+      '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:1rem;font-weight:900;">'+
         '<span>'+esc(t('Total','الإجمالي'))+': '+money(order.total,order.currency)+'</span>'+
+        (canCancel ? '<button class="btn btn-outline" type="button" data-velora-cancel-order="'+esc(order.id)+'">'+esc(t('Cancel order','إلغاء الطلب'))+'</button>' : '')+
       '</div>'+
       (stores.length ? stores.map(store=>{
         const existing=activeReturnForStore(order,store.store_id);
@@ -199,6 +202,22 @@
         '</div>';
       }).join('') : '')+
     '</article>';
+  }
+
+  async function cancelOrder(order){
+    const confirmed=window.confirm(t(
+      'Cancel this order? Inventory will be released if the server confirms cancellation.',
+      'هل تريد إلغاء هذا الطلب؟ سيتم تحرير المخزون إذا أكد الخادم الإلغاء.'
+    ));
+    if(!confirmed) return;
+    try{
+      const result=await db.rpc('velora_cancel_order',{p_order_id:order.id});
+      if(result.error) throw result.error;
+      if(window.showToast) window.showToast('✅ '+t('Order cancelled.','تم إلغاء الطلب.'),'success');
+      await renderCanonicalOrders();
+    }catch(error){
+      if(window.showToast) window.showToast('❌ '+String(error?.message||error),'error');
+    }
   }
 
   function showError(container,error){
@@ -331,6 +350,12 @@
           const order=orders.find(x=>String(x.id)===String(button.getAttribute('data-velora-return-order')));
           const store=groupStores(order?.items||[]).find(x=>String(x.store_id)===String(button.getAttribute('data-velora-return-store')));
           if(order&&store) openReturnModal(order,store);
+        });
+      });
+      container.querySelectorAll('[data-velora-cancel-order]').forEach(button=>{
+        button.addEventListener('click',()=>{
+          const order=orders.find(x=>String(x.id)===String(button.getAttribute('data-velora-cancel-order')));
+          if(order) cancelOrder(order);
         });
       });
     }catch(error){
