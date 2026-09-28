@@ -424,5 +424,17 @@
     "file": "70-s1-d-trust-operations.js",
     "id": "s1-d-trust-operations",
     "chars": 9894
+  },
+  {
+    "order": 71,
+    "file": "71-seller-advertising.js",
+    "id": "seller-advertising",
+    "chars": 2774
+  },
+  {
+    "order": 72,
+    "file": "72-canonical-seller-products.js",
+    "id": "canonical-seller-products",
+    "chars": 17409
   }
 ]
