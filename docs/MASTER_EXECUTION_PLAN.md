@@ -2882,3 +2882,40 @@ DECISION:
 - Do not mass-add foreign-key indexes or collapse RLS policies merely to reduce Advisor counts. Each index/policy change must be justified by actual query workload and verified after mutation.
 - Preserve the existing explicit rule against historical policy/index hygiene over-refactoring.
 - Treat this queue as post-correctness performance optimization, below current payment/provider, legal, production, rollback, and aggregate Browser gates.
+
+
+### Continuation Customer Cancellation + Seller Payout Request UI — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT / PROVIDER SETTLEMENT AND BROWSER EVIDENCE REMAIN OPEN
+
+OBSERVED FACT:
+- Canonical velora_cancel_order(uuid) already existed and was authenticated-owner scoped. It permits cancellation only for customer-owned pending/confirmed orders whose payment is still pending, restores item/variant stock, reverses pending commissions, cancels the order/payment state, and writes order_cancelled audit evidence.
+- No canonical customer UI caller for that RPC was present before this continuation.
+- The new canonical customer Orders adapter now exposes Cancel order only when the server contract says the local state is cancellable.
+- Transactional cancellation verification on Order #74 showed cancelled/cancelled state, stock restoration, pending commission reversal, and order_cancelled audit evidence; transaction rolled back.
+
+IMPLEMENTED:
+- src/scripts/71-customer-orders-returns.js now exposes customer order cancellation through the existing velora_cancel_order RPC.
+- No cancellation engine or new schema was introduced.
+
+PAYOUT UI:
+- The existing velora_request_seller_payout(currency) contract performs the full server-side eligibility calculation: finalized commission, paid+delivered order, shipment delivered at least 7 days ago, not already included in payout, then creates a pending payout and itemized payout rows with audit evidence.
+- The existing velora_record_payout_execution remains Staff-only and records external execution plus a payout ledger line; therefore the frontend must not calculate or simulate settlement.
+- Added src/scripts/72-seller-payouts.js with a request-only Seller Center adapter and payout history using existing RLS.
+- Loaded after the existing Seller Center scripts in src/index.html.
+- The UI never reproduces the eligibility formula; it delegates to the canonical request RPC and only reports NO_PAYOUT_ELIGIBLE_BALANCE when the server rejects the request.
+- Current Seller payout negative test correctly returned NO_PAYOUT_ELIGIBLE_BALANCE for the existing Seller fixture; no payout was created.
+- Adapter source compiles and script is loaded after the Seller canonical shell.
+- External payout/provider settlement remains NOT EVIDENCED.
+
+CURRENT BRANCH HEAD:
+- Current observed continuation branch HEAD is 41689462a807dba7798dda10f56101bc1a25c231 at the time of this ledger update.
+- This HEAD is not yet represented by a verified latest Vercel Preview because the current Vercel build-rate-limit blocker affects newer commits.
+
+ACTION FLOW:
+Customer cancellation:
+Customer opens Orders -> canonical order state -> cancellable guard -> existing velora_cancel_order -> stock/commission/payment/order compensation -> audit -> Orders refresh.
+
+Seller payout:
+Seller opens Payouts -> request canonical payout -> server eligibility -> pending payout + itemized rows + audit -> Staff/provider execution -> ledger + audit -> external settlement remains outside frontend authority.
+
