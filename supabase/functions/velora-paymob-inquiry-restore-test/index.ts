@@ -184,9 +184,16 @@ Deno.serve(async (req: Request) => {
     );
 
     let inquiry: Record<string, unknown> = {};
+    let providerResponseText = "";
     try {
-      inquiry = await inquiryResponse.json();
+      providerResponseText = await inquiryResponse.text();
+      try {
+        inquiry = providerResponseText ? JSON.parse(providerResponseText) : {};
+      } catch {
+        inquiry = {};
+      }
     } catch {
+      providerResponseText = "";
       inquiry = {};
     }
 
@@ -199,6 +206,15 @@ Deno.serve(async (req: Request) => {
         paymob_order_id: providerOrderId,
         local_attempt_status: attempt.status,
         inquiry_http_status: inquiryResponse.status,
+        provider_response_content_type: inquiryResponse.headers.get("content-type"),
+        provider_response_body_length: providerResponseText.length,
+        provider_response_keys: Object.keys(inquiry).sort(),
+        provider_error_code:
+          typeof inquiry.code === "string"
+            ? inquiry.code
+            : typeof inquiry.message === "string"
+              ? inquiry.message.slice(0, 160)
+              : null,
         provider_transaction_id: inquiry.id ?? null,
         pending: inquiry.pending ?? null,
         success: inquiry.success ?? null,
