@@ -3155,3 +3155,51 @@ exhausted/ambiguous provider state -> automated alert for genuine exception.
 1. COMPLETE MASTER HANDOFF — every closed/open/blocked/pending/not-evidenced item remains in this single Master.
 2. RESEARCH / REUSE FIRST — existing Velora cron/auth/automation/applicator patterns are reused.
 3. ACTION FLOW IN PARALLEL — normal reconciliation is automatic; Owner/Staff intervene only for provider ambiguity, financial mismatch, fraud/trust, or genuine anomalies.
+
+
+---
+
+# MESSAGE 12.12 — PAYMOB RECONCILIATION WORKER PARITY + NEGATIVE AUTH VERIFIED
+Recorded 2026-09-28.
+
+## Runtime / Source Parity
+CLOSED-DONE:
+- \`velora-paymob-reconciliation-restore-test\` is ACTIVE, version 5.
+- Runtime checksum: \`6e664d4a9c45bc0818d4dc908d334c5ecca53190e5d4bb85f7714ad1ea0316d2\`.
+- Git source and deployed runtime \`index.ts\` are now byte-for-byte equal:
+  Git blob SHA \`76c22dc0404ba07c0e552daf9a71873fed554a81\`;
+  Git length = runtime length = 6,954 bytes;
+  exact_source_equal = true.
+- The prior runtime/source formatting mismatch was corrected by syncing the committed source to the actual deployed runtime bytes. Logic was not redesigned.
+
+## Runtime / Negative Path Evidence
+CLOSED-DONE:
+- Real pg_net request 112 using the Vault-backed worker secret returned HTTP 200:
+  \`{"ok":true,"claimed":0,"processed":0,"results":[]}\`.
+- Real pg_net request 113 using an invalid secret returned HTTP 401:
+  \`{"ok":false,"code":"UNAUTHORIZED"}\`.
+- Both results were verified using their exact \`net._http_response.id\` values in a separate transaction after pg_net asynchronous processing.
+- This proves the worker's scheduler transport, secret authentication, claim path, and no-candidate safe exit in Restore-Test.
+- This is NOT L8 provider evidence because no newly-created eligible payment attempt currently exists.
+
+## Safety / Historical Fixture Protection
+CLOSED-DONE:
+- Current Restore-Test eligible-attempt count is 0.
+- Historical Paymob attempts without \`paymob_reconciliation_eligible=true\` are not selected by the worker.
+- A rollback-only canonical payment-attempt creation test left 0 rows with the test idempotency key after rollback.
+
+## Security Advisor
+CLOSED-DONE:
+- Latest targeted Security Advisor scan did not identify the new reconciliation worker functions as a finding.
+
+## Remaining OPEN / NOT EVIDENCED
+- Create one genuinely NEW Paymob marketplace payment attempt through the real checkout route so the eligibility marker and Paymob order ID exist naturally.
+- Run the automated worker against that fresh eligible candidate and capture L8 Provider Inquiry evidence.
+- Retain Browser/3DS completion as separate evidence; current worker runtime pass does not imply payment completion.
+- Exact CI sandbox webhook-correlation correction remains OPEN.
+- Current-SHA Vercel READY deployment remains OPEN.
+
+## Governing Conditions
+1. COMPLETE MASTER HANDOFF — no dropped item.
+2. RESEARCH / REUSE FIRST — existing Velora scheduler/auth/automation/applicator patterns are reused.
+3. ACTION FLOW IN PARALLEL — normal payment reconciliation is automatic; humans handle only genuine provider/financial/fraud/governance exceptions.
