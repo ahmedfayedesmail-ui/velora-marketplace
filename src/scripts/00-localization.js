@@ -6849,10 +6849,6 @@ function getSellerProducts(sellerId) {
     return [];
 }
 
-function canonicalSellerProductUpdate(productId, sellerId, patch) {
-    const db = sellerProductDb();
-    return db.from('products').update(patch).eq('id', productId).eq('seller_id', sellerId);
-}
 
 /* ============ OPEN SELLER PANEL ============ */
 async function openSellerPlatformCore() {
@@ -7655,19 +7651,28 @@ async function handleAddProduct(event, editId) {
     const errorEl=document.getElementById('apFormError'), fail=m=>{if(errorEl){errorEl.textContent=m;errorEl.style.display='block';}showToast(m,'warning');};
     const file=document.getElementById('apImageFile')?.files?.[0]||null;
     if(file)return fail('⚠️ Restore-Test has no product media Storage bucket yet. Use an image URL instead.');
-    const name=document.getElementById('apName')?.value.trim(), brand=document.getElementById('apBrand')?.value.trim(), category=document.getElementById('apCategory')?.value;
-    const price=Number(document.getElementById('apPrice')?.value), oldPriceRaw=Number(document.getElementById('apOldPrice')?.value), stock=Number(document.getElementById('apStock')?.value);
+    const name=document.getElementById('apName')?.value.trim(), brand=document.getElementById('apBrand')?.value.trim()||null, category=document.getElementById('apCategory')?.value||null;
+    const price=Number(document.getElementById('apPrice')?.value), oldPriceRaw=document.getElementById('apOldPrice')?.value.trim(), originalPrice=oldPriceRaw===''?null:Number(oldPriceRaw), stock=Number(document.getElementById('apStock')?.value);
     const description=document.getElementById('apDescription')?.value.trim(), subcategory=document.getElementById('apSubcategory')?.value.trim()||null, imageUrl=document.getElementById('apImageUrl')?.value.trim()||'';
     const tags=(document.getElementById('apTags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean), emoji=(document.getElementById('apEmoji')?.value||'📦').trim()||'📦';
-    if(!name||name.length<3)return fail('⚠️ Enter a valid product name.'); if(!brand)return fail('⚠️ Enter the brand name.'); if(!category)return fail('⚠️ Select a category.');
-    if(!Number.isFinite(price)||price<=0)return fail('⚠️ Enter a valid price.'); if(!Number.isInteger(stock)||stock<0)return fail('⚠️ Enter a valid stock quantity.'); if(!description)return fail('⚠️ Add a product description.'); if(!imageUrl)return fail('⚠️ Add a product image URL.');
-    const oldPrice=Number.isFinite(oldPriceRaw)&&oldPriceRaw>0?oldPriceRaw:null, currency=String(getSellerCurrency(seller)||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase(), sellerId=SELLER_STATE.productsSellerId||seller.id;
+    if(!name||name.length<3)return fail('⚠️ Enter a valid product name.'); if(!Number.isFinite(price)||price<=0)return fail('⚠️ Enter a valid price.'); if(!Number.isInteger(stock)||stock<0)return fail('⚠️ Enter a valid stock quantity.'); if(!description)return fail('⚠️ Add a product description.');
+    if(!imageUrl||!/^https?:\/\//i.test(imageUrl))return fail('⚠️ Add a valid http(s) image URL.');
+    if(originalPrice!==null&&(!Number.isFinite(originalPrice)||originalPrice<0))return fail('⚠️ Enter a valid old price.');
+    const currency=String(getSellerCurrency(seller)||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase();
     try{
-      let productId=editId;
-      if(editId){const r=await db.rpc('velora_seller_update_product',{p_product_id:editId,p_price:price,p_stock:stock,p_category:category,p_brand:brand,p_name:name});if(r?.error)throw r.error;}
-      else{const r=await db.rpc('velora_seller_create_product',{p_name:name,p_sku:'VEL-'+Date.now().toString(36).toUpperCase(),p_price:price,p_stock:stock,p_category:category,p_brand:brand,p_currency:currency});if(r?.error)throw r.error;productId=r.data;}
-      const extras=await canonicalSellerProductUpdate(productId,sellerId,{subcategory,description,original_price:oldPrice,emoji,tags,images:[imageUrl]}); if(extras?.error)throw extras.error;
-      await loadCanonicalSellerProducts(seller); closeModal('addProductModal'); showToast(editId?'✅ Product updated in canonical catalog.':'✅ Product created and sent for review.','success'); setTimeout(()=>showSellerSection('products'),150);
+      const args={p_product_id:editId,p_name:name,p_price:price,p_stock:stock,p_category:category,p_brand:brand,p_subcategory:subcategory,p_original_price:originalPrice,p_description:description,p_emoji:emoji,p_image_url:imageUrl,p_tags:tags};
+      let r;
+      if(editId) r=await db.rpc('velora_seller_update_product_full',args);
+      else {
+        delete args.p_product_id;
+        args.p_currency=currency;
+        r=await db.rpc('velora_seller_create_product_full',args);
+      }
+      if(r?.error)throw r.error;
+      await loadCanonicalSellerProducts(seller);
+      closeModal('addProductModal');
+      showToast(editId?'✅ Product updated in canonical catalog.':'✅ Product created and sent for review.','success');
+      setTimeout(()=>showSellerSection('products'),150);
     }catch(error){console.error('Velora canonical product save:',error);fail('❌ '+(error?.message||'Could not save product.'));}
 }
 
