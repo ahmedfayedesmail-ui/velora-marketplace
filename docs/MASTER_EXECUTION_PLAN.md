@@ -3475,3 +3475,25 @@ NEXT PROVIDER ACTION:
 - Do not change canonical checkout architecture.
 - Use the existing official Paymob sandbox card set for a differential 3DS run if required; the official Paymob test-credential reference documents Mastercard `5123456789012346` and alternate Mastercard `5123450000000008`, both with expiry `01/39` and CVV `123`.
 - Callback remains the source of truth; Inquiry is the fallback evidence path.
+
+
+# MESSAGE 12.20 — VERCEL APP-SCOPE PROOF + SELLER RE-ENTRY ACCOUNT BOUNDARY
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- The latest READY Vercel deployment after the last app-affecting READY commit is `9aab873be8ee2b1dbb2515cbb9a482a8cf2d305b`.
+- Git comparison from app-affecting READY commit `11d348bf31cc2e92fe978bb6be8329ba2a48ff4e` to `9aab...` contains only workflow/docs/evidence/`supabase/functions/velora-paymob-inquiry-restore-test/index.ts`; there are no files under `src/`.
+- Vercel Project Root Directory is `src`. Therefore no customer-facing application bundle changed between these READY deployments.
+- Latest branch commits after `9aab...` are also workflow/evidence/docs changes; no `src/` change was evidenced.
+- Seller re-entry Browser proof cannot be inferred from the customer E2E account: the Restore-Test account exercising the Paymob/customer Browser workflow is not linked to a Seller record, while Restore-Test does contain an approved Seller test account as a separate identity.
+- No role/session spoofing was introduced to force the Seller route through a customer account.
+
+CLASSIFICATION:
+- Vercel current-SHA application artifact: CLOSED-DONE AT APP-SCOPE / no new app deployment justified solely by non-`src/` audit commits.
+- Strict commit-to-commit deployment parity remains a CI/integration presentation detail, not an application source regression.
+- Seller Dashboard re-entry Browser evidence: OPEN / requires a genuine approved-Seller browser credential or a dedicated Seller Gate. The existing customer Browser Gate cannot prove it.
+
+SECURITY / GOVERNANCE:
+- Do not alter user_roles or create a temporary seller role merely for test convenience.
+- Seller re-entry must be tested on an actual approved Seller identity and through the canonical `openSellerPlatform` / route controller path.
+
