@@ -7682,7 +7682,7 @@ function editSellerProduct(productId) {
     openAddProductModal(productId);
 }
 
-async async function setSellerProductAvailability(productId, targetStatus) {
+async function setSellerProductAvailability(productId, targetStatus) {
     const seller = SELLER_STATE.currentSeller;
     const db = sellerProductDb();
     if (!seller || !db?.rpc) {
@@ -7719,7 +7719,7 @@ async async function setSellerProductAvailability(productId, targetStatus) {
     }
 }
 
-function confirmDeleteProduct(){ showToast('ℹ️ Product deletion is intentionally disabled in the canonical lifecycle. Use the future archive/inactive workflow instead of hard-delete.','info'); }
+function confirmDeleteProduct(){ showToast('ℹ️ Hard-delete is intentionally disabled. Deactivate the product to hide it from the marketplace, or reactivate it later.','info'); }
 
 /* ============ UPDATE MAHA API ============ */
 // Always route legacy and new seller actions to the real Seller Dashboard
