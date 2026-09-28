@@ -31,6 +31,8 @@ async function generateToken(apiKey: string) {
 }
 
 Deno.serve(async (req: Request) => {
+  let outerStage = "handler_start";
+  try {
   if (req.method === "GET") {
     const apiKey = getApiKey();
     if (!apiKey) {
@@ -78,6 +80,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
 
+  outerStage = "request_auth";
   const authHeader = req.headers.get("authorization") || "";
   const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -96,13 +99,15 @@ Deno.serve(async (req: Request) => {
 
   let stage = "client_creation";
   try {
-    const { createClient } = await import("npm:@supabase/supabase-js@2");
     stage = "client_creation";
+    outerStage = "client_creation";
+    const { createClient } = await import("npm:@supabase/supabase-js@2");
     const userClient = createClient(supabaseUrl, publishableKey, {
       global: { headers: { Authorization: `Bearer ${bearer}` } },
     });
 
     stage = "user_auth";
+    outerStage = "user_auth";
     const { data: userData, error: userError } = await userClient.auth.getUser();
     if (userError || !userData.user) return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
 
@@ -120,6 +125,7 @@ Deno.serve(async (req: Request) => {
     if (!paymentAttemptId) return json({ ok: false, code: "PAYMENT_ATTEMPT_REQUIRED" }, 400);
 
     stage = "attempt_lookup";
+    outerStage = "attempt_lookup";
     const { data: attempt, error: attemptError } = await userClient
       .from("payment_attempts")
       .select("id,order_id,purpose,status,metadata,provider_id")
@@ -137,6 +143,7 @@ Deno.serve(async (req: Request) => {
     if (!providerOrderId) return json({ ok: false, code: "PAYMOB_ORDER_ID_MISSING" }, 422);
 
     stage = "provider_auth";
+    outerStage = "provider_auth";
     const apiKey = getApiKey();
     if (!apiKey) {
       return json(
@@ -160,6 +167,7 @@ Deno.serve(async (req: Request) => {
     }
 
     stage = "provider_inquiry";
+    outerStage = "provider_inquiry";
     const inquiryResponse = await fetch(
       `${PAYMOB_BASE}/api/ecommerce/orders/transaction_inquiry`,
       {
@@ -212,6 +220,18 @@ Deno.serve(async (req: Request) => {
         ok: false,
         code: "PAYMOB_INQUIRY_REQUEST_FAILED",
         stage,
+        error_class: error instanceof Error ? error.name : "Error",
+      },
+      502,
+    );
+  }
+
+  } catch (error) {
+    return json(
+      {
+        ok: false,
+        code: "PAYMOB_INQUIRY_UNHANDLED_ERROR",
+        stage: outerStage,
         error_class: error instanceof Error ? error.name : "Error",
       },
       502,
