@@ -2408,3 +2408,66 @@ INFERRED:
 
 ACTION FLOW:
 Payment/order event -> canonical state check -> correlate attempt/order/payment row -> validate commission linkage -> validate ledger linkage -> classify fixture vs live anomaly -> do not mutate known fixtures -> escalate only for a genuine live mismatch.
+
+
+### Continuation Seller Dashboard Re-entry RCA + Route-State Hardening — 2026-09-29
+
+CLASSIFICATION: SOURCE CONTRACT GAP CLOSED; BROWSER GATE BLOCKED / NOT EVIDENCED
+
+OBSERVED FACT:
+- Current branch before this change was verified at `f660cee80df9d261904a48f0231393e4d95c4a3a`; the stale HEAD value near the top of this Master remains historical metadata and is not current truth.
+- Current source inspection showed the earlier hypothesis "63-platform-router captured the wrong Seller opener" is invalidated. `src/scripts/12-localization.js` defines the canonical async Seller opener and `src/scripts/63-platform-router.js` loads later and captures that canonical opener.
+- A distinct route-state inconsistency was found: canonical Seller UI controls called `window.VELORA_CLOSE_SELLER`, while `63-platform-router.js` independently defined the route-aware `window.closeSellerPlatform`. The canonical close path did not update the URL route, did not set the platform hidden/aria-hidden state, and could therefore leave `#seller` in the address state while the Seller shell was visually closed.
+- `63-platform-router.js` also initialized `returnHash` from the raw current hash. A direct load at `#seller` could therefore treat `seller` itself as the return target instead of a marketplace route.
+- No DB schema change was required for this gap.
+
+IMPLEMENTED:
+- Commit `b3ad57a60e9b468882e01c60a2f7f263d63653af`: unified `window.VELORA_CLOSE_SELLER` with the router's route-aware `window.closeSellerPlatform` path.
+- Commit `4ae5764175f0182d8cc57b418c8184ccf4fc6a6e`: initialized the router return target from `currentMarketplaceHash()` so direct platform-route loads return to a marketplace route rather than the platform route itself.
+- No second router, second Seller engine, MutationObserver, arbitrary listener, or schema field was introduced.
+
+VERIFICATION:
+- The updated `src/scripts/63-platform-router.js` successfully compiled through a JavaScript Function parser harness.
+- A deterministic harness using mocked browser primitives verified:
+  - `window.VELORA_CLOSE_SELLER === window.closeSellerPlatform`
+  - the unified close path invokes the route-aware close logic
+  - marketplace navigation resolves to `home` for a direct `#seller` starting state
+- Latest Vercel Preview deployment created from the first fix commit is READY:
+  deployment `dpl_D16yQsg78vAKzEvPUwbvmEUcKaKK`
+  commit `b3ad57a60e9b468882e01c60a2f7f263d63653af`.
+- The second source-only router commit is not yet represented by a separately verified Browser result; Preview/Brower parity must be rechecked against the final post-change commit before any Browser PASS is claimed.
+
+BROWSER GATE STATUS:
+- A real Seller browser Gate remains required.
+- The available live browser automation run could not start because the TinyFish wallet balance was `-$0.072`. This is a tooling/account-capacity blocker, not an application PASS or FAIL.
+- A dedicated authenticated Seller browser credential/session is also required; the customer E2E account must not be converted into a Seller account or otherwise spoofed for proof.
+- Therefore this item is NOT fully CLOSED at L7. It is closed at the source/route-contract level and remains OPEN/BLOCKED for Browser evidence.
+
+RESEARCH / PRIOR ART:
+- MDN documents that hashchange is driven by URL fragment changes and that History API operations manage SPA session history; `pushState()` adds a history entry while `replaceState()` updates the current entry. The relevant design principle is to keep application route state and browser history coherent instead of maintaining two conflicting close paths.
+- WAI-ARIA dialog guidance also treats a modal shell as a distinct UI state with an explicit close operation; this supports making the visible Seller shell's close behavior explicit and deterministic.
+
+ACTION FLOW:
+Seller entry event
+-> authenticated Seller guard
+-> canonical Seller opener
+-> Seller route `#seller`
+-> visible Seller shell
+-> close event
+-> SAME route-aware close contract
+-> marketplace return route
+-> Seller shell hidden/closed
+-> re-entry through existing platform switcher or Seller entry
+-> canonical Seller opener
+-> verify dashboard visibility
+-> if auth/session is genuinely missing, recover through normal auth; otherwise no manual intervention.
+
+REMAINING EVIDENCE / NEXT STEP:
+- Run the dedicated Seller Browser Gate on a Preview containing the final router commit.
+- Capture first open, close, platform-switcher re-entry, existing entry re-entry, and Back/Forward without refresh.
+- Record URL/hash, auth/session continuity, Seller shell visibility, dashboard content, and material console/runtime errors.
+- Do not close the full Seller Dashboard work item until that Browser evidence exists or is explicitly classified BLOCKED.
+
+CARRY-FORWARD:
+- All prior open/blocked/pending/not-evidenced items remain unchanged.
+- Next ordered Seller work remains Seller post-approval re-review policy, pending-order/reservation policy, then Seller onboarding Action Flow/audit coverage, unless Browser evidence reveals a new critical Seller routing defect.
