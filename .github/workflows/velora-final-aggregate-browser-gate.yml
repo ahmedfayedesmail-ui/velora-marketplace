@@ -1,0 +1,354 @@
+name: Velora Final Aggregate Browser Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "Exact READY Vercel Preview URL for the final tested commit"
+        required: true
+        type: string
+      tested_preview_sha:
+        description: "Exact Git commit SHA deployed at the Preview URL"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  aggregate-browser:
+    name: Final aggregate authenticated browser gate
+    runs-on: ubuntu-latest
+    env:
+      PREVIEW_URL: ${{ inputs.preview_url }}
+      TESTED_PREVIEW_SHA: ${{ inputs.tested_preview_sha }}
+      CUSTOMER_E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      CUSTOMER_E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      SELLER_E2E_EMAIL: ${{ secrets.SELLER_E2E_EMAIL }}
+      SELLER_E2E_PASSWORD: ${{ secrets.SELLER_E2E_PASSWORD }}
+    steps:
+      - name: Checkout exact gate source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run final aggregate Browser Gate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from playwright.sync_api import sync_playwright
+
+          url = os.environ["PREVIEW_URL"].rstrip("/")
+          customer_email = os.environ.get("CUSTOMER_E2E_EMAIL", "")
+          customer_password = os.environ.get("CUSTOMER_E2E_PASSWORD", "")
+          seller_email = os.environ.get("SELLER_E2E_EMAIL", "")
+          seller_password = os.environ.get("SELLER_E2E_PASSWORD", "")
+
+          result = {
+              "browser_evidence_schema": "velora-final-aggregate-v1",
+              "preview_url": url,
+              "tested_preview_sha": os.environ.get("TESTED_PREVIEW_SHA", ""),
+              "github_workflow_run_id": int(os.environ.get("GITHUB_RUN_ID", "0") or 0),
+              "github_workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "console_errors": [],
+              "page_errors": [],
+          }
+
+          failures = []
+
+          if not customer_email or not customer_password:
+              failures.append("Missing E2E_EMAIL/E2E_PASSWORD")
+          if not seller_email or not seller_password:
+              failures.append("Missing SELLER_E2E_EMAIL/SELLER_E2E_PASSWORD")
+
+          result["checks"]["customer_credentials_present"] = bool(customer_email and customer_password)
+          result["checks"]["seller_credentials_present"] = bool(seller_email and seller_password)
+
+          if failures:
+              result["passed"] = False
+              result["failures"] = failures
+              with open("velora-final-aggregate-browser-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(result, f, ensure_ascii=False, indent=2)
+              print(json.dumps(result, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+
+              def attach_observers(page):
+                  page.on(
+                      "console",
+                      lambda m: result["console_errors"].append({
+                          "type": m.type,
+                          "text": m.text
+                      }) if m.type == "error" else None
+                  )
+                  page.on("pageerror", lambda e: result["page_errors"].append(str(e)))
+
+              # -------------------------
+              # Customer aggregate gate
+              # -------------------------
+              customer = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              attach_observers(customer)
+              response = customer.goto(url + "/#home", wait_until="domcontentloaded", timeout=60000)
+              result["checks"]["customer_http_status"] = response.status if response else None
+
+              customer.evaluate("() => openAuthModal('login')")
+              customer.locator("#loginEmail").fill(customer_email)
+              customer.locator("#loginPassword").fill(customer_password)
+              customer.locator("#authFormContent button[type='submit']").click()
+              customer.wait_for_timeout(3000)
+
+              customer_auth = customer.evaluate("""
+                async () => {
+                  try {
+                    const r = await window.mahaSupabase.auth.getSession();
+                    return {
+                      hasSession: !!r?.data?.session?.user,
+                      stateUser: !!(typeof STATE !== 'undefined' && STATE.user)
+                    };
+                  } catch (_) {
+                    return {hasSession:false,stateUser:false};
+                  }
+                }
+              """)
+              result["checks"]["customer_authenticated"] = bool(customer_auth["hasSession"])
+              result["checks"]["customer_state_user"] = bool(customer_auth["stateUser"])
+
+              customer.evaluate("() => navigateTo('orders')")
+              customer.wait_for_timeout(2500)
+
+              result["checks"]["customer_orders_route"] = (
+                  customer.evaluate("() => (location.hash || '').replace(/^#/, '')") == "orders"
+              )
+              result["checks"]["customer_orders_host_present"] = customer.locator("#ordersContent").count() == 1
+              result["checks"]["customer_orders_canonical_adapter"] = customer.evaluate("""
+                () => {
+                  const fn = window.renderOrdersPage;
+                  return typeof fn === "function" && fn.toString().includes("renderCanonicalOrders");
+                }
+              """)
+              result["checks"]["customer_orders_rendered_or_empty"] = customer.evaluate("""
+                () => {
+                  const c = document.getElementById("ordersContent");
+                  if (!c) return false;
+                  return !!(
+                    c.querySelector(".velora-customer-order") ||
+                    c.innerText.includes("No orders yet") ||
+                    c.innerText.includes("لا توجد طلبات بعد")
+                  );
+                }
+              """)
+
+              customer.evaluate("() => navigateTo('checkout')")
+              customer.wait_for_timeout(2200)
+              checkout_auth = customer.evaluate("""
+                async () => {
+                  try {
+                    const r = await window.mahaSupabase.auth.getSession();
+                    return !!r?.data?.session?.user;
+                  } catch (_) {
+                    return false;
+                  }
+                }
+              """)
+              result["checks"]["customer_session_survived_checkout_navigation"] = bool(checkout_auth)
+
+              # -------------------------
+              # Seller aggregate gate
+              # -------------------------
+              seller = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              attach_observers(seller)
+              response = seller.goto(url + "/#home", wait_until="domcontentloaded", timeout=60000)
+              result["checks"]["seller_http_status"] = response.status if response else None
+
+              seller.evaluate("() => openAuthModal('login')")
+              seller.locator("#loginEmail").fill(seller_email)
+              seller.locator("#loginPassword").fill(seller_password)
+              seller.locator("#authFormContent button[type='submit']").click()
+              seller.wait_for_timeout(3000)
+
+              seller_auth = seller.evaluate("""
+                async () => {
+                  try {
+                    const r = await window.mahaSupabase.auth.getSession();
+                    return {
+                      hasSession: !!r?.data?.session?.user,
+                      stateUser: !!(typeof STATE !== 'undefined' && STATE.user)
+                    };
+                  } catch (_) {
+                    return {hasSession:false,stateUser:false};
+                  }
+                }
+              """)
+              result["checks"]["seller_authenticated"] = bool(seller_auth["hasSession"])
+              result["checks"]["seller_state_user"] = bool(seller_auth["stateUser"])
+
+              seller.evaluate("() => window.openSellerPlatform()")
+              seller.wait_for_timeout(2500)
+
+              result["checks"]["seller_open_route"] = seller.evaluate(
+                  "() => (location.hash || '').replace(/^#/, '')"
+              ) == "seller"
+              result["checks"]["seller_platform_visible"] = seller.evaluate("""
+                () => {
+                  const el = document.getElementById("sellerPlatform");
+                  if (!el) return false;
+                  const style = getComputedStyle(el);
+                  return !el.hidden && el.classList.contains("active") && style.display !== "none";
+                }
+              """)
+              result["checks"]["seller_dashboard_content"] = seller.evaluate("""
+                () => {
+                  const c = document.getElementById("sellerContent");
+                  return !!(c && /Dashboard|Welcome back|Seller Dashboard/i.test(c.innerText || ""));
+                }
+              """)
+
+              # Route-aware close from the canonical Seller UI contract.
+              seller.evaluate("() => window.VELORA_CLOSE_SELLER()")
+              seller.wait_for_timeout(1000)
+
+              result["checks"]["seller_close_left_platform_route"] = seller.evaluate(
+                  "() => (location.hash || '').replace(/^#/, '')"
+              ) != "seller"
+              result["checks"]["seller_shell_closed_after_close"] = seller.evaluate("""
+                () => {
+                  const el = document.getElementById("sellerPlatform");
+                  return !el || el.hidden || !el.classList.contains("active");
+                }
+              """)
+
+              # Re-enter through the existing visible platform switcher when available.
+              reopened_via_ui = seller.evaluate("""
+                () => {
+                  const candidates = Array.from(document.querySelectorAll(
+                    '[onclick*="switchPlatform"], [data-platform], button, a'
+                  ));
+                  const target = candidates.find(el => {
+                    const text = (el.innerText || el.textContent || "").trim().toLowerCase();
+                    const onclick = (el.getAttribute("onclick") || "").toLowerCase();
+                    const platform = (el.getAttribute("data-platform") || "").toLowerCase();
+                    return platform === "seller" || onclick.includes("switchplatform('seller')") ||
+                           text === "seller" || text === "البائع" || text.includes("seller dashboard");
+                  });
+                  if (!target) return false;
+                  target.click();
+                  return true;
+                }
+              """)
+              if reopened_via_ui:
+                  seller.wait_for_timeout(1800)
+              else:
+                  # The visible entry may be collapsed inside a menu; use the same
+                  # existing platform switcher API, not a URL mutation.
+                  seller.evaluate("() => window.switchPlatform('seller')")
+                  seller.wait_for_timeout(1800)
+
+              result["checks"]["seller_reentry_route"] = seller.evaluate(
+                  "() => (location.hash || '').replace(/^#/, '')"
+              ) == "seller"
+              result["checks"]["seller_reentry_visible"] = seller.evaluate("""
+                () => {
+                  const el = document.getElementById("sellerPlatform");
+                  return !!(el && !el.hidden && el.classList.contains("active"));
+                }
+              """)
+
+              # Browser Back/Forward around the route without refresh.
+              seller.evaluate("() => window.VELORA_CLOSE_SELLER()")
+              seller.wait_for_timeout(700)
+              seller.evaluate("() => window.openSellerPlatform()")
+              seller.wait_for_timeout(900)
+              seller.go_back(wait_until="domcontentloaded", timeout=60000)
+              seller.wait_for_timeout(900)
+              result["checks"]["seller_back_navigation_no_refresh"] = seller.evaluate(
+                  "() => (location.hash || '').replace(/^#/, '') != 'seller'"
+              )
+              seller.go_forward(wait_until="domcontentloaded", timeout=60000)
+              seller.wait_for_timeout(900)
+              result["checks"]["seller_forward_reopens_route"] = seller.evaluate(
+                  "() => (location.hash || '').replace(/^#/, '') == 'seller'"
+              )
+
+              # Cross-check the canonical close alias after navigation traversal.
+              result["checks"]["seller_canonical_close_alias"] = seller.evaluate(
+                  "() => window.VELORA_CLOSE_SELLER === window.closeSellerPlatform"
+              )
+
+              customer.close()
+              seller.close()
+              browser.close()
+
+          c = result["checks"]
+          required_true = [
+              "customer_authenticated",
+              "customer_state_user",
+              "customer_orders_route",
+              "customer_orders_host_present",
+              "customer_orders_canonical_adapter",
+              "customer_orders_rendered_or_empty",
+              "customer_session_survived_checkout_navigation",
+              "seller_authenticated",
+              "seller_state_user",
+              "seller_open_route",
+              "seller_platform_visible",
+              "seller_dashboard_content",
+              "seller_close_left_platform_route",
+              "seller_shell_closed_after_close",
+              "seller_reentry_route",
+              "seller_reentry_visible",
+              "seller_back_navigation_no_refresh",
+              "seller_forward_reopens_route",
+              "seller_canonical_close_alias",
+          ]
+
+          for key in required_true:
+              if not c.get(key):
+                  failures.append(key)
+
+          if c.get("customer_http_status") != 200:
+              failures.append("customer_http_status_not_200")
+          if c.get("seller_http_status") != 200:
+              failures.append("seller_http_status_not_200")
+          if result["page_errors"]:
+              failures.append(f"page_errors={len(result['page_errors'])}")
+
+          unexpected_console = [
+              e for e in result["console_errors"]
+              if not any(token in e.get("text","") for token in ("401", "Failed to load resource"))
+          ]
+          if unexpected_console:
+              failures.append(f"unexpected_console_errors={len(unexpected_console)}")
+
+          result["passed"] = not failures
+          result["failures"] = failures
+
+          with open("velora-final-aggregate-browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(result, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          sys.exit(1 if failures else 0)
+          PY
+
+      - name: Upload aggregate Browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: velora-final-aggregate-browser-gate
+          retention-days: 14
+          path: velora-final-aggregate-browser-evidence.json
