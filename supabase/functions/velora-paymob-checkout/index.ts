@@ -33,6 +33,28 @@ Deno.serve(async (req) => {
     }
     if (!supabasePublishableKey) throw new Error("SUPABASE_PUBLISHABLE_KEY_NOT_CONFIGURED");
     const supabase = createClient(supabaseUrl, supabasePublishableKey, {global:{headers:{Authorization:authHeader}}});
+    const getServiceKey = () => {
+      const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.default) return String(parsed.default);
+        } catch {}
+      }
+      return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    };
+    const recoverProviderSession = async (attemptId: string, providerSessionId: string, providerOrderId: string) => {
+      const serviceKey = getServiceKey();
+      if (!serviceKey) throw new Error("SUPABASE_SERVER_CREDENTIALS_MISSING");
+      const admin = createClient(supabaseUrl, serviceKey);
+      const {data,error}=await admin.rpc("velora_recover_paymob_provider_session",{
+        p_payment_attempt_id:attemptId,
+        p_provider_session_id:providerSessionId,
+        p_provider_order_id:providerOrderId,
+      });
+      if(error) throw error;
+      return data;
+    };
     const markInitializationFailed = async (attemptId: string, code: string, reason: string) => {
       const {error} = await supabase.rpc("velora_mark_marketplace_payment_initialization_failed", {
         p_payment_attempt_id: attemptId,
@@ -103,7 +125,7 @@ Deno.serve(async (req) => {
       },502);
     }
     const intentionId=j?.id, intentionOrderId=j?.intention_order_id ?? j?.order_id, clientSecret=j?.client_secret;
-    if(!intentionId || !clientSecret || !intentionOrderId) {
+    if(!intentionId || !intentionOrderId) {
       const compensated = await markInitializationFailed(
         String(attempt.attempt_id),
         "PAYMOB_INTENTION_RESPONSE_INVALID",
@@ -116,6 +138,35 @@ Deno.serve(async (req) => {
         payment_attempt_id:attempt.attempt_id,
         local_payment_attempt_status: compensated ? "failed" : "pending",
       },502);
+    }
+
+    if(!clientSecret) {
+      try {
+        const recovery=await recoverProviderSession(String(attempt.attempt_id),String(intentionId),String(intentionOrderId));
+        return json({
+          ok:false,
+          status:"FAILED",
+          code:"PAYMOB_CLIENT_SECRET_MISSING",
+          payment_attempt_id:attempt.attempt_id,
+          intention_id:String(intentionId),
+          provider_order_id:String(intentionOrderId),
+          provider_session_recovered:Boolean(recovery?.ok),
+          local_payment_attempt_status:"pending",
+          recovery:"retry_checkout",
+        },502);
+      } catch (recoveryError) {
+        console.error("paymob_provider_session_recovery_failed", recoveryError instanceof Error ? recoveryError.message : "unknown_error");
+        return json({
+          ok:false,
+          status:"FAILED",
+          code:"PAYMOB_PROVIDER_SESSION_RECOVERY_FAILED",
+          payment_attempt_id:attempt.attempt_id,
+          intention_id:String(intentionId),
+          provider_order_id:String(intentionOrderId),
+          local_payment_attempt_status:"pending",
+          recovery:"manual_reconciliation_required",
+        },502);
+      }
     }
 
     let attachError: Error | null = null;
@@ -131,17 +182,32 @@ Deno.serve(async (req) => {
       if (bindAttempt === 0) await new Promise((resolve) => setTimeout(resolve, 200));
     }
     if (attachError) {
-      console.error("paymob_provider_session_bind_failed", attachError.message);
-      return json({
-        ok:false,
-        status:"FAILED",
-        code:"PAYMOB_PROVIDER_SESSION_BIND_FAILED",
-        payment_attempt_id:attempt.attempt_id,
-        intention_id:String(intentionId),
-        provider_order_id:String(intentionOrderId),
-        local_payment_attempt_status:"pending",
-        recovery:"retry_checkout_or_reconcile_provider_intention"
-      },502);
+      try {
+        const recovery=await recoverProviderSession(String(attempt.attempt_id),String(intentionId),String(intentionOrderId));
+        return json({
+          ok:false,
+          status:"FAILED",
+          code:"PAYMOB_PROVIDER_SESSION_BIND_RECOVERED",
+          payment_attempt_id:attempt.attempt_id,
+          intention_id:String(intentionId),
+          provider_order_id:String(intentionOrderId),
+          provider_session_recovered:Boolean(recovery?.ok),
+          local_payment_attempt_status:"pending",
+          recovery:"retry_checkout",
+        },502);
+      } catch (recoveryError) {
+        console.error("paymob_provider_session_recovery_failed", recoveryError instanceof Error ? recoveryError.message : "unknown_error");
+        return json({
+          ok:false,
+          status:"FAILED",
+          code:"PAYMOB_PROVIDER_SESSION_BIND_FAILED",
+          payment_attempt_id:attempt.attempt_id,
+          intention_id:String(intentionId),
+          provider_order_id:String(intentionOrderId),
+          local_payment_attempt_status:"pending",
+          recovery:"manual_reconciliation_required",
+        },502);
+      }
     }
     const checkoutUrl=`${BASE}/unifiedcheckout/?publicKey=${encodeURIComponent(publicKey)}&clientSecret=${encodeURIComponent(clientSecret)}`;
     const paymob_payment_methods = Array.isArray(j?.payment_methods)
