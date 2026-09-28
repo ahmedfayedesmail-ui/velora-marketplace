@@ -7941,6 +7941,7 @@ function showAdminSection(section, btn) {
             break;
         case 'products':
             content.innerHTML = renderAdminProducts();
+            loadCanonicalAdminProducts();
             break;
         case 'orders':
             content.innerHTML = renderAdminOrders();
@@ -8194,104 +8195,185 @@ function suspendSeller(sellerId) {
 
 /* ============ RENDER: PRODUCTS ============ */
 function renderAdminProducts() {
-    const allProducts = [];
-    const sellerProducts = getFromStorage('maha_seller_products', {});
-    
-    Object.keys(sellerProducts).forEach(sellerId => {
-        const seller = getSellerById(sellerId);
-        sellerProducts[sellerId].forEach(p => {
-            allProducts.push({ ...p, sellerName: seller?.storeName || 'Unknown' });
-        });
-    });
-
-    const pending = allProducts.filter(p => p.status === PRODUCT_STATUS.PENDING);
-
     return `
-        <div class="admin-tabs">
-            <button class="admin-tab active" onclick="filterAdminProducts('all', this)">All (${allProducts.length})</button>
-            <button class="admin-tab" onclick="filterAdminProducts('pending_review', this)">⏳ Pending (${pending.length})</button>
-            <button class="admin-tab" onclick="filterAdminProducts('approved', this)">✅ Approved (${allProducts.filter(p => p.status === PRODUCT_STATUS.APPROVED).length})</button>
-            <button class="admin-tab" onclick="filterAdminProducts('rejected', this)">❌ Rejected (${allProducts.filter(p => p.status === PRODUCT_STATUS.REJECTED).length})</button>
+        <div class="admin-tabs" id="adminProductTabs">
+            <button class="admin-tab active" data-product-status-filter="all" onclick="filterAdminProducts('all', this)">All</button>
+            <button class="admin-tab" data-product-status-filter="pending" onclick="filterAdminProducts('pending', this)">⏳ Pending</button>
+            <button class="admin-tab" data-product-status-filter="approved" onclick="filterAdminProducts('approved', this)">✅ Approved</button>
+            <button class="admin-tab" data-product-status-filter="rejected" onclick="filterAdminProducts('rejected', this)">❌ Rejected</button>
+            <button class="admin-tab" data-product-status-filter="inactive" onclick="filterAdminProducts('inactive', this)">💤 Inactive</button>
         </div>
 
         <div class="admin-section-card">
-            ${allProducts.length === 0 ? `
+            <div id="adminProductsCanonicalMount">
                 <div class="admin-empty">
-                    <div class="empty-icon">📦</div>
-                    <h4>No products from sellers yet</h4>
+                    <div class="empty-icon">⏳</div>
+                    <h4>Loading canonical products…</h4>
                 </div>
-            ` : `
-                <div class="admin-table-wrap">
-                    <table class="admin-table" id="productsTable">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Seller</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${allProducts.map(p => {
-                                const statusInfo = PRODUCT_STATUS_INFO[p.status] || PRODUCT_STATUS_INFO[PRODUCT_STATUS.PENDING];
-                                return `
-                                    <tr data-status="${p.status}">
-                                        <td><strong>${p.emoji || '📦'} ${escapeHtml(p.name)}</strong></td>
-                                        <td>${escapeHtml(p.sellerName)}</td>
-                                        <td>${escapeHtml(p.subcategory || 'N/A')}</td>
-                                        <td>${formatPrice(p.price)}</td>
-                                        <td>${p.stock || 0}</td>
-                                        <td>
-                                            <span class="admin-badge" style="background: ${statusInfo.color}20; color: ${statusInfo.color};">
-                                                ${statusInfo.icon} ${statusInfo.label}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
-                                                ${p.status === PRODUCT_STATUS.PENDING ? `
-                                                    <button class="admin-action-btn success" onclick="approveProduct('${p.sellerId}', '${p.id}')">✅</button>
-                                                    <button class="admin-action-btn danger" onclick="rejectProduct('${p.sellerId}', '${p.id}')">❌</button>
-                                                ` : ''}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `}
+            </div>
         </div>
     `;
 }
 
+async function loadCanonicalAdminProducts() {
+    const mount = document.getElementById('adminProductsCanonicalMount');
+    if (!mount) return;
+
+    const db = window.mahaSupabase || window.supabaseClient || window.db || window.sb;
+    if (!db?.from) {
+        mount.innerHTML = `
+            <div class="admin-empty">
+                <div class="empty-icon">⚠️</div>
+                <h4>Canonical product service unavailable</h4>
+            </div>`;
+        return;
+    }
+
+    try {
+        const result = await db
+            .from('products')
+            .select('id,seller_id,name,brand,category,subcategory,price,stock,status,created_at,currency_code,sellers(store_name)')
+            .order('created_at', { ascending: false });
+
+        if (result?.error) throw result.error;
+
+        const products = Array.isArray(result?.data) ? result.data : [];
+        const rows = products.map(p => ({
+            ...p,
+            sellerName: p?.sellers?.store_name || 'Unknown Store'
+        }));
+
+        const tabLabels = {
+            all: 'All',
+            pending: '⏳ Pending',
+            approved: '✅ Approved',
+            rejected: '❌ Rejected',
+            inactive: '💤 Inactive'
+        };
+
+        const tabRoot = document.getElementById('adminProductTabs');
+        if (tabRoot) {
+            Object.keys(tabLabels).forEach(status => {
+                const btn = tabRoot.querySelector(`[data-product-status-filter="${status}"]`);
+                if (btn) {
+                    const count = status === 'all'
+                        ? rows.length
+                        : rows.filter(p => String(p.status || '').toLowerCase() === status).length;
+                    btn.textContent = `${tabLabels[status]} (${count})`;
+                }
+            });
+        }
+
+        mount.innerHTML = rows.length ? `
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Seller</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(p => {
+                            const status = String(p.status || 'pending').toLowerCase();
+                            const statusInfo = PRODUCT_STATUS_INFO[status] || {
+                                label: status,
+                                icon: '•',
+                                color: '#8b7a90'
+                            };
+                            const encodedId = String(p.id || '').replace(/'/g, "\\'");
+                            return `
+                                <tr data-status="${escapeHtml(status)}">
+                                    <td><strong>${statusInfo.icon === '•' ? '📦' : (p.emoji || '📦')} ${escapeHtml(p.name || 'Unnamed Product')}</strong></td>
+                                    <td>${escapeHtml(p.sellerName)}</td>
+                                    <td>${escapeHtml(p.subcategory || p.category || 'N/A')}</td>
+                                    <td>${escapeHtml(formatPrice(p.price, p.currency_code || VELORA_CURRENCY))}</td>
+                                    <td>${Number(p.stock || 0)}</td>
+                                    <td>
+                                        <span class="admin-badge" style="background: ${statusInfo.color}20; color: ${statusInfo.color};">
+                                            ${statusInfo.icon} ${statusInfo.label}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display:flex;gap:.3rem;flex-wrap:wrap;">
+                                            ${status === 'pending' ? `
+                                                <button class="admin-action-btn success" onclick="approveProduct('${encodedId}')">✅ Approve</button>
+                                                <button class="admin-action-btn danger" onclick="rejectProduct('${encodedId}')">❌ Reject</button>
+                                            ` : ''}
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>`
+            : `
+                <div class="admin-empty">
+                    <div class="empty-icon">📦</div>
+                    <h4>No products found</h4>
+                    <p>The canonical product catalog is empty for this environment.</p>
+                </div>`;
+    } catch (error) {
+        console.warn('Velora canonical admin products load:', error);
+        mount.innerHTML = `
+            <div class="admin-empty">
+                <div class="empty-icon">⚠️</div>
+                <h4>Could not load canonical products</h4>
+                <p>${escapeHtml(error?.message || 'Unknown error')}</p>
+            </div>`;
+    }
+}
+
 function filterAdminProducts(status, btn) {
-    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#adminProductTabs .admin-tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
     const rows = document.querySelectorAll('#productsTable tbody tr');
     rows.forEach(row => {
-        if (status === 'all' || row.dataset.status === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = status === 'all' || row.dataset.status === status ? '' : 'none';
     });
 }
 
-function approveProduct(sellerId, productId) {
-    updateSellerProduct(sellerId, productId, { status: PRODUCT_STATUS.APPROVED });
-    showToast('✅ Product approved!', 'success');
-    showAdminSection('products');
+async function setAdminProductStatus(productId, targetStatus, reason) {
+    const db = window.mahaSupabase || window.supabaseClient || window.db || window.sb;
+    if (!db?.rpc) {
+        showToast('❌ Product moderation service is unavailable.', 'error');
+        return;
+    }
+
+    try {
+        const r = await db.rpc('velora_set_product_status', {
+            p_product_id: productId,
+            p_status: targetStatus,
+            p_reason: reason || null
+        });
+        if (r?.error) throw r.error;
+
+        showToast(
+            targetStatus === 'approved'
+                ? '✅ Product approved.'
+                : '❌ Product rejected.',
+            targetStatus === 'approved' ? 'success' : 'info'
+        );
+        showAdminSection('products');
+    } catch (error) {
+        console.error('Velora admin product moderation:', error);
+        showToast('❌ ' + (error?.message || 'Could not update product status.'), 'error');
+    }
 }
 
-function rejectProduct(sellerId, productId) {
-    updateSellerProduct(sellerId, productId, { status: PRODUCT_STATUS.REJECTED });
-    showToast('❌ Product rejected', 'info');
-    showAdminSection('products');
+function approveProduct(productId) {
+    return setAdminProductStatus(productId, 'approved', 'Admin approval');
+}
+
+function rejectProduct(productId) {
+    return setAdminProductStatus(productId, 'rejected', 'Admin rejection');
 }
 
 /* ============ ADMIN ORDER LIFECYCLE — SPRINT 2.5 ============ */
