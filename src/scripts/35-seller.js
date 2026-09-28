@@ -49,6 +49,7 @@ async function v39LoadSubscription(){
    const ent=await v39Rpc('velora_get_seller_entitlement');
    if(ent.error)throw ent.error;
    const client=window.supabaseClient||window.sb;
+   const e=ent.data||{};
    const [plansR,legalR,storeR]=await Promise.all([
      client.from('subscription_plans').select('id,name,commission_rate,max_products,features').eq('is_active',true).order('monthly_price'),
      client.rpc('velora_get_required_legal_documents',{p_locale:String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase(),p_audience:'seller'}),
@@ -77,7 +78,6 @@ async function v39LoadSubscription(){
    const sellerLegalDocs=(Array.isArray(legalR.data)?legalR.data:[]).filter(d=>['seller_agreement','seller_subscription','seller_commission'].includes(d.document_type));
    const sellerLegalTypes=new Set(sellerLegalDocs.map(d=>d.document_type));
    const sellerLegalReady=['seller_agreement','seller_subscription','seller_commission'].every(type=>sellerLegalTypes.has(type));
-   const e=ent.data||{};
    const activePaid=Boolean(e.is_paid&&e.subscription_id);
    const expires=e.expires_at?new Date(e.expires_at).toLocaleString():v39t('Not active');
    const currentPlan=e.plan_name||'Free';
