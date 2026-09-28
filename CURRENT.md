@@ -2,6 +2,46 @@
 
 Updated: 2026-09-27
 
+## Latest authoritative continuation — 2026-09-28
+
+Production remains FROZEN. All engineering below was performed against audit/full-gate-2026-09-25 and Restore-Test only.
+
+### Seller product metadata — CLOSED at source/DB level, Browser proof pending
+- Commit f8e498583b3ae06f36c62d0b195d4657256749f5 adds canonical Seller Product Editor fields for ingredients, benefits, skin_types, and concerns.
+- DB contract verified: all four columns are jsonb NOT NULL DEFAULT []; existing product RLS ownership policies remain in place.
+- Routine engine inspection confirms these fields are consumed for skin-type, concern, goal, and ingredient-avoidance matching.
+- Exact Preview dpl_6hWXGnt6c3hY4ho7CZx9c6BmJGnd was READY on f8e498....
+- All four gates on f8e498... completed SUCCESS.
+- Browser proof remains PENDING because the authenticated browser gate has only the shared customer E2E credentials; no Seller-specific credentials are configured. Do not manufacture a Seller fixture/credential solely to create a PASS.
+
+### Seller product security hardening — CLOSED at DB + CI/deployment level
+- Initial DB simulation exposed a real cross-store INSERT gap: an approved Seller could direct-insert a product against a non-approved/non-owned store. The transaction was rolled back; no probe data persisted.
+- Commit 5669c2c57ea1aea1679a63f3eb4d2db5d606d58d hardened the existing private.velora_guard_product_mutation() to require the Seller's own approved store on INSERT.
+- The invalid cross-store probe failed with STORE_NOT_ACTIVE; a valid approved-store INSERT succeeded and was rolled back.
+- A second DB simulation exposed an entitlement bypass: the canonical direct INSERT path did not call the existing velora_assert_seller_product_capacity(). The Restore-Test Free plan has max_products = 25; the probe demonstrated that 26 products could otherwise be reached inside one transaction.
+- Commit 3f32c6291e602ef6db9c225b7463ca437c6c3eb3 added the existing capacity assertion to the same trigger. No new table, policy architecture, or schema field was introduced.
+- Post-fix DB proof: attempt to insert 21 more products from a 5-product Seller failed at SELLER_PRODUCT_LIMIT_REACHED once count reached 25. A valid single-product insert still succeeded, retained all beauty metadata, and was rolled back.
+- Probe rows count after rollback: 0.
+- On exact commit 3f32c629...: Local Source Browser Gate #38 SUCCESS, Authenticated Browser Gate #128 SUCCESS, Staff Launch Gate #125 SUCCESS, Full Audit Gate #275 SUCCESS.
+- Exact Vercel Preview dpl_3ReLBMjvqvYSj9btYNhqY9ELvQJq is READY with Git SHA 3f32c629....
+- This hardening is DB/CI/deployment verified. It is not being called Seller UI Browser PASS.
+
+### Current Seller status
+- Seller fixture: f7b4ea90-9470-4827-b9ae-23532765f021, user 2bf8c15d-543e-400d-83fa-50f28bb9beff, approved.
+- Restore-Test Free plan limit: 25 products; fixture currently has 5 products.
+- Canonical Seller Editor remains src/scripts/12-localization.js; no return to the legacy localStorage Seller path.
+- No Production change.
+
+### Security Advisor
+- Restore-Test Security Advisor still reports the previously known categories: RLS-enabled tables without policies, pg_net in public, 6 anon SECURITY DEFINER execute warnings, 202 authenticated SECURITY DEFINER execute warnings, and leaked-password protection disabled.
+- These are not being blanket-revoked because Velora deliberately uses SECURITY DEFINER RPCs with actor/ownership checks. No Production change was made.
+- The new Seller product guard was tested directly at DB level and is now part of the migration history.
+
+### Next unresolved items
+1. Seller UI Browser proof — PENDING, blocked by absence of Seller credentials in the browser-gate harness. Do not fake this proof.
+2. Returns/Refunds — BLOCKED on business/legal commercial rules; existing backend remains audited and no new workflow should be invented.
+3. Support-case owner assignment — source + DB verified; Browser/operational proof PENDING only if a real existing fixture/UI path is identified.
+4. Continue Stage A reuse-first audit from the first reproducible gap. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
