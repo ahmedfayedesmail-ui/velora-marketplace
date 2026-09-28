@@ -2576,3 +2576,59 @@ Do not send the Paymob API key in chat. The owner only needs to add the Paymob A
 4. Prove the reconciliation trigger/worker semantics before creating any cron job.
 5. Add the smallest scheduling/adapter change only if the existing infrastructure cannot deliver the required automatic recovery.
 6. Re-run Paymob evidence with corrected webhook correlation and verify the full Action Flow at each evidence layer.
+
+
+---
+
+# MESSAGE 12.5 — PAYMOB INQUIRY ADAPTER / CREDENTIAL CONFIGURATION UPDATE
+Recorded 2026-09-28.
+
+## Owner Configuration
+- OWNER INPUT: COMPLETE.
+- The owner confirmed that `PAYMOB_API_KEY` was added to the Restore-Test Supabase Edge Function secret store.
+- The secret value is not stored in GitHub, workflow source, or this plan and must never be pasted into chat.
+- Because the available Supabase management surface exposes deployment details but no secret-value listing or Edge Function invocation primitive, secret runtime validity is not yet promoted to a provider-auth PASS.
+
+## Research / Reuse Result
+- Official Paymob documentation confirms the secondary Transaction Inquiry flow uses API Key -> short-lived bearer token, followed by transaction inquiry by Paymob order ID or merchant order ID.
+- The canonical Velora checkout already persists Paymob's order identifier in `payment_attempts.metadata.paymob_order_id`.
+- Existing generic reconciliation tables/functions exist, but the active webhook currently owns the canonical provider-callback transition and the older `velora_process_paymob_transaction_internal` is a legacy service-role-only path with materially different event/audit/read-model behavior.
+- Therefore no scheduler, second payment-state engine, or legacy processor revival was justified at this stage.
+
+## Smallest Safe Build
+- Added `supabase/functions/velora-paymob-inquiry-restore-test/index.ts`.
+- Added `supabase/functions/velora-paymob-inquiry-restore-test/deno.json`.
+- The adapter is deployed in Restore-Test as `velora-paymob-inquiry-restore-test`, version 1, ACTIVE, `verify_jwt=true`.
+- GET performs a non-secret-bearing Paymob credential/auth-token smoke check and returns only redacted status metadata.
+- POST requires an authenticated user and a customer-owned marketplace payment attempt, resolves the existing `paymob_order_id`, obtains a Paymob bearer token from `PAYMOB_API_KEY`, and calls the documented `/api/ecommerce/orders/transaction_inquiry` endpoint.
+- The current adapter is intentionally READ-ONLY at this stage: it proves the Paymob Inquiry transport/credential contract without duplicating the payment state machine.
+
+## Classification
+- Owner secret configuration: CLOSED-DONE as owner action; provider credential validity = NOT EVIDENCED until the deployed adapter is invoked successfully.
+- Paymob Inquiry adapter: SOURCE/DEPLOYMENT PRESENT; provider execution = NOT EVIDENCED.
+- Canonical inquiry -> payment state transition integration: OPEN / REUSE-FIRST DESIGN GAP.
+- Reconciliation worker / pending-payment automatic trigger: OPEN / NOT EVIDENCED.
+- New scheduler: NOT YET JUSTIFIED AS A CODE CHANGE until the queue/detection contract and automatic execution window are defined.
+
+## Action Flow — Current State
+Primary:
+EVENT -> AUTH -> GUARD -> VALIDATION -> payment_attempt=pending -> Paymob Intention -> provider session -> customer/3DS -> HMAC webhook -> dedupe -> monotonic transition -> order/payment sync -> audit -> financial/inventory side effects.
+
+Fallback under construction:
+PENDING PAYMENT BEYOND A DEFINED RECONCILIATION WINDOW -> identify canonical payment attempt / Paymob order ID -> Transaction Inquiry -> normalize provider result -> APPLY THE SAME CANONICAL PAYMENT TRANSITION -> audit/idempotent side effects -> close/recover -> human escalation only for provider ambiguity or financial exception.
+
+No automatic fallback trigger is claimed yet.
+
+## Evidence
+- L1 source: inquiry adapter committed on the execution branch.
+- L1/L2 deployment: Restore-Test Edge Function version 1 ACTIVE, `verify_jwt=true`.
+- Provider/L8 inquiry execution: NOT EVIDENCED because the current tool surface has no direct Edge Function invocation and network access from the local execution environment is unavailable.
+- Production: unchanged and FROZEN.
+
+## Next Safe Execution Order
+1. Preserve the inquiry adapter and do not let it become a second reconciliation engine.
+2. Consolidate/identify a single reusable Paymob transaction-state applicator so both verified webhook and inquiry fallback can use the same state transition semantics.
+3. Reuse the existing automation/reconciliation tables and trigger model; prove exactly which events are already immediate versus which require periodic detection.
+4. Define the stale-pending reconciliation window, bounded batch size, idempotency/dedupe behavior, and service identity before adding any scheduler.
+5. Only then add the smallest automatic worker/schedule needed to close the proven gap.
+6. Rerun the Paymob sandbox evidence path with corrected webhook correlation and verify L1-L8 separately.
