@@ -270,6 +270,8 @@ jobs:
               """)
 
               # Browser Back/Forward around the route without refresh.
+              const document_marker = seller.evaluate("() => window.__VELORA_BROWSER_GATE_DOCUMENT_MARKER || (window.__VELORA_BROWSER_GATE_DOCUMENT_MARKER = Math.random().toString(36).slice(2))")
+              seller.evaluate("marker => { window.__VELORA_BROWSER_GATE_EXPECTED_DOCUMENT_MARKER = marker; }", document_marker)
               seller.evaluate("() => window.VELORA_CLOSE_SELLER()")
               seller.wait_for_timeout(700)
               seller.evaluate("() => window.openSellerPlatform()")
@@ -277,7 +279,7 @@ jobs:
               seller.go_back(wait_until="domcontentloaded", timeout=60000)
               seller.wait_for_timeout(900)
               result["checks"]["seller_back_navigation_no_refresh"] = seller.evaluate(
-                  "() => (location.hash || '').replace(/^#/, '') != 'seller'"
+                  "() => (location.hash || '').replace(/^#/, '') != 'seller' && window.__VELORA_BROWSER_GATE_DOCUMENT_MARKER === window.__VELORA_BROWSER_GATE_EXPECTED_DOCUMENT_MARKER"
               )
               seller.go_forward(wait_until="domcontentloaded", timeout=60000)
               seller.wait_for_timeout(900)
