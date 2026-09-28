@@ -3497,3 +3497,23 @@ SECURITY / GOVERNANCE:
 - Do not alter user_roles or create a temporary seller role merely for test convenience.
 - Seller re-entry must be tested on an actual approved Seller identity and through the canonical `openSellerPlatform` / route controller path.
 
+
+
+# MESSAGE 12.21 — SUPABASE PLAN / AUTH SECURITY DEPENDENCY
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Supabase organization `Maha Beauty` is currently on `free` tier.
+- Restore-Test project `velora-restore-test` is ACTIVE_HEALTHY on PostgreSQL 17.6.1.166.
+- Current Security Advisor reports `auth_leaked_password_protection` as WARN because leaked-password protection is disabled.
+
+CLASSIFICATION:
+- Leaked-password protection: BLOCKED BY CURRENT SUPABASE PLAN / OWNER ACTION.
+- This is not to be "fixed" by changing unrelated authentication behavior on Restore-Test.
+- Production Auth readiness remains OPEN until the required Auth security controls are explicitly verified on the actual production plan/configuration.
+- No Production changes were made.
+
+THREE MASTER GOVERNING CONDITIONS:
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
