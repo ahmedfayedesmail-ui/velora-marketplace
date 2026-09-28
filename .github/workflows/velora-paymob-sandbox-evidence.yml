@@ -312,16 +312,9 @@ jobs:
                   },
               )
               checkout_url = checkout.get("checkout_url")
-              # Follow the regional hosted checkout origin returned by Paymob.
-              if checkout_url:
-                  try:
-                      parsed = urllib.parse.urlsplit(checkout_url)
-                      if parsed.netloc == "accept.paymob.com" and parsed.path.startswith("/unifiedcheckout"):
-                          checkout_url = urllib.parse.urlunsplit(
-                              ("https", "eg.checkout.paymob.com", "/", parsed.query, "")
-                          )
-                  except Exception:
-                      pass
+              # Use the exact Unified Checkout URL returned by Paymob.
+              # Do not rewrite the host in the evidence harness: Paymob's current
+              # Egypt documentation uses accept.paymob.com for Unified Checkout.
               evidence["checks"]["checkout_function_http_200"] = status == 200
               evidence["checks"]["paymob_intention_created"] = bool(
                   checkout.get("ok") and checkout.get("intention_id") and checkout_url
@@ -339,8 +332,24 @@ jobs:
                   browser = p.chromium.launch(headless=True)
                   context = browser.new_context(viewport={"width": 1440, "height": 1000})
                   page = context.new_page()
+                  console_errors = []
+                  page_errors = []
+                  request_failures = []
+                  page.on("console", lambda msg: console_errors.append({
+                      "type": msg.type,
+                      "text": msg.text[:300],
+                  }) if msg.type == "error" else None)
+                  page.on("pageerror", lambda exc: page_errors.append(str(exc)[:300]))
+                  page.on("requestfailed", lambda request: request_failures.append({
+                      "url": safe_frame_url(request.url) if "safe_frame_url" in locals() else urllib.parse.urlunsplit((urllib.parse.urlsplit(request.url).scheme, urllib.parse.urlsplit(request.url).netloc, urllib.parse.urlsplit(request.url).path, "[redacted]" if urllib.parse.urlsplit(request.url).query else "", "")),
+                      "failure": request.failure,
+                  }))
                   try:
                       page.goto(checkout_url, wait_until="domcontentloaded", timeout=60000)
+                      try:
+                          page.wait_for_load_state("networkidle", timeout=30000)
+                      except PlaywrightTimeoutError:
+                          pass
                       # Unified Checkout is a Paymob-hosted dynamic UI. Give the
                       # payment application enough time to mount its method selector
                       # and secure card fields before declaring the browser path broken.
@@ -380,43 +389,65 @@ jobs:
                                   return loc
                           return None
 
-                      # Some Unified Checkout sessions expose a payment-method
-                      # selector before mounting card fields. Select Card if it is
-                      # visibly offered, then allow the card form to mount.
+                      # Paymob's current Unified Checkout inspection exposes direct
+                      # card fields; prefer those exact IDs, then fall back to generic
+                      # selectors in case the hosted UI changes.
                       card_method = first_visible([
                           'button:has-text("Card")',
                           'button:has-text("card")',
                           '[role="button"]:has-text("Card")',
                           '[role="button"]:has-text("card")',
                       ])
-                      if card_method:
-                          try:
-                              card_method.click()
-                              page.wait_for_timeout(3000)
-                              evidence["playwright"]["card_method_selected"] = True
-                          except Exception:
-                              evidence["playwright"]["card_method_selected"] = False
-                      else:
-                          evidence["playwright"]["card_method_selected"] = False
+                      evidence["playwright"]["card_method_visible"] = bool(card_method)
 
                       card_number = first_visible([
+                          '#number',
                           'input[autocomplete="cc-number"]',
                           'input[name*="card" i][name*="number" i]',
                           'input[placeholder*="card number" i]',
                           'input[inputmode="numeric"][maxlength="16"]',
                       ])
                       expiry = first_visible([
+                          '#expiry',
                           'input[autocomplete="cc-exp"]',
                           'input[name*="expiry" i]',
                           'input[placeholder*="expiry" i]',
                       ])
                       cvv = first_visible([
+                          '#cvc',
                           'input[autocomplete="cc-csc"]',
                           'input[name*="cvv" i]',
                           'input[name*="cvc" i]',
                           'input[placeholder*="cvv" i]',
                           'input[placeholder*="cvc" i]',
                       ])
+                      evidence["playwright"]["checkout_title"] = page.title()
+                      evidence["playwright"]["document_ready_state"] = page.evaluate("document.readyState")
+                      try:
+                          body_text = page.locator("body").inner_text(timeout=10000)
+                          evidence["playwright"]["body_text_prefix"] = body_text[:1200]
+                      except Exception:
+                          evidence["playwright"]["body_text_prefix"] = ""
+                      try:
+                          evidence["playwright"]["html_length"] = len(page.content())
+                      except Exception:
+                          evidence["playwright"]["html_length"] = None
+                      evidence["playwright"]["console_errors"] = console_errors[-20:]
+                      evidence["playwright"]["page_errors"] = page_errors[-20:]
+                      evidence["playwright"]["request_failures"] = request_failures[-20:]
+
+                      if not (card_number and expiry and cvv) and card_method:
+                          try:
+                              card_method.click()
+                              page.wait_for_timeout(3000)
+                              evidence["playwright"]["card_method_selected"] = True
+                              card_number = first_visible(['#number','input[autocomplete="cc-number"]','input[name*="card" i][name*="number" i]','input[placeholder*="card number" i]','input[inputmode="numeric"][maxlength="16"]'])
+                              expiry = first_visible(['#expiry','input[autocomplete="cc-exp"]','input[name*="expiry" i]','input[placeholder*="expiry" i]'])
+                              cvv = first_visible(['#cvc','input[autocomplete="cc-csc"]','input[name*="cvv" i]','input[name*="cvc" i]','input[placeholder*="cvv" i]','input[placeholder*="cvc" i]'])
+                          except Exception:
+                              evidence["playwright"]["card_method_selected"] = False
+                      else:
+                          evidence["playwright"]["card_method_selected"] = False
 
                       evidence["playwright"]["checkout_loaded"] = bool(page.url)
                       evidence["playwright"]["card_fields_detected"] = bool(card_number and expiry and cvv)
@@ -470,6 +501,7 @@ jobs:
                               name_field.fill("TEST ACCOUNT")
 
                           submit = first_visible([
+                              '#pay-button',
                               'button:has-text("Pay")',
                               'button:has-text("Confirm")',
                               'button:has-text("Continue")',
