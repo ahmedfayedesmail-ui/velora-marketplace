@@ -56,8 +56,8 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD at plan creation: a3e78a7010dbad8b6b5e16ed4b9784ecd637bb77
-Current HEAD commit message: docs: restore variant stock reconciliation source provenance
+Current observed branch HEAD: d6a57dd5004c60f2ede656cc75fef1f5df645e47
+Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
 audit/full-gate-2026-09-25
@@ -558,3 +558,273 @@ The Action Flow remains parallel:
 - Returns: detect request -> validate order/store/item delivery -> create split return -> staff transition -> external refund evidence -> record refund -> audit -> reconcile/escalate.
 - Notifications: detect event -> create notification -> push dispatch -> delivery/disable stale endpoint -> lifecycle job when due -> audit/recover.
 No new automation framework or scheduler was introduced.
+
+
+## Message 6/11 — Beauty Passport / Customer Intelligence
+
+### 41. Beauty Passport — First-Class Track
+CLASSIFICATION: CLOSED-DONE FOUNDATION / BROWSER EVIDENCE OPEN
+
+OBSERVED FACT:
+- Beauty Passport remains a first-class Customer Intelligence track and was not abandoned.
+- The product model is explicitly:
+  Passport = Memory / Identity
+  Routine / Advisor = Current Decision
+  Catalog / Cart / Orders = Commerce
+  Feedback = Learning
+- The intended loop remains:
+  Customer <-> Beauty Profile <-> Products <-> Routine <-> Purchases <-> Outcomes <-> Time
+- No parallel Passport, routine, feedback, or recommendation engine was introduced.
+
+RESEARCH-FIRST:
+- Current beauty-commerce prior art reviewed before expanding the contract includes Clinique, Sephora, Ulta, and academic skincare-recommendation work.
+- The recurring useful dimensions are skin type, goals/concerns, preferences, budget/routine context, and purchase/experience signals.
+- The current lightweight V2 three-question design is therefore retained rather than expanding prematurely into vision/AI or a large questionnaire.
+- V2 remains intentionally narrower until an observed product need and contract mapping justify additional dimensions.
+
+### 42-46. Current Beauty Passport V2
+CLASSIFICATION: CLOSED-DONE AT SOURCE / DB / ACL; BROWSER NOT EVIDENCED
+
+OBSERVED FACT:
+- Customer-facing implementation: src/scripts/61-s1-c-quiz-v2.js.
+- V2 version token: beauty-quiz.v2.
+- Current questions:
+  skin_type
+  goal
+  routine_budget
+- Current frontend option tokens:
+  skin_type = oily / dry / combination / normal / sensitive / unknown
+  goal = brightening / hydration / acne / anti-aging / oil
+  routine_budget = under_500 / 500_1000 / 1000_2000 / over_2000 / unknown
+- The frontend uses the existing canonical RPC:
+  velora_save_beauty_passport_v2(p_skin_type,p_goal,p_routine_budget)
+- The V2 frontend is bilingual Arabic/English and mobile-oriented.
+- On successful save it emits velora:passport-v2-updated and opens the existing canonical Routine UX.
+- When editing the Passport, the frontend reads authoritative persisted V2 values first so unchanged answers are not silently overwritten.
+- No MutationObserver was added and no separate client-side persistence engine was introduced.
+- Source proof is not Browser proof.
+
+CONTRACT HARDENING EXECUTED:
+- Restore-Test V2 save RPC was hardened so goal must be one of:
+  brightening / hydration / acne / anti-aging / oil
+- Existing whitelist validation for skin_type and routine_budget remains enforced.
+- beauty_profiles direct authenticated INSERT/UPDATE policies were hardened to require the same exact V2 token sets, preventing Data API writes from bypassing the V2 value contract.
+- No new columns or questions were introduced.
+- Invalid RPC probe returned SQLSTATE 22023 / INVALID_GOAL.
+- Invalid direct Data API-style UPDATE probe was blocked with SQLSTATE 42501 / row-level security policy violation.
+- Persisted contract scan found 0 invalid existing profiles.
+- Migration file committed:
+  supabase/migrations/20260928152000_harden_beauty_passport_v2_value_contract.sql
+- Commit: d6a57dd5004c60f2ede656cc75fef1f5df645e47.
+
+DOCUMENTATION TOKEN NOTE:
+- The handoff text described the acne goal as acne-blemish-prone, but the actual current frontend token is acne and the existing catalog/routine vocabulary uses acne-compatible matching.
+- Do not change the stored token merely to mirror a label. Keep acne as the current canonical machine token and use the user-facing label "Blemish-prone skin care".
+- Revisit only if a real contract-wide rename is required and can be migrated safely.
+
+### 47-48. Beauty Profile Data Model / Restore-Test Snapshot
+CLASSIFICATION: CLOSED-DONE FOUNDATION / QA DATA NOT PRODUCTION USAGE
+
+OBSERVED FACT:
+- beauty_profiles columns currently include:
+  user_id / quiz_version / goal / concern / texture_preference / effect_preference /
+  avoidance_preferences / shopping_priority / updated_at / skin_type / routine_budget
+- V2 save intentionally writes the V2 subset:
+  quiz_version / goal / skin_type / routine_budget
+- Current Restore-Test snapshot:
+  beauty_profiles = 2
+  v2_profiles = 2
+  v1_profiles = 0
+  profiles_with_concern = 0
+  beauty_routine_runs = 425
+  beauty_routine_steps = 2044
+  beauty_recommendation_runs = 0
+  beauty_recommendation_items = 0
+  beauty_feedback = 2
+- Earlier handoff counts of routine_runs=416 and routine_steps=1999 are historical and have been superseded by current QA data.
+- Both currently observed profiles are V2; no V1 profile exists in Restore-Test.
+- Routine-run volume is QA/test-driven and must not be interpreted as production usage.
+
+### 49. V1 Beauty Passport
+CLASSIFICATION: CLOSED-DONE RUNTIME RETIREMENT / FILE RETAINED FOR HISTORY
+
+OBSERVED FACT:
+- Legacy source remains at src/scripts/58-s1-b1-beauty-passport.js with beauty-quiz.v1 persistence.
+- Current loaded runtime does NOT include the legacy 58 script; src/index.html loads the V2 path and not 58.
+- Current branch contains:
+  supabase/migrations/20260928141000_retire_v1_beauty_passport_runtime.sql
+- That migration revokes authenticated EXECUTE on the legacy velora_save_beauty_profile(...) contract.
+- Current V2 beauty_profiles RLS policies require quiz_version='beauty-quiz.v2'.
+- The V1 file remains in repository history/source inventory, but it is not a supported runtime path.
+- NON-NEGOTIABLE: never resurrect the V1 customer UX as a shortcut.
+- If a remaining subsystem depends on a V1-shaped field, reconcile that dependency to V2 rather than reviving V1.
+
+### 50-51. Beauty Recommendation Integration
+CLASSIFICATION: BACKEND CONTRACT CLOSED-DONE / BROWSER + CUSTOMER UX NOT EVIDENCED
+
+OBSERVED FACT:
+- The current public recommendation RPC is:
+  velora_get_beauty_recommendations()
+- It now calls:
+  private.velora_beauty_recommendation_operation_v2()
+- Current V2 operation contract:
+  reads beauty-quiz.v2 only
+  requires skin_type + goal + routine_budget
+  uses beauty-recommendation.v2
+  fingerprints the V2 inputs with EG / EGP market context
+  caches identical inputs for 24 hours
+  rate-limits at 5 calls per 10 minutes per user
+  requires approved EGP Beauty products with positive availability
+  applies budget filtering
+  incorporates the existing beauty feedback signal
+  returns up to 5 results
+  records runs/items using the existing beauty_recommendation_runs / beauty_recommendation_items tables
+- Current backend source migration:
+  supabase/migrations/20260928133000_canonical_v2_beauty_recommendation.sql
+- This replaces the previous V1 recommendation dependency without reviving V1.
+
+ACL/runtime issue found and fixed:
+- Initial V2 public wrapper was callable by authenticated but ran as SECURITY INVOKER while the private V2 intelligence function had direct EXECUTE revoked.
+- Authenticated runtime probe therefore failed with permission denied for private.velora_beauty_recommendation_operation_v2().
+- Smallest safe fix was to make ONLY the public customer wrapper SECURITY DEFINER with an explicit auth.uid() guard; the private intelligence functions remain non-executable directly.
+- Restore-Test ACL now shows:
+  public.velora_get_beauty_recommendations = SECURITY DEFINER; anon execute=false; authenticated execute=true
+  private.velora_beauty_recommendation_operation_v2 = SECURITY DEFINER; anon execute=false; authenticated execute=false
+- Authenticated transactional runtime probe returned:
+  contract_version = beauty-recommendation.v2
+  status = success
+  recommendation count = 5
+- The test transaction was rolled back, so persistent recommendation_runs/items remain 0.
+- Migration file committed:
+  supabase/migrations/20260928151000_fix_beauty_recommendation_v2_public_wrapper_acl.sql
+- Commit: 71877779d573b016d23c6729d875844416e61ab2.
+
+CUSTOMER-SURFACE FINDING:
+- src/scripts/59-s1-b2-beauty-recommendations.js is only a client RPC/API wrapper; it does not mount a customer recommendation presentation.
+- Current source/code search found no other caller of veloraBeautyRecommendations or velora_get_beauty_recommendations in the inspected branch.
+- Therefore backend recommendation integration is CLOSED-DONE, but a customer-facing Recommendation UX is NOT EVIDENCED / remains an OPEN product-surface question.
+- Do not build a new recommendation UI before confirming the intended existing customer surface and researching prior art.
+
+### 52-55. Routine
+CLASSIFICATION: CLOSED-DONE FOUNDATION / BROWSER EVIDENCE OPEN
+
+OBSERVED FACT:
+- Canonical current-routine entry is velora_get_current_beauty_routine().
+- It requires the V2 Passport state:
+  quiz_version='beauty-quiz.v2'
+  skin_type
+  goal
+  routine_budget
+- Deterministic routine operation remains the existing private.velora_beauty_routine_operation() behind velora_generate_beauty_routine().
+- Current routine fingerprint includes:
+  beauty-passport.v2
+  beauty-context.v2
+  quiz_version
+  EG / EGP
+  skin_type
+  goal
+  concern
+  routine_budget
+  texture_preference
+  effect_preference
+  avoidance_preferences
+  shopping_priority
+  approved_feedback_revision
+  purchase_revision
+  context
+- Current ruleset is beauty-rules.v5.
+- Regeneration is driven by profile/context/catalog/ruleset changes.
+- No second routine engine was introduced.
+- Current routine output rows are labeled with contract_version='beauty-routine.v1', but this is the routine response contract name and must NOT be interpreted as the retired V1 Beauty Passport.
+
+ROUTINE QA SNAPSHOT:
+- Current Restore-Test routine runs = 425 and steps = 2044.
+- Grouped current runs:
+  beauty-rules.v5 = 406 complete
+  beauty-rules.v2 = 17 complete
+  beauty-rules.v4 = 2 complete
+- Current product catalog has 5 approved, stocked EGP Beauty products used as QA fixtures.
+- This is test evidence only, not production usage evidence.
+
+### 56-58. Beauty Journey / Replenishment / Feedback
+CLASSIFICATION: FOUNDATION CLOSED-DONE / BROWSER DELIVERY EVIDENCE OPEN
+
+OBSERVED FACT:
+- src/scripts/64-s1-d-beauty-journey.js uses:
+  velora_get_current_beauty_routine()
+  velora_get_replenishment_signals()
+- Beauty Journey presents Passport memory (Skin / Goal / Budget), current routine, season/context, ruleset, routine history, and replenishment signals.
+- src/scripts/65-s1-d-beauty-feedback.js uses purchase-linked feedback through velora_submit_beauty_feedback.
+- Current purchase feedback is only eligible for delivered/completed customer orders with matching order item/product/variant.
+- Existing private.velora_beauty_feedback_signal() returns -1 / 0 / +1 and is reused by canonical routine/recommendation logic.
+- Routine input fingerprint incorporates approved feedback revision.
+- Replenishment remains the canonical velora_get_replenishment_signals() engine using delivered/completed orders and deterministic product-subcategory intervals.
+- No parallel replenishment, AI-feedback, or learning engine was introduced.
+- Feedback, journey, and replenishment browser behavior is still NOT EVIDENCED.
+
+### 59. Future Passport Dimensions
+CLASSIFICATION: OPEN / RESEARCH-FIRST EVOLUTION POLICY
+
+OBSERVED FACT:
+- beauty_profiles already contains optional fields for concern, texture_preference, effect_preference, avoidance_preferences, shopping_priority.
+- They are not currently part of the three-question V2 customer write surface.
+- No new Passport dimensions were added in Message 6.
+
+OPEN:
+- whether concern should become a first-class V2 question
+- sensory preference question design
+- ingredient/tag avoidance model
+- shopping-priority model
+- how each new field would affect routine ranking
+- how each new field would affect recommendation ranking
+- validation, migration, privacy/UX implications
+- whether the customer gets value commensurate with additional questionnaire friction
+
+RULE:
+Research -> contract mapping -> question design -> validation -> persistence -> routine impact -> recommendation impact.
+No speculative field additions.
+
+### Message 6 Action Flow — Runs in Parallel
+Passport lifecycle:
+Detect customer entering/editing Passport
+-> authenticate
+-> validate exact V2 tokens
+-> save canonical profile
+-> emit velora:passport-v2-updated
+-> regenerate/refresh deterministic routine when needed
+-> expose Recommendation V2 through the canonical public wrapper
+-> use approved feedback signal when available
+-> derive replenishment signals from completed purchases
+-> feed future context/purchase outcomes back into the next deterministic decision
+-> audit/retry/recover where the underlying canonical workflow supports it.
+
+Normal operation should be automatic. Human intervention is limited to genuinely necessary policy decisions, exceptional data/privacy concerns, provider ambiguity, moderation/governance, and release control.
+
+### Message 6 Research / Build Gate Summary
+OBSERVED FACT:
+- No new database columns were required.
+- No second routine/recommendation/feedback/replenishment engine was introduced.
+- Two minimal contract fixes were justified by actual evidence:
+  1. Beauty Recommendation public wrapper SECURITY DEFINER + explicit auth guard because authenticated runtime was blocked by private EXECUTE revocation.
+  2. Beauty Passport V2 exact-token enforcement for goal and the direct Data API write policies because the frontend/DB value contract was previously broader than the stated V2 option set.
+- Both fixes were applied on Restore-Test only and verified with transaction-safe SQL probes.
+
+NOT EVIDENCED:
+- Browser Gate for current Message 6.
+- Customer-facing Recommendation presentation/UX.
+- Provider/Production behavior for this track.
+
+CARRY-FORWARD:
+- All unresolved items from Messages 2/11 through 5/11 remain active and are NOT deleted by completion of Message 6.
+- Browser/provider/production evidence remains a separate evidence layer.
+- The current TinyFish/browser-provider wallet block remains active until the provider becomes usable.
+
+### Message 6 Master Conditions — Non-Negotiable
+1. HANDOFF COMPLETENESS:
+   Continue the full Master Handoff with every item, detail, open item, blocked item, not-evidenced item, dependency, permission, evidence level, and previous decision preserved. Nothing may disappear when moving to Message 7/11 or later.
+2. RESEARCH BEFORE BUILD:
+   Do not build for the sake of building. Research existing products, documentation, implementations, community/industry practice, and prior art at whatever breadth is justified, then reuse the strongest fitting canonical pattern for Velora. Build new only where a real observed gap remains and no suitable existing contract/path covers it. Never create duplicate engines.
+3. ACTION FLOW IN PARALLEL:
+   For every system, continue:
+   Detect -> Decide -> Execute -> Verify -> Recover/Escalate
+   Normal platform operation should run automatically end-to-end wherever the canonical architecture supports it. Human intervention is reserved for genuine exceptions: business-policy decisions, seller approval/suspension, legal publication, fraud/trust cases, exceptional refunds, provider ambiguity, payout/provider settlement, and release control.
