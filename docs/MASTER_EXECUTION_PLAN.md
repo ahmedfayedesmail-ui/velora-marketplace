@@ -2997,3 +2997,23 @@ INFERRED:
 DECISION:
 - Auditability is closed at the architecture/source/DB layer.
 - Keep Browser/provider/Production evidence as separate higher evidence levels; audit rows do not promote those gates to PASS.
+
+
+### Continuation Reuse-First Correction — Seller Payout UI — 2026-09-29
+
+CLASSIFICATION: DUPLICATE BUILD REMOVED / EXISTING CANONICAL UI RETAINED
+
+OBSERVED FACT:
+- A prior continuation briefly added src/scripts/72-seller-payouts.js as a Seller payout adapter.
+- Re-inspection of the actual continuation branch showed src/scripts/35-seller.js already owns the canonical Seller payout presentation through v39LoadPayouts(), reads the canonical financial summary, and invokes velora_request_seller_payout() directly.
+- Therefore the 72 adapter would have violated the reuse-first/non-duplicate condition.
+
+CORRECTION:
+- src/scripts/72-seller-payouts.js was deleted in commit e7019e706ce4c4fcfff32fde2fca29b3b8609196.
+- Its script tag was removed from src/index.html in commit b3610d0e35269b5de8ab27e0f1ea12fec3395471.
+- No payout business contract or DB schema was changed by this correction.
+- Canonical Seller payout UI remains src/scripts/35-seller.js.
+
+EVIDENCE:
+- The existing 35-seller implementation already uses velora_get_seller_financial_summary() and velora_request_seller_payout(), with the server performing the eligibility calculation.
+- Current payout settlement remains Staff/provider controlled and not browser-proven.
