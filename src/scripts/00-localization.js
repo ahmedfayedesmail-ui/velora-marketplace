@@ -7440,7 +7440,7 @@ function renderSellerSettings(seller) {
                 </div>
                 <div class="form-group"><label>Store Description</label><textarea class="form-input" id="ssStoreDescription" rows="4" placeholder="Tell customers about your store">${escapeHtml(seller.storeDescription||'')}</textarea></div>
                 <div class="form-row">
-                    <div class="form-group"><label>Business Email</label><input class="form-input" type="email" id="ssEmail" value="${escapeHtml(seller.email||'')}" required></div>
+                    <div class="form-group"><label>Business Email <span style="color:var(--text-muted);font-size:.8em">(Account email)</span></label><input class="form-input" type="email" id="ssEmail" value="${escapeHtml((STATE.user&&STATE.user.email)||seller.email||'')}" readonly disabled></div>
                     <div class="form-group"><label>Business Phone</label><input class="form-input" type="tel" id="ssPhone" value="${escapeHtml(seller.storePhone||'')}"></div>
                 </div>
                 <div class="form-row">
@@ -7468,29 +7468,83 @@ function renderSellerSettings(seller) {
     `;
 }
 
-function saveSellerSettings(event) {
+async function saveSellerSettings(event) {
     event.preventDefault();
     const seller = SELLER_STATE.currentSeller;
     if (!seller) { showToast('⚠️ Seller profile not found.','warning'); return; }
+
     const storeName = document.getElementById('ssStoreName')?.value.trim();
     const storeDescription = document.getElementById('ssStoreDescription')?.value.trim() || '';
-    const email = document.getElementById('ssEmail')?.value.trim();
     const phone = document.getElementById('ssPhone')?.value.trim() || '';
     const currency = document.getElementById('ssCurrency')?.value || VELORA_CURRENCY;
     const storeCategory = document.getElementById('ssCategory')?.value || 'other';
-    if (!storeName || storeName.length < 3) { showToast('⚠️ Store name must be at least 3 characters.','warning'); return; }
-    if (!email) { showToast('⚠️ Business email is required.','warning'); return; }
-    seller.storeName = storeName;
-    seller.storeDescription = storeDescription;
-    seller.email = email;
-    seller.storePhone = phone;
-    seller.currency = currency;
-    seller.storeCategory = storeCategory;
-    setVeloraCurrency(currency);
-    saveSeller(seller);
-    SELLER_STATE.currentSeller = seller;
-    showToast('✅ Store settings saved successfully.','success');
-    showSellerSection('settings');
+
+    if (!storeName || storeName.length < 3) {
+        showToast('⚠️ Store name must be at least 3 characters.','warning');
+        return;
+    }
+
+    const client = window.mahaSupabase || window.supabaseClient || window.db || window.sb;
+    if (!client?.rpc) {
+        showToast('❌ Store settings service is unavailable.','error');
+        return;
+    }
+
+    try {
+        const profileResult = await client.rpc('velora_update_seller_profile', {
+            p_seller_id: seller.id,
+            p_store_name: storeName,
+            p_store_slug: null,
+            p_description: storeDescription,
+            p_phone: phone,
+            p_logo_url: null,
+            p_category: storeCategory,
+            p_product_type: seller.product_type || null
+        });
+        if (profileResult?.error) throw profileResult.error;
+
+        let storeId = window.VELORA_CANONICAL_STORE?.id || null;
+        if (!storeId && seller.user_id) {
+            const storeResult = await client
+                .from('stores')
+                .select('id')
+                .eq('owner_id', seller.user_id)
+                .eq('status', 'approved')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            if (storeResult?.error) throw storeResult.error;
+            storeId = storeResult?.data?.id || null;
+        }
+        if (!storeId) throw new Error('APPROVED_STORE_REQUIRED');
+
+        const currencyResult = await client.rpc('velora_set_store_currency', {
+            p_store_id: storeId,
+            p_currency: currency
+        });
+        if (currencyResult?.error) throw currencyResult.error;
+
+        const canonicalSeller = profileResult?.data?.seller || {};
+        seller.storeName = canonicalSeller.store_name || storeName;
+        seller.storeDescription = canonicalSeller.description ?? storeDescription;
+        seller.storePhone = canonicalSeller.phone ?? phone;
+        seller.storeCategory = canonicalSeller.category ?? storeCategory;
+        seller.currency = currency;
+        seller.email = (STATE.user && STATE.user.email) || seller.email || '';
+
+        setVeloraCurrency(currency);
+        saveSeller(seller);
+        SELLER_STATE.currentSeller = seller;
+
+        const canonicalStore = window.VELORA_CANONICAL_STORE || {};
+        window.VELORA_CANONICAL_STORE = { ...canonicalStore, id: storeId, currency_code: currency };
+
+        showToast('✅ Store profile and currency saved. Account email is unchanged.','success');
+        showSellerSection('settings');
+    } catch (err) {
+        console.warn('Velora canonical seller settings save:', err);
+        showToast('❌ '+(err?.message || 'Unable to save store settings.'),'error');
+    }
 }
 
 /* ============ SELLER ORDERS STORAGE ============ */
