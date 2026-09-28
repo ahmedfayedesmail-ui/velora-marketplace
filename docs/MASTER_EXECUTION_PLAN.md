@@ -2318,3 +2318,29 @@ RESEARCH NOTE:
 
 PRIORITY:
 - This is below launch-critical payment/provider evidence, production readiness, rollback/backup, legal readiness, security hardening, Browser Gate evidence, and core marketplace correctness.
+
+### Continuation Financial Visibility — Commission Rate — 2026-09-28
+
+CLASSIFICATION: CLOSED-DONE AT CURRENT SOURCE/DB/ACL FOR CLIENT EXECUTION SCOPE
+
+OBSERVED FACT:
+- Owner direction is that arbitrary cross-seller commission-rate lookup is not a customer-priority surface.
+- Current Restore-Test `velora_get_commission_rate(uuid)` is used by canonical `velora_create_order(...)` for server-side commission calculation.
+- Current DB function-reference inspection found the canonical `velora_create_order(...)` as the direct current caller of `velora_get_commission_rate`; no additional public function caller was found in the inspected database definitions.
+- Current key frontend runtime files inspected do not call `velora_get_commission_rate` directly.
+- A targeted migration was added to the current continuation branch: `supabase/migrations/20260928214500_scope_commission_rate_rpc_internal.sql`, commit `36af4a2ef3a2a1e719816aa405eae03b2477b09a`.
+- Restore-Test applied the migration successfully. Current ACL is `postgres=X/postgres,service_role=X/postgres`; `anon` and `authenticated` EXECUTE are false.
+- An owner-level direct probe still returned the canonical fallback result `12.5`, confirming the function remains callable in its internal/owner execution context.
+- A negative-path probe under `authenticated` failed with PostgreSQL `42501 permission denied for function velora_get_commission_rate`, confirming the client role boundary.
+- No new customer-facing commission-rate UI was added.
+
+INFERRED:
+- This resolves the documented question without introducing a duplicate financial calculation path or changing the canonical order calculation.
+- Any future seller-facing fee disclosure should be a separate product/UX contract; the internal cross-seller calculation RPC should not be used as a public data contract.
+
+REMAINING EVIDENCE:
+- Browser evidence is not required for the ACL-only control itself.
+- Re-run the relevant CI/security checks as part of the next available gate; do not infer a full CI/Browser/Production pass from this database change.
+
+ACTION FLOW:
+Order/commercial event -> canonical order validation -> internal commission calculation -> commission/ledger state transition -> audit -> reconciliation. Client direct commission lookup is denied by ACL; no human intervention is required in the normal path.
