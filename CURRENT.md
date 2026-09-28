@@ -58,6 +58,19 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - Restore-Test DB proof: foreign Zone mutation returned `FORBIDDEN`; foreign Rate mutation returned `FORBIDDEN`; valid updates on the Seller's own Zone/Rate continued to succeed.
 - Exact Vercel/CI proof should be recorded against the commit once its final gates complete; no Production change was made.
 
+### Order / Payment mutation boundary — CLOSED / VERIFIED
+- Direct authenticated mutation probes against `orders` and `order_items` are blocked at the table-permission/RLS boundary; customers do not have direct INSERT/UPDATE policy access to those tables.
+- Direct `payments` and `payment_attempts` updates do not have authenticated mutation policies. A customer-owned Payment row and a foreign Payment row were both non-modifiable through direct authenticated UPDATE probes; provider/payment state remains RPC/webhook controlled.
+- Canonical `velora_create_order` re-reads product, Seller, variant, price, stock, FX, and server shipping quote inside the transaction before inserting order lines and decrementing stock. This preserves the intended trust boundary even if cart state is manipulated locally.
+- `velora_set_order_payment_method` and provider-session attachment RPCs require authenticated ownership of the Payment/Order context. No new checkout or payment architecture was introduced.
+
+### Stage A security sweep status — 2026-09-28
+- Seller Store lifecycle, Support Case insert lifecycle, Transaction Message participants, Shipping Zone/Rate ownership, and Seller Product ownership/capacity all have concrete DB probes showing the previously identified bypasses are now rejected.
+- Promotions, Coupons, Gift Cards, Seller Subscriptions, Orders, Order Items, Payments, and Payment Attempts were checked for direct authenticated writes; no new reproducible bypass remains in these surfaces.
+- The only remaining Security Advisor concern is the known broad RPC EXECUTE surface; the dedicated attack-surface audit still reports `unguarded_public_dml=0`, so no blanket privilege revocation is justified.
+- The exact branch-head documentation commit `236882cb20114ef4c5df3bc66dee41539e2a8270` has all CI gates **SUCCESS** and its exact Vercel Preview `dpl_CT4Qf5SiCuvpvycf7koNrWSYP4vo` is **READY**.
+- Shipping hardening commit `137ca721...` had its Source/Dependency runs superseded/cancelled by the branch-head run; the branch-head run on `236...` is the authoritative combined CI evidence for the full tree.
+
 ### Current security audit result — Restore-Test
 - `velora_run_security_attack_surface_audit()` completed with: RLS core `13/13 PASS`; policy coverage `30 PASS`; pinned search_path `PASS`; SECURITY DEFINER posture `PASS`; public/anon RPC surface `WARN` because 22 RPCs are executable by anon, but the audit reported `unguarded_public_dml=0`.
 - This is a posture warning, not evidence to blanket-revoke SECURITY DEFINER functions. Existing actor/ownership checks remain the governing pattern.
@@ -71,7 +84,7 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 1. Seller UI Browser proof — PENDING, blocked by absence of Seller credentials in the browser-gate harness. Do not fake this proof.
 2. Returns/Refunds — BLOCKED on business/legal commercial rules; existing backend remains audited and no new workflow should be invented.
 3. Support-case operational/browser proof — PENDING only if a real existing customer UI/fixture path is identified; the backend insert and owner-field protections are now DB-verified.
-4. Finish CI/deployment evidence for the latest shipping-upsert commit `137ca721...`, then continue Stage A from the next reproducible gap. Do not reopen already-verified flows without new evidence. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
+4. Continue Stage A from the next reproducible gap. Shipping-upsert deployment is READY and the combined branch-head CI is SUCCESS; no extra manual test is required before moving on. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
