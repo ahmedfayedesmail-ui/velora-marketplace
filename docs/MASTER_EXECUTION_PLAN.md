@@ -2809,3 +2809,24 @@ OBSERVED FACT:
 
 NEXT:
 - Once the Vercel capacity blocker is resolved, allow/create the normal Preview deployment for the current branch head and run the aggregate Browser Gate against that exact commit.
+
+
+### Continuation Seller/Store Projection + Re-Review Action Flow Verification — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW CONTRACT; BROWSER DEFERRED
+
+OBSERVED FACT:
+- velora_update_seller_profile now updates the seller record and the owned store projection atomically.
+- Seller status governance already synchronizes sellers.status and stores.status.
+- Product material-edit re-review now emits the existing notification type product_re_review_required.
+- The existing product status notification trigger continues to emit product_approved/product_rejected/product_reactivated/product_inactive events for governed Staff changes.
+- The complete Seller -> Staff product flow was exercised in one Restore-Test transaction:
+  Seller material edit -> product pending -> re-review notification for the Seller -> Staff approval -> product approved -> product approval notification.
+- The complete transaction was rolled back; no QA state was persisted.
+
+SECURITY:
+- Anonymous EXECUTE was removed from velora_account_action, velora_record_fraud_event, and velora_review_seller_application where no legitimate anonymous caller exists.
+- velora_record_search_event remains anonymous-executable as intentional public telemetry.
+
+AUDITABILITY:
+- High-impact canonical writers inspected in the current queue have explicit audit coverage. Missing audit_logs in trigger/helper wrappers does not represent a gap where the invoking canonical writer already records the state change, and webhook recording has its own durable provider_webhook_events record.
