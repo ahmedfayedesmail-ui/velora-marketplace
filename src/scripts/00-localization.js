@@ -7518,6 +7518,13 @@ async function saveSellerSettings(event) {
         }
         if (!storeId) throw new Error('APPROVED_STORE_REQUIRED');
 
+        const storeProfileResult = await client.rpc('velora_update_owned_store_profile', {
+            p_store_id: storeId,
+            p_store_name: storeName,
+            p_description: storeDescription
+        });
+        if (storeProfileResult?.error) throw storeProfileResult.error;
+
         const currencyResult = await client.rpc('velora_set_store_currency', {
             p_store_id: storeId,
             p_currency: currency
