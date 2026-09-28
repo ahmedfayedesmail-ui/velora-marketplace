@@ -331,7 +331,15 @@ jobs:
                   page = context.new_page()
                   try:
                       page.goto(checkout_url, wait_until="domcontentloaded", timeout=60000)
-                      page.wait_for_timeout(5000)
+                      # Unified Checkout is a Paymob-hosted dynamic UI. Give the
+                      # payment application enough time to mount its method selector
+                      # and secure card fields before declaring the browser path broken.
+                      page.wait_for_timeout(12000)
+
+                      evidence["playwright"]["frame_urls"] = [
+                          frame.url for frame in page.frames if frame.url
+                      ]
+                      evidence["playwright"]["iframe_count"] = page.locator("iframe").count()
 
                       def visible_in_page_or_frames(selector):
                           try:
@@ -356,10 +364,30 @@ jobs:
                                   return loc
                           return None
 
+                      # Some Unified Checkout sessions expose a payment-method
+                      # selector before mounting card fields. Select Card if it is
+                      # visibly offered, then allow the card form to mount.
+                      card_method = first_visible([
+                          'button:has-text("Card")',
+                          'button:has-text("card")',
+                          '[role="button"]:has-text("Card")',
+                          '[role="button"]:has-text("card")',
+                      ])
+                      if card_method:
+                          try:
+                              card_method.click()
+                              page.wait_for_timeout(3000)
+                              evidence["playwright"]["card_method_selected"] = True
+                          except Exception:
+                              evidence["playwright"]["card_method_selected"] = False
+                      else:
+                          evidence["playwright"]["card_method_selected"] = False
+
                       card_number = first_visible([
                           'input[autocomplete="cc-number"]',
                           'input[name*="card" i][name*="number" i]',
                           'input[placeholder*="card number" i]',
+                          'input[inputmode="numeric"][maxlength="16"]',
                       ])
                       expiry = first_visible([
                           'input[autocomplete="cc-exp"]',
@@ -378,6 +406,20 @@ jobs:
                       evidence["playwright"]["card_fields_detected"] = bool(card_number and expiry and cvv)
 
                       if not (card_number and expiry and cvv):
+                          buttons = page.locator("button")
+                          button_meta = []
+                          for i in range(min(buttons.count(), 40)):
+                              el = buttons.nth(i)
+                              try:
+                                  if el.is_visible():
+                                      button_meta.append({
+                                          "text": (el.inner_text() or "").strip()[:120],
+                                          "type": el.get_attribute("type"),
+                                      })
+                              except Exception:
+                                  pass
+                          evidence["playwright"]["visible_buttons"] = button_meta
+
                           inputs = page.locator("input")
                           meta = []
                           for i in range(min(inputs.count(), 30)):
@@ -392,6 +434,12 @@ jobs:
                               except Exception:
                                   pass
                           evidence["playwright"]["visible_inputs"] = meta
+                          screenshot_path = "paymob-checkout-debug.png"
+                          try:
+                              page.screenshot(path=screenshot_path, full_page=True)
+                              evidence["playwright"]["debug_screenshot"] = screenshot_path
+                          except Exception:
+                              pass
                           evidence["failures"].append("Paymob card fields could not be identified")
                       else:
                           card_number.fill("5123456789012346")
