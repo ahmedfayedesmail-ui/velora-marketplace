@@ -330,6 +330,72 @@ jobs:
                       f"Paymob checkout function did not return a checkout URL (http {status})"
                   )
 
+          # Read-only provider inquiry on the freshly-created Paymob attempt.
+          # This is a provider contract probe; it does not mutate payment state.
+          if order and access_token and checkout.get("ok"):
+              try:
+                  attempt_query = urllib.parse.urlencode({
+                      "order_id": f"eq.{urllib.parse.quote(order['id'])}",
+                      "purpose": "eq.marketplace_order",
+                      "select": "id,status,metadata,created_at",
+                      "order": "created_at.desc",
+                      "limit": "1",
+                  }, safe=",")
+                  attempt_req = urllib.request.Request(
+                      f"{base}/rest/v1/payment_attempts?{attempt_query}",
+                      method="GET",
+                      headers={
+                          "apikey": publishable_key,
+                          "Authorization": f"Bearer {access_token}",
+                      },
+                  )
+                  with urllib.request.urlopen(attempt_req, timeout=30) as resp:
+                      attempt_rows = json.loads(resp.read().decode("utf-8"))
+                  latest_attempt_for_inquiry = attempt_rows[0] if attempt_rows else None
+
+                  if not latest_attempt_for_inquiry:
+                      evidence["checks"]["inquiry_attempt_found"] = False
+                      evidence["failures"].append("Fresh Paymob payment attempt was not found for Inquiry probe")
+                  else:
+                      inquiry_status, inquiry = http_json(
+                          "POST",
+                          f"{base}/functions/v1/velora-paymob-inquiry-restore-test",
+                          {"payment_attempt_id": latest_attempt_for_inquiry["id"]},
+                          {
+                              "apikey": publishable_key,
+                              "Authorization": f"Bearer {access_token}",
+                          },
+                      )
+                      evidence["checks"]["inquiry_attempt_found"] = True
+                      evidence["checks"]["paymob_inquiry_http_200"] = inquiry_status == 200
+                      evidence["checks"]["paymob_inquiry_correlation"] = (
+                          str(inquiry.get("paymob_order_id") or "")
+                          == str((latest_attempt_for_inquiry.get("metadata") or {}).get("paymob_order_id") or "")
+                      )
+                      evidence["provider_inquiry"] = {
+                          "http_status": inquiry_status,
+                          "ok": inquiry.get("ok"),
+                          "paymob_order_id": inquiry.get("paymob_order_id"),
+                          "provider_order_id_from_response": inquiry.get("provider_order_id_from_response"),
+                          "provider_transaction_id": inquiry.get("provider_transaction_id"),
+                          "pending": inquiry.get("pending"),
+                          "success": inquiry.get("success"),
+                          "is_refunded": inquiry.get("is_refunded"),
+                          "is_voided": inquiry.get("is_voided"),
+                          "is_auth": inquiry.get("is_auth"),
+                          "is_capture": inquiry.get("is_capture"),
+                          "is_captured": inquiry.get("is_captured"),
+                      }
+                      if not (evidence["checks"]["paymob_inquiry_http_200"] and evidence["checks"]["paymob_inquiry_correlation"]):
+                          evidence["failures"].append(
+                              f"Paymob Inquiry probe failed/correlation mismatch (http {inquiry_status})"
+                          )
+              except Exception as exc:
+                  evidence["checks"]["inquiry_attempt_found"] = False
+                  evidence["checks"]["paymob_inquiry_http_200"] = False
+                  evidence["checks"]["paymob_inquiry_correlation"] = False
+                  evidence["failures"].append(f"Paymob Inquiry probe failed: {type(exc).__name__}")
+
           # Complete the sandbox checkout. Test data is documented by Paymob.
           payment_action_started = False
           otp_observed = False
