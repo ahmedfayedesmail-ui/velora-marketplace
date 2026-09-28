@@ -1,0 +1,204 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const PAYMOB_BASE = "https://accept.paymob.com";
+const json = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
+const getApiKey = () => {
+  const v = Deno.env.get("PAYMOB_API_KEY");
+  return String(v || "").trim();
+};
+
+async function generateToken(apiKey: string) {
+  const response = await fetch(`${PAYMOB_BASE}/api/auth/tokens`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ api_key: apiKey }),
+  });
+  let body: Record<string, unknown> = {};
+  try {
+    body = await response.json();
+  } catch {
+    body = {};
+  }
+  return {
+    response,
+    token: typeof body.token === "string" ? body.token.trim() : "",
+  };
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "GET") {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return json(
+        {
+          ok: false,
+          provider: "paymob",
+          environment: "test",
+          credential_configured: false,
+          auth_http_status: null,
+        },
+        503,
+      );
+    }
+
+    try {
+      const { response, token } = await generateToken(apiKey);
+      return json(
+        {
+          ok: response.ok && Boolean(token),
+          provider: "paymob",
+          environment: "test",
+          credential_configured: true,
+          auth_http_status: response.status,
+          token_obtained: Boolean(token),
+          expires_in_minutes: token ? 60 : null,
+        },
+        response.ok && token ? 200 : 502,
+      );
+    } catch (error) {
+      return json(
+        {
+          ok: false,
+          provider: "paymob",
+          environment: "test",
+          credential_configured: true,
+          auth_http_status: null,
+          token_obtained: false,
+          error_class: error instanceof Error ? error.name : "Error",
+        },
+        502,
+      );
+    }
+  }
+
+  if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+
+  const authHeader = req.headers.get("authorization") || "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const publishableKeysRaw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "";
+  let publishableKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  try {
+    const parsed = JSON.parse(publishableKeysRaw);
+    if (parsed?.default) publishableKey = String(parsed.default);
+  } catch {
+    // Keep legacy anon fallback.
+  }
+
+  if (!supabaseUrl || !publishableKey || !bearer) {
+    return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
+  }
+
+  const { createClient } = await import("npm:@supabase/supabase-js@2");
+  const userClient = createClient(supabaseUrl, publishableKey, {
+    global: { headers: { Authorization: `Bearer ${bearer}` } },
+  });
+  const { data: userData, error: userError } = await userClient.auth.getUser();
+  if (userError || !userData.user) return json({ ok: false, code: "AUTH_REQUIRED" }, 401);
+
+  let input: Record<string, unknown> = {};
+  try {
+    input = await req.json();
+  } catch {
+    return json({ ok: false, code: "INVALID_JSON" }, 400);
+  }
+
+  const paymentAttemptId = typeof input.payment_attempt_id === "string"
+    ? input.payment_attempt_id.trim()
+    : "";
+  if (!paymentAttemptId) return json({ ok: false, code: "PAYMENT_ATTEMPT_REQUIRED" }, 400);
+
+  const { data: attempt, error: attemptError } = await userClient
+    .from("payment_attempts")
+    .select("id,order_id,purpose,status,metadata,provider_id")
+    .eq("id", paymentAttemptId)
+    .eq("user_id", userData.user.id)
+    .eq("purpose", "marketplace_order")
+    .maybeSingle();
+
+  if (attemptError) {
+    return json({ ok: false, code: "PAYMENT_ATTEMPT_LOOKUP_FAILED" }, 500);
+  }
+  if (!attempt) return json({ ok: false, code: "PAYMENT_ATTEMPT_NOT_FOUND" }, 404);
+
+  const providerOrderId = String(attempt.metadata?.paymob_order_id || "").trim();
+  if (!providerOrderId) return json({ ok: false, code: "PAYMOB_ORDER_ID_MISSING" }, 422);
+
+  const apiKey = getApiKey();
+  if (!apiKey) return json({ ok: false, code: "PAYMOB_API_KEY_MISSING" }, 503);
+
+  try {
+    const auth = await generateToken(apiKey);
+    if (!auth.response.ok || !auth.token) {
+      return json(
+        {
+          ok: false,
+          code: "PAYMOB_AUTH_FAILED",
+          auth_http_status: auth.response.status,
+        },
+        502,
+      );
+    }
+
+    const inquiryResponse = await fetch(
+      `${PAYMOB_BASE}/api/ecommerce/orders/transaction_inquiry`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify({
+          auth_token: auth.token,
+          order_id: providerOrderId,
+        }),
+      },
+    );
+
+    let inquiry: Record<string, unknown> = {};
+    try {
+      inquiry = await inquiryResponse.json();
+    } catch {
+      inquiry = {};
+    }
+
+    return json(
+      {
+        ok: inquiryResponse.ok,
+        provider: "paymob",
+        environment: "test",
+        payment_attempt_id: attempt.id,
+        paymob_order_id: providerOrderId,
+        local_attempt_status: attempt.status,
+        inquiry_http_status: inquiryResponse.status,
+        provider_transaction_id: inquiry.id ?? null,
+        pending: inquiry.pending ?? null,
+        success: inquiry.success ?? null,
+        is_refunded: inquiry.is_refunded ?? null,
+        is_voided: inquiry.is_voided ?? null,
+        is_auth: inquiry.is_auth ?? null,
+        is_capture: inquiry.is_capture ?? null,
+        is_captured: inquiry.is_captured ?? null,
+        provider_order_id_from_response:
+          inquiry.order && typeof inquiry.order === "object"
+            ? (inquiry.order as Record<string, unknown>).id ?? null
+            : null,
+      },
+      inquiryResponse.ok ? 200 : 502,
+    );
+  } catch (error) {
+    return json(
+      {
+        ok: false,
+        code: "PAYMOB_INQUIRY_REQUEST_FAILED",
+        error_class: error instanceof Error ? error.name : "Error",
+      },
+      502,
+    );
+  }
+});
