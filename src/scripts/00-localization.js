@@ -10853,7 +10853,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
 
   let cloudCartWritePromise = null;
 
-  async function pushCartItem(productId,quantity){
+  async function pushCartItem(productId,quantity,mode='absolute'){
     const write=async()=>{
       const user=await currentUser();
       if(!user || !isUuid(productId)) return true;
@@ -10862,8 +10862,11 @@ console.log('✅ Analytics + Events + Audit loaded!');
         if(quantity<=0){
           const {error}=await client.rpc('velora_remove_cart_item',{p_product_id:productId});
           if(error) throw error;
-        }else{
+        }else if(mode==='increment'){
           const {error}=await client.rpc('velora_upsert_cart_item',{p_product_id:productId,p_quantity:Number(quantity),p_currency:currency});
+          if(error) throw error;
+        }else{
+          const {error}=await client.rpc('velora_set_cart_quantity',{p_product_id:productId,p_quantity:Number(quantity)});
           if(error) throw error;
         }
         return true;
@@ -10888,7 +10891,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     if(product && isUuid(product.id)){
       const item=STATE.cart.find(x=>x.id===product.id);
       if(item) item.canonicalId=product.id;
-      pushCartItem(product.id,item?.quantity||quantity);
+      pushCartItem(product.id,Number(quantity||1),'increment');
     }
     return result;
   };
@@ -10907,7 +10910,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
     const result=typeof originalUpdateQuantity==='function' ? originalUpdateQuantity.apply(this,arguments) : undefined;
     if(isUuid(productId)){
       const afterItem=STATE.cart.find(i=>i.id===productId);
-      pushCartItem(productId,Number(afterItem?.quantity||0));
+      pushCartItem(productId,Number(afterItem?.quantity||0),'absolute');
     }
     return result;
   };
