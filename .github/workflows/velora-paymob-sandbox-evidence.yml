@@ -636,6 +636,64 @@ jobs:
                       attempts = []
 
                   latest_attempt = attempts[0] if attempts else None
+                  payment_attempt_id = latest_attempt.get("id") if latest_attempt else None
+                  paymob_order_id = None
+                  if payment_attempt_id:
+                      try:
+                          order_req = urllib.request.Request(
+                              f"${base}/rest/v1/payment_attempts?id=eq.{urllib.parse.quote(str(payment_attempt_id))}"
+                              "&select=metadata",
+                              method="GET",
+                              headers=headers,
+                          )
+                          with urllib.request.urlopen(order_req, timeout=30) as resp:
+                              attempt_rows = json.loads(resp.read().decode("utf-8"))
+                          if attempt_rows:
+                              paymob_order_id = (attempt_rows[0].get("metadata") or {}).get("paymob_order_id")
+                      except Exception:
+                          paymob_order_id = None
+
+                  webhook_query = (
+                      f"${base}/rest/v1/provider_webhook_events?provider_code=eq.paymob"
+                      "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason,payload"
+                      "&order=received_at.desc&limit=50"
+                  )
+
+                  req = urllib.request.Request(webhook_query, method="GET", headers=headers)
+                  try:
+                      with urllib.request.urlopen(req, timeout=30) as resp:
+                          webhook_candidates = json.loads(resp.read().decode("utf-8"))
+                  except Exception:
+                      webhook_candidates = []
+
+                  webhooks = []
+                  for event in webhook_candidates:
+                      payload = event.get("payload") or {}
+                      obj = payload.get("obj") if isinstance(payload, dict) else {}
+                      if not isinstance(obj, dict):
+                          continue
+                      callback_order_id = (
+                          obj.get("order", {}).get("id")
+                          if isinstance(obj.get("order"), dict)
+                          else None
+                      )
+                      claims = obj.get("payment_key_claims")
+                      extra = claims.get("extra", {}) if isinstance(claims, dict) else {}
+                      callback_attempt_id = extra.get("velora_payment_attempt_id") if isinstance(extra, dict) else None
+                      if (
+                          (payment_attempt_id and str(callback_attempt_id) == str(payment_attempt_id))
+                          or (paymob_order_id and str(callback_order_id) == str(paymob_order_id))
+                      ):
+                          webhooks.append(event)
+
+                  if any(
+                      bool(event.get("signature_verified")) and event.get("status") == "processed"
+                      for event in webhooks
+                  ):
+                      break
+                  time.sleep(5)
+
+              latest_attempt = attempts[0] if attempts else None
                   provider_payment_id = latest_attempt.get("provider_payment_id") if latest_attempt else None
 
                   webhook_query = (
