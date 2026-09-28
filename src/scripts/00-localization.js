@@ -10883,9 +10883,66 @@ console.log('✅ Analytics + Events + Audit loaded!');
     }
   }
 
+  async function renderCanonicalSellerAds(placement,category=null){
+    const anchorId=placement==='home_spotlight'?'featuredProducts':'shopProducts';
+    const hostId=placement==='home_spotlight'?'veloraHomeSponsoredAds':'veloraSponsoredAds';
+    const anchor=document.getElementById(anchorId);
+    if(!anchor)return;
+    let host=document.getElementById(hostId);
+    if(!host){
+      host=document.createElement('div');
+      host.id=hostId;
+      host.style.cssText='margin:0 0 1.25rem;';
+      anchor.parentNode?.insertBefore(host,anchor);
+    }
+    try{
+      const db=window.mahaSupabase||window.supabaseClient||window.sb;
+      if(!db?.rpc){host.innerHTML='';return;}
+      const {data,error}=await db.rpc('velora_get_active_seller_ads',{
+        p_placement:placement,
+        p_category:category||null,
+        p_limit:8
+      });
+      if(error)throw error;
+      const ads=Array.isArray(data)?data:[];
+      if(!ads.length){host.innerHTML='';return;}
+      const title=placement==='home_spotlight'?'✨ Sponsored Spotlight':'📣 Sponsored products';
+      host.innerHTML=
+        '<div style="padding:1rem;border:1px solid var(--border);border-radius:16px;background:var(--bg);">'+
+          '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">'+
+            '<h3 style="margin:0;font-size:1.05rem;">'+escapeHtml(title)+'</h3>'+
+            '<span style="font-size:.72rem;padding:.25rem .55rem;border-radius:999px;background:var(--bg-alt);color:var(--text-muted);font-weight:800;">Sponsored</span>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.8rem;">'+
+            ads.map(ad=>{
+              const id=String(ad.product_id||'');
+              const name=escapeHtml(ad.product_name||'Product');
+              const brand=escapeHtml(ad.brand||'');
+              const store=escapeHtml(ad.store_name||'Velora Seller');
+              const price=formatPrice(ad.price,ad.currency_code||window.VELORA_MARKET_CONTEXT?.currencyCode||VELORA_CURRENCY);
+              return '<div style="border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--bg-alt);cursor:pointer;" onclick="openProductDetail(\''+escapeHtml(id)+'\')">'+
+                '<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:3.5rem;background:var(--bg);">'+escapeHtml(ad.emoji||'📣')+'</div>'+
+                '<div style="padding:.7rem">'+
+                  '<div style="font-size:.68rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);">Sponsored</div>'+
+                  '<div style="font-weight:850;margin-top:.2rem;">'+name+'</div>'+
+                  (brand?'<div style="font-size:.78rem;color:var(--text-muted);margin-top:.15rem;">'+brand+'</div>':'')+
+                  '<div style="font-size:.76rem;color:var(--text-muted);margin-top:.35rem;">'+store+'</div>'+
+                  '<div style="font-weight:900;color:var(--primary);margin-top:.45rem;">'+price+'</div>'+
+                '</div>'+
+              '</div>';
+            }).join('')+
+          '</div>'+
+        '</div>';
+    }catch(e){
+      console.warn('Canonical seller ads refresh failed:',e);
+      host.innerHTML='';
+    }
+  }
+
   async function renderCanonicalShop(){
     const container=document.getElementById('shopProducts');
     if(!container) return;
+    await renderCanonicalSellerAds('shop_sponsored',STATE.currentCategory !== 'all' ? STATE.currentCategory : null);
     const counter=document.getElementById('resultsCount');
     container.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading marketplace</h3><p>Finding products available in your region…</p></div>';
 
@@ -10930,6 +10987,7 @@ console.log('✅ Analytics + Events + Audit loaded!');
   async function renderCanonicalFeatured(){
     const container=document.getElementById('featuredProducts');
     if(!container) return;
+    await renderCanonicalSellerAds('home_spotlight',null);
 
     const canonical=await refreshCanonicalCatalog({limit:48});
     const products=canonical.slice(0,8);
