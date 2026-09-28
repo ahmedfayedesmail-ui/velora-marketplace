@@ -288,7 +288,7 @@ function v39Install(){
  const wrap=document.createElement('div');wrap.id='veloraSellerOps39';
  const title=document.createElement('div');title.innerHTML='<h2 style="margin:0 0 8px">🏪 Seller Command Center</h2><div class="velora-seller39-muted">Seller-scoped operations, catalog health, order flow and earnings signals.</div>';
  wrap.appendChild(title);wrap.insertAdjacentHTML('beforeend','');
- admin.appendChild(wrap);setTimeout(()=>{v39Load();v39LoadAnalytics();v39LoadSubscription();v39LoadPayouts()},50);
+ admin.appendChild(wrap);setTimeout(()=>{v39Load();v39LoadSubscription();v39LoadPayouts()},50);
 }
 const oldLoad=window.loadPageContent;
 window.loadPageContent=function(page){const r=typeof oldLoad==='function'?oldLoad.apply(this,arguments):undefined; if(String(page).toLowerCase().includes('seller'))setTimeout(v39Install,150);return r};
