@@ -2962,3 +2962,73 @@ BLOCKED / PENDING:
 1. COMPLETE MASTER HANDOFF — nothing is dropped or silently superseded.
 2. RESEARCH / REUSE FIRST — no build without a proven gap and contract.
 3. ACTION FLOW IN PARALLEL — automation is the default; Owner/Staff only handle genuine exceptions and governance decisions.
+
+
+---
+
+# MESSAGE 12.9 — INTERNAL CRON PRIOR ART + AUTH PLAN DEPENDENCY
+Recorded 2026-09-28.
+
+## Velora Existing Automation Prior Art
+OBSERVED FACT:
+- `src/api/cron/notifications.js` is an existing Vercel server-side cron handler.
+- It authenticates requests with `Authorization: Bearer <CRON_SECRET>`.
+- It uses `SUPABASE_SERVICE_ROLE_KEY` only on the server to call canonical Supabase RPCs.
+- This is the established Velora pattern for unattended server-side execution and should be reused as the reference contract for any future automated payment reconciliation worker.
+
+## Vercel Cron Topology
+OBSERVED FACT:
+- `src/vercel.json` currently declares one Vercel cron:
+  `/api/cron/notifications` at `0 5 * * *`.
+- Restore-Test Supabase currently has a separate Postgres cron:
+  `velora-notification-lifecycle` every minute.
+- These schedules are environment-specific and therefore are not treated as a bug without deployment/environment mapping evidence.
+- A new Paymob reconciliation schedule should not be added to Vercel merely because an existing cron exists; the payment recovery cadence needs to be aligned with the Paymob intention expiry contract.
+
+## Current Platform Constraint
+OBSERVED FACT:
+- Supabase organization backing Restore-Test is on the Free plan.
+- Supabase's current documentation states leaked password protection is available on Pro and above.
+- Therefore the existing `auth_leaked_password_protection` advisor warning is a plan-gated Owner action, not a code defect.
+- Production infrastructure and rollback/backup planning already require a future plan decision in the Master.
+
+## Automation Architecture Decision
+INFERRED / DESIGN:
+- For the eventual Paymob fallback worker, reuse the existing unattended-auth pattern rather than creating a new queue framework:
+  - scheduled invocation
+  - server-only credential
+  - bounded candidate selection
+  - Transaction Inquiry
+  - canonical shared transaction applicator
+  - audit/idempotent side effects
+  - explicit retry/ambiguity path
+- Supabase Cron is a technically suitable scheduler because the platform supports Postgres cron jobs and Edge Function invocation via pg_net; current Restore-Test already has both pg_cron and pg_net installed. citeturn688447search0turn688447search1turn688447search9
+- A final scheduler choice is still OPEN because the provider credential currently exists as an Edge Function secret while unattended scheduler credentials would need a secure server/Vault boundary.
+
+## Provider Contract
+OBSERVED FACT:
+- Paymob explicitly states Transaction Processed Callbacks are the primary mechanism and Transaction Inquiry is the fallback for a missed callback. citeturn456428search0turn456428search1
+- Velora's checkout intention currently uses `expiration: 3600`, so one hour is the concrete provider-side lifetime currently encoded in source. citeturn456428search2
+- A 70-minute fallback threshold remains a proposal only; it is not a Paymob SLA.
+
+## Current Status
+CLOSED-DONE:
+- Internal automated-auth prior art identified.
+- Supabase Cron/pg_net capability verified in Restore-Test.
+- Provider expiry and fallback roles documented.
+- Leaked-password protection dependency classified as Owner/plan-gated.
+
+OPEN:
+- Secure unattended worker credential boundary.
+- Exact stale-pending threshold/grace.
+- Candidate lease/idempotency semantics.
+- Final scheduler placement.
+- CI webhook correlation fix.
+- Provider/L8 Inquiry execution.
+- Browser/3DS completion evidence.
+- Current-SHA Vercel deployment.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF — no dropped item and no silent supersession.
+2. RESEARCH / REUSE FIRST — existing Velora automation/auth and proven provider patterns are preferred before new implementation.
+3. ACTION FLOW IN PARALLEL — every new worker must close the complete event/state/audit/retry/recovery loop automatically, with human intervention limited to genuine exceptions.
