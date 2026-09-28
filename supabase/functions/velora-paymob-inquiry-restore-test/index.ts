@@ -137,6 +137,16 @@ Deno.serve(async (req: Request) => {
     if (!providerOrderId) return json({ ok: false, code: "PAYMOB_ORDER_ID_MISSING" }, 422);
 
     stage = "provider_auth";
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return json(
+        {
+          ok: false,
+          code: "PAYMOB_API_KEY_MISSING",
+        },
+        503,
+      );
+    }
     const auth = await generateToken(apiKey);
     if (!auth.response.ok || !auth.token) {
       return json(
