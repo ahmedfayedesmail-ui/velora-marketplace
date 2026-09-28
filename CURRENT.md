@@ -113,6 +113,24 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - `public.reviews` direct customer INSERT is blocked by RLS; canonical `velora_submit_review()` requires a delivered customer order item and creates `pending` verified-purchase reviews.
 - `beauty_feedback` direct customer INSERT remains supported for the existing feedback contract, but moderation attribution is now server-controlled by commit `ee834...`.
 
+### Push endpoint ownership hardening — CLOSED at DB + CI/deployment level
+- **OBSERVED:** `velora_register_push_subscription()` used `ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id`, allowing reassignment of an existing push endpoint to a different authenticated user if the endpoint became known.
+- Commit `41c609eb1b404ba31abb36d36a21ce1802a5444d` adds an explicit endpoint ownership check and rejects cross-user reuse with `PUSH_ENDPOINT_OWNERSHIP_CONFLICT`.
+- Restore-Test proof: a foreign existing endpoint was rejected; re-registration of the same endpoint by its owning user succeeded inside a rollback-only transaction.
+- No schema change; existing unique `endpoint` constraint and current RLS remain unchanged.
+
+### Stage A current open contract questions
+- **Subscription regional pricing:** `p_country_code` is caller-supplied to `velora_start_subscription_purchase()` and regional prices differ materially by country. This remains an **OPEN CONTRACT QUESTION / POTENTIAL INPUT-SPOOF GAP**, not a patched vulnerability, because subscription pricing and seller commercial terms are explicitly Owner/Product decisions in D1/D4 planning. Before activation of paid subscriptions, the billing-country rule should be explicitly governed and server-verified.
+- **Account suspension semantics:** Staff account suspension updates `profiles.status`, but Seller operations currently key off Seller/Store approval status. This remains an **OPEN POLICY/AUTHORIZATION GAP** until Owner/Operations defines whether suspended accounts must stop all Seller operations or only new activity while existing obligations continue.
+- **Privacy consent version governance:** `velora_set_privacy_consent()` accepts a caller-supplied version string; current governance docs do not define a canonical version registry. Keep deferred rather than inventing a schema/contract.
+
+### Confirmed no-new-gap sweeps
+- Notifications: authenticated read/update paths are bound to `auth.uid()`; no cross-user mutation found.
+- Audit Logs / Security Audit Runs: direct customer insert/delete probes are blocked by RLS; only server-side functions create audit evidence.
+- Reviews: direct customer INSERT is blocked by RLS; canonical review submission binds delivered order item and creates `pending` verified-purchase reviews.
+- Privacy Requests / Consent / Legal Acceptance: direct table writes remain blocked; workflow mutations use authenticated/staff RPC contracts.
+- Orders / Order Items / Payments / Payment Attempts: direct customer mutation is blocked; canonical checkout revalidates financial state server-side.
+
 ### Current security audit result — Restore-Test
 - `velora_run_security_attack_surface_audit()` completed with: RLS core `13/13 PASS`; policy coverage `30 PASS`; pinned search_path `PASS`; SECURITY DEFINER posture `PASS`; public/anon RPC surface `WARN` because 22 RPCs are executable by anon, but the audit reported `unguarded_public_dml=0`.
 - This is a posture warning, not evidence to blanket-revoke SECURITY DEFINER functions. Existing actor/ownership checks remain the governing pattern.
@@ -132,9 +150,9 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
 
 **Latest application/runtime/security commit:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`). The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `ca255cc27c637a44d5eaa41d6c4ec96d5e1f6b6b` (`fix(security): prevent seller plan entitlement bypass`).
+**Current branch HEAD:** `41c609eb1b404ba31abb36d36a21ce1802a5444d` (`fix(security): prevent push endpoint reassignment`).
 
-**Latest deployed Preview:** Vercel deployment `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE`, READY, exact Git SHA `ca255cc27c637a44d5eaa41d6c4ec96d5e1f6b6b`.
+**Latest deployed Preview:** pending exact latest deployment verification for commit `41c609...`; the prior exact deployment `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE` remains READY on `ca255...`.
 
 ## Latest authoritative gate state — 2026-09-28
 
