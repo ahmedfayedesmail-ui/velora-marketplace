@@ -465,6 +465,46 @@ jobs:
                   print(json.dumps(result, ensure_ascii=False, indent=2))
                   sys.exit(1)
 
+              passport_open_result = page.evaluate("""
+                async () => {
+                  try {
+                    if (!window.veloraBeautyPassportV2 || typeof window.veloraBeautyPassportV2.open !== 'function') {
+                      return { ok: false, reason: "V2_OPEN_UNAVAILABLE" };
+                    }
+                    await window.veloraBeautyPassportV2.open();
+                    const modal = document.getElementById("veloraQuizV2Modal");
+                    const body = document.getElementById("veloraQuizBody");
+                    const progress = document.getElementById("veloraQuizProgress");
+                    return {
+                      ok: !!modal && modal.classList.contains("active"),
+                      modal_present: !!modal,
+                      question_count: body ? body.querySelectorAll(".velora-quiz-option").length : 0,
+                      progress_text: progress ? progress.textContent : "",
+                      persisted_profile: await (async () => {
+                        try {
+                          const r = await window.mahaSupabase.from("beauty_profiles")
+                            .select("quiz_version,skin_type,goal,routine_budget").maybeSingle();
+                          return r.data || null;
+                        } catch (_) {
+                          return null;
+                        }
+                      })()
+                    };
+                  } catch (e) {
+                    return { ok: false, reason: String(e?.message || e) };
+                  }
+                }
+              """)
+              result["checks"]["beauty_passport_v2_open_ok"] = bool(passport_open_result.get("ok"))
+              result["checks"]["beauty_passport_v2_question_count"] = passport_open_result.get("question_count")
+              result["checks"]["beauty_passport_v2_progress_text"] = passport_open_result.get("progress_text")
+              result["checks"]["beauty_passport_v2_profile_read"] = passport_open_result.get("persisted_profile")
+              page.evaluate("""() => {
+                const modal = document.getElementById("veloraQuizV2Modal");
+                if (modal) modal.classList.remove("active");
+                document.body.style.overflow = "";
+              }""")
+
               page.evaluate("() => navigateTo('shop')")
               page.wait_for_timeout(1200)
 
