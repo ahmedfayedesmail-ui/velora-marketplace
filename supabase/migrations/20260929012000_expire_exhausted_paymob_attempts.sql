@@ -50,14 +50,18 @@ begin
 
   if not found then raise exception 'RECONCILIATION_STATE_NOT_FOUND'; end if;
 
-  select pa.*, pp.code
-    into v_attempt, v_provider_code
+  select pa.*
+    into v_attempt
   from public.payment_attempts pa
-  left join public.payment_providers pp on pp.id=pa.provider_id
   where pa.id=p_payment_attempt_id
   for update;
 
   if not found then raise exception 'PAYMENT_ATTEMPT_NOT_FOUND'; end if;
+
+  select pp.code
+    into v_provider_code
+  from public.payment_providers pp
+  where pp.id=v_attempt.provider_id;
 
   if v_state.status='completed' then
     return jsonb_build_object(
