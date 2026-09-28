@@ -10178,17 +10178,27 @@ function setupAuditHooks() {
     // Product approval
     const originalApproveProduct = window.approveProduct;
     if (typeof originalApproveProduct === 'function') {
-        window.approveProduct = function(sellerId, productId) {
-            createAuditLog('product_approved', { sellerId, productId });
-            return originalApproveProduct.apply(this, arguments);
+        window.approveProduct = function(sellerIdOrProductId, productId) {
+            const canonicalProductId = productId || sellerIdOrProductId;
+            createAuditLog('product_approved', {
+                sellerId: productId ? sellerIdOrProductId : null,
+                productId: canonicalProductId
+            });
+            if (!canonicalProductId) return;
+            return originalApproveProduct.call(this, canonicalProductId);
         };
     }
 
     const originalRejectProduct = window.rejectProduct;
     if (typeof originalRejectProduct === 'function') {
-        window.rejectProduct = function(sellerId, productId) {
-            createAuditLog('product_rejected', { sellerId, productId });
-            return originalRejectProduct.apply(this, arguments);
+        window.rejectProduct = function(sellerIdOrProductId, productId) {
+            const canonicalProductId = productId || sellerIdOrProductId;
+            createAuditLog('product_rejected', {
+                sellerId: productId ? sellerIdOrProductId : null,
+                productId: canonicalProductId
+            });
+            if (!canonicalProductId) return;
+            return originalRejectProduct.call(this, canonicalProductId);
         };
     }
 
