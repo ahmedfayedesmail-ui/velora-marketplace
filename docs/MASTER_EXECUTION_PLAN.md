@@ -3441,3 +3441,37 @@ THREE MASTER GOVERNING CONDITIONS:
 1. COMPLETE MASTER HANDOFF — no dropped item.
 2. RESEARCH / REUSE FIRST — working Paymob patterns are used before new architecture.
 3. ACTION FLOW IN PARALLEL — provider state, canonical state, automatic side effects, audit, retry/idempotency and reconciliation remain one chain.
+
+
+# MESSAGE 12.19 — PAYMOB INQUIRY L8 CLOSED / PRE-PAYMENT 404 SEMANTIC / POST-PAYMENT PENDING TRANSACTION
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Paymob Sandbox Evidence Run #42 = `36462763742`, workflow SHA `c964ffca807d21156eac1825091bace94164de1e`, completed with workflow failure only because the overall provider-completion gate was not satisfied.
+- The pre-payment Inquiry returned HTTP 404 with application code `PAYMOB_TRANSACTION_NOT_FOUND`; the evidence harness now treats this as the expected state before a transaction exists.
+- The post-payment fallback Inquiry returned HTTP 200, `ok=true`, Paymob order `620287799`, matching provider order `620287799`, provider transaction `543702364`, `pending=true`, `success=false`, `is_captured=false`.
+- Paymob checkout loaded HTTP 200. Browser evidence showed the hosted checkout reached the visible bank-verification redirect state; no completed payment text, no OTP field observed, and the local attempt remained pending.
+- No correlated signed webhook and no processed webhook were present for the attempt.
+- Run #42 therefore proves the deployed Inquiry adapter can authenticate to Paymob and retrieve a real post-payment transaction with exact order correlation.
+
+CLASSIFICATION:
+- Paymob Transaction Inquiry capability: CLOSED-DONE at L8 for the Order-ID fallback path.
+- Pre-payment Inquiry 404 semantics: CLOSED-DONE.
+- Paymob provider completion / capture: OPEN / NOT EVIDENCED.
+- Signed + processed webhook: OPEN / NOT EVIDENCED.
+- Browser 3DS completion: OPEN / NOT EVIDENCED.
+- No claim of live settlement is made.
+
+RUN / GATE STATUS:
+- Latest non-Paymob gates on the same SHA succeeded:
+  - Staff Launch Gate #271: SUCCESS
+  - Local Source Browser Gate #184: SUCCESS
+  - Authenticated Browser Gate #274: SUCCESS
+  - Full Audit Gate #421: in progress at the time of recording.
+- Vercel latest app-affecting READY deployment remains `11d348bf31cc2e92fe978bb6be8329ba2a48ff4e`.
+- Changes after that commit are outside `src` (workflow, evidence, docs, Inquiry Edge Function), so no new app deployment is justified solely to reflect these diagnostics.
+
+NEXT PROVIDER ACTION:
+- Do not change canonical checkout architecture.
+- Use the existing official Paymob sandbox card set for a differential 3DS run if required; the official Paymob test-credential reference documents Mastercard `5123456789012346` and alternate Mastercard `5123450000000008`, both with expiry `01/39` and CVV `123`.
+- Callback remains the source of truth; Inquiry is the fallback evidence path.
