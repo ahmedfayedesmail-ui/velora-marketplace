@@ -71,6 +71,9 @@
       '.velora-customer-return-dialog{width:min(680px,100%);max-height:92vh;overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:1rem;box-shadow:0 20px 60px rgba(0,0,0,.25);}' +
       '.velora-customer-return-row{display:grid;grid-template-columns:1fr 90px;gap:.7rem;align-items:center;padding:.65rem 0;border-bottom:1px solid var(--border);}' +
       '.velora-customer-return-row:last-child{border-bottom:0;}' +
+      '.velora-customer-order-shipping{margin-top:1rem;display:grid;gap:.55rem;}' +
+      '.velora-customer-order-shipment{display:flex;justify-content:space-between;gap:.8rem;align-items:center;padding:.7rem;border:1px solid var(--border);border-radius:12px;}' +
+      '.velora-customer-order-proof{margin-top:.8rem;padding:.75rem;border:1px dashed var(--border);border-radius:12px;}' +
       '@media(max-width:700px){.velora-customer-order-item{align-items:flex-start;flex-direction:column;}.velora-customer-return-row{grid-template-columns:1fr 78px;}}';
     document.head.appendChild(style);
   }
@@ -92,7 +95,7 @@
     if(!orders.length) return [];
 
     const ids=orders.map(x=>x.id);
-    const [itemsRes,returnsRes]=await Promise.all([
+    const [itemsRes,returnsRes,shipmentsRes,proofsRes]=await Promise.all([
       db.from('order_items')
         .select('id,order_id,product_id,product_name,unit_price,quantity,subtotal,store_id,store_name,sku,product_variant_id,product_variant_name,product_variant_attributes')
         .in('order_id',ids)
@@ -100,10 +103,20 @@
       db.from('returns')
         .select('id,order_id,store_id,status,refund_amount,currency_code,reason,created_at')
         .in('order_id',ids)
+        .order('created_at',{ascending:false}),
+      db.from('shipments')
+        .select('id,order_id,store_id,status,tracking_number,tracking_url,carrier_code,service_name,estimated_delivery_at,shipped_at,delivered_at,created_at')
+        .in('order_id',ids)
+        .order('created_at',{ascending:false}),
+      db.from('delivery_proofs')
+        .select('id,order_id,store_id,delivered_at,photo_url,recipient_name,notes,created_at')
+        .in('order_id',ids)
         .order('created_at',{ascending:false})
     ]);
     if(itemsRes.error) throw itemsRes.error;
     if(returnsRes.error) throw returnsRes.error;
+    if(shipmentsRes.error) throw shipmentsRes.error;
+    if(proofsRes.error) throw proofsRes.error;
 
     const itemsByOrder=new Map();
     (itemsRes.data||[]).forEach(row=>{
@@ -117,10 +130,24 @@
       returnsByOrder.get(row.order_id).push(row);
     });
 
+    const shipmentsByOrder=new Map();
+    (shipmentsRes.data||[]).forEach(row=>{
+      if(!shipmentsByOrder.has(row.order_id)) shipmentsByOrder.set(row.order_id,[]);
+      shipmentsByOrder.get(row.order_id).push(row);
+    });
+
+    const proofsByOrder=new Map();
+    (proofsRes.data||[]).forEach(row=>{
+      if(!proofsByOrder.has(row.order_id)) proofsByOrder.set(row.order_id,[]);
+      proofsByOrder.get(row.order_id).push(row);
+    });
+
     return orders.map(o=>({
       ...o,
       items:itemsByOrder.get(o.id)||[],
-      returns:returnsByOrder.get(o.id)||[]
+      returns:returnsByOrder.get(o.id)||[],
+      shipments:shipmentsByOrder.get(o.id)||[],
+      proofs:proofsByOrder.get(o.id)||[]
     }));
   }
 
@@ -164,7 +191,21 @@
         esc(order.customer_city||'')+
         (order.customer_address?' · '+esc(order.customer_address):'')+
       '</div>'+
-      '<div class="velora-customer-order-items">'+
+      '<div class="velora-customer-order-items">'+      (order.shipments?.length ? '<div class="velora-customer-order-shipping">'+
+        order.shipments.map(sh=>{
+          const tracking=sh.tracking_number
+            ? (sh.tracking_url
+              ? '<a href="'+esc(sh.tracking_url)+'" target="_blank" rel="noopener">'+esc(sh.tracking_number)+'</a>'
+              : '<span>'+esc(sh.tracking_number)+'</span>')
+            : '';
+          const eta=sh.estimated_delivery_at?new Date(sh.estimated_delivery_at).toLocaleDateString():'';
+          return '<div class="velora-customer-order-shipment">'+
+            '<div><strong>🚚 '+esc(statusText(sh.status))+'</strong>'+
+              '<div class="velora-customer-order-item-meta">'+esc(sh.carrier_code||'')+(sh.service_name?' · '+esc(sh.service_name):'')+(eta?' · '+esc(t('ETA','متوقع'))+': '+esc(eta):'')+'</div></div>'+
+            (tracking?'<div style="font-weight:700">'+tracking+'</div>':'')+
+          '</div>';
+        }).join('')+'</div>' : '')+
+
         (order.items.length ? order.items.map(item=>
           '<div class="velora-customer-order-item">'+
             '<div class="velora-customer-order-item-main">'+
@@ -182,6 +223,15 @@
           '</div>'
         ).join('') : '<div class="velora-op-muted">'+esc(t('No items found for this order.','لم يتم العثور على عناصر لهذا الطلب.'))+'</div>')+
       '</div>'+
+      (order.proofs?.length ? '<div class="velora-customer-order-proof">'+
+        '<strong>📸 '+esc(t('Delivery proof','إثبات التسليم'))+'</strong>'+
+        order.proofs.map(pr=>
+          '<div class="velora-customer-order-item-meta" style="margin-top:.45rem;">'+
+            (pr.recipient_name?esc(t('Delivered to','تم التسليم إلى'))+' <b>'+esc(pr.recipient_name)+'</b>':'')+
+            (pr.photo_url?' · <a href="'+esc(pr.photo_url)+'" target="_blank" rel="noopener">'+esc(t('View proof','عرض الإثبات'))+'</a>':'')+
+          '</div>'
+        ).join('')+
+      '</div>' : '')+
       '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:1rem;font-weight:900;">'+
         '<span>'+esc(t('Total','الإجمالي'))+': '+money(order.total,order.currency)+'</span>'+
         (canCancel ? '<button class="btn btn-outline" type="button" data-velora-cancel-order="'+esc(order.id)+'">'+esc(t('Cancel order','إلغاء الطلب'))+'</button>' : '')+
