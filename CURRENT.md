@@ -71,6 +71,24 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - The exact branch-head documentation commit `236882cb20114ef4c5df3bc66dee41539e2a8270` has all CI gates **SUCCESS** and its exact Vercel Preview `dpl_CT4Qf5SiCuvpvycf7koNrWSYP4vo` is **READY**.
 - Shipping hardening commit `137ca721...` had its Source/Dependency runs superseded/cancelled by the branch-head run; the branch-head run on `236...` is the authoritative combined CI evidence for the full tree.
 
+### Profile account lifecycle hardening — CLOSED at DB + CI/deployment level
+- A real self-reactivation path was observed: an authenticated user could change their own `profiles.status`, and `velora_ensure_own_profile()` also forced existing profiles back to `active`.
+- Commit `74fb52c15c07a9cabcd7b885d875c4b9f23c1e19` added a BEFORE UPDATE guard so non-staff users cannot change `profiles.status`; Staff account actions remain allowed.
+- The same patch changed `velora_ensure_own_profile()` to preserve an existing lifecycle status instead of reactivating a suspended/blocked profile.
+- Restore-Test proof: Staff suspension produced `suspended`; profile hydration preserved `suspended`; customer self-reactivation returned `PROFILE_STATUS_CHANGE_REQUIRES_STAFF`; Staff restore returned `active`.
+- Exact Vercel Preview `dpl_C7ZHfVoY12R2Xi6Lhzntu3Vkvz5W` is READY. Its Source/Dependency checks were superseded by the later combined branch-head run; all latest branch-head gates are SUCCESS.
+
+### Beauty Feedback moderation-attribution hardening — CLOSED at DB + CI/deployment level
+- Direct customer INSERT could previously forge `moderation_status`, `moderation_note`, `moderated_by`, and `moderated_at` despite the canonical submission RPC controlling these fields.
+- Commit `ee83420ee96c49e2535442af0b53447c9cc3cb31` added a BEFORE INSERT guard for non-staff feedback rows. Customer submissions remain auto-approved to match the existing canonical submission contract, while moderation attribution fields are forced null until a Staff moderation operation exists.
+- Restore-Test proof: forged metadata was normalized to `moderation_status='approved'` with `moderation_note/moderated_by/moderated_at = null`.
+- Exact Vercel Preview `dpl_DoE1iuFnc4yRAVkRdQW5Ck7Q2PxR` is READY on exact SHA `ee834...`; all six branch-head CI gates completed SUCCESS.
+
+### Account suspension semantics — OPEN POLICY / AUTHORIZATION GAP
+- OBSERVED: after Staff suspended an approved Seller by setting `profiles.status='suspended'`, the Seller could still execute an owned Shipping Zone upsert because that RPC checks Store ownership but not active account status.
+- This is not patched yet because the current product policy does not explicitly establish whether an account suspension should immediately disable Seller fulfillment/settings operations or allow fulfillment of existing obligations.
+- Do not invent this business rule in code. When governed, implement the smallest central enforcement path and regression-test Seller, Customer, Staff, and Owner behavior.
+
 ### Current security audit result — Restore-Test
 - `velora_run_security_attack_surface_audit()` completed with: RLS core `13/13 PASS`; policy coverage `30 PASS`; pinned search_path `PASS`; SECURITY DEFINER posture `PASS`; public/anon RPC surface `WARN` because 22 RPCs are executable by anon, but the audit reported `unguarded_public_dml=0`.
 - This is a posture warning, not evidence to blanket-revoke SECURITY DEFINER functions. Existing actor/ownership checks remain the governing pattern.
@@ -84,15 +102,15 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 1. Seller UI Browser proof — PENDING, blocked by absence of Seller credentials in the browser-gate harness. Do not fake this proof.
 2. Returns/Refunds — BLOCKED on business/legal commercial rules; existing backend remains audited and no new workflow should be invented.
 3. Support-case operational/browser proof — PENDING only if a real existing customer UI/fixture path is identified; the backend insert and owner-field protections are now DB-verified.
-4. Continue Stage A from the next reproducible gap. Shipping-upsert deployment is READY and the combined branch-head CI is SUCCESS; no extra manual test is required before moving on. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
+4. Continue Stage A from the next reproducible gap. The latest branch-head CI is SUCCESS and the exact Preview is READY; no extra manual test is required before moving on. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
 **Latest application/runtime/security commit:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`). The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`).
+**Current branch HEAD:** `ee83420ee96c49e2535442af0b53447c9cc3cb31` (`fix(security): protect feedback moderation attribution`).
 
-**Latest deployed Preview:** Vercel deployment `dpl_BfUuZuV1XdxUEeEoqhVmr6hK6CL5`, READY, exact Git SHA `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee`.
+**Latest deployed Preview:** Vercel deployment `dpl_DoE1iuFnc4yRAVkRdQW5Ck7Q2PxR`, READY, exact Git SHA `ee83420ee96c49e2535442af0b53447c9cc3cb31`.
 
 ## Latest authoritative gate state — 2026-09-28
 
@@ -105,14 +123,14 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
   - Dependency + Web Surface: **SUCCESS** — root/src dependency audits, Lighthouse, OWASP ZAP baseline.
 
 
-### 2026-09-28 batch gate status — exact commit `f8808...`
+### 2026-09-28 batch gate status — exact commit `ee834...`
 - Local Source Browser Gate: **SUCCESS**.
 - Authenticated Browser Gate: **SUCCESS**.
 - Staff Launch Gate: **SUCCESS**.
 - Dependency + Web Surface: **SUCCESS**.
 - Source + Security: **SUCCESS**.
 - Vercel Preview Comments: **SUCCESS**.
-- Exact Preview: `dpl_BfUuZuV1XdxUEeEoqhVmr6hK6CL5`, READY, Git SHA `f8808...`.
+- Exact Preview: `dpl_DoE1iuFnc4yRAVkRdQW5Ck7Q2PxR`, READY, Git SHA `ee834...`.
 - Restore-Test contains the newly applied Store, Support Case, Transaction Message, and Shipping ownership guards. Production remains **FROZEN**.
 
 ### Shipping / tracking
