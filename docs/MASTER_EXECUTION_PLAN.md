@@ -3342,3 +3342,27 @@ OBSERVED FACT:
 1. COMPLETE MASTER HANDOFF.
 2. RESEARCH / REUSE FIRST.
 3. ACTION FLOW IN PARALLEL.
+
+
+---
+
+# MESSAGE 12.16 — PRODUCT IMAGE / STORAGE CONTRACT REVIEW
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Canonical seller product UI is \`src/scripts/72-canonical-seller-products.js\`.
+- The canonical create/edit form accepts an HTTP(S) Product Image URL; the UI explicitly states that Storage is not provisioned in Restore-Test and the canonical seller flow therefore accepts a URL only.
+- The existing canonical edit RPC preserves the existing \`products.images\` JSON value when no new image URL is supplied.
+- \`public.product_images\` already has an RLS policy for authenticated owner/staff access.
+- No canonical storage-upload implementation exists in the current seller product path.
+
+CLASSIFICATION:
+- Current URL-based product image contract: CLOSED-DONE / sufficient for current scope.
+- Restore-Test Storage bucket provisioning: NOT REQUIRED by current canonical contract.
+- Future authenticated image-upload UX/storage lifecycle: OPEN PRODUCT DECISION, not a proven gap for the current launch gate.
+- No bucket/schema/upload subsystem added.
+
+THREE MASTER GOVERNING CONDITIONS:
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
