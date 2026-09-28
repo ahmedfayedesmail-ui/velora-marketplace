@@ -33,10 +33,23 @@ Deno.serve(async(req:Request)=>{
     if(!start?.campaign_id||!start?.payment_attempt_id) throw new Error("seller_ad_purchase_not_created");
     if(String(start.campaign_status).toLowerCase()==="active") return json({ok:true,status:"ALREADY_ACTIVE",campaign_id:start.campaign_id});
 
-    if(String(start.provider_code||"").toLowerCase()!=="paymob") return json({ok:true,status:"BLOCKED",code:"PAYMOB_ROUTE_NOT_SELECTED",data:start},409);
+    const markInitializationFailed=async(code:string,reason:string)=>{
+      const r=await supabase.rpc("velora_mark_seller_ad_payment_initialization_failed",{
+        p_payment_attempt_id:start.payment_attempt_id,p_failure_code:code,p_failure_reason:reason
+      });
+      if(r.error) throw new Error("AD_PAYMENT_FAILURE_FINALIZATION_FAILED:"+r.error.message);
+      return r.data;
+    };
+    if(String(start.provider_code||"").toLowerCase()!=="paymob"){
+      await markInitializationFailed("PAYMOB_ROUTE_NOT_SELECTED","No Paymob payment route was selected for the seller advertising purchase.");
+      return json({ok:false,status:"FAILED",code:"PAYMOB_ROUTE_NOT_SELECTED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},409);
+    }
     const secretKey=Deno.env.get("PAYMOB_SECRET_KEY"), publicKey=Deno.env.get("PAYMOB_PUBLIC_KEY");
     const integrationId=Number(Deno.env.get("PAYMOB_INTEGRATION_ID")||"5920533");
-    if(!secretKey||!publicKey) return json({ok:false,status:"BLOCKED",code:"PAYMOB_CREDENTIALS_MISSING",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},503);
+    if(!secretKey||!publicKey){
+      await markInitializationFailed("PAYMOB_CREDENTIALS_MISSING","Paymob checkout credentials are not configured.");
+      return json({ok:false,status:"FAILED",code:"PAYMOB_CREDENTIALS_MISSING",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},503);
+    }
 
     const [pr,sr,pdr,pkr]=await Promise.all([
       supabase.from("profiles").select("full_name,email").eq("id",authData.user.id).maybeSingle(),
@@ -48,7 +61,10 @@ Deno.serve(async(req:Request)=>{
     if(!pr.data||!sr.data||!pdr.data) throw new Error("AD_CHECKOUT_DATA_NOT_FOUND");
 
     const amount=Number(start.price), currency=String(start.currency_code||"").toUpperCase();
-    if(currency!=="EGP"||!Number.isFinite(amount)||amount<=0) return json({ok:false,status:"BLOCKED",code:"PAYMOB_UNSUPPORTED_SELLER_AD",currency,amount},400);
+    if(currency!=="EGP"||!Number.isFinite(amount)||amount<=0){
+      await markInitializationFailed("PAYMOB_UNSUPPORTED_SELLER_AD","Seller advertising payment amount or currency is not supported by the current Paymob route.");
+      return json({ok:false,status:"FAILED",code:"PAYMOB_UNSUPPORTED_SELLER_AD",currency,amount,campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},400);
+    }
 
     const notificationUrl=(Deno.env.get("SUPABASE_URL")??"")+"/functions/v1/velora-paymob-webhook-restore-test";
     const paymobResponse=await fetch(BASE+"/v1/intention/",{
@@ -63,13 +79,23 @@ Deno.serve(async(req:Request)=>{
       })
     });
     const paymobJson=await paymobResponse.json();
-    if(!paymobResponse.ok) return json({ok:false,status:"FAILED",code:"PAYMOB_INTENTION_CREATE_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
-      provider_error:paymobJson?.detail||paymobJson?.message||"paymob_error"},502);
+    if(!paymobResponse.ok){
+      const providerError=String(paymobJson?.detail||paymobJson?.message||"paymob_error");
+      await markInitializationFailed("PAYMOB_INTENTION_CREATE_FAILED",providerError);
+      return json({ok:false,status:"FAILED",code:"PAYMOB_INTENTION_CREATE_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
+        provider_error:providerError},502);
+    }
     const intentionId=paymobJson?.id, intentionOrderId=paymobJson?.intention_order_id??paymobJson?.order_id, clientSecret=paymobJson?.client_secret;
-    if(!intentionId||!clientSecret||!intentionOrderId) throw new Error("PAYMOB_MISSING_INTENTION_FIELDS");
+    if(!intentionId||!clientSecret||!intentionOrderId){
+      await markInitializationFailed("PAYMOB_MISSING_INTENTION_FIELDS","Paymob intention response did not contain the required checkout correlation fields.");
+      return json({ok:false,status:"FAILED",code:"PAYMOB_MISSING_INTENTION_FIELDS",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},502);
+    }
     const {data:attach,error:attachError}=await supabase.rpc("velora_attach_seller_ad_payment_provider_session",{
       p_payment_attempt_id:start.payment_attempt_id,p_provider_code:"paymob",p_provider_session_id:String(intentionId),p_provider_order_id:String(intentionOrderId)});
-    if(attachError) throw attachError;
+    if(attachError){
+      await markInitializationFailed("PAYMOB_PROVIDER_SESSION_ATTACH_FAILED",attachError.message||"Provider session could not be attached.");
+      return json({ok:false,status:"FAILED",code:"PAYMOB_PROVIDER_SESSION_ATTACH_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},502);
+    }
     return json({ok:true,status:"READY",provider:"paymob",environment:"test",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
       intention_id:String(intentionId),provider_order_id:String(intentionOrderId),provider_session_attached:Boolean(attach?.ok),
       checkout_url:BASE+"/unifiedcheckout/?publicKey="+encodeURIComponent(publicKey)+"&clientSecret="+encodeURIComponent(clientSecret)});
