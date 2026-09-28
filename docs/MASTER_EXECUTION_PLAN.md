@@ -3517,3 +3517,33 @@ THREE MASTER GOVERNING CONDITIONS:
 1. COMPLETE MASTER HANDOFF.
 2. RESEARCH / REUSE FIRST.
 3. ACTION FLOW IN PARALLEL.
+
+
+# MESSAGE 12.22 — PAYMOB 3DS DIFFERENTIAL / GATEWAY TELEMETRY RCA
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Paymob Sandbox Evidence Run #44 = `36463668887` used the official alternate Mastercard test credential and failed only the overall provider-completion gate.
+- Post-payment Inquiry returned HTTP 200 with exact order correlation and a real provider transaction in `pending=true`, `success=false`, `is_captured=false`.
+- Browser reached the visible Paymob state `Redirecting you to your bank for verification`.
+- Redacted browser telemetry recorded successful HTTP 200 responses from:
+  - Mastercard ACS method endpoint
+  - Mastercard callback gateway endpoint
+  - Mastercard CSP report endpoint
+- Redacted frame navigation recorded Paymob `mpgs_secure_callback/get_acs_page` followed by Mastercard ACS and callback gateway frames.
+- No popup page was created, no browser page errors were recorded, and no gateway request failure was recorded. The only request failures were Paymob analytics `/g/collect` aborted requests.
+- The same 3DS stall was reproduced with both the primary and official alternate Mastercard sandbox credentials.
+- No signed/processed Paymob webhook was observed for either card path.
+
+INFERENCE:
+- The repeated pending transaction plus successful Mastercard gateway/ACS transport isolates the remaining blocker to the 3DS/payment completion stage in the sandbox execution path, rather than the Velora hosted checkout transport or the Inquiry adapter.
+- This does not prove that Paymob has a production defect; sandbox/account/integration configuration or an external 3DS challenge completion requirement remain possible explanations.
+- No claim of payment capture or settlement is made.
+
+CLASSIFICATION:
+- Inquiry adapter L8: CLOSED-DONE.
+- 3DS browser completion: OPEN / NOT EVIDENCED.
+- Signed/processed webhook: OPEN / NOT EVIDENCED.
+- Payment provider launch gate: BLOCKED pending provider completion evidence.
+- Webhook verification launch gate: BLOCKED pending a real signed callback.
+- No new payment architecture is justified by the current evidence.
