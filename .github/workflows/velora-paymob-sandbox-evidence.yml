@@ -366,15 +366,23 @@ jobs:
                               "Authorization": f"Bearer {access_token}",
                           },
                       )
+                      expected_paymob_order_id = str(
+                          (latest_attempt_for_inquiry.get("metadata") or {}).get("paymob_order_id") or ""
+                      )
+                      provider_order_id = str(inquiry.get("provider_order_id_from_response") or "")
                       evidence["checks"]["inquiry_attempt_found"] = True
                       evidence["checks"]["paymob_inquiry_http_200"] = inquiry_status == 200
-                      evidence["checks"]["paymob_inquiry_correlation"] = (
-                          str(inquiry.get("paymob_order_id") or "")
-                          == str((latest_attempt_for_inquiry.get("metadata") or {}).get("paymob_order_id") or "")
+                      evidence["checks"]["paymob_inquiry_ok"] = inquiry.get("ok") is True
+                      evidence["checks"]["paymob_inquiry_provider_order_match"] = (
+                          bool(expected_paymob_order_id)
+                          and provider_order_id == expected_paymob_order_id
                       )
                       evidence["provider_inquiry"] = {
                           "http_status": inquiry_status,
                           "ok": inquiry.get("ok"),
+                          "code": inquiry.get("code"),
+                          "stage": inquiry.get("stage"),
+                          "error_class": inquiry.get("error_class"),
                           "paymob_order_id": inquiry.get("paymob_order_id"),
                           "provider_order_id_from_response": inquiry.get("provider_order_id_from_response"),
                           "provider_transaction_id": inquiry.get("provider_transaction_id"),
@@ -386,7 +394,11 @@ jobs:
                           "is_capture": inquiry.get("is_capture"),
                           "is_captured": inquiry.get("is_captured"),
                       }
-                      if not (evidence["checks"]["paymob_inquiry_http_200"] and evidence["checks"]["paymob_inquiry_correlation"]):
+                      if not (
+                          evidence["checks"]["paymob_inquiry_http_200"]
+                          and evidence["checks"]["paymob_inquiry_ok"]
+                          and evidence["checks"]["paymob_inquiry_provider_order_match"]
+                      ):
                           evidence["failures"].append(
                               f"Paymob Inquiry probe failed/correlation mismatch (http {inquiry_status})"
                           )
