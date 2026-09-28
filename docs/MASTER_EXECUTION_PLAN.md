@@ -3620,3 +3620,101 @@ NEXT / FINAL PAYMOB GATE:
 - Finish the currently-running final 3DS-state evidence run only to read the safe post-payment transaction fields.
 - After that, stop diagnostic code churn.
 - The remaining evidence required for launch is a real terminal Paymob transaction followed by a signed, processed webhook and canonical local transition.
+
+# MESSAGE 12.25 — PAYMOB CORE CLOSURE / REAL RESTORE-TEST PROVIDER EVIDENCE
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Restore-Test Order #76 completed through the canonical Paymob marketplace path.
+- Paymob Order ID: 620388354.
+- Provider transaction / receipt reference: 543786006.
+- payment_attempt reached captured with provider transaction binding.
+- public.orders reached confirmed / payment_status=paid.
+- public.payments reached provider=paymob, method=card, status=paid with paid_at populated.
+- One correlated webhook was recorded with signature_verified=true and status=processed.
+- The same transaction produced the provider-side payment receipt observed during the verification session.
+- Commission and ledger side effects for the order were present after the successful payment transition.
+- No new payment state machine, webhook processor, or reconciliation engine was introduced for this closure.
+
+CLASSIFICATION:
+- Paymob Core implementation: CLOSED-DONE.
+- Restore-Test end-to-end provider completion evidence: CLOSED-DONE for the tested sandbox transaction.
+- Payment row canonical update path: CLOSED-DONE in real Restore-Test evidence.
+- Production live settlement / production cutover evidence: OPEN / NOT EVIDENCED.
+- Seller subscription Paymob flow, saved-card tokenization, and seller-ad Paymob flow remain separate domain-specific workstreams.
+
+THREE MASTER GOVERNING CONDITIONS:
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
+
+
+# MESSAGE 12.26 — INVENTORY LEGACY ORDER-ITEM STATUS CONTRACT HARDENING
+Recorded 2026-09-28.
+
+SCOPE:
+- Inventory Section 28 / legacy order-item status contract.
+- Goal: remove broken client/Data API reachability without inventing order_items.status or a second lifecycle engine.
+
+OBSERVED FACT — L1 SOURCE / L2 DB:
+- supabase/migrations/20260925054500_harden_order_item_status_transitions.sql defines public.velora_update_order_item_status(uuid,text,text).
+- The legacy function reads v_item.status and writes public.order_items.status::order_item_status.
+- Current public.order_items has no status column.
+- Current database has no public.order_item_status enum.
+- No trigger, view, policy, or other stored public function definition was found referencing this legacy RPC.
+- Before hardening, the legacy function had EXECUTE for authenticated.
+- Canonical lifecycle authority is carried by public.orders and public.shipments; order_status_history records lifecycle history.
+- Current public.order_items RLS is enabled and authenticated table access is read-only under the observed ACL.
+
+ACTION:
+- Added supabase/migrations/20260928211000_deprecate_legacy_order_item_status_rpc.sql.
+- Repository commit: a43fe68923884fe4081da98a2665eddd4d44042b.
+- Applied successfully to Restore-Test.
+- Resulting function ACL:
+  authenticated EXECUTE = false
+  anon EXECUTE = false
+  service_role EXECUTE = true
+  postgres EXECUTE = true
+- Function comment explicitly marks the RPC DEPRECATED and retained for historical compatibility/forensics.
+- No order_items.status column was added.
+- No canonical order/shipment lifecycle engine was replaced.
+- Production remains FROZEN.
+
+RESEARCH:
+- Supabase function execution is controlled by Postgres EXECUTE privileges.
+- Exposed SECURITY DEFINER functions should have explicit grants to intended roles.
+- RLS is not a substitute for function EXECUTE control.
+- Supabase Database Functions/API security guidance was used for this hardening.
+
+CLASSIFICATION:
+- Broken client/Data API reachable legacy order-item status RPC: CLOSED-DONE.
+- Current canonical order/shipment lifecycle contract: CLOSED-DONE at contract level.
+- Physical DROP/retirement of the legacy function: OPEN POLICY / COMPATIBILITY DECISION.
+- Browser/Preview evidence: NOT REQUIRED for this DB-only ACL hardening because no customer-facing source bundle changed.
+- Active-variant Browser evidence remains OPEN as tracked separately.
+
+ACTION FLOW:
+Normal fulfillment:
+EVENT -> seller/order authorization -> canonical order/shipment guard -> validation -> canonical state transition -> automatic inventory/financial/notification side effects -> audit/history -> next event.
+
+Legacy order-item status attempt:
+EVENT -> client role check -> EXECUTE denied -> no mutation -> canonical order/shipment workflow remains authoritative.
+
+CARRY-FORWARD:
+- Legacy checkout shipping display regression check remains OPEN.
+- Active variant Browser runtime remains NOT EVIDENCED.
+- Seller post-approval product re-review policy remains OPEN.
+- Abandoned pending-order / reservation / expiry policy remains OPEN.
+- Seller Dashboard re-entry Browser evidence remains OPEN / NOT EVIDENCED.
+- Seller subscriptions/entitlements remain OPEN where previously classified.
+- Seller ads accounting/provider/attribution/economics/reporting remain OPEN.
+- Commission commercial policy/refund/chargeback/UI reconciliation remain OPEN.
+- Payout settlement/reconciliation/exceptions remain OPEN.
+- Promotions, Gift Cards, Returns/Refunds, Notifications/Push, Beauty Passport full E2E, Recommendations UX, AI, Owner/Admin, Legal, Security targeted review, PG_NET, Auth, Localization Browser proof, Season Browser proof, image-upload future decision, audit coverage, Production infrastructure, rollback/backup, and all launch-gate dependencies remain OPEN/PENDING/BLOCKED as previously classified.
+- Production remains frozen.
+
+NEXT EXECUTION POINTER:
+- Continue Section 29 Seller track.
+- Do not invent reservation TTL or product re-review semantics.
+- Next technical/evidence target is Seller Dashboard re-entry Browser proof using a genuine approved Seller identity or dedicated Seller Gate; do not spoof the customer E2E role.
+
