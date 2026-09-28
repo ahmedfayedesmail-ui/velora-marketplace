@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: de45147717077a6b741e47748a81b5a415d59ec1
+Current observed branch HEAD: f71349dfa155c9e3cc75fc77b90b1984aff16894
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3049,3 +3049,25 @@ CURRENT BLOCK:
 FINAL BROWSER EXECUTION RULE:
 - After Vercel capacity is restored, obtain the READY Preview for the exact current branch HEAD, supply its exact URL + SHA to the aggregate workflow, and record the result.
 - Browser PASS must not be inferred from source/DB/CI/Preview readiness.
+
+
+### Continuation Canonical Customer Tracking / Delivery Proof Preservation — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/RLS CONTRACT
+
+OBSERVED FACT:
+- Legacy shipping code previously augmented the customer Orders UI with tracking and delivery-proof data through existing shipment/proof contracts.
+- The canonical Customer Orders adapter superseded the legacy renderOrdersPage function, so those user-visible shipping details needed to be preserved explicitly.
+
+IMPLEMENTED:
+- src/scripts/71-customer-orders-returns.js now loads canonical shipments and delivery_proofs alongside orders/order_items/returns.
+- Shipment tracking number, tracking URL, carrier/service, status, ETA, and delivery proof recipient/proof links are rendered in the same canonical order card.
+- No shipment/proof RPC or new table was created.
+- Existing RLS remains authoritative:
+  shipments are readable to authenticated users only for their own orders, store-owned shipments, or Staff;
+  delivery_proofs follow the same order/store ownership boundary.
+- Adapter syntax rechecked successfully after the change.
+
+DECISION:
+- The Customer Orders adapter remains the single customer Orders UI authority.
+- Legacy shipping augmentation remains historical source context; it is not reintroduced as a second Orders renderer.
