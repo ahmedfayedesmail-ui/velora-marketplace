@@ -2830,3 +2830,55 @@ SECURITY:
 
 AUDITABILITY:
 - High-impact canonical writers inspected in the current queue have explicit audit coverage. Missing audit_logs in trigger/helper wrappers does not represent a gap where the invoking canonical writer already records the state change, and webhook recording has its own durable provider_webhook_events record.
+
+
+### Continuation Customer Orders + Return Request UX — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW / BROWSER DEFERRED TO AGGREGATE GATE
+
+OBSERVED FACT:
+- The legacy customer Orders renderer in src/scripts/00-localization.js reads localStorage('maha_orders').
+- No later script before this change replaced that renderer; canonical checkout creates orders in Supabase and then routes the customer to the Orders page.
+- Therefore canonical checkout orders could exist server-side without appearing in the customer's Orders UI. This was a real cross-system UI/data-source gap.
+- Existing velora_request_return(uuid,uuid,jsonb,text,text) already provides the canonical customer return contract. It validates customer ownership, delivered order/payment settlement, store ownership, delivered shipment item evidence, quantity, duplicate-return prevention, refund calculation, and audit.
+
+IMPLEMENTED:
+- src/scripts/71-customer-orders-returns.js, commit 3944721e68f0e602461e96e7adc2c276745de866.
+- src/index.html now loads the adapter after all existing scripts, commit 581b71a474e04510bf4cc660c170a614627fefbd.
+- The adapter replaces renderOrdersPage with a canonical RLS-backed renderer over orders, order_items, and returns. It does not create a second order engine.
+- Order UI groups items by existing store_id and exposes Request Return only for delivered + paid/refunded orders and only when an active return for that store is not already present.
+- Return request UI calls the existing velora_request_return RPC for one store at a time, matching its store-scoped backend contract.
+- No new table, column, RPC, order engine, return engine, or data model was introduced.
+
+VERIFICATION:
+- Adapter source compiles through a JavaScript parser harness.
+- Restore-Test returned delivered QA Order #100001 with one canonical order item; it initially had no shipment evidence, so the return RPC correctly rejected with ITEM_NOT_DELIVERED.
+- A temporary delivered shipment + shipment_item fixture was created inside one transaction. The real velora_request_return RPC then returned status=requested, refund_amount=250.0000 EGP, and created the return_requested audit event. The full transaction was rolled back.
+- No QA shipment, return, or customer state persisted.
+- Customer Orders browser evidence remains deferred to the final aggregate Browser Gate.
+
+ACTION FLOW:
+Checkout/order created
+-> customer navigates Orders
+-> canonical Supabase orders + item/return state loaded
+-> store-scoped return eligibility derived
+-> customer selects quantities/reason
+-> canonical return RPC validates delivery/payment/ownership/quantity
+-> return requested + audit
+-> Staff Trust/Compliance resolution
+-> refund evidence or rejection
+-> existing notification/action infrastructure.
+
+### Continuation Performance Advisor Classification — 2026-09-29
+
+CLASSIFICATION: OPTIMIZATION QUEUE / NOT A CURRENT CORRECTNESS BLOCKER
+
+OBSERVED FACT:
+- Current Restore-Test Performance Advisor reports 93 unindexed foreign keys and 45 multiple-permissive-policy findings, plus unused-index information.
+- The findings span long-established commerce/RLS tables and include intentional policy combinations such as customer + staff read access.
+- No current performance finding was shown to establish a correctness, data-integrity, or authorization failure.
+
+DECISION:
+- Do not mass-add foreign-key indexes or collapse RLS policies merely to reduce Advisor counts. Each index/policy change must be justified by actual query workload and verified after mutation.
+- Preserve the existing explicit rule against historical policy/index hygiene over-refactoring.
+- Treat this queue as post-correctness performance optimization, below current payment/provider, legal, production, rollback, and aggregate Browser gates.
