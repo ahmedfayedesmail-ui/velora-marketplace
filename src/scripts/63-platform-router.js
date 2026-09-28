@@ -141,6 +141,12 @@
         }
     };
 
+    // Canonical Seller UI controls must use the same route-aware close path.
+    // This prevents a hidden Seller shell from leaving the URL at #seller,
+    // which would otherwise let the router re-activate Seller on the next
+    // hash/session synchronization.
+    window.VELORA_CLOSE_SELLER = window.closeSellerPlatform;
+
     window.closeAdminPlatform = function () {
         if (PLATFORM_ROUTES.has(normalizeHash(window.location.hash))) {
             goMarketplace();
