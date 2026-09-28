@@ -312,6 +312,16 @@ jobs:
                   },
               )
               checkout_url = checkout.get("checkout_url")
+              # Follow the regional hosted checkout origin returned by Paymob.
+              if checkout_url:
+                  try:
+                      parsed = urllib.parse.urlsplit(checkout_url)
+                      if parsed.netloc == "accept.paymob.com" and parsed.path.startswith("/unifiedcheckout"):
+                          checkout_url = urllib.parse.urlunsplit(
+                              ("https", "eg.checkout.paymob.com", "/", parsed.query, "")
+                          )
+                  except Exception:
+                      pass
               evidence["checks"]["checkout_function_http_200"] = status == 200
               evidence["checks"]["paymob_intention_created"] = bool(
                   checkout.get("ok") and checkout.get("intention_id") and checkout_url
@@ -336,8 +346,14 @@ jobs:
                       # and secure card fields before declaring the browser path broken.
                       page.wait_for_timeout(12000)
 
+                      def safe_frame_url(raw):
+                          parsed = urllib.parse.urlsplit(raw)
+                          return urllib.parse.urlunsplit(
+                              (parsed.scheme, parsed.netloc, parsed.path, "[redacted]" if parsed.query else "", "")
+                          )
+
                       evidence["playwright"]["frame_urls"] = [
-                          frame.url for frame in page.frames if frame.url
+                          safe_frame_url(frame.url) for frame in page.frames if frame.url
                       ]
                       evidence["playwright"]["iframe_count"] = page.locator("iframe").count()
 
