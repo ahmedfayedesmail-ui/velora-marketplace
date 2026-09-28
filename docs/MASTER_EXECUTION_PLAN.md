@@ -3366,3 +3366,48 @@ THREE MASTER GOVERNING CONDITIONS:
 1. COMPLETE MASTER HANDOFF.
 2. RESEARCH / REUSE FIRST.
 3. ACTION FLOW IN PARALLEL.
+
+
+---
+
+# MESSAGE 12.17 — PAYMOB INQUIRY RUNTIME RCA + FINANCIAL CAPTURE REUSE PROOF
+Recorded 2026-09-28.
+
+## Inquiry Runtime RCA
+OBSERVED FACT:
+- Paymob Inquiry runs through v5 returned Supabase \`EDGE_FUNCTION_ERROR\` rather than the function's own JSON body.
+- Source review against working Velora Paymob Edge Functions found the Inquiry adapter had introduced a duplicate dynamic import of \`@supabase/supabase-js\` in addition to the static top-level import.
+- The duplicate dynamic import was removed in commit \`11d348bf31cc2e92fe978bb6be8329ba2a48ff4e\`.
+- Restore-Test Inquiry function v7 is ACTIVE with runtime checksum \`449360a41527b353d3b37ff9ed8566675a004625ad43f2ac42343b4fa991935b\`.
+- Current source contains the static client import only; no dynamic import remains.
+- Vercel has a READY deployment for the app-affecting commit \`11d348bf31cc2e92fe978bb6be8329ba2a48ff4e\`.
+
+INFERENCE:
+- The duplicate dynamic import is a plausible runtime-load failure cause because it was inconsistent with the proven working Paymob function pattern.
+- It remains a hypothesis until a post-v7 run proves the Inquiry request reaches either a 200 response or an explicit provider-auth/inquiry error stage.
+
+## Run Status
+OPEN / IN EXECUTION:
+- Paymob Sandbox Evidence Run #39 = \`36460744721\`, SHA \`18a1e1ce000383cee6bb010cc5a57cfc8edfdaa9\`.
+- It was triggered specifically after removing the dynamic import.
+- Final provider Inquiry response is not yet evidenced.
+
+## Financial Cross-System Reuse Proof
+OBSERVED FACT / L4 ROLLBACK:
+- On real fresh Paymob attempt \`8c0f1f7a-d920-4f54-8061-3bdbf31af7c6\`, a transaction-safe \`captured\` simulation using the canonical \`velora_apply_paymob_marketplace_transaction\` returned:
+  - payment attempt = captured
+  - order = confirmed
+  - order payment_status = paid
+  - commission rows for the order = 1
+  - ledger entries for the order = 2
+- The transaction was rolled back and left no persistent mutation.
+- This proves no new commission engine is justified at capture time; canonical order creation already establishes the commission record and the existing applicator handles payment state transition.
+
+CLASSIFICATION:
+- Payment -> commission architectural reuse: CLOSED-DONE at L4 simulation.
+- Full provider settlement -> commission -> payout -> ledger E2E remains OPEN because no real provider capture/settlement evidence has been obtained.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF — no dropped item.
+2. RESEARCH / REUSE FIRST — existing working patterns and canonical contracts are reused before building.
+3. ACTION FLOW IN PARALLEL — payment state transition, financial side effects, audit and reconciliation remain automatic within canonical boundaries; human action only for genuine exceptions.
