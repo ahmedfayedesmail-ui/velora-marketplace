@@ -17,6 +17,23 @@ Deno.serve(async(req:Request)=>{
   try{
     const authHeader=req.headers.get("Authorization")??"";
     const supabase=createClient(Deno.env.get("SUPABASE_URL")??"",Deno.env.get("SUPABASE_PUBLISHABLE_KEY")??"",{global:{headers:{Authorization:authHeader}}});
+    const getServiceKey=()=>{
+      const raw=Deno.env.get("SUPABASE_SECRET_KEYS");
+      if(raw){try{const parsed=JSON.parse(raw);if(parsed?.default)return String(parsed.default);}catch{}}
+      return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")??"";
+    };
+    const recoverProviderSession=async(paymentAttemptId:string,providerSessionId:string,providerOrderId:string)=>{
+      const serviceKey=getServiceKey();
+      if(!serviceKey) throw new Error("SUPABASE_SERVER_CREDENTIALS_MISSING");
+      const admin=createClient(Deno.env.get("SUPABASE_URL")??"",serviceKey);
+      const {data,error}=await admin.rpc("velora_recover_paymob_provider_session",{
+        p_payment_attempt_id:paymentAttemptId,
+        p_provider_session_id:providerSessionId,
+        p_provider_order_id:providerOrderId,
+      });
+      if(error) throw error;
+      return data;
+    };
     const {data:authData,error:authError}=await supabase.auth.getUser();
     if(authError||!authData?.user) return json({ok:false,code:"AUTH_REQUIRED"},401);
     const body=await req.json().catch(()=>({}));
@@ -67,6 +84,9 @@ Deno.serve(async(req:Request)=>{
     }
 
     const notificationUrl=(Deno.env.get("SUPABASE_URL")??"")+"/functions/v1/velora-paymob-webhook-restore-test";
+    let providerIntentCreated=false;
+    let intentionId:string|null=null;
+    let intentionOrderId:string|null=null;
     const paymobResponse=await fetch(BASE+"/v1/intention/",{
       method:"POST",headers:{Authorization:"Token "+secretKey,"Content-Type":"application/json"},
       body:JSON.stringify({
@@ -85,19 +105,55 @@ Deno.serve(async(req:Request)=>{
       return json({ok:false,status:"FAILED",code:"PAYMOB_INTENTION_CREATE_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
         provider_error:providerError},502);
     }
-    const intentionId=paymobJson?.id, intentionOrderId=paymobJson?.intention_order_id??paymobJson?.order_id, clientSecret=paymobJson?.client_secret;
-    if(!intentionId||!clientSecret||!intentionOrderId){
+    providerIntentCreated=true;
+    intentionId=paymobJson?.id?String(paymobJson.id):null;
+    intentionOrderId=(paymobJson?.intention_order_id??paymobJson?.order_id)?String(paymobJson.intention_order_id??paymobJson.order_id):null;
+    const clientSecret=paymobJson?.client_secret;
+    if(!intentionId||!intentionOrderId){
       await markInitializationFailed("PAYMOB_MISSING_INTENTION_FIELDS","Paymob intention response did not contain the required checkout correlation fields.");
       return json({ok:false,status:"FAILED",code:"PAYMOB_MISSING_INTENTION_FIELDS",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},502);
     }
-    const {data:attach,error:attachError}=await supabase.rpc("velora_attach_seller_ad_payment_provider_session",{
-      p_payment_attempt_id:start.payment_attempt_id,p_provider_code:"paymob",p_provider_session_id:String(intentionId),p_provider_order_id:String(intentionOrderId)});
+    if(!clientSecret){
+      try{
+        const recovery=await recoverProviderSession(String(start.payment_attempt_id),intentionId,intentionOrderId);
+        return json({ok:false,status:"FAILED",code:"PAYMOB_CLIENT_SECRET_MISSING",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
+          provider_session_recovered:Boolean(recovery?.ok),local_payment_attempt_status:"pending",recovery:"retry_seller_ad_checkout"},502);
+      }catch(recoveryError){
+        console.error("seller_ad_provider_session_recovery_failed",recoveryError instanceof Error?recoveryError.message:"unknown_error");
+        return json({ok:false,status:"FAILED",code:"PAYMOB_PROVIDER_SESSION_RECOVERY_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
+          local_payment_attempt_status:"pending",recovery:"manual_reconciliation_required"},502);
+      }
+    }
+    let attachError:Error|null=null;
+    let attach:unknown=null;
+    for(let bindAttempt=0;bindAttempt<2;bindAttempt+=1){
+      const {data:attachData,error}=await supabase.rpc("velora_attach_seller_ad_payment_provider_session",{
+        p_payment_attempt_id:start.payment_attempt_id,p_provider_code:"paymob",p_provider_session_id:intentionId,p_provider_order_id:intentionOrderId});
+      if(!error){attach=attachData;attachError=null;break;}
+      attachError=error;
+      if(bindAttempt===0) await new Promise((resolve)=>setTimeout(resolve,200));
+    }
     if(attachError){
-      await markInitializationFailed("PAYMOB_PROVIDER_SESSION_ATTACH_FAILED",attachError.message||"Provider session could not be attached.");
-      return json({ok:false,status:"FAILED",code:"PAYMOB_PROVIDER_SESSION_ATTACH_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id},502);
+      try{
+        const recovery=await recoverProviderSession(String(start.payment_attempt_id),intentionId,intentionOrderId);
+        return json({ok:false,status:"FAILED",code:"PAYMOB_PROVIDER_SESSION_BIND_RECOVERED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
+          provider_session_recovered:Boolean(recovery?.ok),local_payment_attempt_status:"pending",recovery:"retry_seller_ad_checkout"},502);
+      }catch(recoveryError){
+        console.error("seller_ad_provider_session_recovery_failed",recoveryError instanceof Error?recoveryError.message:"unknown_error");
+        return json({ok:false,status:"FAILED",code:"PAYMOB_PROVIDER_SESSION_BIND_FAILED",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
+          local_payment_attempt_status:"pending",recovery:"manual_reconciliation_required"},502);
+      }
     }
     return json({ok:true,status:"READY",provider:"paymob",environment:"test",campaign_id:start.campaign_id,payment_attempt_id:start.payment_attempt_id,
       intention_id:String(intentionId),provider_order_id:String(intentionOrderId),provider_session_attached:Boolean(attach?.ok),
       checkout_url:BASE+"/unifiedcheckout/?publicKey="+encodeURIComponent(publicKey)+"&clientSecret="+encodeURIComponent(clientSecret)});
-  }catch(error){ return json({ok:false,status:"FAILED",error:error instanceof Error?error.message:"seller_ad_paymob_checkout_failed"},400); }
+  }catch(error){
+    if(providerIntentCreated){
+      console.error("seller_ad_provider_intent_unexpected_failure",error instanceof Error?error.message:"unknown_error");
+    }
+    return json({ok:false,status:"FAILED",error:error instanceof Error?error.message:"seller_ad_paymob_checkout_failed",
+      payment_attempt_id:providerIntentCreated?String(start?.payment_attempt_id??""):null,
+      local_payment_attempt_status:providerIntentCreated?"pending":null,
+      recovery:providerIntentCreated?"retry_seller_ad_checkout_or_reconcile_provider_intention":null},400);
+  }
 });
