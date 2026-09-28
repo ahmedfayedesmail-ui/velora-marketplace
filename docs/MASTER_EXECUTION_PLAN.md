@@ -3075,3 +3075,83 @@ THREE MASTER GOVERNING CONDITIONS:
 1. COMPLETE MASTER HANDOFF.
 2. RESEARCH / REUSE FIRST.
 3. ACTION FLOW IN PARALLEL.
+
+
+---
+
+# MESSAGE 12.11 — PAYMOB AUTOMATED RECONCILIATION WORKER LIVE IN RESTORE-TEST
+Recorded 2026-09-28.
+
+## Implemented Contract
+CLOSED-DONE:
+- Added internal reconciliation state table: \`private.paymob_reconciliation_state\`.
+- Added service-role-only secret validation wrapper using Vault.
+- Added private claim/lease function plus public service-role-only RPC wrapper.
+- Added private result/retry function plus public service-role-only RPC wrapper.
+- Added explicit \`paymob_reconciliation_eligible=true\` metadata only when a NEW marketplace payment attempt is routed to Paymob.
+- Historical attempts without this marker remain excluded from automatic reconciliation.
+- Claim window is 70 minutes after attempt creation. This remains a Velora design contract, not a Paymob SLA.
+- Maximum batch is 5 at worker runtime; database contract caps at 10.
+- Lease is 10 minutes.
+- Retry policy is bounded to 3 inquiries with 15m, then 30m delays; exhausted cases create an existing \`reconciliation_finding\` automation event and existing automation alert path.
+- Terminal provider states use the existing canonical \`velora_apply_paymob_marketplace_transaction\` applicator. No second payment state machine was created.
+- Provider correlation requires Paymob response \`order.id\` to equal the locally bound Paymob order ID.
+- Terminal state requires a provider transaction ID; otherwise the result is treated as ambiguous.
+
+## Scheduler / Secrets
+CLOSED-DONE:
+- Restore-Test Vault now contains \`velora_paymob_reconciliation_secret\`; the actual value is never committed or logged.
+- Restore-Test pg_cron job \`velora-paymob-reconciliation\` runs every 5 minutes and invokes the Edge Function through pg_net.
+- Edge Function \`velora-paymob-reconciliation-restore-test\` is ACTIVE, current version 4, custom-secret protected (\`verify_jwt=false\` because authentication is deliberately implemented by the worker secret + service-role validation).
+- Runtime checksum for current v4 is \`825c60777db0271d4138b8236dbba546cf6940770e17a966bd9c6e04a943e9c2\`.
+
+## Runtime Evidence
+OBSERVED FACT:
+- A real pg_net invocation reached Edge Function v4 successfully after the claim-wrapper fix and returned HTTP 200 with:
+  \`ok=true, claimed=0, processed=0\`.
+- Restore-Test currently has 0 marketplace attempts carrying the new eligibility marker, so no historical fixture was processed.
+- A prior worker v1/v2/v3 series produced real 500s; the issue was isolated to the claim RPC contract and corrected. These are historical failed attempts, not current worker status.
+- Unauthorized negative test request was sent but its response was not linked to the final request ID in the captured window; therefore unauthorized rejection is NOT EVIDENCED yet.
+- Provider/L8 Inquiry execution for an eligible candidate is still NOT EVIDENCED because there is currently no eligible Restore-Test candidate.
+
+## Action Flow
+EVENT:
+non-terminal Paymob marketplace attempt beyond the 70-minute reconciliation window.
+
+AUTH:
+internal worker secret -> service-role DB client.
+
+GUARD:
+explicit eligibility marker + Paymob provider + marketplace purpose + payment pending + bound Paymob order ID + no processed callback + bounded retry state.
+
+VALIDATION:
+Inquiry response HTTP success + exact Paymob order correlation + recognized provider state + transaction ID for terminal transitions.
+
+CANONICAL STATE TRANSITION:
+\`velora_apply_paymob_marketplace_transaction\`.
+
+AUTOMATIC SIDE EFFECTS:
+existing order/payment synchronization, existing failure/inventory trigger chain, existing audit/event automation.
+
+AUDIT:
+every inquiry result is recorded in \`audit_logs\`; exhausted ambiguity/failure emits existing reconciliation automation event/alert.
+
+RETRY/DEDUPE:
+per-attempt lease, unique reconciliation state, bounded 3-attempt retry, terminal states no-op/regression-safe through canonical applicator.
+
+NEXT EVENT:
+terminal result -> normal downstream order/payment/financial flow.
+still pending/ambiguous -> delayed retry.
+exhausted/ambiguous provider state -> automated alert for genuine exception.
+
+## Remaining OPEN / NOT EVIDENCED
+- L8 live provider Inquiry on a NEW eligible candidate.
+- Unauthorized worker negative-path response tied to a request ID.
+- Current-SHA Vercel READY deployment.
+- Browser/3DS completion.
+- Exact CI sandbox webhook correlation fix.
+
+## Governing Conditions
+1. COMPLETE MASTER HANDOFF — every closed/open/blocked/pending/not-evidenced item remains in this single Master.
+2. RESEARCH / REUSE FIRST — existing Velora cron/auth/automation/applicator patterns are reused.
+3. ACTION FLOW IN PARALLEL — normal reconciliation is automatic; Owner/Staff intervene only for provider ambiguity, financial mismatch, fraud/trust, or genuine anomalies.
