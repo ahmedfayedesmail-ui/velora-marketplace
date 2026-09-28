@@ -139,6 +139,36 @@ async function v39LoadSubscription(){
    host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Subscription unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
  }
 }
+async function v39LoadAnalytics(){
+ const host=v39El('veloraSellerAnalytics39'); if(!host)return;
+ host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading performance…'))+'</div></div>';
+ try{
+   const r=await v39Rpc('velora_get_seller_analytics',{p_days:30});
+   if(r.error)throw r.error;
+   const d=r.data||{},s=d.summary||{},top=Array.isArray(d.top_products)?d.top_products.slice(0,5):[];
+   const currency=String(s.currency||'EGP');
+   const money=v=>Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+   host.innerHTML=
+    '<div class="velora-seller39-card">'+
+      '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">'+
+       '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Performance'))+'</div>'+
+       '<div style="font-size:1.15rem;font-weight:850;margin-top:.2rem">'+v39Esc(v39t('Last 30 days'))+'</div>'+
+       '<div class="velora-seller39-muted" style="margin-top:.25rem">'+v39Esc(v39t('Canonical seller sales analytics; advertising metrics are tracked separately and are not yet included.'))+'</div></div>'+
+       '<span class="velora-seller39-pill">'+v39Esc(currency)+'</span>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin-top:1rem">'+
+       '<div><div class="velora-seller39-muted">'+v39Esc(v39t('GMV'))+'</div><strong>'+v39Esc(money(s.gmv))+'</strong></div>'+
+       '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Net earnings'))+'</div><strong>'+v39Esc(money(s.net_earnings))+'</strong></div>'+
+       '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Orders'))+'</div><strong>'+v39Esc(String(s.orders??0))+'</strong></div>'+
+       '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Conversion'))+'</div><strong>'+v39Esc('—')+'</strong><div class="velora-seller39-muted" style="font-size:.75rem">'+v39Esc(v39t('Traffic events not yet modeled'))+'</div></div>'+
+      '</div>'+
+      (top.length?'<div style="margin-top:.9rem"><div class="velora-seller39-muted">'+v39Esc(v39t('Top products'))+'</div>'+top.map(p=>'<div style="display:flex;justify-content:space-between;gap:.7rem;margin-top:.35rem"><span>'+v39Esc(p.name||'Product')+'</span><strong>'+v39Esc(money(p.gmv))+' '+v39Esc(currency)+'</strong></div>').join('')+'</div>':'')+
+    '</div>';
+ }catch(err){
+   host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Performance unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
+ }
+}
+
 async function v39LoadAds(){
  const host=v39El('veloraSellerAds39'); if(!host)return;
  host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading sponsored advertising…'))+'</div></div>';
@@ -237,6 +267,7 @@ async function v39Load(){
   <div class="velora-seller39-card"><div class="velora-seller39-muted">Shipped</div><div class="velora-seller39-kpi">${d.shipped_orders??0}</div></div>
   <div class="velora-seller39-card"><div class="velora-seller39-muted">Low stock</div><div class="velora-seller39-kpi">${d.low_stock_products??0}</div></div>
  </div>
+ <div id="veloraSellerAnalytics39" style="margin-top:12px"></div>
  <div id="veloraSellerAds39" style="margin-top:12px"></div>
  <div id="veloraSellerSubscription39" style="margin-top:12px"></div>
  <div id="veloraSellerPayout39" style="margin-top:12px"></div>
@@ -244,7 +275,8 @@ async function v39Load(){
  <div class="velora-seller39-actions"><button class="velora-seller39-btn primary" id="v39Snapshot">Capture operations snapshot</button><button class="velora-seller39-btn" id="v39Refresh">Refresh</button></div></div>
  </div>`;
  v39El('v39Snapshot')?.addEventListener('click',async()=>{const x=await v39Rpc('velora_capture_seller_ops_snapshot'); if(x.error) alert(x.error.message||'Snapshot failed'); else {alert('Operations snapshot captured');v39Load()}});
- v39El('v39Refresh')?.addEventListener('click',()=>{v39Load();v39LoadSubscription()});
+ v39El('v39Refresh')?.addEventListener('click',()=>{v39Load();v39LoadAnalytics();v39LoadSubscription()});
+ v39LoadAnalytics();
  v39LoadAds();
  v39LoadSubscription();
  v39LoadPayouts();
@@ -256,7 +288,7 @@ function v39Install(){
  const wrap=document.createElement('div');wrap.id='veloraSellerOps39';
  const title=document.createElement('div');title.innerHTML='<h2 style="margin:0 0 8px">🏪 Seller Command Center</h2><div class="velora-seller39-muted">Seller-scoped operations, catalog health, order flow and earnings signals.</div>';
  wrap.appendChild(title);wrap.insertAdjacentHTML('beforeend','');
- admin.appendChild(wrap);setTimeout(()=>{v39Load();v39LoadSubscription();v39LoadPayouts()},50);
+ admin.appendChild(wrap);setTimeout(()=>{v39Load();v39LoadAnalytics();v39LoadSubscription();v39LoadPayouts()},50);
 }
 const oldLoad=window.loadPageContent;
 window.loadPageContent=function(page){const r=typeof oldLoad==='function'?oldLoad.apply(this,arguments):undefined; if(String(page).toLowerCase().includes('seller'))setTimeout(v39Install,150);return r};
