@@ -24,7 +24,10 @@
     const originalCloseOwner = window.closeOwnerPlatform;
     const originalNavigateTo = window.navigateTo;
 
-    let returnHash = normalizeHash(window.location.hash);
+    // Always remember a marketplace page as the return target. A direct
+    // load of #seller/#admin/#owner must not make the platform route itself
+    // the "marketplace" destination on close.
+    let returnHash = currentMarketplaceHash();
     let syncing = false;
 
     function normalizeHash(hash) {
