@@ -2678,3 +2678,37 @@ INFERRED:
 
 ACTION FLOW:
 Advisor warning -> enumerate anon SECURITY DEFINER -> inspect function direction/guards -> classify public read vs privileged write -> retain intentional reads -> deny/escalate only if a privileged writer appears.
+
+
+### Continuation Seller Product Re-Review Notification — 2026-09-29
+
+CLASSIFICATION: ACTION FLOW CLOSED-DONE AT SOURCE/DB / BROWSER EVIDENCE DEFERRED TO AGGREGATE GATE
+
+OBSERVED FACT:
+- The existing product status notification trigger only handled approved, rejected, inactive, and reactivated states.
+- Seller-requested material edits now legitimately move approved/rejected products to pending, so the notification path had to cover that transition.
+- No second notification mechanism was needed.
+
+IMPLEMENTED:
+- Migration 20260929015000_product_rereview_notification.sql, commit 5d9389108e1b2057a1c14d40cd4fdd4c1514ddda.
+- Existing private.velora_notify_product_status() now emits product_re_review_required when a seller-owned product moves approved/rejected -> pending.
+- Existing private.velora_create_notification() remains the notification writer; existing push dispatch/lifecycle infrastructure remains the downstream delivery mechanism.
+
+RESTORE-TEST VERIFICATION:
+- Using the real seller canonical RPC velora_seller_update_product with Seller auth context, a material brand edit produced pending state and a product_re_review_required notification addressed to the same seller.
+- The entire probe was transactional and rolled back, leaving the QA product/data unchanged.
+- A first verification query contained an invalid FROM alias; it failed before any persistent write. The corrected verification passed.
+
+ACTION FLOW:
+Seller material edit
+-> authenticated ownership validation
+-> product becomes pending
+-> existing product status trigger
+-> product_re_review_required notification
+-> existing notification/push lifecycle
+-> Staff moderation
+-> approved/rejected decision
+-> standard product status notification.
+
+CARRY-FORWARD:
+- No Browser Gate yet; aggregate Browser Gate will verify the complete Seller flow later.
