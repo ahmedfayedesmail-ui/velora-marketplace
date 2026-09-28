@@ -549,7 +549,7 @@ jobs:
                                       return None
                                   q = urllib.parse.urlencode({
                                       "order_id": f"eq.{order['id']}",
-                                      "select": "id,status,provider_payment_id,created_at,completed_at,captured_at",
+                                      "select": "id,status,provider_payment_id,metadata,created_at,completed_at,captured_at",
                                       "order": "created_at.desc",
                                       "limit": "1",
                                   }, safe=",")
