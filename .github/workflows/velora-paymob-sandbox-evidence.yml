@@ -490,10 +490,37 @@ jobs:
                   browser = p.chromium.launch(headless=False)
                   context = browser.new_context(viewport={"width": 1440, "height": 1000})
                   page = context.new_page()
-                  browser_telemetry = {"console_errors": [], "page_errors": [], "request_failures": []}
+                  browser_telemetry = {"console_errors": [], "page_errors": [], "request_failures": [], "gateway_responses": [], "popup_pages": [], "frame_navigations": []}
                   page.on("console", lambda msg: browser_telemetry["console_errors"].append(msg.text) if msg.type == "error" else None)
                   page.on("pageerror", lambda exc: browser_telemetry["page_errors"].append(str(exc)))
                   page.on("requestfailed", lambda req: browser_telemetry["request_failures"].append({"url": urllib.parse.urlsplit(req.url).path, "failure": req.failure}))
+                  page.on(
+                      "response",
+                      lambda resp: (
+                          browser_telemetry["gateway_responses"].append({
+                              "url": urllib.parse.urlunsplit((urllib.parse.urlsplit(resp.url).scheme, urllib.parse.urlsplit(resp.url).netloc, urllib.parse.urlsplit(resp.url).path, "", "")),
+                              "status": resp.status,
+                          })
+                          if "gateway.mastercard.com" in urllib.parse.urlsplit(resp.url).netloc
+                          else None
+                      ),
+                  )
+                  page.on(
+                      "framenavigated",
+                      lambda frame: browser_telemetry["frame_navigations"].append(
+                          urllib.parse.urlunsplit((urllib.parse.urlsplit(frame.url).scheme, urllib.parse.urlsplit(frame.url).netloc, urllib.parse.urlsplit(frame.url).path, "", ""))
+                      )
+                      if frame.url
+                      else None,
+                  )
+                  context.on(
+                      "page",
+                      lambda popup: (
+                          browser_telemetry["popup_pages"].append(
+                              urllib.parse.urlunsplit((urllib.parse.urlsplit(popup.url).scheme, urllib.parse.urlsplit(popup.url).netloc, urllib.parse.urlsplit(popup.url).path, "", ""))
+                          )
+                      ),
+                  )
                   try:
                       response = page.goto(checkout_url, wait_until="domcontentloaded", timeout=60000)
                       page.wait_for_timeout(5000)
