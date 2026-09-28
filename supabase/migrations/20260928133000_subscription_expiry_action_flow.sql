@@ -18,6 +18,7 @@ declare
   v_expires_at timestamptz;
   v_plan_name text;
   v_count integer := 0;
+  v_inserted integer := 0;
 begin
   select ss.*, st.owner_id, sp.name
     into v_sub, v_user_id, v_plan_name
@@ -54,11 +55,11 @@ begin
     'subscription_expiry_t5',
     greatest(now(), v_expires_at - interval '5 days'),
     'seller_subscription',
-    v_sub.id,
+    v_sub_id,
     'subscription_expiry:' || v_series || ':' ||
       extract(epoch from v_expires_at)::bigint || ':t5',
     jsonb_build_object(
-      'subscription_id', v_sub.id,
+      'subscription_id', v_sub_id,
       'subscription_series_id', v_series,
       'expires_at', v_expires_at,
       'plan_name', v_plan_name,
@@ -201,8 +202,8 @@ begin
           and ss.expires_at>now()
           and ss.subscription_series_id::text =
               v_job.payload->>'subscription_series_id'
-          and ss.expires_at::text =
-              v_job.payload->>'expires_at'
+          and ss.expires_at =
+              (v_job.payload->>'expires_at')::timestamptz
       ) into v_subscription_current;
 
       if not v_subscription_current then
