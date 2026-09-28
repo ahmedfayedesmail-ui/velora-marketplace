@@ -624,7 +624,7 @@ jobs:
               for _ in range(12):
                   req = urllib.request.Request(
                       f"{base}/rest/v1/payment_attempts?order_id=eq.{urllib.parse.quote(order['id'])}"
-                      "&select=id,status,provider_payment_id,payment_reference,provider_session_id,created_at,completed_at,captured_at"
+                      "&select=id,status,provider_payment_id,payment_reference,provider_session_id,metadata,created_at,completed_at,captured_at"
                       "&order=created_at.desc&limit=5",
                       method="GET",
                       headers=headers,
@@ -636,27 +636,46 @@ jobs:
                       attempts = []
 
                   latest_attempt = attempts[0] if attempts else None
-                  provider_payment_id = latest_attempt.get("provider_payment_id") if latest_attempt else None
+                  paymob_order_id = (
+                      ((latest_attempt or {}).get("metadata") or {}).get("paymob_order_id")
+                      if latest_attempt else None
+                  )
 
                   webhook_query = (
                       f"{base}/rest/v1/provider_webhook_events?provider_code=eq.paymob"
-                      "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason"
-                      "&order=received_at.desc&limit=20"
+                      "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason,payload"
+                      "&order=received_at.desc&limit=50"
                   )
-                  if provider_payment_id:
-                      webhook_query = (
-                          f"{base}/rest/v1/provider_webhook_events"
-                          f"?provider_code=eq.paymob&event_id=eq.{urllib.parse.quote(str(provider_payment_id))}"
-                          "&select=id,event_id,event_type,signature_verified,status,received_at,processed_at,retry_count,failure_reason"
-                          "&limit=5"
-                      )
 
                   req = urllib.request.Request(webhook_query, method="GET", headers=headers)
                   try:
                       with urllib.request.urlopen(req, timeout=30) as resp:
-                          webhooks = json.loads(resp.read().decode("utf-8"))
+                          all_webhooks = json.loads(resp.read().decode("utf-8"))
                   except Exception:
-                      webhooks = []
+                      all_webhooks = []
+
+                  webhooks = []
+                  for event in all_webhooks if isinstance(all_webhooks, list) else []:
+                      payload = event.get("payload") or {}
+                      obj = payload.get("obj") if isinstance(payload, dict) else {}
+                      provider_order_id = (
+                          ((obj or {}).get("order") or {}).get("id")
+                          if isinstance(obj, dict) and isinstance(obj.get("order"), dict)
+                          else None
+                      )
+                      if paymob_order_id and str(provider_order_id) == str(paymob_order_id):
+                          # Keep raw provider payload out of evidence artifacts/logs.
+                          webhooks.append({
+                              "id": event.get("id"),
+                              "event_id": event.get("event_id"),
+                              "event_type": event.get("event_type"),
+                              "signature_verified": event.get("signature_verified"),
+                              "status": event.get("status"),
+                              "received_at": event.get("received_at"),
+                              "processed_at": event.get("processed_at"),
+                              "retry_count": event.get("retry_count"),
+                              "failure_reason": event.get("failure_reason"),
+                          })
 
                   if any(bool(event.get("signature_verified")) and event.get("status") == "processed"
                          for event in webhooks):
@@ -664,12 +683,17 @@ jobs:
                   time.sleep(5)
 
               latest_attempt = attempts[0] if attempts else None
+              paymob_order_id = (
+                  ((latest_attempt or {}).get("metadata") or {}).get("paymob_order_id")
+                  if latest_attempt else None
+              )
               evidence["db"]["payment_attempt_found"] = bool(latest_attempt)
               evidence["db"]["attempt_status"] = latest_attempt.get("status") if latest_attempt else None
               evidence["db"]["provider_payment_id_present"] = bool(
                   latest_attempt and latest_attempt.get("provider_payment_id")
               )
-              evidence["db"]["webhook_event_count_recent"] = len(webhooks)
+              evidence["db"]["paymob_order_id_present"] = bool(paymob_order_id)
+              evidence["db"]["webhook_event_count_correlated"] = len(webhooks)
               evidence["db"]["signed_webhook_verified"] = any(
                   bool(event.get("signature_verified")) for event in webhooks
               )
@@ -677,7 +701,6 @@ jobs:
                   event.get("status") == "processed" and bool(event.get("processed_at"))
                   for event in webhooks
               )
-
           evidence["passed"] = (
               evidence["checks"].get("authenticated_user", False)
               and evidence["checks"].get("pending_order_found", False)
