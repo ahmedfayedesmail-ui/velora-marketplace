@@ -155,7 +155,6 @@ Deno.serve(async (req: Request) => {
       );
     }
     const auth = await generateToken(apiKey);
-    console.log("paymob_inquiry_provider_auth", JSON.stringify({ http_status: auth.response.status, ok: auth.response.ok, token_obtained: Boolean(auth.token) }));
     if (!auth.response.ok || !auth.token) {
       return json(
         {
@@ -186,7 +185,6 @@ Deno.serve(async (req: Request) => {
 
     let inquiry: Record<string, unknown> = {};
     let providerResponseText = "";
-    console.log("paymob_inquiry_provider_response", JSON.stringify({ http_status: inquiryResponse.status, ok: inquiryResponse.ok, content_type: inquiryResponse.headers.get("content-type") }));
     try {
       providerResponseText = await inquiryResponse.text();
       try {
@@ -199,9 +197,16 @@ Deno.serve(async (req: Request) => {
       inquiry = {};
     }
 
+    const providerResultStatus = inquiryResponse.ok
+      ? 200
+      : inquiryResponse.status === 404
+        ? 404
+        : 502;
+
     return json(
       {
         ok: inquiryResponse.ok,
+        code: inquiryResponse.status === 404 ? "PAYMOB_TRANSACTION_NOT_FOUND" : null,
         provider: "paymob",
         environment: "test",
         payment_attempt_id: attempt.id,
@@ -230,7 +235,7 @@ Deno.serve(async (req: Request) => {
             ? (inquiry.order as Record<string, unknown>).id ?? null
             : null,
       },
-      inquiryResponse.ok ? 200 : 502,
+      providerResultStatus,
     );
   } catch (error) {
     return json(
