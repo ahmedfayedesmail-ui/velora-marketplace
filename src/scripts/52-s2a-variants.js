@@ -311,7 +311,7 @@
     var totalStock=rows.reduce(function(n,x){return n+Number(x.stock_quantity||0);},0);
     var seller=(typeof SELLER_STATE!=="undefined"&&SELLER_STATE&&SELLER_STATE.currentSeller)?SELLER_STATE.currentSeller:null;
     if(seller&&seller.id){
-      var ur=await db.from("products").update({stock:totalStock,updated_at:new Date().toISOString()}).eq("id",productId).eq("seller_id",seller.id);
+      var ur=await db.rpc("velora_seller_update_product",{p_product_id:productId,p_price:null,p_stock:totalStock,p_category:null,p_brand:null,p_name:null});
       if(ur.error)throw ur.error;
     }
     variantCache.delete(productId);
