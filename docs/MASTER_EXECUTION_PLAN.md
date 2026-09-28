@@ -2242,3 +2242,17 @@ NEXT EVIDENCE:
 
 ACTION FLOW:
 Detect route/re-entry failure -> verify hash/auth/session state -> execute the existing canonical seller activation -> verify visible seller shell and dashboard -> controlled route re-sync only when the observed failure is route state -> escalate only when auth/session is genuinely missing.
+
+### Continuation Governance — Owner Non-Negotiables (2026-09-28)
+
+These three operating conditions are permanent and apply to the entire Velora execution track:
+
+1. HANDOFF COMPLETENESS — The full Master Handoff remains authoritative across the entire platform. All 60+ tracked items and every CLOSED-DONE, OPEN, BLOCKED, PENDING, NOT EVIDENCED, INFERRED, and HYPOTHESIS classification, plus dependencies, permissions, evidence layers, policy decisions, provider state, Browser Gate state, Production freeze, Action Flow carry-forward, and recovery/escalation paths must remain visible and must not be silently dropped when execution moves between workstreams.
+
+2. RESEARCH / REUSE BEFORE BUILD — For every new gap: FIND the existing implementation and contract -> RESEARCH relevant prior art and current platform/provider guidance (using multiple sources when needed) -> COMPARE -> REUSE / ADAPT the existing Velora path whenever it satisfies the need -> PROVE the gap is real -> define the smallest required contract -> BUILD only the missing piece -> verify again. Do not build a duplicate engine, parallel state machine, speculative schema, second cart/payment architecture, or feature solely for the sake of construction.
+
+3. ACTION FLOW IN PARALLEL — Every material workflow must continue as EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> AUTOMATIC SIDE EFFECTS -> AUDIT -> RETRY/IDEMPOTENCY/DEDUPE -> NEXT EVENT -> RECOVER/ESCALATE ONLY WHEN NECESSARY. Normal platform operation should be automatic through existing RPCs, triggers, jobs, and canonical UI contracts. Owner/Staff intervention is reserved for governance, legal publication, fraud/trust, financial exceptions, provider disputes/ambiguity, irreversible actions, policy choices, and release control.
+
+EXECUTION NOTE:
+- These conditions do not close any product or evidence gate by themselves; they govern how all future work is performed and recorded.
+- Production remains FROZEN.
