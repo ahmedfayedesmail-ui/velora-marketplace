@@ -3203,3 +3203,59 @@ CLOSED-DONE:
 1. COMPLETE MASTER HANDOFF — no dropped item.
 2. RESEARCH / REUSE FIRST — existing Velora scheduler/auth/automation/applicator patterns are reused.
 3. ACTION FLOW IN PARALLEL — normal payment reconciliation is automatic; humans handle only genuine provider/financial/fraud/governance exceptions.
+
+
+---
+
+# MESSAGE 12.13 — PAYMOB E2E CORRELATION FIX + REAL FRESH ATTEMPTS
+Recorded 2026-09-28.
+
+## Run #31 RCA
+OBSERVED FACT:
+- Paymob sandbox evidence Run #31 = \`36457496683\`, workflow SHA \`73f498d1cfd92147a15d63b9812e1ab8542b8a61\`.
+- Authentication, pending-order discovery, canonical Paymob checkout HTTP 200, Paymob intention creation, and browser payment submit path all passed.
+- Paymob checkout page itself returned HTTP 200.
+- Browser reached the real Paymob checkout page and submitted card details; no OTP was observed.
+- No signed/processed webhook was captured.
+- The workflow failed only because its final evidence condition requires signed + processed webhook; raw evidence showed \`failures=[]\`.
+- The old webhook evidence query correlated by \`event_id=provider_payment_id\`, which was invalid because Velora's Paymob webhook event ID is transaction-based while \`provider_payment_id\` can contain the Paymob intention/session identifier.
+
+## Correlation Fix
+CLOSED-DONE:
+- \`.github/workflows/velora-paymob-sandbox-evidence.yml\` now:
+  - reads \`payment_attempts.metadata.paymob_order_id\`;
+  - fetches recent Paymob webhook records;
+  - correlates them in-memory by \`payload.obj.order.id == payment_attempts.metadata.paymob_order_id\`;
+  - stores only redacted webhook metadata in the artifact; raw provider payload is not written to evidence.
+- No webhook state machine or product code was changed by this evidence-only correction.
+
+## Fresh Real Attempts
+OBSERVED FACT:
+- Run #31 created real fresh Paymob attempt \`6d44e865-59d4-4c7a-a6a5-dbdb06db3f96\` with Paymob order \`620245037\`, status pending, explicit reconciliation eligibility.
+- Run #32 created another real fresh Paymob attempt \`300b68c1-9e71-4ba0-8c9c-763569038cff\` with Paymob order \`620246999\`, status pending, explicit reconciliation eligibility.
+- These are naturally generated through the canonical payment-attempt + Paymob checkout path; no timestamp manipulation or synthetic provider IDs were used.
+
+## Inquiry Evidence Probe
+OPEN / IN EXECUTION:
+- Run #32 includes a read-only call to \`velora-paymob-inquiry-restore-test\` using the authenticated E2E account's existing access token and the newly-created payment attempt ID.
+- This probe is deliberately independent from the 70-minute automatic reconciliation threshold. It proves L8 provider Inquiry reachability/correlation without weakening the production reconciliation guard.
+- Automatic worker still requires the 70-minute eligibility window and does not process these fresh attempts immediately.
+
+## Current Status
+CLOSED-DONE:
+- Evidence-harness webhook correlation implementation.
+- Fresh attempt generation with reconciliation eligibility marker.
+- Worker source/runtime parity.
+- Worker happy-path and unauthorized-negative transport tests.
+
+OPEN / NOT EVIDENCED:
+- L8 Transaction Inquiry response from Run #32.
+- Full 3DS/browser payment completion and signed/processed webhook.
+- Automatic worker execution against a naturally stale eligible attempt.
+- Current-SHA Vercel READY deployment for the post-correlation commit.
+- Final Paymob payment-provider launch gate.
+
+## THREE MASTER GOVERNING CONDITIONS
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
