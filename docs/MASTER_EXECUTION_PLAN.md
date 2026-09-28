@@ -2583,3 +2583,39 @@ Paymob checkout intention created (1h provider expiry)
 CARRY-FORWARD:
 - Generic COD abandonment/reservation policy remains open.
 - Existing Paymob live/provider/Browser gates remain separate; this source/DB automation proof does not establish live settlement or Browser PASS.
+
+
+### Continuation Returns Resolver Client-Boundary Review — 2026-09-29
+
+CLASSIFICATION: CLIENT CONTRACT CLOSED / LEGACY COMPATIBILITY CONTRACT RETAINED
+
+OBSERVED FACT:
+- Restore-Test currently exposes two overloaded public velora_resolve_return signatures.
+- The legacy 3-argument signature is ACL-restricted to postgres/service_role; anonymous and authenticated EXECUTE are false.
+- The transition-aware 6-argument signature is the only authenticated client-executable resolver, and it requires Staff authority inside the function.
+- The canonical Trust & Compliance UI in src/scripts/70-s1-d-trust-operations.js calls only the 6-argument form and supplies refund reference/provider/method when status=refunded.
+- Therefore the stale 3-argument signature cannot be invoked through the current anonymous/authenticated client roles and does not create a client-side parallel return-resolution path.
+- No ACL change is required.
+
+INFERRED:
+- The documented "legacy resolver mismatch" is no longer a client execution vulnerability. It remains a compatibility/dead-contract cleanup item only.
+- Do not delete or alter the legacy signature merely for historical hygiene; preserve it until all internal/service callers are proven absent and its deprecation policy is explicitly decided.
+
+ACTION FLOW:
+Return enters Trust/Compliance queue
+-> Staff authorization
+-> transition-aware resolver
+-> validated state transition
+-> refund evidence required for refunded
+-> canonical audit
+-> downstream refund/accounting work remains separate.
+
+CARRY-FORWARD:
+- Return-window policy
+- partial-return discount allocation
+- shipping/tax refund policy
+- restocking policy
+- provider refund execution
+- customer-facing return UX
+- legacy 3-argument resolver retirement decision
+remain OPEN.
