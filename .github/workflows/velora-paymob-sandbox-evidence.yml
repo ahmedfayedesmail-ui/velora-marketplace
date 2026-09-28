@@ -779,6 +779,14 @@ jobs:
                               "pending": inquiry.get("pending"),
                               "success": inquiry.get("success"),
                               "is_captured": inquiry.get("is_captured"),
+                              "integration_id": inquiry.get("integration_id"),
+                              "is_3d_secure": inquiry.get("is_3d_secure"),
+                              "error_occured": inquiry.get("error_occured"),
+                              "data_gateway_integration_pk": inquiry.get("data_gateway_integration_pk"),
+                              "data_migs_result": inquiry.get("data_migs_result"),
+                              "data_txn_response_code": inquiry.get("data_txn_response_code"),
+                              "data_migs_authentication_status": inquiry.get("data_migs_authentication_status"),
+                              "data_migs_status": inquiry.get("data_migs_status"),
                               "provider_order_id_match": bool(expected_paymob_order_id) and provider_order_id == expected_paymob_order_id,
                           }
                           evidence["post_payment_inquiry"] = post_payment_inquiry
