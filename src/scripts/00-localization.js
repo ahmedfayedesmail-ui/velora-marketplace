@@ -6430,20 +6430,18 @@ function openSellerRegistration() {
                     </div>
                 </div>
 
-                <h3 class="form-step-title">💎 Choose Your Plan</h3>
+                <h3 class="form-step-title">🏪 Seller Application</h3>
                 <div class="plans-grid">
-                    ${Object.values(SELLER_PLANS).map(plan => `
-                        <label class="plan-card">
-                            ${plan.id === 'basic' ? '<div class="plan-badge-rec">Recommended</div>' : ''}
-                            <input type="radio" name="sellerPlan" value="${plan.id}" ${plan.id === 'basic' ? 'checked' : ''}>
-                            <div class="plan-name">${plan.name}</div>
-                            <div class="plan-price">${plan.price === 0 ? 'Free' : formatPrice(plan.price) + '/month'}</div>
-                            <div class="plan-commission">${plan.commission}% Commission</div>
-                            <ul class="plan-features">
-                                ${plan.features.map(f => `<li>✓ ${f}</li>`).join('')}
-                            </ul>
-                        </label>
-                    `).join('')}
+                    <label class="plan-card">
+                        <input type="radio" name="sellerPlan" value="free" checked>
+                        <div class="plan-name">Free application</div>
+                        <div class="plan-price">No payment required</div>
+                        <ul class="plan-features">
+                            <li>✓ Submit your seller application</li>
+                            <li>✓ Approval starts with Free seller entitlement</li>
+                            <li>✓ Paid subscriptions are purchased after approval</li>
+                        </ul>
+                    </label>
                 </div>
 
                 <div style="margin-top: 1rem;">
