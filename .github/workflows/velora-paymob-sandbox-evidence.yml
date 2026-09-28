@@ -296,6 +296,50 @@ jobs:
                               and created.get("ok")
                               and created.get("order_id")
                           ):
+                              card_method_query = urllib.parse.urlencode({
+                                  "code": "eq.card",
+                                  "is_active": "eq.true",
+                                  "select": "id",
+                                  "limit": "1",
+                              }, safe=",")
+                              card_req = urllib.request.Request(
+                                  f"{base}/rest/v1/payment_methods?{card_method_query}",
+                                  method="GET",
+                                  headers=auth_headers,
+                              )
+                              try:
+                                  with urllib.request.urlopen(card_req, timeout=30) as resp:
+                                      card_methods = json.loads(resp.read().decode("utf-8"))
+                              except Exception as exc:
+                                  card_methods = []
+                                  evidence["failures"].append(
+                                      f"Active card payment-method lookup failed: {type(exc).__name__}"
+                                  )
+
+                              if not card_methods:
+                                  evidence["failures"].append("Active card payment method is not configured")
+                              else:
+                                  bind_status, bound = http_json(
+                                      "POST",
+                                      f"{base}/rest/v1/rpc/velora_set_order_payment_method",
+                                      {
+                                          "p_order_id": created["order_id"],
+                                          "p_payment_method_id": card_methods[0]["id"],
+                                      },
+                                      auth_headers,
+                                  )
+                                  evidence["checks"]["fixture_payment_method_bound"] = (
+                                      bind_status == 200
+                                      and isinstance(bound, dict)
+                                      and bound.get("ok") is True
+                                      and str(bound.get("provider_code","")).lower() == "paymob"
+                                      and str(bound.get("payment_method","")).lower() == "card"
+                                  )
+                                  if not evidence["checks"]["fixture_payment_method_bound"]:
+                                      evidence["failures"].append(
+                                          f"Fixture payment-method binding failed (http {bind_status})"
+                                      )
+
                               order = {
                                   "id": created["order_id"],
                                   "order_number": created.get("order_number"),
