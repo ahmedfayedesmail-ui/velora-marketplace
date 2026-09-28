@@ -3718,3 +3718,19 @@ NEXT EXECUTION POINTER:
 - Do not invent reservation TTL or product re-review semantics.
 - Next technical/evidence target is Seller Dashboard re-entry Browser proof using a genuine approved Seller identity or dedicated Seller Gate; do not spoof the customer E2E role.
 
+# MESSAGE 12.27 — VERCEL BUILD-RATE-LIMIT STATUS / NO APP-SCOPE REGRESSION
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- Commit e50c1732d7f594a91d37eb46a843c8167d904dff records the Paymob closure and Inventory hardening in the Master.
+- Combined GitHub commit status currently reports only a Vercel context in failure state with target parameter `upgradeToPro=build-rate-limit`.
+- The preceding and current work package changed database access control and documentation; no customer-facing `src/` change was introduced by the Inventory hardening commit itself.
+- Therefore this Vercel status is classified as deployment/build-capacity evidence, not evidence of an application-runtime regression.
+- No unnecessary Vercel deployment or application rewrite is authorized solely to overcome a build-rate-limit status.
+- Production remains FROZEN.
+
+CLASSIFICATION:
+- Vercel build capacity/status: OPEN / ENVIRONMENT DEPENDENCY.
+- Inventory application source regression: NOT EVIDENCED.
+- Customer-facing Browser PASS/FAIL for the Inventory change: NOT APPLICABLE because the change is DB ACL-only.
+
