@@ -1,6 +1,6 @@
 # CURRENT.md — Velora Current State
 
-Updated: 2026-09-27
+Updated: 2026-09-28
 
 ## Latest authoritative continuation — 2026-09-28
 
@@ -32,6 +32,36 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - Canonical Seller Editor remains src/scripts/12-localization.js; no return to the legacy localStorage Seller path.
 - No Production change.
 
+### Store lifecycle hardening — CLOSED at DB + CI/deployment level
+- Initial DB transaction probes showed an approved Seller could directly change an owned Store's `status` and could create a Store row with `status='approved'`, bypassing Staff approval.
+- Canonical Seller Settings uses `velora_update_seller_profile` for safe profile fields; Store status is intentionally managed by Staff RPCs.
+- Commit `324676024c31e7bfbd0a082d37c81d4ee29d76b5` added a BEFORE INSERT/UPDATE Store guard. Non-staff Sellers can no longer change Store status or owner; Seller-created Stores are forced to `pending`. Staff status-management RPCs remain allowed.
+- Restore-Test DB proof: status mutation returned `STATUS_CHANGE_REQUIRES_STAFF`; Seller direct insert with requested approved status was normalized to `pending`; ordinary profile-field update still succeeded.
+- Exact Vercel deployment `dpl_2uZDH7rxoxE1Toyks9qyy73qW1Rg` is READY on commit `324676...`; all associated browser/source/security gates completed SUCCESS.
+
+### Support-case insert hardening — CLOSED at DB + CI/deployment level
+- DB probe showed a normal customer could directly insert a support case as `resolved`, assign `owner_user_id` to self, and set `owner_role`, while the canonical `velora_create_support_case` contract does not expose those fields.
+- Commit `261f935f40e31cfbccc8760f96edc73c9fe57873` added a BEFORE INSERT guard for non-staff cases. It validates case type/priority/subject/order access and forces lifecycle-controlled fields to `open`, unassigned, unresolved, with the canonical SLA window.
+- Restore-Test DB proof: a valid case on the authenticated customer's own order was normalized to `open` with no owner; a case linked to another customer's order was rejected with `ORDER_ACCESS_DENIED`.
+- Exact Vercel deployment `dpl_CRUtcLRpmDaS7uy2Z479LaMohXAV` is READY on commit `261f935...`; its browser gates completed SUCCESS. Seller/customer UI proof remains separate from backend proof.
+
+### Transaction-message participant hardening — CLOSED at DB + CI/deployment level
+- DB probe showed a Seller could directly create a transaction message for an Order in the Seller's portfolio while assigning a different customer's `customer_id`; the RLS model would expose the row by `customer_id` even though the canonical send RPC derives the participants from the Order.
+- Commit `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` added a BEFORE INSERT participant guard. Customer messages require the authenticated customer to own the Order; Seller messages require the authenticated Seller to be an actual Order participant and bind `customer_id` to the Order customer.
+- Restore-Test DB proof: cross-customer Seller injection was rejected with `ORDER_CUSTOMER_MISMATCH`; valid Seller and valid Customer message inserts both succeeded inside rollback-only probes.
+- Exact Vercel deployment `dpl_BfUuZuV1XdxUEeEoqhVmr6hK6CL5` is READY with exact Git SHA `f8808...`.
+- Exact commit `f8808...` gates: Source + Security SUCCESS; Dependency + Web Surface SUCCESS; Authenticated Browser SUCCESS; Local Source Browser SUCCESS; Staff Launch SUCCESS; Vercel Preview Comments SUCCESS.
+
+### Shipping upsert ownership hardening — CLOSED at DB + CI/deployment level
+- DB probe exposed a real cross-store mutation path in both shipping upsert RPCs: a Seller could reuse an existing foreign `p_zone_id` or `p_rate_id` while supplying an owned parent context, allowing the `ON CONFLICT(id) DO UPDATE` path to modify another Store's shipping record.
+- Commit `137ca7217a13dc122dcf93750095cdf559625450` added ownership-binding checks: existing Zone IDs must belong to the supplied Store; existing Rate IDs must belong to the supplied Zone.
+- Restore-Test DB proof: foreign Zone mutation returned `FORBIDDEN`; foreign Rate mutation returned `FORBIDDEN`; valid updates on the Seller's own Zone/Rate continued to succeed.
+- Exact Vercel/CI proof should be recorded against the commit once its final gates complete; no Production change was made.
+
+### Current security audit result — Restore-Test
+- `velora_run_security_attack_surface_audit()` completed with: RLS core `13/13 PASS`; policy coverage `30 PASS`; pinned search_path `PASS`; SECURITY DEFINER posture `PASS`; public/anon RPC surface `WARN` because 22 RPCs are executable by anon, but the audit reported `unguarded_public_dml=0`.
+- This is a posture warning, not evidence to blanket-revoke SECURITY DEFINER functions. Existing actor/ownership checks remain the governing pattern.
+
 ### Security Advisor
 - Restore-Test Security Advisor still reports the previously known categories: RLS-enabled tables without policies, pg_net in public, 6 anon SECURITY DEFINER execute warnings, 202 authenticated SECURITY DEFINER execute warnings, and leaked-password protection disabled.
 - These are not being blanket-revoked because Velora deliberately uses SECURITY DEFINER RPCs with actor/ownership checks. No Production change was made.
@@ -40,18 +70,18 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 ### Next unresolved items
 1. Seller UI Browser proof — PENDING, blocked by absence of Seller credentials in the browser-gate harness. Do not fake this proof.
 2. Returns/Refunds — BLOCKED on business/legal commercial rules; existing backend remains audited and no new workflow should be invented.
-3. Support-case owner assignment — source + DB verified; Browser/operational proof PENDING only if a real existing fixture/UI path is identified.
-4. Continue Stage A reuse-first audit from the first reproducible gap. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
+3. Support-case operational/browser proof — PENDING only if a real existing customer UI/fixture path is identified; the backend insert and owner-field protections are now DB-verified.
+4. Finish CI/deployment evidence for the latest shipping-upsert commit `137ca721...`, then continue Stage A from the next reproducible gap. Do not reopen already-verified flows without new evidence. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-**Latest application source/runtime commit:** `5fe1df465d959585057643295afd05c94532d2c1` (`fix(auth): preserve signup redirect on active handler`).
+**Latest application/runtime/security commit:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`). The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `857d1cad5e5a958ff3234b65d1eb7fd54d9c5cde` (`test(browser): serialize shared authenticated e2e fixture`). The commits after `5fe1...` in this phase are test/documentation changes only; they do not change application runtime source.
+**Current branch HEAD:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`).
 
-**Latest deployed Preview:** Vercel deployment `dpl_AqktBmT8SfH2bfwuu8SuuTaECNhT`, READY, Git SHA `8c92169130321d6e1877bed54db3867120408d05`. The branch alias `velora-marketplace-git-audit-full-gate-c558d2-ahmedconccc-7063.vercel.app` currently resolves to that deployment. Commit review confirms `8c921...`, `a63a...`, and `857d...` are test-workflow-only commits, so the deployed application source still contains the latest application change `5fe1...`. **This is not an exact deployed-`857d` proof.**
+**Latest deployed Preview:** Vercel deployment `dpl_BfUuZuV1XdxUEeEoqhVmr6hK6CL5`, READY, exact Git SHA `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee`.
 
-## Latest authoritative gate state — 2026-09-27
+## Latest authoritative gate state — 2026-09-28
 
 ### CI — current branch HEAD `857d1cad...`
 - **Velora Local Source Browser Gate #34** — run `36350826053` — **SUCCESS**. This is exact checked-out source/runtime evidence on `857d...`.
@@ -60,6 +90,17 @@ Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on
 - **Velora Full Audit Gate #271** — run `36350826097` — **SUCCESS**.
   - Source + Security: **SUCCESS** — CodeQL, JavaScript syntax, static audit, script-manifest consistency, Semgrep, Gitleaks.
   - Dependency + Web Surface: **SUCCESS** — root/src dependency audits, Lighthouse, OWASP ZAP baseline.
+
+
+### 2026-09-28 batch gate status — exact commit `f8808...`
+- Local Source Browser Gate: **SUCCESS**.
+- Authenticated Browser Gate: **SUCCESS**.
+- Staff Launch Gate: **SUCCESS**.
+- Dependency + Web Surface: **SUCCESS**.
+- Source + Security: **SUCCESS**.
+- Vercel Preview Comments: **SUCCESS**.
+- Exact Preview: `dpl_BfUuZuV1XdxUEeEoqhVmr6hK6CL5`, READY, Git SHA `f8808...`.
+- Restore-Test contains the newly applied Store, Support Case, Transaction Message, and Shipping ownership guards. Production remains **FROZEN**.
 
 ### Shipping / tracking
 - Shipping customer lifecycle is now **Browser PASS** via authenticated Browser Gate #118 (run `36350031772`) using Restore-Test order #71 and shipment `230c342e-07bf-4856-a497-6c047916f01a`.
