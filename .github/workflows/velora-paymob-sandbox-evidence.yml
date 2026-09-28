@@ -394,13 +394,23 @@ jobs:
                           "is_capture": inquiry.get("is_capture"),
                           "is_captured": inquiry.get("is_captured"),
                       }
+                      evidence["checks"]["paymob_inquiry_pre_payment_expected_not_found"] = (
+                          inquiry_status == 404
+                          and inquiry.get("ok") is False
+                      )
                       if not (
-                          evidence["checks"]["paymob_inquiry_http_200"]
-                          and evidence["checks"]["paymob_inquiry_ok"]
-                          and evidence["checks"]["paymob_inquiry_provider_order_match"]
+                          (
+                              inquiry_status == 404
+                              and inquiry.get("ok") is False
+                          )
+                          or (
+                              evidence["checks"]["paymob_inquiry_http_200"]
+                              and evidence["checks"]["paymob_inquiry_ok"]
+                              and evidence["checks"]["paymob_inquiry_provider_order_match"]
+                          )
                       ):
                           evidence["failures"].append(
-                              f"Paymob Inquiry probe failed/correlation mismatch (http {inquiry_status})"
+                              f"Paymob pre-payment Inquiry unexpected result (http {inquiry_status})"
                           )
               except Exception as exc:
                   evidence["checks"]["inquiry_attempt_found"] = False
@@ -699,6 +709,13 @@ jobs:
               attempts = []
               webhooks = []
 
+              # After the customer has submitted the hosted checkout, the order may now
+              # have a real Paymob transaction even when the webhook has not reached us.
+              # Per Paymob's contract, Order-ID Inquiry is a fallback for an existing
+              # transaction; pre-payment 404 is expected and must not be treated as failure.
+              post_payment_inquiry = {}
+              post_payment_inquiry_done = False
+
               for _ in range(12):
                   req = urllib.request.Request(
                       f"{base}/rest/v1/payment_attempts?order_id=eq.{urllib.parse.quote(order['id'])}"
@@ -718,6 +735,37 @@ jobs:
                       ((latest_attempt or {}).get("metadata") or {}).get("paymob_order_id")
                       if latest_attempt else None
                   )
+
+                  if payment_action_started and latest_attempt and not post_payment_inquiry_done:
+                      try:
+                          inquiry_status, inquiry = http_json(
+                              "POST",
+                              f"{base}/functions/v1/velora-paymob-inquiry-restore-test",
+                              {"payment_attempt_id": latest_attempt["id"]},
+                              {
+                                  "apikey": publishable_key,
+                                  "Authorization": f"Bearer {access_token}",
+                              },
+                          )
+                          expected_paymob_order_id = str(paymob_order_id or "")
+                          provider_order_id = str(inquiry.get("provider_order_id_from_response") or "")
+                          post_payment_inquiry = {
+                              "http_status": inquiry_status,
+                              "ok": inquiry.get("ok"),
+                              "code": inquiry.get("code"),
+                              "paymob_order_id": inquiry.get("paymob_order_id"),
+                              "provider_order_id_from_response": inquiry.get("provider_order_id_from_response"),
+                              "provider_transaction_id": inquiry.get("provider_transaction_id"),
+                              "pending": inquiry.get("pending"),
+                              "success": inquiry.get("success"),
+                              "is_captured": inquiry.get("is_captured"),
+                              "provider_order_id_match": bool(expected_paymob_order_id) and provider_order_id == expected_paymob_order_id,
+                          }
+                          evidence["post_payment_inquiry"] = post_payment_inquiry
+                          post_payment_inquiry_done = True
+                      except Exception as exc:
+                          evidence["post_payment_inquiry"] = {"error": type(exc).__name__}
+                          post_payment_inquiry_done = True
 
                   webhook_query = (
                       f"{base}/rest/v1/provider_webhook_events?provider_code=eq.paymob"
