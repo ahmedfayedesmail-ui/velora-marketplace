@@ -2387,3 +2387,24 @@ REMAINING SECURITY QUEUE:
 - pg_net placement warning review (live dependency documented; no relocation yet)
 - final high-impact audit coverage where not already proven
 - final hosted Auth configuration
+
+### Continuation Financial Reconciliation Snapshot — 2026-09-28
+
+CLASSIFICATION: CURRENT DATA-QUALITY DRILL COMPLETED; NO LIVE FINANCIAL MISMATCH PROVEN
+
+OBSERVED FACT:
+- Current Restore-Test snapshot counts are: orders=16, order_items=20, payment_attempts=61, payments=14, commissions=18, ledger_entries=6, payouts=0, seller_payout_items=0.
+- A reconciliation query initially identified 1 captured payment attempt without a corresponding paid payment row and 2 paid orders without captured payment attempts.
+- The 2 paid orders without captured attempts are known test fixtures:
+  - Order #71 has customer note indicating fixture `shipping-browser-gate`.
+  - Order #100001 has customer note `BROWSER_E2E_PRECONDITION` and checkout reference `VELORA-PAYMOB-E2E-100001`.
+- The captured-attempt / missing-paid-payment-row case is Order #75, whose note and checkout reference identify it as the historical `PAYMOB_SANDBOX_EVIDENCE_FIXTURE` from Run 36473635960. Its payment row remains the old `velora_test_mode/test/pending` fixture while the canonical Paymob payment attempt captured and the order moved to paid. This is the previously documented fixture mismatch, not a newly discovered live checkout defect.
+- A separate current query found zero captured attempts whose parent order is not paid, zero commissions without an order item, and zero orphan ledger lines.
+- No data repair was performed. The fixture records were not silently mutated or deleted.
+
+INFERRED:
+- The current Restore-Test financial data does not provide evidence of a new live payment/order integrity defect.
+- The remaining reconciliation work is cross-system behavior and exception testing, not cleanup of historical QA fixtures.
+
+ACTION FLOW:
+Payment/order event -> canonical state check -> correlate attempt/order/payment row -> validate commission linkage -> validate ledger linkage -> classify fixture vs live anomaly -> do not mutate known fixtures -> escalate only for a genuine live mismatch.
