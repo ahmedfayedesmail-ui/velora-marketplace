@@ -26,6 +26,29 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - Exact Vercel Preview dpl_3ReLBMjvqvYSj9btYNhqY9ELvQJq is READY with Git SHA 3f32c629....
 - This hardening is DB/CI/deployment verified. It is not being called Seller UI Browser PASS.
 
+### Action-flow direction — ACTIVE ARCHITECTURE RULE
+- Velora should operate as an event-driven chain: **event → authorization/guard → state transition → automatic side effect → next event → audit/retry/dedupe**.
+- Owner/Admin are the **control plane**, not the normal execution plane. Human intervention remains only where a trust, legal, financial, approval, or irreversible exception genuinely requires it.
+- Existing verified automation already follows this model in key paths: order delivery schedules experience/replenishment jobs; shipment status emits customer notifications; payment failures create automation events/alerts; review submission notifies the Seller; notification lifecycle runs through an active scheduled runner.
+- Do not build a new universal orchestrator just to enforce this principle. Reuse the existing triggers, notification lifecycle jobs, automation_events/automation_alerts, workflow_cases, cron, and Edge Functions, and close only proven missing links.
+
+### Seller application result Action Flow — CLOSED at DB/runtime + CI/deployment level
+- **OBSERVED:** seller application approval/rejection previously relied on the Staff action itself and did not guarantee a canonical notification at the result boundary. The existing seller-status notification trigger only fires on UPDATE of `sellers.status`, while approval creates a Seller row directly as `approved`.
+- Commit `62d87648568fb57d515ac3d7adb1ae06ca1f315f` adds the existing notification call to the canonical seller-application review function for both approval and rejection. No new notification table, schema field, or delivery subsystem was introduced.
+- Restore-Test rollback-only runtime proof:
+  - Apply → Staff approve → `seller_approved` notification was created and readable through `velora_get_notifications()`.
+  - Apply → Staff reject → `seller_rejected` notification was created and readable through `velora_get_notifications()`.
+- Both flows used real Restore-Test users and were fully rolled back; no test application/seller/notification persisted.
+- Exact commit `62d876...`: Local Source Browser SUCCESS, Authenticated Browser SUCCESS, Staff Launch SUCCESS, Dependency + Web Surface SUCCESS, Source + Security SUCCESS, Vercel Preview Comments SUCCESS.
+- Exact Preview `dpl_3pJDvKqQg1qugSgWe2RoSitNs25t` is READY on Git SHA `62d876...`.
+- This is **DB/runtime + CI/deployment evidence**, not Seller UI Browser PASS.
+
+### Renewal Action Flow — EXISTING CHAIN, EXECUTION-SCHEDULER EVIDENCE PENDING
+- The renewal chain already exists: `velora_run_renewal_batch()` → renewal payment-attempt creation → provider executor → webhook → `velora_record_renewal_result()` → `velora_sync_subscription_state()`.
+- The Restore-Test orchestrator Edge Function is active and uses a scheduler token; the provider executor is also active and separately authorized.
+- The only unresolved technical evidence is the **recurring runner/scheduler that invokes the renewal orchestrator**. Restore-Test `pg_cron` currently shows the notification lifecycle job, but no renewal cron entry.
+- Do not create a new scheduler/cron job until the existing scheduler contract/secret source is positively identified. This is an **EVIDENCE GAP**, not yet a proven broken production flow.
+
 ### Current Seller status
 - Seller fixture: f7b4ea90-9470-4827-b9ae-23532765f021, user 2bf8c15d-543e-400d-83fa-50f28bb9beff, approved.
 - Restore-Test Free plan limit: 25 products; fixture currently has 5 products.
@@ -155,39 +178,34 @@ Production remains FROZEN. All engineering below was performed against audit/ful
 - The new Seller product guard was tested directly at DB level and is now part of the migration history.
 
 ### Next unresolved items
-1. Seller UI Browser proof — PENDING, blocked by absence of Seller credentials in the browser-gate harness. Do not fake this proof.
-2. Returns/Refunds — BLOCKED on business/legal commercial rules; existing backend remains audited and no new workflow should be invented.
-3. Support-case operational/browser proof — PENDING only if a real existing customer UI/fixture path is identified; the backend insert and owner-field protections are now DB-verified.
-4. Continue Stage A from the next reproducible gap. The latest branch-head CI is SUCCESS and the exact Preview is READY; no extra manual test is required before moving on. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
+1. Seller UI Browser proof — PENDING, blocked by absence of Seller-specific credentials in the browser-gate harness. Do not fake this proof.
+2. Renewal execution scheduling — PENDING evidence of an actual recurring runner for the active renewal orchestrator; do not invent a scheduler until its secret/contract source is verified.
+3. Returns/Refunds — BLOCKED on business/legal commercial rules; existing backend remains audited and no new workflow should be invented.
+4. Support-case operational/browser proof — PENDING only if a real existing customer UI/fixture path is identified; backend protections are DB-verified.
+5. Subscription regional pricing — OPEN CONTRACT QUESTION until the governed billing-country rule is explicit or independently server-bound.
+6. Account suspension semantics — OPEN POLICY/AUTHORIZATION GAP until Operations defines whether suspension blocks all Seller operations or only new activity.
+7. Privacy consent version governance — DEFERRED; do not invent a canonical version registry without policy.
+8. Continue Stage A from the next reproducible gap. Do not reopen already verified Product Detail, Related Products, Store Navigation, Shipping, Notifications, or cart architecture without new evidence.
 ## Where we are
 Stage A — Commerce Discovery / Hardening. Production is **FROZEN**. Work is on `audit/full-gate-2026-09-25` and Restore-Test only.
 
-**Latest application/runtime/security commit:** `f8808dbdcf940696b1e6ea5201cc1ae7c2b9d2ee` (`fix(security): bind transaction messages to order participants`). The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
+**Latest application/runtime/security commit:** `62d87648568fb57d515ac3d7adb1ae06ca1f315f` (`feat(action-flow): notify seller application result`).. The same branch also contains the Store, Support Case, and Shipping ownership hardening migrations documented above.
 
-**Current branch HEAD:** `60fbb018a7de8b1d84d789ea916b16c93ef2802b` (`test(paymob): run sandbox webhook evidence drill`).
+**Current branch HEAD:** `62d87648568fb57d515ac3d7adb1ae06ca1f315f` (`feat(action-flow): notify seller application result`)..
 
-**Latest deployed Preview:** pending exact latest deployment verification for commit `41c609...`; the prior exact deployment `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE` remains READY on `ca255...`.
+**Latest deployed Preview:** `dpl_3pJDvKqQg1qugSgWe2RoSitNs25t`, READY, exact Git SHA `62d87648568fb57d515ac3d7adb1ae06ca1f315f`.
 
 ## Latest authoritative gate state — 2026-09-28
 
-### CI — current branch HEAD `857d1cad...`
-- **Velora Local Source Browser Gate #34** — run `36350826053` — **SUCCESS**. This is exact checked-out source/runtime evidence on `857d...`.
-- **Velora Authenticated Browser Gate #124** — run `36350826137` — **SUCCESS**. The workflow is configured against the branch alias; because the alias currently resolves to deployed SHA `8c921...`, the run is browser evidence against the current deployed application source tree but **not exact-SHA `857d...` deployment evidence**.
-- **Velora Staff Launch Gate Audit #121** — run `36350826122` — **SUCCESS**. The audit RPCs succeeded, but the workflow's configured Preview URL/tested SHA are historical; treat this as launch-gate logic evidence, not current Preview-source proof.
-- **Velora Full Audit Gate #271** — run `36350826097` — **SUCCESS**.
-  - Source + Security: **SUCCESS** — CodeQL, JavaScript syntax, static audit, script-manifest consistency, Semgrep, Gitleaks.
-  - Dependency + Web Surface: **SUCCESS** — root/src dependency audits, Lighthouse, OWASP ZAP baseline.
-
-
-### 2026-09-28 batch gate status — exact commit `ca255...`
-- Local Source Browser Gate: **SUCCESS**.
-- Authenticated Browser Gate: **SUCCESS**.
-- Staff Launch Gate: **SUCCESS**.
-- Dependency + Web Surface: **SUCCESS**.
-- Source + Security: **SUCCESS**.
+### CI — exact commit `62d87648568fb57d515ac3d7adb1ae06ca1f315f`
+- Local Source Browser #39 — **SUCCESS**.
+- Authenticated Browser #129 — **SUCCESS**.
+- Staff Launch #126 — **SUCCESS**.
+- Full Audit #276 — **SUCCESS**.
+  - Source + Security: **SUCCESS**.
+  - Dependency + Web Surface: **SUCCESS**.
 - Vercel Preview Comments: **SUCCESS**.
-- Exact Preview: `dpl_J62ipaowraFNvKpAFZzSDKHZaRzE`, READY, Git SHA `ca255...`.
-- Restore-Test contains the newly applied Store, Support Case, Transaction Message, and Shipping ownership guards. Production remains **FROZEN**.
+- Exact Vercel Preview `dpl_3pJDvKqQg1qugSgWe2RoSitNs25t`: **READY**, exact Git SHA `62d876...`.
 
 ### Shipping / tracking
 - Shipping customer lifecycle is now **Browser PASS** via authenticated Browser Gate #118 (run `36350031772`) using Restore-Test order #71 and shipment `230c342e-07bf-4856-a497-6c047916f01a`.
