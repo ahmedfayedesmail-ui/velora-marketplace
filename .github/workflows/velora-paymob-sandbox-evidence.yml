@@ -324,6 +324,18 @@ jobs:
                   "code": checkout.get("code"),
                   "error": checkout.get("error"),
                   "provider_error": checkout.get("provider_error"),
+                  "paymob_intention_status": checkout.get("paymob_intention_status"),
+                  "paymob_payment_methods": [
+                      {
+                          "integration_id": m.get("integration_id"),
+                          "name": m.get("name"),
+                          "method_type": m.get("method_type"),
+                          "currency": m.get("currency"),
+                          "live": m.get("live"),
+                      }
+                      for m in (checkout.get("paymob_payment_methods") or [])
+                      if isinstance(m, dict)
+                  ],
               }
               if not checkout_url:
                   evidence["failures"].append(
