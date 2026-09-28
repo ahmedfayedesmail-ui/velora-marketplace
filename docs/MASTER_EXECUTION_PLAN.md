@@ -3032,3 +3032,46 @@ OPEN:
 1. COMPLETE MASTER HANDOFF — no dropped item and no silent supersession.
 2. RESEARCH / REUSE FIRST — existing Velora automation/auth and proven provider patterns are preferred before new implementation.
 3. ACTION FLOW IN PARALLEL — every new worker must close the complete event/state/audit/retry/recovery loop automatically, with human intervention limited to genuine exceptions.
+
+
+---
+
+# MESSAGE 12.10 — SECURITY ADVISOR SAMPLE CLASSIFICATION
+Recorded 2026-09-28.
+
+OBSERVED FACT:
+- The current Supabase Security Advisor still reports:
+  - 6 RLS-enabled tables without policies.
+  - pg_net installed in public schema.
+  - 7 anon-callable SECURITY DEFINER functions.
+  - 215 authenticated-callable SECURITY DEFINER functions.
+  - leaked-password protection disabled.
+- A targeted sample of the 7 anon-callable functions is read-oriented:
+  `velora_get_active_seller_ads`,
+  `velora_get_fx_rate`,
+  `velora_get_i18n_catalog`,
+  `velora_get_localized_content`,
+  `velora_get_marketplace_catalog`,
+  `velora_get_required_legal_documents`,
+  `velora_list_active_promotions`.
+- A targeted sample of write-capable SECURITY DEFINER functions is not anon-executable and contains staff/owner authorization checks:
+  `velora_admin_update_order_status`,
+  `velora_record_payout_execution`,
+  `velora_set_seller_status`,
+  `velora_set_store_status`,
+  `velora_update_automation_alert`,
+  `velora_upsert_legal_document`.
+- Therefore the advisor count is not being treated as proof that all 222 exposed SECURITY DEFINER functions are vulnerabilities.
+
+CLASSIFICATION:
+- Public read SECURITY DEFINER sample: INTENDED / KEEP UNDER REVIEW.
+- Privileged write sample: GUARDED / KEEP; no bulk revoke.
+- Remaining SECURITY DEFINER inventory: OPEN / requires function-by-function contract review, not mechanical remediation.
+- RLS no-policy findings: OPEN; determine whether tables are intentionally private/internal before changing policies.
+- pg_net-in-public: OPEN; do not move because existing cron/network behavior depends on it until a safe migration path is proven.
+- leaked-password protection: BLOCKED BY CURRENT SUPABASE FREE PLAN; Owner/plan action later.
+
+THREE MASTER GOVERNING CONDITIONS:
+1. COMPLETE MASTER HANDOFF.
+2. RESEARCH / REUSE FIRST.
+3. ACTION FLOW IN PARALLEL.
