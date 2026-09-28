@@ -2964,3 +2964,36 @@ RESTORE-TEST VERIFICATION:
 
 NO FURTHER SHIPPING ENGINE:
 - No duplicate shipment lifecycle, scheduler, carrier integration, or notification system was introduced.
+
+
+### Continuation Auditability Coverage Drill — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT CURRENT SOURCE/DB CONTRACT
+
+OBSERVED FACT:
+- High-impact marketplace events reviewed in the current Restore-Test contract now have one durable evidence path:
+  - seller application submission/review -> audit_logs
+  - product material edit/re-review/status -> audit_logs + existing notifications
+  - store/seller profile mutation -> audit_logs
+  - seller suspension/status -> governed RPC + existing audit/notification path
+  - order creation/status -> canonical order status history + existing order notifications/financial trigger
+  - payment-attempt state changes -> durable payment_attempts + payment automation + provider-session audit where applicable
+  - Paymob reconciliation/expiry -> reconciliation state + audit_logs + existing failed-payment compensation
+  - shipment creation/status/delivery proof -> audit_logs
+  - return request/resolution -> audit_logs
+  - seller subscription state -> audit_logs on actual state transition
+  - seller ad lifecycle transitions -> audit_logs + existing seller notifications
+  - payout request/execution -> payout audit + ledger evidence
+  - gift-card issue/redeem -> gift-card transaction ledger + audit
+  - promotion/coupon governance -> canonical audit/control paths
+  - legal governance -> owner/staff approval/audit path
+  - provider webhook -> provider_webhook_events durable record + canonical reconciliation
+  - workflow cases -> workflow_events durable event history.
+
+INFERRED:
+- The remaining functions that do not insert into audit_logs directly are not automatically audit gaps: some are read/snapshot helpers, low-level service-role primitives, or state changes already recorded by canonical table histories/events.
+- Adding blanket audit triggers or duplicate audit rows would increase noise and risk without improving evidence quality.
+
+DECISION:
+- Auditability is closed at the architecture/source/DB layer.
+- Keep Browser/provider/Production evidence as separate higher evidence levels; audit rows do not promote those gates to PASS.
