@@ -6,20 +6,20 @@ const source = fs.readFileSync(
   "utf8"
 );
 
-assert.match(
-  source,
-  /select\("id,description,ingredients,benefits,how_to_use,warnings,skin_types,concerns,seasonal_fit"\)/
-);
+assert.ok(source.includes('select("id,description,ingredients,benefits,how_to_use,warnings,skin_types,concerns,seasonal_fit")'));
 
-assert.match(source, /p\.description=p\.description\|\|""]/);
-assert.match(source, /p\.usage=p\.usage\|\|p\.how_to_use\|\|""/);
-assert.match(source, /p\.howToUse=p\.howToUse\|\|p\.how_to_use\|\|""/);
-assert.match(source, /p\.skinTypes=Array\.isArray\(p\.skin_types\)\?p\.skin_types\.slice\(\):\[\]/);
-assert.match(source, /p\.concerns=Array\.isArray\(p\.concerns\)\?p\.concerns\.slice\(\):\[\]/);
-assert.match(source, /p\.ingredients=Array\.isArray\(p\.ingredients\)\?p\.ingredients\.slice\(\):\[\]/);
-assert.match(source, /p\.benefits=Array\.isArray\(p\.benefits\)\?p\.benefits\.slice\(\):\[\]/);
-assert.match(source, /p\.warnings=typeof p\.warnings==="string"\?p\.warnings:""/);
-assert.match(source, /Benefits<\/h4>/);
-assert.match(source, /Warnings<\/h4>/);
+
+for (const token of [
+  'p.description=p.description||""',
+  'p.usage=p.usage||p.how_to_use||""',
+  'p.howToUse=p.howToUse||p.how_to_use||""',
+  'p.skinTypes=Array.isArray(p.skin_types)?p.skin_types.slice():[]',
+  'p.concerns=Array.isArray(p.concerns)?p.concerns.slice():[]',
+  'p.ingredients=Array.isArray(p.ingredients)?p.ingredients.slice():[]',
+  'p.benefits=Array.isArray(p.benefits)?p.benefits.slice():[]',
+  'p.warnings=typeof p.warnings==="string"?p.warnings:""',
+  'Benefits</h4>',
+  'Warnings</h4>'
+]) assert.ok(source.includes(token), token);
 
 console.log("Product Detail canonical contract tests: PASS");
