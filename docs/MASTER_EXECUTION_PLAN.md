@@ -6724,3 +6724,71 @@ CLASSIFICATION: EXECUTED — Promotion/Coupon cancellation recovery, Gift Card c
 - Gift Card broader expiry/refund/accounting/fraud/issuance-limit/browser/Production items remain open.
 - Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
 \n
+## 2026-09-29 — MESSAGE 9/24 EXECUTION / NOTIFICATIONS + PUSH RELIABILITY RECOVERY
+CLASSIFICATION: EXECUTED — Canonical Notifications/Push architecture and the crash-recoverable push-delivery claim/mark/unmark contract are CLOSED-DONE at L1-L4 for the current scope. Browser delivery, external push-provider delivery, and Production evidence remain OPEN / NOT EVIDENCED.
+
+### 20. NOTIFICATIONS / PUSH
+- Canonical notification tables are present: notifications, notification_lifecycle_jobs, notification_push_deliveries, push_subscriptions.
+- Current Restore-Test table state: notifications=48, notification_lifecycle_jobs=0, notification_push_deliveries=6, push_subscriptions=3.
+- All four notification/push tables are RLS-enabled.
+- Public notification UI remains src/scripts/55-s2e-notifications.js and reads canonical RPCs such as velora_get_notifications and velora_get_unread_notification_count; legacy localStorage notification data is not used as the source of truth.
+- Mobile Push remains src/scripts/68-s1-d-mobile-push.js, registering /sw.js and persisting subscriptions through velora_register_push_subscription / velora_unregister_push_subscription.
+- Service worker remains src/sw.js and handles push display plus notification click routing.
+- The lifecycle scheduler is active: cron job velora-notification-lifecycle runs every minute (* * * * *) and calls velora_process_notification_lifecycle(100).
+- notifications has one public AFTER INSERT trigger, trg_velora_notification_push_dispatch, calling private.velora_dispatch_notification_push().
+- The private dispatcher uses pg_net to invoke the single canonical Edge Function velora-dispatch-notification with the internal dispatch secret. It skips the manual push_test type. No second notification service was introduced.
+- Existing dispatcher/lifecycle architecture remains canonical; Message 9 did not create a parallel notification transport.
+
+### 21. NOTIFICATIONS HAD A REAL RELIABILITY GAP — NOW FIXED
+- Historical bug confirmed by the current corrective migration/commit lineage: claim could falsely establish delivery before actual Web Push send completed, so a worker crash between claim and send could make a delivery permanently look delivered and block retry.
+- Corrective migration is present in the current continuation branch: supabase/migrations/20260929070000_notification_push_delivery_recovery.sql.
+- Corrective commit: 840a039a51827ed882ac739c9e1c88c812b02496 (fix: make push delivery crash recoverable).
+- Current contract:
+  - notification_push_deliveries.delivered_at is nullable;
+  - claimed_at records the in-flight claim;
+  - a first claim inserts the row with claimed_at=now() and delivered_at=NULL;
+  - repeat claim returns false when the existing claim is fresh or already delivered;
+  - undelivered claims older than 5 minutes are reclaimable;
+  - velora_mark_push_delivery sets delivered_at only after the sender has actually completed its send path;
+  - velora_unmark_push_delivery only removes an undelivered in-flight row;
+  - claim/mark/unmark are revoked from anon and authenticated and executable only by service_role.
+- Existing stale 404/410 subscription cleanup remains part of the canonical push delivery path.
+- The 5-minute lease is explicitly an infrastructure recovery window; it is not a customer notification TTL and is not a product-level expiration policy.
+- Restore-Test transactional proof was re-run against an existing delivery pair inside BEGIN/ROLLBACK: first claim=true; second claim=false; delivered_at remained NULL after claim; mark=true; repeated mark=false; after setting a synthetic 6-minute stale claim inside the same transaction, reclaim=true; rollback restored the original persisted delivery state.
+- Post-rollback verification: notification_push_deliveries returned to 6 rows and 0 undelivered rows, confirming no persistent test mutation remained.
+- An initial attempt to manufacture a new push subscription fixture failed on the database FK because the selected public.users UUID was not valid for the referenced user identity; the attempt was contained and no persistent test data remained. The proof was then correctly rerun using an existing delivery pair.
+
+### MESSAGE 9 EVIDENCE BOUNDARY
+- L1 Source: canonical notification UI, mobile push client, service worker, corrective migration, and single pg_net dispatcher trigger/function verified.
+- L2 DB: Restore-Test tables, RLS state, active cron job, notification insert trigger, dispatcher function, and live delivery-row state verified against arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL: internal claim/mark/unmark execute only for service_role; anon/authenticated execution is false.
+- L4 Negative / transactional: crash-recovery proof executed within rollback; persisted post-test state confirmed unchanged. Initial invalid fixture attempt also left no persistent mutation.
+- L5 CI: no new CI run required because Message 9 records and verifies an already-landed reliability migration; no new application/schema change was created by this execution.
+- L6 Preview: no new deployment required; no new application source change was made by Message 9.
+- L7 Browser: NOT EVIDENCED for actual browser push receipt/click behavior.
+- L8 Provider: external Web Push provider delivery is NOT EVIDENCED; source/DB proof does not equal provider delivery proof.
+- L9 Production: untouched and frozen.
+
+### MESSAGE 9 NON-NEGOTIABLES RECONFIRMED
+- No second notification service.
+- No second push-delivery engine.
+- No new MutationObserver or arbitrary DOM workaround was introduced by Message 9.
+- Existing mobile-push DOM observer code remains existing source and was not modified/reintroduced by this message.
+- No Production mutation.
+- No Browser PASS inferred from source/SQL.
+- No provider delivery PASS inferred from transactional DB proof.
+- The 5-minute lease is recovery infrastructure, not notification TTL.
+- Canonical server notification/delivery state remains authoritative.
+
+### CARRY-FORWARD AFTER MESSAGE 9
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Commission cross-financial reconciliation remains open.
+- Payout external settlement/reconciliation/browser/Production remains open.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Browser/provider/Production Notification delivery evidence remains open.
