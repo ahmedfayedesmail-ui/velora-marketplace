@@ -189,6 +189,8 @@
             p.ingredients=Array.isArray(p.ingredients)?p.ingredients.slice():[];
             p.benefits=Array.isArray(p.benefits)?p.benefits.slice():[];
             p.warnings=typeof p.warnings==="string"?p.warnings:"";
+            var productIndex=MAHA_DATA.PRODUCTS.findIndex(function(item){return item&&item.id===productId;});
+            if(productIndex>=0)MAHA_DATA.PRODUCTS[productIndex]=p;
           }
         }catch(detailError){
           console.warn("Velora canonical product detail metadata:",detailError);
