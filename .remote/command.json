@@ -1,6 +1,6 @@
 {
-  "id": "bootstrap-2026-09-29T19:24:00+03:00",
-  "command": "git status --short --branch",
+  "id": "ai-proof-2026-09-29T19:27:00+03:00",
+  "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "bootstrap-check"
+  "purpose": "remote-exec-proof"
 }
