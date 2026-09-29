@@ -1,6 +1,7 @@
 name: Velora Customer Beauty AI Browser Gate
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - audit/runtime-parity-2026-09-28
@@ -201,3 +202,5 @@ jobs:
           name: customer-beauty-ai-browser-evidence
           path: customer-beauty-ai-browser-evidence.json
           retention-days: 7
+
+# Restore-Test routine wrapper is now verified as SECURITY DEFINER on the customer path.
