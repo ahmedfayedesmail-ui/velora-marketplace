@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: c32fc625d65554ce88857cdefd69020cd1f4fa35
+Current observed branch HEAD: fb911ad467b3323dda93bed42b536d9f473ea3eb
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3353,3 +3353,28 @@ RESTORE-TEST VERIFICATION:
 - Valid https tracking + delivery proof path succeeded transactionally: shipment reached delivered, one proof row existed, and delivery_proof_submitted audit was present; transaction rolled back.
 - Historical data scan found 0 bad tracking URLs, 0 bad proof URLs, and 0 bad product image URLs.
 - A literal javascript: test was correctly blocked by the tool's safety controls and was not sent to the database; the equivalent non-web scheme boundary was tested instead.
+
+
+### Continuation Promotion Recovery on Pre-Payment Cancellation — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW
+
+OBSERVED FACT:
+- A cancelled pending order can already have a platform promotion redemption and usage counter incremented.
+- Without a release path, cancellation would permanently consume a limited promotion usage slot.
+
+IMPLEMENTED:
+- Migration 20260929071000_release_promotion_on_order_cancellation.sql.
+- The existing velora_cancel_order flow now removes the matching promotion_redemptions row, decrements promotions.used_count with a floor of zero, records promotion_released_on_order_cancellation, and includes promotion_released in the cancellation audit/response.
+- No new promotion state, redemption engine, or schema was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Temporary promotion fixture started with used_count=1 and one redemption attached to Order #74.
+- Canonical customer cancellation produced:
+  order.status=cancelled,
+  order.payment_status=cancelled,
+  promotion_used_count=0,
+  redemption_count=0,
+  release_audit_count=1,
+  cancel_audit_count=1.
+- Entire transaction rolled back; no persistent promotion/order state changed.
