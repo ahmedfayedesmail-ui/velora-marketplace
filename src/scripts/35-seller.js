@@ -121,6 +121,58 @@ async function v39LoadSubscription(){
    host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Subscription unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
  }
 }
+async function v39LoadAds(){
+ const host=v39El('veloraSellerAds39'); if(!host)return;
+ host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading advertising…'))+'</div></div>';
+ try{
+  const r=await v39Rpc('velora_get_seller_ad_checkout_context');
+  if(r.error)throw r.error;
+  const d=r.data||{}, packages=Array.isArray(d.packages)?d.packages:[], products=Array.isArray(d.products)?d.products:[], campaigns=Array.isArray(d.campaigns)?d.campaigns:[], docs=Array.isArray(d.legal_documents)?d.legal_documents:[];
+  const legalReady=Boolean(d.legal_ready);
+  const packageOptions=packages.map(p=>'<option value="'+v39Esc(p.id)+'">'+v39Esc(p.name)+' — '+v39Esc(Number(p.price||0).toFixed(2))+' '+v39Esc(p.currency_code||d.currency_code||'EGP')+'</option>').join('');
+  const productOptions=products.map(p=>'<option value="'+v39Esc(p.id)+'">'+v39Esc((p.brand?p.brand+' · ':'')+p.name)+'</option>').join('');
+  const campaignRows=campaigns.length?campaigns.map(x=>'<div class="velora-seller39-card" style="padding:.75rem"><div style="display:flex;justify-content:space-between;gap:.7rem;flex-wrap:wrap"><strong>'+v39Esc(x.product_name||'Product')+'</strong><span class="velora-seller39-pill">'+v39Esc(x.status||'')+'</span></div><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(x.package_name||x.package_code||'')+' · '+v39Esc(x.placement||'')+(x.ends_at?' · '+v39Esc(new Date(x.ends_at).toLocaleString()):'')+'</div></div>').join(''):'<div class="velora-seller39-muted" style="margin-top:1rem">'+v39Esc(v39t('No sponsored placements yet.'))+'</div>';
+  host.innerHTML='<div class="velora-seller39-card">'+
+   '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">'+
+    '<div><div class="velora-seller39-muted">'+v39Esc(v39t('Seller Advertising'))+'</div><div style="font-size:1.2rem;font-weight:850;margin-top:.2rem">'+v39Esc(v39t('Promote an approved product'))+'</div></div>'+
+    '<span class="velora-seller39-pill">'+v39Esc(d.country_code||'EG')+' · '+v39Esc(d.currency_code||'EGP')+'</span>'+
+   '</div>'+
+   (products.length&&packages.length?'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.7rem;margin-top:1rem">'+
+     '<label><span class="velora-seller39-muted">'+v39Esc(v39t('Product'))+'</span><select id="v39AdProduct" class="form-input" style="margin-top:.3rem">'+productOptions+'</select></label>'+
+     '<label><span class="velora-seller39-muted">'+v39Esc(v39t('Package'))+'</span><select id="v39AdPackage" class="form-input" style="margin-top:.3rem">'+packageOptions+'</select></label>'+
+    '</div>'+
+    '<label style="display:flex;gap:.6rem;align-items:flex-start;margin-top:.8rem"><input id="v39AdConsent" type="checkbox" '+(legalReady?'':'disabled')+'><span>'+v39Esc(legalReady?v39t('I agree to the published seller agreement and acceptable-use terms for advertising.'):v39t('Advertising checkout is blocked until the required seller legal documents are published.'))+'</span></label>'+
+    '<button id="v39StartAd" class="velora-seller39-btn primary" style="margin-top:.8rem" '+(legalReady?'':'disabled')+'>'+v39Esc(v39t('Start secure advertising checkout'))+'</button>'+
+    '<div id="v39AdStatus" class="velora-seller39-muted" style="margin-top:.55rem">'+v39Esc(legalReady?v39t('Payment and activation are handled by the canonical server flow.'):v39t('Legal readiness required.'))+'</div>'
+    :'<div class="velora-seller39-muted" style="margin-top:1rem">'+v39Esc(v39t('No approved product or active advertising package is available.'))+'</div>')+
+   campaignRows+
+  '</div>';
+
+  v39El('v39StartAd')?.addEventListener('click',async()=>{
+   const b=v39El('v39StartAd'),s=v39El('v39AdStatus'),productEl=v39El('v39AdProduct'),packageEl=v39El('v39AdPackage'),consent=v39El('v39AdConsent'),client=window.supabaseClient||window.sb;
+   if(!b||!productEl||!packageEl||!legalReady)return;
+   if(!consent?.checked){if(s)s.textContent=v39t('Legal acceptance is required before advertising checkout.');return;}
+   b.disabled=true;if(s)s.textContent=v39t('Preparing secure advertising checkout…');
+   try{
+    for(const doc of docs){
+     const a=await client.rpc('velora_accept_legal_document',{p_document_id:doc.id,p_acceptance_method:'explicit_checkbox',p_context:{surface:'seller_advertising',product_id:productEl.value,ad_package_id:packageEl.value}});
+     if(a.error)throw a.error;
+    }
+    const fn=(window.mahaSupabase||client)?.functions;
+    if(!fn?.invoke)throw new Error('Payment session service unavailable');
+    const x=await fn.invoke('velora-seller-ad-paymob-checkout-restore-test',{body:{ad_package_id:packageEl.value,product_id:productEl.value,country_code:String(d.country_code||'EG').toUpperCase(),idempotency_key:'VELORA-AD-'+packageEl.value+'-'+productEl.value+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,9),return_url:window.location.href}});
+    if(x.error)throw x.error;
+    const data=x.data||{};
+    if(data.checkout_url){window.location.assign(data.checkout_url);return;}
+    if(String(data.status||'').toUpperCase()==='ALREADY_ACTIVE'){if(s)s.textContent=v39t('This placement is already active.');b.disabled=false;return;}
+    throw new Error(data.code||data.error||'SELLER_AD_CHECKOUT_UNAVAILABLE');
+   }catch(e){if(s)s.textContent=v39t('Advertising checkout unavailable')+': '+(e.message||e);b.disabled=false;}
+  });
+ }catch(e){
+  host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Seller advertising unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(e.message||e)+'</div></div>';
+ }
+}
+
 async function v39Load(){
  const host=v39El('veloraSellerOps39'); if(!host)return;
  host.innerHTML='<div class="velora-seller39"><div class="velora-seller39-card">Loading seller operations…</div></div>';
@@ -138,13 +190,15 @@ async function v39Load(){
  </div>
  <div id="veloraSellerSubscription39" style="margin-top:12px"></div>
  <div id="veloraSellerPayout39" style="margin-top:12px"></div>
+ <div id="veloraSellerAds39" style="margin-top:12px"></div>
  <div class="velora-seller39-card" style="margin-top:12px"><div class="velora-seller39-muted">Estimated seller earnings</div><div class="velora-seller39-kpi">${Number(d.estimated_earnings||0).toLocaleString()}</div><div class="velora-seller39-muted" style="margin-top:6px">Operational estimate from canonical order items; not a payout settlement.</div>
  <div class="velora-seller39-actions"><button class="velora-seller39-btn primary" id="v39Snapshot">Capture operations snapshot</button><button class="velora-seller39-btn" id="v39Refresh">Refresh</button></div></div>
  </div>`;
  v39El('v39Snapshot')?.addEventListener('click',async()=>{const x=await v39Rpc('velora_capture_seller_ops_snapshot'); if(x.error) alert(x.error.message||'Snapshot failed'); else {alert('Operations snapshot captured');v39Load()}});
- v39El('v39Refresh')?.addEventListener('click',()=>{v39Load();v39LoadSubscription()});
+ v39El('v39Refresh')?.addEventListener('click',()=>{v39Load();v39LoadSubscription();v39LoadAds()});
  v39LoadSubscription();
  v39LoadPayouts();
+ v39LoadAds();
 }
 function v39Install(){
  let admin=document.querySelector('[data-page="seller-operations"],#page-seller-operations,#page-seller');
