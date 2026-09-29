@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: fbf076fab5e07fde2fb25de62cbb9a5031fa03a7
+Current observed branch HEAD: 34f20b1d67ac9080ebdd15ca81314548086c091a
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3434,3 +3434,18 @@ OBSERVED FACT:
 DECISION:
 - Seller onboarding Action Flow is closed at source/DB/audit level.
 - A no-op governed save currently still produces an audit row; this is audit noise, not a correctness/security gap, and no speculative refactor is justified.
+
+
+### Continuation Seller Commerce Settings Auditability — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT
+
+OBSERVED FACT:
+- The current branch contains migration 20260929100000_audit_seller_commerce_settings.sql for Seller commerce settings.
+- velora_set_store_currency, velora_upsert_store_shipping_zone, velora_upsert_store_shipping_rate, and velora_upsert_store_translation all preserve existing owner/Staff authorization and write explicit audit evidence for their mutations.
+- The current Restore-Test DB confirms velora_upsert_store_shipping_zone has the intended p_is_active DEFAULT true, preserving existing call compatibility.
+- Commit 34f20b1d67ac9080ebdd15ca81314548086c091a changes only that default declaration; it does not change authorization or business behavior.
+
+DECISION:
+- Seller commerce settings auditability is closed at source/DB contract level.
+- Browser/provider evidence remains part of the aggregate/final readiness gates and is not implied by this source/DB verification.
