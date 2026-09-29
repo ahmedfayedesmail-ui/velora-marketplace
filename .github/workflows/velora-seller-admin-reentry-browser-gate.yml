@@ -135,10 +135,10 @@ jobs:
                   "options": {"redirect_to": PREVIEW + "/#home"},
               }
               result = api("/auth/v1/admin/generate_link", method="POST", payload=payload)
-              link = str(result.get("action_link") or "")
-              if not link:
-                  raise RuntimeError("Magic link was not returned for " + email)
-              return link
+              token_hash = str(result.get("hashed_token") or "")
+              if not token_hash:
+                  raise RuntimeError("Magic-link token was not returned for " + email)
+              return token_hash
 
           def run_role(page, label, user_id, platform, expected_text):
               role = evidence["roles"].setdefault(label, {"user_id_present": bool(user_id)})
@@ -148,8 +148,23 @@ jobs:
               page.goto(PREVIEW + "/#home", wait_until="domcontentloaded", timeout=60000)
               role["http_status"] = 200
 
-              page.goto(magic_link(email), wait_until="domcontentloaded", timeout=60000)
-              page.wait_for_timeout(3000)
+              token_hash = magic_link(email)
+              page.goto(PREVIEW + "/#home", wait_until="domcontentloaded", timeout=60000)
+              page.wait_for_timeout(1200)
+
+              verify = page.evaluate(
+                  """async (tokenHash) => {
+                    try {
+                      const r = await window.mahaSupabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+                      return { ok: !!r?.data?.session?.user, id: r?.data?.session?.user?.id || null, error: r?.error?.message || null };
+                    } catch (e) {
+                      return { ok: false, id: null, error: String(e?.message || e) };
+                    }
+                  }""",
+                  token_hash
+              )
+              role["magic_link_verify_ok"] = bool(verify.get("ok"))
+              page.wait_for_timeout(1500)
 
               session = page.evaluate("""
                 async () => {
@@ -243,6 +258,7 @@ jobs:
               r = evidence["roles"][label]
               expected = [
                   "email_present",
+                  "magic_link_verify_ok",
                   "authenticated_session",
                   "authenticated_user_match",
                   "first_open_active",
