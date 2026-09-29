@@ -8,6 +8,7 @@ on:
       - ".github/workflows/velora-customer-beauty-ai-browser-gate.yml"
       - "src/scripts/61-s1-c-quiz-v2.js"
       - "src/scripts/72-s1-e-customer-beauty-ai.js"
+      - ".remote/command.json"
 
 permissions:
   contents: read
