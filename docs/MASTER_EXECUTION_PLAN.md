@@ -6864,3 +6864,78 @@ CLASSIFICATION: EXECUTED — Beauty Passport V2 first-class platform track and e
 - Product Detail canonical contract audit remains open.
 - Shipping visual-vs-canonical discrepancy remains open.
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
+## 2026-09-29 — MESSAGE 11/24 EXECUTION / BEAUTY RECOMMENDATION ENGINE + CUSTOMER UX SURFACE
+CLASSIFICATION: EXECUTED — Canonical Beauty Recommendation V2 backend is CLOSED-DONE at L1-L4. The handoff statement that Customer Recommendation UX was not present is stale relative to the current continuation branch: the intended Home presentation already exists in src/scripts/59-s1-b2-beauty-recommendations.js and is mounted by the current index surface. No new Recommendation UI was blindly created. Browser runtime proof remains OPEN.
+
+### 26. BEAUTY RECOMMENDATION ENGINE
+- Canonical public RPC: velora_get_beauty_recommendations().
+- Public wrapper current ACL: anon=false, authenticated=true, service_role=true. The wrapper is SECURITY DEFINER and explicitly rejects unauthenticated calls with AUTH_REQUIRED before invoking the private operation.
+- Private intelligence operation: private.velora_beauty_recommendation_operation_v2(). Direct client execution is not granted; the public wrapper is the customer API boundary.
+- Current backend contract requires V2 Passport values (skin_type, goal, routine_budget), market scope EG, currency EGP, and contract_version beauty-recommendation.v2.
+- The input snapshot/fingerprint includes the V2 Passport inputs plus an approved-feedback revision. The current private function implementation searches for an identical fingerprint/ruleset/catalog revision within 24 hours before creating a fresh run.
+- Rate limiting is enforced in the private operation at 5 recommendation calls per user within 10 minutes; stale rate-event records older than 10 minutes are cleaned before the current-window count is checked.
+- Eligible catalog candidates require approved product status, EGP currency, Beauty category, positive current availability (base stock > 0 or an active stocked variant), budget fit, and a non-negative approved-feedback signal.
+- Product-state rule is current-state authoritative: inactive/rejected/unavailable products are excluded; a base product with zero stock can remain eligible when a stocked active variant exists.
+- Result selection is deterministic and capped at 5 products after best-per-product variant selection.
+- Existing canonical recommendation run/item recording remains in beauty_recommendation_runs and beauty_recommendation_items.
+- Current persisted Restore-Test state is beauty_recommendation_runs=0 and beauty_recommendation_items=0; the runtime probes were rolled back and left no synthetic recommendation fixture.
+
+### 26. ACL FIX + RUNTIME PROBE
+- Corrective migration verified in branch: supabase/migrations/20260928151000_fix_beauty_recommendation_v2_public_wrapper_acl.sql.
+- Corrective commit: 71877779d573b016d23c6729d875844416e61ab2.
+- Restore-Test authenticated transactional probe succeeded through the public wrapper using a V2 profile: status=success, contract_version=beauty-recommendation.v2, exactly 5 recommendations, and a non-cached run carrying a 24-hour cache expiry. The transaction was rolled back.
+- A repeated identical-input call inside the same transaction reused the existing run/cache path; only one recommendation run existed in the transaction, confirming identical-input reuse rather than duplicate run creation.
+- Direct unauthenticated execution of the public V2 recommendation wrapper remains fail-closed via AUTH_REQUIRED.
+
+### 27. CUSTOMER RECOMMENDATION UX — SURFACE CHECK CORRECTION
+- The handoff assertion 'src/scripts/59-s1-b2-beauty-recommendations.js is only a client RPC/API wrapper' is no longer accurate on the current continuation branch.
+- Current src/scripts/59-s1-b2-beauty-recommendations.js contains both the canonical RPC call and a mounted presentation layer: section rendering, localized product cards, reason-code labels, image/price presentation, product-detail/cart actions, incomplete/no-match states, and lifecycle hooks.
+- Current src/index.html contains the intended Home presentation surface `veloraBeautyRecommendationsSection` with `veloraBeautyRecommendationsGrid` and `veloraBeautyRecommendationsStatus`, and loads src/scripts/59-s1-b2-beauty-recommendations.js.
+- The recommendation script calls init() on load, checks Home visibility and authenticated session, renders the canonical response, refreshes on Passport V2 updates and feedback updates, and reacts to hash navigation.
+- Therefore the correct current classification is: Customer Recommendation UX is PRESENT at Source level (L1), but NOT EVIDENCED at Browser level (L7).
+- No new recommendation UI was created because the genuine gap described by the handoff was not present in the current branch. This preserves the no-duplicate-engine rule and follows the required sequence: find intended surface -> research/compare current prior art -> verify actual gap -> reuse/adapt -> build only when genuinely missing.
+- A minor source hygiene issue is visible in 59-s1-b2-beauty-recommendations.js: getRecommendations() is declared twice with the same implementation. It does not create a second recommendation engine and was not changed in Message 11 because it is not required to close the stated product gap. Keep as a low-risk code-hygiene follow-up unless a later source-hardening pass justifies removing the duplicate declaration.
+
+### 28. PRODUCT STATE x BEAUTY
+- The canonical Recommendation and Routine eligibility model is current-state based, not historical-memory based.
+- Recommendation eligibility requires approved product state, EGP, positive availability, and budget fit.
+- Current-state availability supports stocked active variants even when base product stock is zero; base stock zero with no stocked active variant is excluded.
+- No future AI/Recommendation layer may bypass approval, inventory, currency, budget, or current availability guards.
+
+### MESSAGE 11 EVIDENCE BOUNDARY
+- L1 Source: canonical wrapper, private V2 engine contract, ACL migration, current Recommendation presentation layer, Home mounting surface, and current script inventory verified.
+- L2 DB: live function privileges, current private-engine source characteristics, V2 profile inputs, recommendation table state, and persisted run/item counts verified against arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL: authenticated-only public wrapper, non-client private operation, V2 Passport preconditions, and current-state product eligibility rules verified.
+- L4 Negative / transactional: unauthenticated wrapper failed closed; authenticated transactional probe returned success with 5 recommendations; identical-input repeated call reused one run; all test mutations rolled back.
+- L5 CI: no new CI run required because Message 11 introduced no application/schema change.
+- L6 Preview: no new deployment required because no source change was justified by the verified state.
+- L7 Browser: NOT EVIDENCED for the complete customer recommendation journey, including visual mounting, product actions, cache presentation, and feedback-driven refresh.
+- L8 Provider: not applicable to the Recommendation engine itself.
+- L9 Production: untouched and frozen.
+
+### MESSAGE 11 NON-NEGOTIABLES RECONFIRMED
+- Backend Recommendation remains the single canonical V2 engine.
+- No new Recommendation engine.
+- No new recommendation UI was built over an already-existing current surface.
+- No AI bypass of approval, inventory, currency, budget, or current availability.
+- No V1 Passport dependency.
+- No new MutationObserver.
+- No speculative schema or fields.
+- Browser PASS is not inferred from L1-L4.
+- Production remains untouched.
+
+### CARRY-FORWARD AFTER MESSAGE 11
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Message 9 notification Browser/provider/Production delivery evidence remains open.
+- Message 10 Passport Browser journey evidence remains open.
+- Commission cross-financial reconciliation remains open.
+- Payout external settlement/reconciliation/browser/Production remains open.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation Browser verification remains open; the backend itself is closed at L1-L4.
+- Duplicate getRecommendations() declaration in src/scripts/59-s1-b2-beauty-recommendations.js remains low-risk source hygiene unless later remediation is justified.
