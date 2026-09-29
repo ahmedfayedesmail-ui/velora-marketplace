@@ -6383,3 +6383,83 @@ EVENT → AUTH/ROLE → GUARD → VALIDATION → CANONICAL STATE TRANSITION → 
 
 ### Carry-forward
 The ledger now contains the live-versus-historical distinction so future Messages do not accidentally build or verify against `40f237...` as though it were the current branch tip. Any new implementation change must target the actual branch HEAD and then obtain its own exact evidence chain; no unnecessary redeploy or architecture rewrite is implied by this reconciliation.
+
+
+## 2026-09-29 — MESSAGE 5/24 EXECUTION / CORE MARKETPLACE + SELLER FOUNDATION
+**CLASSIFICATION:** CLOSED-DONE at Source / DB / Contract / Transactional evidence; Browser remains part of the aggregate Browser Gate.
+
+### Core Marketplace / Product Foundation
+- Canonical foundation was re-verified against Restore-Test `arlaxqmhtvjwjbjinjfw`.
+- Core canonical objects currently present include: `users`, `sellers`, `stores`, `products`, `product_variants`, `carts`, `cart_items`, `orders`, `order_items`, `payment_attempts`, `payments`, `shipments`, `audit_logs`, `velora_i18n_*`, marketplace/catalog tables, and related governed domains.
+- Beauty foundation remains on the existing canonical Beauty-domain objects; no alternate customer or seller persistence model was introduced by this Message.
+- Server-side state remains authoritative. Legacy frontend representations remain compatibility projections only.
+- No rewrite of Cart, Checkout, or the marketplace state model was performed.
+
+### Seller Status / Lifecycle Governance
+- Canonical Seller status writer remains `velora_set_seller_status(uuid,text,text)`.
+- The live RPC requires authenticated staff access and rejects invalid lifecycle values; its server-side transition synchronizes owned Store status and writes audit evidence.
+- Seller self-service status transition is not an allowed operational path.
+- Restore-Test RLS is enabled on `sellers`; there are no seller UPDATE/INSERT/DELETE policies for ordinary authenticated users, while the mutation trigger `private.velora_guard_seller_mutation()` adds a second server-side protection boundary.
+- Existing notification trigger `private.velora_notify_seller_status()` emits the re-review/approved/rejected notification for real Seller status transitions.
+- Broad raw table grants exist at the PostgreSQL privilege layer, but the exposed `sellers`/onboarding tables do not have ordinary user write policies, so the Data API write path remains denied by RLS. No privilege/schema change was introduced because the actual row-level contract is already protected.
+
+### Seller Post-Approval Re-Review
+- Material fields are enforced by the canonical profile writer/guard: store name, store slug, description, logo URL, category, and product type.
+- Phone is operational-only and does not trigger the re-review lifecycle.
+- Live guard behavior automatically changes an approved/rejected Seller to `pending` when an owned material field changes, and the Store projection is synchronized to `pending`.
+- Re-review notification and audit are part of the same canonical transition path.
+- Legacy Store Profile entry point `velora_update_owned_store_profile()` delegates into `velora_update_seller_profile()`, preventing a compatibility path from bypassing the canonical review contract.
+- Transactional Restore-Test probe (rolled back):
+  - phone-only edit returned `review_required=false`, Seller remained `approved`, Store remained `approved`;
+  - material Store-name edit returned `review_required=true` and the Seller/Store transition converged to `pending`;
+  - subsequent test changes were rolled back and baseline Seller/Store remained `approved`.
+- Existing historical migrations/commits for this policy are retained as supporting evidence; no duplicate lifecycle or new status enum was introduced.
+
+### Seller Dashboard Re-Entry
+- Current `src/scripts/63-platform-router.js` contains the route-aware close contract and explicitly assigns:
+  `window.VELORA_CLOSE_SELLER = window.closeSellerPlatform`.
+- The router tracks marketplace return targets through `currentMarketplaceHash()`; direct platform hashes such as `#seller` are not treated as the marketplace return destination.
+- Seller close/open behavior remains SPA-route based; no full document reload is introduced by the route controller.
+- The aggregate Browser workflow explicitly tests: seller open -> `#seller` -> canonical close -> marketplace route -> re-entry -> Seller visible -> Back/Forward -> same document marker -> canonical alias equality.
+- Source-level route contract is VERIFIED; Browser execution remains deferred to the single aggregate Browser Gate.
+- No MutationObserver or arbitrary click-listener workaround was added.
+
+### Seller Onboarding
+- Canonical UI control plane: `src/scripts/69-s1-d-seller-onboarding.js`.
+- Canonical mutation: `velora_upsert_seller_onboarding_case(...)`.
+- Live RPC requires authenticated staff and locks the onboarding row with `FOR UPDATE`.
+- Lifecycle validation covers application, identity, authenticity, catalog, SLA, and pilot statuses plus contact channel, evidence JSON shape, review-note/rejection length, and review/activation/rejection timestamps.
+- Each governed update writes `seller_onboarding_case_updated` audit evidence containing before/after lifecycle state.
+- Beta-ready logic is deterministic and requires application approved, identity verified, catalog approved, SLA accepted, pilot active/passed, authenticity verified/not_required, plus required contact fields.
+- Current Restore-Test contains one onboarding case fixture; it is not used as persistent proof of a successful browser journey.
+- Historical transactional Admin verification was rolled back; no QA mutation is required for Message 5.
+
+### Evidence / Release Boundary
+- L1 Source: Seller router/onboarding source and canonical profile/status contracts verified.
+- L2 DB: canonical Seller, Store, onboarding, commerce, shipping, audit and product foundations verified in Restore-Test.
+- L3 Contract / ACL / RLS: staff-only Seller status/onboarding writes and ordinary-user RLS boundaries verified.
+- L4 Negative / Transactional: Seller status negative path and profile re-review positive/negative probes executed with rollback.
+- L5 CI: no new CI requirement introduced by this documentation/verification closure.
+- L6 Preview: only exact-commit deployments may be used; current-head Preview remains constrained by the existing Vercel build-rate-limit condition.
+- L7 Browser: NOT CLAIMED by this Message; the aggregate Browser Gate remains authoritative.
+- L8 Provider: not part of Message 5 scope.
+- L9 Production: untouched/frozen.
+
+### Action Flow
+Seller lifecycle remains:
+EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> STORE/NOTIFICATION/AUDIT SIDE EFFECTS -> RETRY/IDEMPOTENCY/DEDUPE where applicable -> NEXT REVIEW EVENT -> RECOVERY/ESCALATION only for governed exceptions.
+
+### Non-Negotiables — Re-confirmed
+- No Cart rewrite.
+- No new MutationObserver.
+- No arbitrary click handler workaround.
+- No speculative schema/fields.
+- No Production mutation.
+- No V1 Beauty Passport resurrection.
+- No duplicate Seller lifecycle/review engine.
+- No Browser PASS inferred from source or SQL.
+- No Provider/Production PASS inferred from Restore-Test.
+
+### Carry-forward
+- Seller Browser behavior remains an aggregate-gate item.
+- Any future Seller change must preserve the canonical status/re-review/onboarding paths and must re-verify exact current HEAD before implementation.
