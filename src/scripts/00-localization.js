@@ -4182,6 +4182,62 @@ window.addEventListener('scroll', () => {
    ============================================ */
 
 let __mahaAuthListenerRegistered = false;
+let __mahaAuthProfileBootstrap = null;
+
+async function loadOrBootstrapAuthProfile(authUser) {
+    if (!authUser || !authUser.id || !window.mahaSupabase) return null;
+
+    const uid = String(authUser.id);
+
+    if (__mahaAuthProfileBootstrap && __mahaAuthProfileBootstrap.uid === uid) {
+        return __mahaAuthProfileBootstrap.promise;
+    }
+
+    const promise = (async () => {
+        const [legacyResult, canonicalResult] = await Promise.all([
+            window.mahaSupabase
+                .from('users')
+                .select('id, name, email, phone, role')
+                .eq('id', uid)
+                .maybeSingle(),
+            window.mahaSupabase
+                .from('profiles')
+                .select('id')
+                .eq('id', uid)
+                .maybeSingle()
+        ]);
+
+        if (legacyResult.error) throw legacyResult.error;
+        if (canonicalResult.error) throw canonicalResult.error;
+
+        let profile = legacyResult.data || null;
+
+        // Email-confirmation can establish a Supabase session before Velora's
+        // public profile exists. Bootstrap the governed profile pair exactly
+        // once for the authenticated user, then continue the normal session
+        // hydration path.
+        if (!profile || !canonicalResult.data) {
+            const { data, error } = await window.mahaSupabase.rpc('velora_ensure_own_profile', {
+                p_name: authUser.user_metadata?.name || authUser.email || null,
+                p_phone: authUser.user_metadata?.phone || null
+            });
+            if (error) throw error;
+            profile = data || profile;
+        }
+
+        return profile;
+    })();
+
+    __mahaAuthProfileBootstrap = { uid, promise };
+
+    try {
+        return await promise;
+    } finally {
+        if (__mahaAuthProfileBootstrap?.promise === promise) {
+            __mahaAuthProfileBootstrap = null;
+        }
+    }
+}
 
 async function initializeSupabaseAuth() {
     if (!window.mahaSupabase || !window.mahaSupabase.auth) {
@@ -4217,23 +4273,18 @@ async function initializeSupabaseAuth() {
 
         let profile = null;
         try {
-            const { data: profileData, error: profileError } = await window.mahaSupabase
-                .from('users')
-                .select('id, name, email, phone, role')
-                .eq('id', authUser.id)
-                .single();
+            profile = await loadOrBootstrapAuthProfile(authUser);
 
-            if (profileError || !profileData) {
-                console.error('❌ Could not load profile from public.users:', profileError);
+            if (!profile) {
+                console.error('❌ Could not load or bootstrap Velora profile for authenticated user.');
                 STATE.user = null;
                 try { localStorage.removeItem(KEYS.USER); } catch (e) {}
                 updateAccountButton();
                 registerAuthListenerOnce();
                 return;
             }
-            profile = profileData;
         } catch (e) {
-            console.error('❌ Profile load exception:', e);
+            console.error('❌ Profile bootstrap/load exception:', e);
             STATE.user = null;
             try { localStorage.removeItem(KEYS.USER); } catch (e2) {}
             updateAccountButton();
@@ -4324,22 +4375,17 @@ function registerAuthListenerOnce() {
 
                     let profile = null;
                     try {
-                        const { data: profileData } = await window.mahaSupabase
-                            .from('users')
-                            .select('id, name, email, phone, role')
-                            .eq('id', authUser.id)
-                            .single();
-                        profile = profileData || null;
+                        profile = await loadOrBootstrapAuthProfile(authUser);
                     } catch (e) {
+                        console.error('❌ Supabase auth listener: profile bootstrap/load failed:', e);
                         profile = null;
                     }
 
                     if (!profile) {
-                        // Do not clobber a valid login state because this async listener
-                        // lost a race with the explicit login/profile-loading flow.
-                        // The login handler already validates profile access and owns
-                        // the user-facing failure path.
-                        console.warn('⚠️ Supabase auth listener: profile unavailable; preserving current STATE.user.');
+                        // An authenticated session must not remain half-initialized.
+                        // This path can occur immediately after email confirmation,
+                        // before the public Velora profile has been created.
+                        console.warn('⚠️ Supabase auth listener: profile unavailable after bootstrap attempt.');
                         return;
                     }
 
