@@ -5,7 +5,8 @@
   "description": "Velora Global Marketplace source-of-truth rebuild from RC9",
   "scripts": {
     "serve": "python3 -m http.server 4173 -d src",
-    "check": "python3 tools/static_audit.py"
+    "check": "python3 tools/static_audit.py",
+    "test:beauty-ai": "node tests/customer-beauty-ai-contract.test.mjs"
   },
   "dependencies": {
     "web-push": "^3.6.7"

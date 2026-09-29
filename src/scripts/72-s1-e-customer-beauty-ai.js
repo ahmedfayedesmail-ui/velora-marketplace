@@ -244,21 +244,30 @@
       renderFallback(t('The routine flow is still loading. Please use the 3 questions.','مسار الروتين لسه بيحمّل. استخدمي الـ3 أسئلة.'));
       return;
     }
+    closeModal();
     try {
       await api.saveAnswersAndBuild({
         skin_type:candidate.skin_type,
         goal:candidate.goal,
         routine_budget:candidate.routine_budget
       });
-      const modal=document.getElementById(ROOT_ID);
-      if(modal) modal.classList.remove('active');
     } catch (error) {
       console.error('[Velora Beauty AI] confirm failed', error);
+      open();
       renderFallback(t('We could not apply those answers. Please use the 3 questions instead.','مقدرتش نطبّق الإجابات دي. استخدمي الـ3 أسئلة بدل كده.'));
     }
   }
 
+  function closeModal() {
+    const modal=document.getElementById(ROOT_ID);
+    if(modal) {
+      modal.classList.remove('active');
+      document.body.style.overflow='';
+    }
+  }
+
   function openManualQuiz() {
+    closeModal();
     const api=window.veloraBeautyPassportV2;
     if (api && typeof api.open === 'function') {
       api.open().catch(function(error){console.warn('[Velora Beauty AI] manual quiz failed',error);});
@@ -283,7 +292,13 @@
 
   function installEntry() {
     const host=document.querySelector('.hero-buttons');
-    if (!host || document.getElementById('veloraBeautyAiEntry')) return;
+    if (!host) return;
+    const existing=document.getElementById('veloraBeautyAiEntry');
+    if (existing) {
+      existing.textContent=t('Describe it your way','احكي بطريقتك');
+      existing.setAttribute('aria-label',t('Describe your beauty routine needs in your own words','احكي احتياجات روتينك بطريقتك'));
+      return;
+    }
     const button=document.createElement('button');
     button.id='veloraBeautyAiEntry';
     button.className='btn btn-outline btn-lg';
