@@ -10160,3 +10160,168 @@ STATUS:
 NEXT ORDERED WORK:
 - Keep advertising accounting open until commercial/tax contract is approved.
 - Continue to the next ordered OPEN dependency in the Master.
+## 2026-09-29 — MESSAGE 29/24 EXECUTION / PRODUCTION INFRASTRUCTURE + BACKUP/ROLLBACK GATE
+
+CLASSIFICATION:
+- Message 29 continues the ordered Production Infrastructure workstream.
+- Current Restore-Test and Production Supabase project health, organization plan, DR-control tables, and Vercel deployment inventory were rechecked.
+- Current platform capabilities were verified against current official Supabase and Vercel documentation.
+- No Production mutation, plan change, schema change, backup operation, restore operation, or deployment promotion was performed.
+
+### 113. CURRENT INFRASTRUCTURE STATE — VERIFIED
+
+SUPABASE:
+- Restore-Test project arlaxqmhtvjwjbjinjfw is ACTIVE_HEALTHY, Postgres 17.6.1.166 / PostgreSQL 17, region eu-central-1.
+- Production project cogplqokzxqaedvjxbwu is ACTIVE_HEALTHY, Postgres 17.6.1.166 / PostgreSQL 17, region eu-central-1.
+- The shared Supabase organization is currently on the FREE plan.
+- Restore-Test counts rechecked: dr_recovery_runs=0, dr_recovery_checkpoints=0, platform_cutover_gates=0, platform_release_blueprints=1.
+- Therefore there is a release blueprint/control object, but there is no executed DR recovery run or checkpoint evidence.
+
+SUPABASE BACKUP CAPABILITY:
+- Current official Supabase documentation states that Pro, Team, and Enterprise projects receive daily database backups.
+- Current official guidance recommends that Free-plan projects regularly export data with Supabase CLI db dump and maintain off-site backups.
+- Free-plan projects may be paused after low database activity for a 7-day period; paid-plan projects are not automatically paused for inactivity.
+- PITR is a paid capability for supported paid plans and is the appropriate mechanism when a lower recovery point objective is required.
+- These platform capabilities do NOT prove that Velora Production currently has a verified backup inventory, off-site copy, restore rehearsal, or measured RPO/RTO.
+
+VERCEL:
+- The Velora Vercel project is connected to the GitHub repository and the deployment inventory is accessible.
+- Current Vercel plan is NOT independently verified by the connected project/team metadata; do not invent a Hobby/Pro/Enterprise classification.
+- Current official Vercel documentation states rollback behavior differs by plan: Hobby can roll back to the immediately previous production deployment, while Pro and Enterprise can roll back to any eligible previous production deployment.
+- Current Vercel documentation also notes that preview deployments are not automatically eligible for production rollback unless they have the required production alias history.
+- Therefore rollback capability exists at the platform level, but Velora's own tested Production rollback runbook and actual rollback proof remain OPEN.
+
+### 114. PRODUCTION INFRASTRUCTURE RELEASE REQUIREMENTS
+
+Before Production cutover, Velora must have evidence for:
+- backup source and frequency
+- retained backup availability
+- off-site backup/export where required
+- restore procedure
+- successful restore rehearsal in a non-Production environment
+- measured recovery point/recovery time expectations
+- exact rollback target/deployment identity
+- rollback decision authority
+- post-rollback data reconciliation procedure
+- Supabase production plan/capacity appropriate for expected load
+- Vercel plan/capacity appropriate for expected traffic/build concurrency/retention
+- alerting and monitoring baseline
+- controlled Production smoke and reconciliation procedure.
+
+IMPORTANT:
+- DR tables existing is not DR proof.
+- A documented rollback procedure is not rollback proof.
+- Platform backup capability is not Velora Production backup proof.
+- A READY Vercel deployment is not proof of current-code Browser parity.
+
+### 115. SECURITY / PERFORMANCE RELATIONSHIP
+
+- Current Restore-Test Performance Advisor remains at 93 unindexed foreign-key findings, 45 multiple-permissive-policy findings, plus unused-index findings.
+- Supabase's current Production Checklist recommends reviewing Security Advisor, Performance Advisor, suitable indexes, and load testing before production.
+- These findings are not automatically release blockers one-for-one, and they do not justify mass index creation or RLS consolidation without workload evidence.
+- Production infrastructure readiness therefore requires a targeted performance/security decision based on expected launch workload, not a cosmetic zero-advisor target.
+
+### 116. ACTION FLOW — PRODUCTION INFRASTRUCTURE
+
+EVENT
+-> release candidate enters Production-readiness stage
+
+GUARD / AUTHORIZATION
+-> Owner/Release authority
+-> Production remains frozen until all release prerequisites are satisfied
+
+VALIDATION
+-> exact current source
+-> exact matching Preview
+-> aggregate Browser evidence
+-> legal publication readiness
+-> backup/restore evidence
+-> rollback evidence
+-> provider settlement readiness
+-> infrastructure plan/capacity
+
+STATE TRANSITION
+-> release candidate approved for controlled Production cutover
+
+AUTOMATIC SIDE EFFECT
+-> governed deployment/promotion
+-> monitoring
+-> smoke checks
+-> reconciliation
+
+NEXT EVENT
+-> Production steady state OR controlled rollback
+
+RETRY / DEDUPE
+-> deployment identity + bounded rollback procedure
+-> data reconciliation after rollback
+
+HUMAN EXCEPTION
+-> release approval
+-> rollback decision
+-> provider/accounting ambiguity
+-> infrastructure incident
+-> legal/governance exception
+
+### 117. MESSAGE 29 DECISION
+
+STATUS:
+- Production Supabase health = CURRENTLY HEALTHY, but Production readiness = OPEN.
+- Supabase organization plan = FREE; Production-grade backup/availability posture is not yet evidenced.
+- Backup proof = OPEN.
+- Restore rehearsal = OPEN.
+- RPO/RTO = OPEN.
+- Rollback proof = OPEN.
+- Vercel plan = NOT VERIFIED.
+- Vercel rollback platform capability = DOCUMENTED, but Velora rollback rehearsal/proof = OPEN.
+- Production capacity/load evidence = OPEN.
+- No code/schema change justified.
+- No Production mutation performed.
+
+RELEASE DECISION:
+- Do not call infrastructure launch-ready.
+- The next infrastructure action is to establish and test a governed backup/restore/rollback plan in a non-Production environment and verify the required Supabase/Vercel plan/capacity before Production cutover.
+- Do not create a duplicate DR engine merely to populate the existing control tables.
+
+### MESSAGE 29 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Current branch and Master history were verified.
+- Infrastructure governance objects and canonical release paths remain in the repository.
+
+L2 DATABASE:
+- Both Restore-Test and Production projects currently report ACTIVE_HEALTHY.
+- Restore-Test organization plan is FREE.
+- Restore-Test has zero DR recovery runs and zero DR recovery checkpoints; cutover gates are zero and one release blueprint exists.
+
+L3 CONTRACT / ACL:
+- Release and cutover controls remain human-governed; no autonomous Production promotion was added.
+
+L4 NEGATIVE / TRANSACTIONAL:
+- No destructive backup/restore/rollback test was executed because Production is frozen and no dedicated non-Production restore target/run was commissioned by this step.
+
+L5 CI:
+- NO NEW CI.
+
+L6 PREVIEW:
+- No new current-HEAD exact Preview was created.
+
+L7 BROWSER:
+- Aggregate Browser Gate remains OPEN / NOT EVIDENCED.
+
+L8 PROVIDER:
+- No provider settlement was executed.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### CARRY-FORWARD AFTER MESSAGE 29
+
+- COD policy remains OPEN pending business approval.
+- Returns policy and legal approval remain OPEN.
+- Promotions/Gift Card policy remains OPEN.
+- Seller Ads accounting/tax/settlement remains OPEN.
+- Backup/restore/rollback/capacity remains OPEN.
+- Auth leaked-password protection remains OPEN.
+- Exact current-code Preview and aggregate Browser Gate remain OPEN.
+- Production Paymob and legal publication remain OPEN.
