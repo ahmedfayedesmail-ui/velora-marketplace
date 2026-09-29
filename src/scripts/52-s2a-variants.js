@@ -164,6 +164,32 @@
     var modal=document.getElementById("productModal"),content=document.getElementById("productModalContent");
     if(modal&&content){modal.classList.add("active");document.body.style.overflow="hidden";content.innerHTML="<div class=\"velora-variant-loading\">Loading product options...</div>";}
     try{
+      /*
+       * Canonical marketplace catalog intentionally keeps its list contract
+       * small. Product Detail needs the existing products-row beauty metadata.
+       * Fetch only the missing detail fields for an approved UUID and merge
+       * them into the already-normalized product object without changing price,
+       * currency, seller, or inventory state.
+       */
+      if(isUuid(productId)){
+        try{
+          var detailResult=await db.from("products")
+            .select("id,description,ingredients,benefits,how_to_use,warnings,skin_types,concerns,seasonal_fit")
+            .eq("id",productId)
+            .maybeSingle();
+          if(!detailResult.error&&detailResult.data){
+            p=Object.assign({},p,detailResult.data);
+            p.id=productId;
+            p.canonicalId=productId;
+            p.usage=p.usage||p.how_to_use||"";
+            p.howToUse=p.howToUse||p.how_to_use||"";
+            p.skinTypes=Array.isArray(p.skinTypes)&&p.skinTypes.length?p.skinTypes:(Array.isArray(p.skin_types)?p.skin_types:[]);
+            p.concerns=Array.isArray(p.concerns)?p.concerns:(Array.isArray(p.concerns)?p.concerns:[]);
+          }
+        }catch(detailError){
+          console.warn("Velora canonical product detail metadata:",detailError);
+        }
+      }
       var variants=await loadVariants(productId,true);
       var selected=seedSelection(productId,variants);
       renderProduct(p,variants,selected);
