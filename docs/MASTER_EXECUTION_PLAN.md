@@ -3734,3 +3734,87 @@ CLASSIFICATION:
 - Inventory application source regression: NOT EVIDENCED.
 - Customer-facing Browser PASS/FAIL for the Inventory change: NOT APPLICABLE because the change is DB ACL-only.
 
+
+
+# MESSAGE 12.25 — PAYMOB CONTROLLED RERUN / 3DS COMPLETION STILL OPEN
+Recorded 2026-09-29.
+
+OBSERVED FACT:
+- The exact Handoff branch is confirmed present: audit/full-gate-2026-09-25.
+- Handoff HEAD commit remains bd0768a2b48d1f3c1a557f3a56240efae88adfea with message: "docs(master): close Paymob worker and integration evidence".
+- Run #48 = 36466421529 was re-run through its existing failed job only. No checkout architecture, payment state machine, webhook processor, or reconciliation engine was changed.
+- The rerun completed with the same workflow-level failure classification: the evidence gate passed=false; setup, checkout bootstrap, Playwright installation, and artifact upload completed successfully.
+- New rerun artifact: 11011941722, digest sha256:06b016e28c25d6fac1e707dda5f12fa5618cc0e0fb25c502dac550afe61840de.
+- New provider attempt from the rerun:
+  - Paymob order: 620521708
+  - Provider transaction: 543891179
+  - Exact provider/local Paymob order correlation: TRUE
+  - pending=true
+  - success=false
+  - is_captured=false
+  - is_3d_secure=true
+  - integration_id=5920533
+- Hosted Paymob Checkout still returned HTTP 200 and loaded the card checkout surface.
+- Browser observed no completed-payment text and no OTP field. Final page remained on the Paymob checkout surface.
+- Webhook evidence remained:
+  - correlated webhook_event_count = 0
+  - signed_webhook_verified = false
+  - processed_webhook_present = false
+- Local payment_attempt remained pending.
+- No provider capture or settlement evidence was produced.
+
+INFERENCE:
+- The controlled differential rerun strengthens the existing RCA: the same provider-completion gap was reproduced with a fresh Paymob transaction, while Velora checkout bootstrap, Intention creation, Integration binding, and Inquiry correlation continued to work.
+- This does NOT prove that Paymob itself is defective. Sandbox/account/integration/3DS completion behavior remains an external possibility.
+- Do not interpret is_3d_secure=true or a visible redirect/checkout state as successful authentication or capture.
+
+FULL AUDIT STATUS:
+- Full Audit Gate #443 = Run 36466695318 completed SUCCESS for Source + Security and Dependency + Web Surface jobs.
+- Current exact Handoff HEAD still reports a Vercel combined-status failure targeting the build-rate-limit/upgrade path. This is an external delivery-capacity signal and is not evidence of a Paymob source/runtime failure.
+
+RESEARCH / PROVIDER BASIS:
+- Current Paymob documentation confirms that Unified Checkout handles card entry and 3DS authentication, and that successful payment results are delivered through the signed webhook path. citeturn367915search0turn367915search2
+- Current Paymob documentation/example data also confirms that Transaction Inquiry exposes terminal transaction details such as provider transaction/order correlation and captured state. citeturn367915search4
+- Current Paymob sandbox credentials remain the already-used Mastercard set; no further indefinite card cycling is justified by the present evidence. citeturn373467search0turn373467search1
+
+ACTION FLOW:
+Customer checkout
+-> canonical order/payment-attempt creation
+-> Paymob Intention
+-> Unified Checkout
+-> card entry
+-> 3DS authentication stage
+-> provider terminal transaction
+-> signed HMAC webhook
+-> canonical Paymob transaction applicator
+-> order/payment/financial side effects
+-> audit/reconciliation
+-> recovery/escalation only for ambiguity.
+Current execution stops at the provider 3DS/terminal stage; no local payment state is advanced from pending without real provider evidence.
+
+CLASSIFICATION:
+- Paymob Intention: CLOSED-DONE L8
+- Integration 5920533: CLOSED-DONE L8
+- Hosted Checkout transport: CLOSED-DONE L8
+- Order-ID Inquiry: CLOSED-DONE L8
+- Exact order correlation: CLOSED-DONE L8
+- Controlled 3DS rerun: COMPLETED AS AN EVIDENCE RUN, BUT 3DS COMPLETION = OPEN / NOT EVIDENCED
+- Terminal provider capture: OPEN / NOT EVIDENCED
+- Signed webhook: OPEN / NOT EVIDENCED
+- Processed webhook: OPEN / NOT EVIDENCED
+- Real settlement: OPEN / NOT EVIDENCED
+- Payment Provider gate: BLOCKED pending the real terminal provider completion sequence
+- Webhook Verification gate: BLOCKED pending real signed + processed callback
+
+DECISION / NON-NEGOTIABLES:
+- No canonical checkout changes are justified by this rerun.
+- Do not add another Paymob integration, webhook processor, reconciliation engine, or payment state machine.
+- Do not synthesize or manually inject a webhook.
+- Do not mark pending as paid.
+- Do not manually mutate payment/order/inventory/commission state for evidence.
+- Do not keep cycling cards indefinitely; the differential card testing history is already sufficient to avoid treating card choice as the primary unknown.
+- After this rerun, stop random diagnostic churn. The next useful provider action must target genuine 3DS completion / provider-side test behavior or a provider-confirmed resolution path.
+
+NEXT:
+- Maintain Paymob as the immediate priority until the terminal provider state and real signed/processed webhook sequence is evidenced.
+- Do not move to Notifications/Push, Seller UX, AI, or other later workstreams before the Paymob lane is either closed by evidence or explicitly blocked by a provider-side dependency.
