@@ -226,8 +226,8 @@ jobs:
               seller_user = first_approved_seller_user()
               admin_user = first_role_user("admin")
 
-              evidence["roles"]["seller"]["user_id_present"] = bool(seller_user)
-              evidence["roles"]["admin"]["user_id_present"] = bool(admin_user)
+              evidence["roles"]["seller"] = {"user_id_present": bool(seller_user)}
+              evidence["roles"]["admin"] = {"user_id_present": bool(admin_user)}
 
               seller_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
               admin_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
