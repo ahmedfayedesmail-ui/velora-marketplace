@@ -18,6 +18,7 @@ for (const token of [
   'p.ingredients=Array.isArray(p.ingredients)?p.ingredients.slice():[]',
   'p.benefits=Array.isArray(p.benefits)?p.benefits.slice():[]',
   'p.warnings=typeof p.warnings==="string"?p.warnings:""',
+  'MAHA_DATA.PRODUCTS[productIndex]=p',
   'Benefits</h4>',
   'Warnings</h4>'
 ]) assert.ok(source.includes(token), token);
