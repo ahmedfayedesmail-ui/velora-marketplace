@@ -9,7 +9,6 @@ on:
       - "src/scripts/61-s1-c-quiz-v2.js"
       - "src/scripts/72-s1-e-customer-beauty-ai.js"
       - "src/scripts/60-s1-c-routine-ux.js"
-      - ".remote/command.json"
 
 permissions:
   contents: read
@@ -125,7 +124,10 @@ jobs:
               evidence["checks"]["local_ai_endpoint_requests"] = len(ai_function_requests)
 
               page.locator("#veloraQuizConfirm").click()
-              page.wait_for_timeout(5000)
+              page.wait_for_function(
+                  "() => window.__VELORA_CURRENT_ROUTINE && ['complete','partial','no_matches'].includes(window.__VELORA_CURRENT_ROUTINE.status)",
+                  timeout=15000
+              )
 
               routine_active = page.locator("#veloraRoutineUxModal.active").count() == 1
               routine_text = page.locator("#veloraRoutineBody").inner_text() if page.locator("#veloraRoutineBody").count() else ""
