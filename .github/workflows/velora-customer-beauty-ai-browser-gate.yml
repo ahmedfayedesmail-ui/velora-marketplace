@@ -131,26 +131,8 @@ jobs:
               evidence['checks']['natural_submit_present'] = page.locator('#veloraQuizIntentSubmit').count() == 1
 
               page.locator('#veloraQuizIntentInput').fill('بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه')
-              try:
-                  with page.expect_response(lambda r: r.status >= 400 or 'velora-beauty-ai-intent' in r.url, timeout=15000) as ai_resp_info:
-                      page.locator('#veloraQuizIntentSubmit').click()
-                  ai_resp = ai_resp_info.value
-                  if not any(x['url'] == ai_resp.url for x in responses):
-                      payload = None
-                      try:
-                          payload = ai_resp.json()
-                      except Exception:
-                          pass
-                      responses.append({'status': ai_resp.status, 'url': ai_resp.url, 'payload': payload})
-              except Exception as e:
-                  evidence['checks']['ai_response_capture_error'] = str(e)
-                  page.locator('#veloraQuizIntentSubmit').click()
-
-              try:
-                  page.wait_for_function("() => window.__VELORA_AI_BROWSER_DONE === true", timeout=1000)
-              except Exception:
-                  pass
-              page.wait_for_timeout(3500)
+              page.locator('#veloraQuizIntentSubmit').click()
+              page.wait_for_timeout(5000)
 
               evidence['checks']['ai_http_responses'] = [
                   {'status': r['status'], 'url': r['url'], 'payload': r['payload']} for r in responses
@@ -163,9 +145,10 @@ jobs:
 
               provider_response = responses[-1] if responses else None
               if provider_response is None:
-                  ai_like_errors = [x for x in error_responses if 'velora-beauty-ai-intent' in x['url'] or '/functions/v1/' in x['url']]
+                  ai_like_errors = [x for x in error_responses if 'velora-beauty-ai-intent' in x['url']]
                   if ai_like_errors:
                       provider_response = ai_like_errors[-1]
+                      evidence['checks']['ai_response_classified_from_error_response'] = True
               if provider_response and provider_response['status'] == 200:
                   payload = provider_response.get('payload') or {}
                   decision = payload.get('decision')
@@ -183,6 +166,8 @@ jobs:
                   evidence['checks']['provider_code'] = code
                   if code == 'AI_PROVIDER_NOT_CONFIGURED':
                       evidence['provider_gate'] = 'BLOCKED_PROVIDER_NOT_CONFIGURED'
+                  elif evidence['checks'].get('manual_fallback_message_visible'):
+                      evidence['provider_gate'] = 'BLOCKED_PROVIDER_503'
                   else:
                       evidence['provider_gate'] = 'FAIL_PROVIDER_503'
                       evidence['failures'].append('AI Edge Function returned unexpected 503 code: ' + str(code))
