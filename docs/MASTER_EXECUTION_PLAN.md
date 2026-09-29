@@ -13408,3 +13408,45 @@ STATUS:
 - Customer Beauty AI live provider = BLOCKED / NOT CONFIGURED.
 - Browser Gate overall = OPEN / NOT EVIDENCED.
 - Production = FROZEN.
+
+
+## MESSAGE 61 — RESTORE-TEST RLS WARNING OBJECT-LEVEL RECHECK (2026-09-29)
+
+CLASSIFICATION: SECURITY EVIDENCE / NO REMEDIATION JUSTIFIED YET
+
+CURRENT DATABASE RECHECK:
+- Restore-Test project: `arlaxqmhtvjwjbjinjfw`.
+- Current query of RLS-enabled public tables with zero policies returns 4 objects:
+  - `public.billing_instruments`
+  - `public.paymob_card_tokenization_sessions`
+  - `public.regional_pricing`
+  - `public.seller_subscription_renewal_jobs`
+- This current count is 4 in the direct database catalog query; the earlier Security Advisor snapshot in Message 59 had reported 6. The counts are therefore treated as time-specific evidence, not blindly reconciled as identical snapshots.
+
+ACL / DIRECT-DML RECHECK:
+- For the 4 current no-policy RLS tables, `information_schema.role_table_grants` shows table privileges only for `postgres` and `service_role`.
+- No direct table grants for `anon` or `authenticated` were returned by the query.
+- Therefore the current evidence does not establish an exposed public/anonymous direct-DML path through these tables.
+- This does not by itself prove every indirect function path is correct; function-level ACL/SECURITY DEFINER review remains a separate contract audit.
+
+DECISION:
+- Do not add blanket RLS policies.
+- Do not disable RLS merely to silence the advisor.
+- Do not mass revoke privileges.
+- Carry these 4 objects as SECURITY REVIEW / NOT YET A REMEDIATION.
+- Any future fix must identify the exact intended actor, exact function/path if applicable, contract, blast radius, and negative-path verification before mutation.
+
+ACTION FLOW:
+Security finding
+-> current DB catalog recheck
+-> distinguish direct table exposure from controlled server/function access
+-> inspect exact access path
+-> identify real unauthorized capability
+-> only then remediate
+-> negative-path verify
+-> CI/Preview/Browser as applicable.
+
+STATUS:
+- Current RLS/no-policy object-level review = EVIDENCED / NO FIX JUSTIFIED YET.
+- Security remediation = OPEN / PENDING exact function-path review.
+- Production = FROZEN.
