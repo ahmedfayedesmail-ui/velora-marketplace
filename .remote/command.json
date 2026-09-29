@@ -1,6 +1,6 @@
 {
-  "id": "local-ai-contract-verify-4-2026-09-29",
+  "id": "local-ai-contract-verify-5-2026-09-29",
   "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "verify zero-cost local Beauty AI parser after unknown-field fix"
+  "purpose": "verify local zero-cost Beauty AI parser after direct Arabic skin phrase fix"
 }
