@@ -73,7 +73,7 @@ jobs:
           evidence = {
               "schema": "product-detail-browser.v2-local-source",
               "target_url": url,
-              "preview_url": null,
+              "preview_url": None,
               "product_id": product_id,
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
               "execution_mode": "local_exact_source",
