@@ -13808,3 +13808,54 @@ STILL OPEN/BLOCKED AND CARRIED FORWARD:
 - All other Master OPEN/BLOCKED/PENDING items remain active.
 
 Production remains frozen.
+
+
+## MESSAGE 66 — ZERO-COST RESTORE-TEST EVIDENCE TOOL (2026-09-29)
+
+CLASSIFICATION: TOOL CLOSED-DONE / FIRST LIVE EVIDENCE PASS
+
+OBJECTIVE:
+- Provide a phone-triggerable, repository-native, read-only Restore-Test evidence mechanism without a paid browser/agent service and without unrestricted SQL execution.
+
+IMPLEMENTATION:
+- `.github/workflows/velora-restore-test-evidence.yml`
+- `.remote/restore-test-evidence.json`
+- Supported fixed probes:
+  - health
+  - counts
+  - public-contracts
+  - security-functions (informational only; no arbitrary SQL)
+
+SAFETY BOUNDARY:
+- Uses the Restore-Test service-role secret already required for controlled test automation.
+- No Production connection.
+- No arbitrary SQL execution.
+- No schema mutation.
+- No credentials are printed.
+- Evidence is a compact JSON artifact with short retention.
+
+FIRST LIVE RUN:
+- Workflow run: `36612160484`
+- Job: `109556030127`
+- Probe: `counts`
+- Probe execution: SUCCESS
+- Evidence artifact: `11054440239`
+
+OBSERVED RESTORE-TEST COUNTS:
+- beauty_profiles = 3
+- beauty_routine_runs = 555
+- beauty_routine_steps = 2694
+- beauty_feedback = 2
+- beauty_recommendation_runs = 2
+- beauty_recommendation_items = 9
+
+IMPORTANT:
+- The first implementation incorrectly assumed an `id` column on every table and produced a false 400 for `beauty_profiles`.
+- That probe defect was corrected to use bounded PostgREST exact-count semantics.
+- The corrected run completed with zero failures.
+- These values are current Restore-Test evidence at the timestamp of the run, not production usage metrics.
+
+STATUS:
+- Zero-cost Restore-Test evidence tool = CLOSED-DONE.
+- Phone-triggerable evidence path = CLOSED-DONE.
+- Production = FROZEN.
