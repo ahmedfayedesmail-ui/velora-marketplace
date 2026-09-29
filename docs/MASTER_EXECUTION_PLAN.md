@@ -11066,3 +11066,120 @@ STATUS:
 - Legal publication/tax/entity/Merchant-of-Record classification = OPEN.
 - Production Paymob and Production cutover = OPEN / human-gated.
 - Production remains FROZEN.
+## 2026-09-29 — MESSAGE 34/24 EXECUTION / TAX CLASSIFICATION BOUNDARY + SELLER SUBSCRIPTION RECONCILIATION
+
+### 139. TAX / INVOICING — EXTERNAL HUMAN CLASSIFICATION GATE
+
+IMPORTANT OWNER/LEGAL RULE:
+- Internet research can establish the existence and wording of Egyptian tax rules, ETA systems, published guides, and current obligation frameworks.
+- Internet research cannot determine Velora's actual legal entity, tax-registration status, merchant-of-record role, principal-versus-agent treatment, invoice issuer, VAT status, or exact taxpayer obligations for the real business without the company's legal/tax records and professional classification.
+- Therefore these values are explicitly EXTERNAL HUMAN INPUTS, not engineering assumptions.
+
+REQUIRED REAL-WORLD EVIDENCE BEFORE TAX IMPLEMENTATION:
+- legal entity certificate / actual operating entity name and form
+- commercial registration details where applicable
+- tax registration details
+- VAT registration/status where applicable
+- actual contractual marketplace/operator role
+- merchant-of-record / seller-of-record arrangement
+- invoice/e-receipt issuer responsibility
+- treatment of seller commissions
+- treatment of Seller Ads revenue
+- treatment of subscriptions
+- treatment of payment-provider fees
+- treatment of refunds/credit notes
+- accounting basis and tax-period requirements
+- counsel/accountant sign-off on the final mapping.
+
+WHAT ENGINEERING MAY DO BEFORE CLASSIFICATION:
+- Preserve tax as an explicit field in contracts where the existing schema already supports it.
+- Build deterministic calculation/reporting only after the approved tax rules are supplied.
+- Keep checkout/payment/legal systems fail-closed where mandatory legal/tax prerequisites are absent.
+
+WHAT ENGINEERING MUST NOT DO:
+- Never guess whether Velora is merchant of record.
+- Never guess whether seller sales are Velora's supply or a seller's direct supply.
+- Never assume VAT registration from revenue projections.
+- Never hard-code an invoice issuer or tax rate as a legal conclusion.
+- Never claim tax compliance from an online article alone.
+
+### 140. SELLER SUBSCRIPTION — CURRENT CONTRACT
+
+VERIFIED:
+- seller_subscriptions exists and currently has 0 rows in Restore-Test.
+- Canonical purchase `velora_start_subscription_purchase(...)` requires legal acceptance of seller_agreement + seller_subscription + seller_commission before creating a paid subscription.
+- Purchase is authenticated seller/store scoped, country matched, billing-cycle validated (monthly/yearly), price resolved from canonical subscription pricing, payment routed through the canonical payment_attempts domain, and protected by purchase idempotency.
+- Pending paid subscription has a 30-minute pending expiry field.
+- `velora_sync_subscription_state(...)` locks the subscription, converges payment status into subscription state, handles pending expiry, activation after capture, past_due handling, seven-day renewal grace behavior, cancellation/expiry cleanup, and expiry notification scheduling.
+- No separate subscription state engine is required.
+
+OPEN SUBSCRIPTION POLICY / RUNTIME CONTRACT:
+- cancellation timing and access behavior
+- upgrade/downgrade semantics
+- proration or no-proration rule
+- plan replacement timing
+- renewal behavior and customer confirmation/notice
+- failed-renewal retry schedule and final entitlement cutoff
+- refund eligibility and refund allocation
+- tax/invoice treatment
+- seller entitlement catalog and effective-date semantics
+- provider settlement/reconciliation
+- Browser verification
+- legal text and Arabic canonical publication.
+
+LEGAL BOUNDARY:
+- Because Seller Subscription is a seller-facing commercial contract, the final legal characterization must follow the actual seller/customer relationship and Velora's registered business role.
+- Do not assume that a seller subscription is automatically outside consumer-protection or other mandatory rules solely because the account is labeled seller.
+- Final contract language must be counsel-reviewed against the actual operating model.
+
+### 141. SELLER SUBSCRIPTION ACTION FLOW
+
+EVENT
+-> approved seller selects paid plan
+
+GUARD / AUTHORIZATION
+-> authenticated approved seller
+-> approved store/country
+-> legal acceptance of seller agreement/subscription/commission terms
+
+VALIDATION
+-> active plan
+-> billing cycle
+-> canonical resolved price/currency
+-> idempotency
+-> payment route
+
+STATE TRANSITION
+-> pending -> active -> past_due -> cancelled/expired
+
+AUTOMATIC SIDE EFFECT
+-> payment attempt state sync
+-> entitlement state
+-> expiry notifications
+-> audit
+
+NEXT EVENT
+-> renewal / provider settlement / cancellation / replacement
+
+RETRY / DEDUPE
+-> purchase idempotency
+-> payment attempt convergence
+-> state lock
+
+HUMAN EXCEPTION
+-> refund
+-> disputed renewal
+-> provider ambiguity
+-> tax/invoice classification
+-> legal exception
+
+### 142. MESSAGE 34 DECISION
+
+STATUS:
+- Tax/invoicing classification = EXTERNAL HUMAN / COUNSEL + ACCOUNTING GATE.
+- Online tax research = COMPLETED as supporting regulatory research only.
+- Tax engineering implementation = BLOCKED on real legal/tax classification inputs.
+- Seller Subscription core purchase/state-sync foundation = CLOSED-DONE at current source/DB scope.
+- Seller Subscription commercial policy/runtime/provider/browser/legal completion = OPEN.
+- No tax rate, MoR role, invoice issuer, or VAT treatment was guessed.
+- No code/schema/Production mutation was made.
