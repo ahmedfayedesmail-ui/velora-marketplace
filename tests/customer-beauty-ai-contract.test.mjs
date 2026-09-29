@@ -15,7 +15,7 @@ assert.match(quizSource, /state\.ai\.mode === 'clarify'/);
 assert.match(quizSource, /velora_save_beauty_passport_v2/);
 assert.match(quizSource, /Confirm & build routine/);
 assert.match(quizSource, /تأكيد وبناء الروتين/);
-assert.match(quizSource, /fallback/i);
+assert.match(quizSource, /No problem — we can continue with the regular questions/);
 assert.doesNotMatch(quizSource, /Ask AI|AI Assistant|Chat with AI|AI Badge|Describe it your way/);
 
 
