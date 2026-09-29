@@ -1,0 +1,185 @@
+name: Velora Customer Beauty AI Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".github/workflows/velora-customer-beauty-ai-browser-gate.yml"
+      - "src/scripts/61-s1-c-quiz-v2.js"
+      - "src/scripts/72-s1-e-customer-beauty-ai.js"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-ai:
+    name: Customer NL -> Beauty AI -> Passport boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tested branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run authenticated Customer Beauty AI browser evidence
+        env:
+          PREVIEW_URL: https://velora-marketplace-git-audit-runtime-pa-faf663-ahmedconccc-7063.vercel.app
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          url = os.environ['PREVIEW_URL'].rstrip('/')
+          email = os.environ.get('E2E_EMAIL', '')
+          password = os.environ.get('E2E_PASSWORD', '')
+
+          evidence = {
+              'schema': 'customer-beauty-ai-browser.v1',
+              'preview_url': url,
+              'workflow_sha': os.environ.get('GITHUB_SHA', ''),
+              'checks': {},
+              'failures': [],
+              'provider_gate': 'UNKNOWN',
+          }
+
+          if not email or not password:
+              evidence['failures'].append('Missing E2E_EMAIL/E2E_PASSWORD repository secrets')
+              evidence['provider_gate'] = 'BLOCKED_MISSING_BROWSER_AUTH'
+              with open('customer-beauty-ai-browser-evidence.json', 'w', encoding='utf-8') as f:
+                  json.dump(evidence, f, ensure_ascii=False, indent=2)
+              print(json.dumps(evidence, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(viewport={'width': 1440, 'height': 1000}, locale='en-US')
+              responses = []
+              console_errors = []
+              page_errors = []
+
+              page.on('console', lambda m: console_errors.append(m.text) if m.type == 'error' else None)
+              page.on('pageerror', lambda e: page_errors.append(str(e)))
+
+              def on_response(resp):
+                  if 'functions/v1/velora-beauty-ai-intent' in resp.url:
+                      payload = None
+                      try:
+                          payload = resp.json()
+                      except Exception:
+                          pass
+                      responses.append({'status': resp.status, 'url': resp.url, 'payload': payload})
+
+              page.on('response', on_response)
+
+              response = page.goto(url + '/#home', wait_until='domcontentloaded', timeout=60000)
+              evidence['checks']['http_status'] = response.status if response else None
+              evidence['checks']['title'] = page.title()
+
+              page.evaluate("() => openAuthModal('login')")
+              page.locator('#loginEmail').fill(email)
+              page.locator('#loginPassword').fill(password)
+              page.locator("#authFormContent button[type='submit']").click()
+              page.wait_for_timeout(3200)
+
+              auth = page.evaluate("""
+                async () => {
+                  const r = await window.mahaSupabase.auth.getSession();
+                  return { hasSession: !!r?.data?.session?.user, userId: r?.data?.session?.user?.id || null };
+                }
+              """)
+              evidence['checks']['authenticated_session'] = auth['hasSession']
+              evidence['checks']['authenticated_user_id_present'] = bool(auth['userId'])
+
+              if not auth['hasSession']:
+                  evidence['failures'].append('Authenticated Supabase session was not created')
+                  browser.close()
+                  with open('customer-beauty-ai-browser-evidence.json', 'w', encoding='utf-8') as f:
+                      json.dump(evidence, f, ensure_ascii=False, indent=2)
+                  print(json.dumps(evidence, ensure_ascii=False, indent=2))
+                  sys.exit(1)
+
+              page.evaluate("async () => { await window.veloraBeautyPassportV2.open(); }")
+              page.wait_for_timeout(700)
+
+              evidence['checks']['natural_input_present'] = page.locator('#veloraQuizIntentInput').count() == 1
+              evidence['checks']['natural_submit_present'] = page.locator('#veloraQuizIntentSubmit').count() == 1
+
+              page.locator('#veloraQuizIntentInput').fill('بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه')
+              page.locator('#veloraQuizIntentSubmit').click()
+
+              try:
+                  page.wait_for_function("() => window.__VELORA_AI_BROWSER_DONE === true", timeout=1000)
+              except Exception:
+                  pass
+              page.wait_for_timeout(3500)
+
+              evidence['checks']['ai_http_responses'] = [
+                  {'status': r['status'], 'payload': r['payload']} for r in responses
+              ]
+              evidence['checks']['console_errors'] = console_errors
+              evidence['checks']['page_errors'] = page_errors
+              evidence['checks']['review_visible'] = 'Review what we understood' in page.locator('#veloraQuizBody').inner_text() if page.locator('#veloraQuizBody').count() else False
+              evidence['checks']['manual_fallback_message_visible'] = 'regular routine' in page.locator('#veloraQuizBody').inner_text().lower() if page.locator('#veloraQuizBody').count() else False
+
+              provider_response = responses[-1] if responses else None
+              if provider_response and provider_response['status'] == 200:
+                  payload = provider_response.get('payload') or {}
+                  decision = payload.get('decision')
+                  evidence['checks']['provider_decision'] = decision
+                  evidence['provider_gate'] = 'PASS'
+                  if decision not in ('ready', 'needs_clarification'):
+                      evidence['failures'].append('Live provider returned an invalid customer decision')
+                  if decision == 'ready':
+                      evidence['checks']['review_visible'] = evidence['checks']['review_visible']
+                      if not evidence['checks']['review_visible']:
+                          evidence['failures'].append('Ready provider result did not reach customer review state')
+              elif provider_response and provider_response['status'] == 503:
+                  payload = provider_response.get('payload') or {}
+                  code = payload.get('code')
+                  evidence['checks']['provider_code'] = code
+                  if code == 'AI_PROVIDER_NOT_CONFIGURED':
+                      evidence['provider_gate'] = 'BLOCKED_PROVIDER_NOT_CONFIGURED'
+                  else:
+                      evidence['provider_gate'] = 'FAIL_PROVIDER_503'
+                      evidence['failures'].append('AI Edge Function returned unexpected 503 code: ' + str(code))
+              else:
+                  evidence['provider_gate'] = 'FAIL_NO_PROVIDER_RESPONSE'
+                  evidence['failures'].append('No Beauty AI Edge Function response was captured')
+
+              browser.close()
+
+          if evidence['provider_gate'] != 'PASS':
+              evidence['failures'].append('Live OpenAI provider execution is not evidenced on the tested Preview')
+
+          with open('customer-beauty-ai-browser-evidence.json', 'w', encoding='utf-8') as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+
+          if evidence['failures']:
+              sys.exit(1)
+          PY
+
+      - name: Upload Customer Beauty AI browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-beauty-ai-browser-evidence
+          path: customer-beauty-ai-browser-evidence.json
+          retention-days: 7
