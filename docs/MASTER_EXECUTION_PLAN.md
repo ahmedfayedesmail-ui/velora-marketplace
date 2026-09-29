@@ -10484,3 +10484,100 @@ L9 PRODUCTION:
 - Auth leaked-password protection remains OPEN.
 - Exact current-code Preview and aggregate Browser Gate remain OPEN.
 - Production Paymob and legal publication remain OPEN.
+## 2026-09-29 — MESSAGE 30/24 EXECUTION / AUTH LEAKED-PASSWORD PROTECTION GATE
+
+CLASSIFICATION:
+- Message 30 continues the next ordered Security/Auth gate.
+- Current Restore-Test Security Advisor was re-run.
+- Current organization plan was cross-checked against current Supabase documentation.
+- No application-side password engine, schema change, auth-hook replacement, or Production mutation was introduced.
+
+### 118. CURRENT AUTH SECURITY FINDING — VERIFIED
+
+- Restore-Test Security Advisor currently reports exactly one `auth_leaked_password_protection` WARN.
+- Finding: Supabase Auth leaked-password protection is disabled.
+- Supabase current documentation states leaked-password protection uses the Pwned Passwords API to reject passwords known to have been leaked and is available on Pro Plan and above.
+- Current Supabase organization is on the Free plan, which does not include leaked-password protection.
+- Therefore this is a platform-plan/configuration gap, not an application password-validation engine gap.
+
+### 119. CURRENT AUTH ARCHITECTURE DECISION
+
+- Keep Supabase Auth as the canonical authentication authority.
+- Do not implement HaveIBeenPwned checks inside Velora.
+- Do not duplicate password policy inside application code in order to simulate a platform feature.
+- Password strength/security controls should remain in Supabase Auth settings.
+- When the project moves to an appropriate paid plan, enable leaked-password protection through the canonical Auth configuration and re-run Security Advisor.
+
+### 120. ACTION FLOW — AUTH SECURITY
+
+EVENT
+-> signup / password change / recovery
+
+GUARD / AUTHORIZATION
+-> Supabase Auth
+
+VALIDATION
+-> password strength requirements
+-> leaked-password protection when enabled
+-> rate/security controls
+
+STATE TRANSITION
+-> Auth accepts or rejects credential operation
+
+AUTOMATIC SIDE EFFECT
+-> session/user-state synchronization with Velora
+
+NEXT EVENT
+-> authenticated customer/seller/admin journey OR controlled failure
+
+RETRY / DEDUPE
+-> bounded Auth retry/session lifecycle
+
+HUMAN EXCEPTION
+-> plan/configuration decision
+-> security governance exception
+
+### 121. MESSAGE 30 DECISION
+
+STATUS:
+- Canonical Auth architecture = CLOSED-DONE.
+- Leaked-password protection = OPEN.
+- Application-side replacement = NOT JUSTIFIED.
+- Supabase plan dependency = CONFIRMED.
+- Security Advisor verification after enabling the feature = PENDING.
+- No code/schema/Production change made.
+
+### MESSAGE 30 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Canonical Velora Auth integration remains Supabase Auth; no duplicate credential engine exists.
+
+L2 DATABASE / PLATFORM:
+- Restore-Test Security Advisor reports one leaked-password-protection warning.
+- Organization plan is Free.
+
+L3 CONTRACT / ACL:
+- No new authorization contract was introduced.
+
+L4 NEGATIVE:
+- No password mutation or destructive Auth test was performed because the missing capability is a platform configuration/plan feature.
+
+L5 CI / L6 PREVIEW / L7 BROWSER:
+- No deployable source change; no new CI/Preview/Browser evidence claimed.
+
+L8 PROVIDER:
+- Supabase Auth remains the provider/canonical authority for this control.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### CARRY-FORWARD AFTER MESSAGE 30
+
+- Infrastructure backup/restore/rollback remains OPEN.
+- Auth leaked-password protection remains OPEN pending appropriate plan/configuration.
+- COD policy remains OPEN.
+- Returns/legal policy remains OPEN.
+- Promotions/Gift Card policy remains OPEN.
+- Seller Ads accounting/tax/settlement remains OPEN.
+- Exact current-code Preview and aggregate Browser Gate remain OPEN.
+- Production Paymob and legal publication remain OPEN.
