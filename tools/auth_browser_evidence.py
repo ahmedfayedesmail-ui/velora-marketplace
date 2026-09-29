@@ -167,16 +167,8 @@ def open_account(page):
     page.locator("#accountContent").wait_for(timeout=10000)
 
 
-def ui_login(page, email, password):
-    open_account(page)
-    page.locator("#loginEmail").fill(email)
-    page.locator("#loginPassword").fill(password)
-    page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
-    wait_for_state(page, page._velora_uid, timeout=30000)
-
-
 def ui_logout(page):
-    page.on("dialog", lambda dialog: dialog.accept())
+    page.once("dialog", lambda dialog: dialog.accept())
     page.locator("#accountContent button", has_text="Logout").click()
     page.wait_for_timeout(900)
 
