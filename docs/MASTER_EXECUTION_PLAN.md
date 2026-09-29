@@ -11654,7 +11654,7 @@ The team SHOULD:
 
 #### 156.6 OFFICIAL SOURCE REGISTER — 2026-09-29
 
-- GAFI electronic incorporation: https://gafi.gov.eg/ar/contenttemplate/ca1d9b8d-76d1-46dc-a677-eb4ba5ccaae3
+- GAFI electronic incorporation: https://gafi.gov.eg/ar/contenttemplate/ca1b9d8b-76d1-46dc-a677-eb4ba5ccaae3
 - GAFI portal/current e-services: https://gafi.gov.eg/ar
 - Egyptian Tax Authority portal: https://portal.eta.gov.eg/ar/home
 - ETA electronic taxpayer registration: https://eservice.incometax.gov.eg/ETax/TaxpayerRegistration/AddTaxpayer
