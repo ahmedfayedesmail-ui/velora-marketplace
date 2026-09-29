@@ -3467,7 +3467,13 @@ function openAuthModal(mode = 'login') {
     const content = document.getElementById('authFormContent');
     if (!modal || !content) return;
 
-    title.textContent = mode === 'login' ? 'Login' : (mode === 'register' ? 'Create Account' : (mode === 'forgot' ? 'Reset Password' : 'Choose a New Password'));
+    title.textContent =
+        mode === 'login' ? 'Login' :
+        mode === 'register' ? 'Create Account' :
+        mode === 'forgot' ? 'Reset Password' :
+        mode === 'magiclink' ? 'Login with Email Link' :
+        mode === 'resend' ? 'Resend Confirmation' :
+        'Choose a New Password';
 
     if (mode === 'login') {
         content.innerHTML = `
@@ -3482,6 +3488,9 @@ function openAuthModal(mode = 'login') {
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Login</button>
                 <div style="text-align: center; margin-top: 1rem; display:grid; gap:.55rem;">
+                    <a href="#" onclick="openAuthModal('magiclink'); return false;" style="color: var(--primary);">
+                        Login with email link
+                    </a>
                     <a href="#" onclick="openAuthModal('forgot'); return false;" style="color: var(--primary);">
                         Forgot your password?
                     </a>
@@ -3499,6 +3508,33 @@ function openAuthModal(mode = 'login') {
                     <input type="email" class="form-input" id="resetEmail" required autocomplete="email" placeholder="example@email.com">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Send Reset Email</button>
+                <div style="text-align:center;margin-top:1rem;">
+                    <a href="#" onclick="openAuthModal('login'); return false;" style="color:var(--primary);">Back to Login</a>
+                </div>
+            </form>
+        `;
+    } else if (mode === 'magiclink') {
+        content.innerHTML = `
+            <form class="auth-form" onsubmit="handleMagicLinkRequest(event)">
+                <div class="form-group">
+                    <label>\${veloraCheckoutText('Email')}</label>
+                    <input type="email" class="form-input" id="magicLinkEmail" required autocomplete="email" placeholder="example@email.com">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Send Login Link</button>
+                <div style="text-align:center;margin-top:1rem;display:grid;gap:.55rem;">
+                    <a href="#" onclick="openAuthModal('resend'); return false;" style="color:var(--primary);">Resend confirmation email</a>
+                    <a href="#" onclick="openAuthModal('login'); return false;" style="color:var(--primary);">Back to Login</a>
+                </div>
+            </form>
+        `;
+    } else if (mode === 'resend') {
+        content.innerHTML = `
+            <form class="auth-form" onsubmit="handleResendConfirmation(event)">
+                <div class="form-group">
+                    <label>\${veloraCheckoutText('Email')}</label>
+                    <input type="email" class="form-input" id="resendEmail" required autocomplete="email" placeholder="example@email.com">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Resend Confirmation</button>
                 <div style="text-align:center;margin-top:1rem;">
                     <a href="#" onclick="openAuthModal('login'); return false;" style="color:var(--primary);">Back to Login</a>
                 </div>
@@ -3582,6 +3618,53 @@ async function handleLogin(event) {
     } catch (error) {
         console.error('Velora canonical login:', error);
         showToast('❌ ' + String(error?.message || 'Could not sign in'), 'error');
+    }
+}
+
+async function handleMagicLinkRequest(event) {
+    event.preventDefault();
+    const email = document.getElementById('magicLinkEmail')?.value?.trim().toLowerCase();
+    if (!email) return;
+    try {
+        const db = window.mahaSupabase;
+        if (!db?.auth?.signInWithOtp) throw new Error('AUTH_PASSWORDLESS_UNAVAILABLE');
+        const redirectTo = String(window.location?.origin || '');
+        const { error } = await db.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: redirectTo
+            }
+        });
+        if (error) throw error;
+        closeModal('authModal');
+        showToast('📧 If an account exists for that email, a login link has been sent.', 'success');
+    } catch (error) {
+        console.error('Velora email-link sign in:', error);
+        showToast('❌ Could not send a login link. Please try again.', 'error');
+    }
+}
+
+async function handleResendConfirmation(event) {
+    event.preventDefault();
+    const email = document.getElementById('resendEmail')?.value?.trim().toLowerCase();
+    if (!email) return;
+    try {
+        const db = window.mahaSupabase;
+        if (!db?.auth?.resend) throw new Error('AUTH_RESEND_UNAVAILABLE');
+        const redirectTo = String(window.location?.origin || '');
+        const { error } = await db.auth.resend({
+            type: 'signup',
+            email,
+            options: {
+                emailRedirectTo: redirectTo
+            }
+        });
+        if (error) throw error;
+        closeModal('authModal');
+        showToast('📧 If confirmation is still required, a new confirmation email has been sent.', 'success');
+    } catch (error) {
+        console.error('Velora confirmation resend:', error);
+        showToast('❌ Could not resend confirmation. Please try again.', 'error');
     }
 }
 
