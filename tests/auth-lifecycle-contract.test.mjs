@@ -9,8 +9,12 @@ const required = [
   'db.auth.signUp',
   'db.auth.resetPasswordForEmail',
   'db.auth.updateUser',
+  'db.auth.signInWithOtp',
+  'db.auth.resend',
   "event === 'PASSWORD_RECOVERY'",
   "openAuthModal('forgot')",
+  "openAuthModal('magiclink')",
+  "openAuthModal('resend')",
   "openAuthModal('recovery')",
   'velora_ensure_own_profile',
   'registerAuthListenerOnce()',
@@ -24,6 +28,37 @@ for (const token of required) {
 assert.ok(
   source.includes('emailRedirectTo: authRedirect'),
   'Signup must retain an explicit email confirmation redirect contract'
+);
+
+assert.ok(
+  source.includes("mode === 'magiclink'"),
+  'Auth modal must expose the canonical email-link sign-in path'
+);
+
+assert.ok(
+  source.includes("mode === 'resend'"),
+  'Auth modal must expose the canonical confirmation resend path'
+);
+
+assert.ok(
+  source.includes('db.auth.signInWithOtp({'),
+  'Passwordless sign-in must use Supabase signInWithOtp'
+);
+
+assert.ok(
+  source.includes("db.auth.resend({"),
+  'Confirmation resend must use Supabase resend'
+);
+
+assert.ok(
+  source.includes("type: 'signup'"),
+  'Confirmation resend must use the signup resend contract'
+);
+
+assert.ok(
+  source.includes('handleMagicLinkRequest(event)') &&
+  source.includes('handleResendConfirmation(event)'),
+  'Passwordless auth forms must bind to the canonical handlers'
 );
 
 assert.ok(
