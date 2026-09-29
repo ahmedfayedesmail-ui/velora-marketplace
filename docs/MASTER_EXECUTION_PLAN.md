@@ -11354,3 +11354,156 @@ STATUS:
 - Final legal publication = OPEN / COUNSEL + OWNER.
 - No Production change.
 - No speculative legal or tax classification.
+
+
+## 2026-09-29 — MESSAGE 36/24 EXECUTION / LOW-BUREAUCRACY LEGAL LAUNCH OPTIONS
+
+CLASSIFICATION:
+- Message 36 addresses the owner's practical requirement to reduce paperwork and personal administrative burden without creating an unlawful workaround.
+- The objective is not to evade registration, tax, consumer-protection, privacy, cosmetics, or payment rules.
+- The objective is to choose the operating model that creates the smallest lawful administrative footprint while preserving the Velora product vision.
+
+### 148. IMPORTANT PRINCIPLE — NO ZERO-DOCUMENT COMMERCIAL MARKETPLACE
+
+VERIFIED BOUNDARY:
+- A transactional Egyptian marketplace cannot safely be made "paperless" merely by changing website code.
+- Once Velora actually sells goods/services, collects money, contracts with customers/sellers, issues commercial documents, processes regulated products, or acts in a payment/marketplace role, the applicable legal and tax obligations follow the real operating model.
+- Therefore there is no engineering trick that can legitimately replace the real-world entity/tax/contract/role evidence required for launch.
+
+### 149. LOW-BUREAUCRACY PATH A — NON-TRANSACTIONAL VELORA BETA
+
+MODEL:
+- Velora operates initially as a discovery / beauty-information / routine-personalization platform.
+- No customer purchase is completed through Velora.
+- No customer funds are held or settled by Velora.
+- No seller subscription, paid advertising, payout, gift-card issuance, or platform commission is activated.
+- Any external purchase is clearly completed with the actual seller/provider under that party's own transaction terms.
+
+ADVANTAGE:
+- This allows the existing product, Beauty Passport, Routine, Recommendations, Catalog presentation, and UX to be validated without prematurely activating the full commercial/tax/payment stack.
+
+LEGAL REQUIREMENTS THAT STILL REMAIN:
+- truthful product/beauty claims;
+- privacy/data governance and appropriate legal notice;
+- intellectual-property/content rights;
+- seller/content permissions where applicable;
+- consumer-facing disclosures appropriate to the non-transactional service;
+- EDA/product-regulatory boundary for any cosmetic products/claims presented.
+
+STATUS:
+- Legally lower-complexity pre-commercial operating model, subject to counsel confirmation of the exact activities actually offered.
+
+### 150. LOW-BUREAUCRACY PATH B — REGISTERED PARTNER / SELLER-OF-RECORD / PAYMENT PROVIDER MODEL
+
+MODEL:
+- A real registered business partner is the contracting seller-of-record/Merchant-of-Record for the customer sale, issues the applicable invoice/receipt, and bears the corresponding commercial/tax responsibilities under the actual contract.
+- A licensed/authorized payment provider handles payment-service functions.
+- Velora operates the software, discovery, marketplace interface, or agency/service layer under a written agreement.
+- Velora's revenue is then treated according to the actual contract and final tax/accounting classification; no assumed VAT or commission treatment is hard-coded.
+
+WHY THIS CAN REDUCE BURDEN:
+- It can keep Velora from personally becoming the party responsible for every seller's underlying sale, invoice, tax record, and payment-service function, provided the real contracts and operational behavior genuinely match the structure.
+- CBE maintains a licensing framework for payment system operators and payment service providers under Law 194/2020; using an appropriate regulated provider is therefore preferable to engineering an in-house payment-service function. citeturn969269search5
+
+NON-NEGOTIABLE:
+- The partner must genuinely perform the role it is contractually assigned.
+- The website, checkout, invoices, payment flows, refunds, customer support, Terms, and seller agreements must all agree with the real role.
+- The label "partner" or "MoR" cannot be used as a cosmetic legal wrapper while Velora actually performs the underlying regulated/commercial activity.
+
+STATUS:
+- Potentially lowest operational burden for a full transactional MVP, but requires a real partner contract and counsel/accounting confirmation.
+
+### 151. LOW-BUREAUCRACY PATH C — NATURAL PERSON / SMALL BUSINESS + SIMPLIFIED TAX REGIME
+
+CURRENT TAX-AUTHORITY SIGNAL:
+- ETA states that e-commerce is not governed by a separate standalone e-commerce tax law; treatment is under the general income-tax/VAT framework, with Law 6/2025 providing a simplified regime for qualifying small businesses. citeturn969269search4turn877375search0
+- ETA states the Law 6/2025 simplified system targets businesses with annual turnover not exceeding EGP 20 million and provides simplified tax treatment and administrative relief subject to its conditions. citeturn877375search0turn707646search1
+- ETA has also publicly stated that the absence of a physical premises for e-commerce activity was addressed by allowing e-commerce practitioners in the relevant process to register using the national ID only. This reduces one practical barrier but does NOT by itself answer every commercial-registration, licensing, VAT, invoicing, or activity-classification question. citeturn707646search3
+
+IMPORTANT:
+- This is a possible low-burden route, not an automatic recommendation or legal conclusion that a particular person qualifies.
+- Eligibility, legal-form choice, activity classification, VAT position, e-invoice/e-receipt obligations, and any sector-specific licensing must be confirmed against the actual person/entity and activity.
+- The simplified regime still requires compliance with applicable filings and with e-invoice/e-receipt obligations where the taxpayer falls into a mandatory phase. citeturn707646search3
+
+STATUS:
+- Viable candidate for a small initial operating model, subject to real-world registration/tax classification.
+
+### 152. OPERATING-MODEL COMPARISON — WITHOUT A POLITICAL/COMMERCIAL RANKING
+
+OPTION A:
+- Velora beta / no transaction
+- Lowest immediate legal-operational surface
+- Cannot generate normal marketplace transaction revenue through Velora checkout
+
+OPTION B:
+- Registered partner is Seller-of-Record/MoR + appropriate PSP
+- Can preserve a transactional Velora UX
+- Requires genuine contractual alignment and partner governance
+
+OPTION C:
+- Natural person / qualifying small-business registration + simplified tax treatment
+- Can support direct operation if actually eligible
+- Still requires actual registration and tax compliance; not document-free
+
+FULL MODEL:
+- Velora itself directly contracts with multiple sellers/customers, collects/settles money, handles commercial tax/invoicing, seller payouts, subscriptions, ads, gift cards, and regulated products
+- Highest number of real-world classifications and controls
+- Should not be activated until the external human classification gate is complete.
+
+### 153. RECOMMENDED ENGINEERING STRATEGY WITHOUT CHANGING THE VISION
+
+The existing Velora architecture should remain intact.
+
+Phase 1:
+- Continue building and testing all canonical marketplace functionality in Restore-Test.
+- Keep Production frozen.
+- Keep checkout/legal gate fail-closed.
+- Keep tax/invoice fields and contracts ready but unclassified.
+- Keep regulated cosmetic/product evidence as seller/product governance data, not a guessed legal status.
+
+Phase 2:
+- Choose one actual operating model (A, B, or C) based on the owner's real-world circumstances.
+- Feed the selected legal/tax classification into the canonical Terms, seller agreement, privacy mapping, invoice responsibility, payment contract, returns/refund model, and payout/commercial contracts.
+
+Phase 3:
+- Activate only the features covered by that selected model.
+- Obtain the minimum real-world evidence necessary for that model.
+- Complete counsel/accounting sign-off.
+- Publish the final legal documents.
+- Then perform Browser/Provider/Production gates.
+
+### 154. PRACTICAL BURDEN-REDUCTION TARGET
+
+The goal is now explicitly tracked as:
+"MINIMIZE PAPERWORK — NOT MINIMIZE COMPLIANCE."
+
+The engineering team should actively prefer:
+- one real operating entity instead of multiple artificial entities;
+- one coherent seller-of-record/payment model instead of mixed responsibility;
+- existing licensed payment infrastructure instead of building payment-service functions;
+- a simplified eligible tax regime where the real facts permit it;
+- a non-transactional beta before commercial activation where useful;
+- digital documents/acceptance and existing platform controls instead of manual repeated paperwork.
+
+The team must NOT prefer:
+- nominee/borrowed registrations that do not reflect the real operator;
+- fake MoR arrangements;
+- invoices issued by a party that is not the actual responsible seller;
+- collecting customer money while pretending not to be the seller;
+- splitting transactions merely to avoid thresholds or obligations;
+- hiding commercial activity behind a "demo" label while actually completing sales.
+
+### 155. CURRENT LEGAL LAUNCH STATE AFTER MESSAGE 36
+
+STATUS:
+- Legal coverage = materially expanded and tracked across consumer protection, cosmetics/EDA, privacy, tax/invoicing, payments, digital contracts, e-signature/e-records, seller terms, promotions, gift cards, subscriptions, fraud/trust, complaints, IP/content, and operational evidence.
+- Lowest-burden lawful launch route = NOT YET SELECTED.
+- Non-transactional beta = AVAILABLE AS A LOWER-COMPLEXITY OPTION.
+- Registered partner/MoR + PSP model = AVAILABLE AS A LOWER-ADMINISTRATIVE-BURDEN TRANSACTIONAL OPTION, subject to genuine contract and counsel/accounting.
+- Natural-person/small-business simplified-tax route = AVAILABLE AS A CANDIDATE ONLY; actual eligibility must be determined from real facts.
+- Tax/invoicing classification = BLOCKED on real-world entity/tax/MoR/accounting evidence.
+- Legal publication = OPEN / COUNSEL + OWNER.
+- EDA/product-regulatory evidence = OPEN for applicable cosmetic inventory.
+- Privacy operational mapping = OPEN.
+- No Production change.
+- No claim of full legal compliance has been made.
