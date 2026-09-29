@@ -121,6 +121,16 @@ assert.throws(
 
 
 
+console.log("DEBUG_AI_CASES");
+for (const input of [
+  "بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه",
+  "My skin is oily and I want hydration",
+  "مش عارفة نوع بشرتي، عايزة ترطيب وميزانيتي 700 جنيه",
+  "بشرتي دهنية وجافة وميزانيتي 700 وعايزة ترطيب",
+  "عندي حبوب وعايزة تفتيح، ميزانيتي 1500"
+]) console.log(input, normalize(window.veloraBeautyAI.interpret(input)));
+console.log("END_DEBUG_AI_CASES");
+
 assert.deepEqual(
   normalize(window.veloraBeautyAI.interpret("بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه")),
   { decision: "ready", skin_type: "oily", goal: "hydration", routine_budget: "500_1000", missing_fields: [] }
