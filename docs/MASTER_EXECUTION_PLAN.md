@@ -11772,3 +11772,130 @@ STATUS:
 - PSP/funds-flow characterization = OPEN until actual settlement behavior is locked.
 - Full Velora product vision = PRESERVED; no feature reduction.
 - No Production change.
+
+### 158. MESSAGE 39 — REGISTRATION EXECUTION SEQUENCE / STEP 1 LOCKED (2026-09-29)
+
+CLASSIFICATION:
+- REGISTRATION PREPARATION = ACTIVE EXECUTION.
+- OWNER OPERATING FACTS = CLOSED-DONE.
+- EXACT ACTIVITY / LEGAL-FORM SELECTION = OPEN, BEING RESOLVED BEFORE SUBMISSION.
+- DIGITAL-FIRST ROUTE = VERIFIED.
+- NO PRODUCTION CHANGE.
+
+#### 158.1 VERIFIED GOVERNMENT SERVICE SEQUENCE
+
+- GAFI provides electronic incorporation for relevant legal forms including sole proprietorships, with online application, document upload, payment, electronic signing where applicable, online tracking, and final-document delivery through the stated channels. citeturn381155search6
+- ITDA confirms commercial-registry services are available through Egypt Digital and that individual-establishment registration is subject to the official service conditions. citeturn381155search9turn381155search0
+- ITDA's current procedural guide for an ordinary individual establishment lists a chamber-issued practice certificate, valid national ID, tax card/document, and power-of-attorney evidence when applicable. Therefore the exact activity must be settled before we treat the commercial-register step as ready for submission. citeturn689431view2
+- ETA maintains electronic taxpayer registration/services and explicitly addresses e-commerce activities under the income-tax, VAT, and Law 6/2025 frameworks. citeturn381155search4turn381155search5
+
+#### 158.2 STEP 1 — REGISTRATION PROFILE (DO NOT SUBMIT YET)
+
+OWNER:
+- Natural person: Ahmed Fayed.
+
+BRAND:
+- Velora.
+
+OPERATING MODEL:
+- Online-only marketplace/platform.
+- Velora does not buy, own, stock, or resell the marketplace goods.
+- Independent sellers are the sellers of the goods.
+- Seller-side sale documentation/invoice responsibility is intended to remain with the actual seller, subject to final legal/tax contract confirmation.
+- Velora earns platform-side revenue such as commissions and paid seller services.
+
+PROPOSED ACTIVITY DESCRIPTION FOR REVIEW:
+- Primary concept: "تشغيل وإدارة منصة إلكترونية للتجارة والتسويق الرقمي وعرض منتجات البائعين المستقلين وربطهم بالعملاء وتقديم خدمات المنصة".
+- English working description: "Operation and management of an electronic marketplace/platform for digital commerce and marketing, listing independent sellers' products and connecting sellers with customers, with platform services provided to sellers."
+
+IMPORTANT:
+- This is a WORKING DESCRIPTION, not an approved legal activity classification.
+- Before any government submission, the official portal/activity catalogue must be checked and the exact accepted activity name/code selected.
+- Do NOT select a generic "sale of cosmetics" activity because Velora is not the seller of the goods.
+- Do NOT select "commercial agent/commission agent" merely because Velora earns commission; that classification can carry different legal/registration implications. The actual role must match the contracts and operational behavior.
+
+#### 158.3 STEP 1 OUTPUTS
+
+Before moving to Step 2, we need:
+1. Exact official activity name/code from the selected registration portal.
+2. Exact legal-form path used for Ahmed's online platform activity.
+3. Exact address basis accepted for the online-only activity.
+4. Exact list of documents requested by that chosen workflow.
+5. Exact fees shown by the official portal before payment.
+6. Whether the selected activity requires a separate chamber/practice certificate and which chamber issues it.
+7. Tax-registration order relative to the commercial-register application for the chosen path.
+
+#### 158.4 NO-PAPERWORK RULE
+
+- Do not print anything just because an old procedural guide lists a paper copy.
+- Use the current official portal workflow as the primary operational source for what can be uploaded/e-signed electronically.
+- Where an authority explicitly requires an original, physical appearance, identity verification, or a regulated certificate, that becomes a real-world gate and is recorded rather than bypassed.
+
+#### 158.5 STEP 2 — DIGITAL ACCOUNT SETUP
+
+After Step 1 activity/form resolution:
+- Prepare/use Egypt Digital account for ITDA services where applicable.
+- Prepare/use GAFI e-services account if the selected form routes through GAFI.
+- Prepare/use ETA taxpayer-portal account.
+- Never share passwords, OTPs, national-ID numbers, or payment credentials in chat.
+- The assistant prepares the sequence and field values; the owner performs official identity authentication and legally binding submission.
+
+#### 158.6 STEP 3 — TAX ONBOARDING / SIMPLIFIED-REGIME ELIGIBILITY
+
+- Complete the appropriate ETA taxpayer registration path for the selected operator/activity.
+- Determine VAT position from the actual taxable activity and current rules; do not assume a threshold alone decides the case.
+- Check eligibility for the Law 6/2025 simplified system. ETA states the current qualifying turnover ceiling is EGP 20 million and that the simplified request is electronic. citeturn381155search2
+- Confirm how Velora's platform commission and seller-paid services are treated for turnover/tax purposes before implementation.
+
+#### 158.7 STEP 4 — COMMERCIAL REGISTRY / CHAMBER
+
+- Apply through the current digital route where the selected establishment path permits it.
+- Provide the exact chamber/practice certificate required by the selected activity, if applicable.
+- Retain the digital commercial-register evidence as canonical legal-identity evidence.
+- ITDA confirms online commercial-registry services and individual-establishment registration subject to the service conditions. citeturn381155search9turn381155search10
+
+#### 158.8 STEP 5 — PSP / BANKING / SETTLEMENT ROLE
+
+- Only after the operator/tax/activity identity is established, select the PSP/acquirer and complete KYC/KYB using the real merchant identity.
+- Preserve the distinction between the seller's goods sale and Velora's platform services.
+- Lock the actual funds flow before activating production payments.
+
+#### 158.9 STEP 6 — LEGAL + SELLER CONTRACT ACTIVATION
+
+- Finalize Terms, Privacy, Returns/COD, Seller Agreement, Subscription Terms, Advertising Terms, Gift Card/Promotion Terms after the actual legal/tax/payment model is known.
+- Seller agreement must make the seller's role operationally real: seller identity, product compliance, consumer-facing sale documentation, returns/refunds, fulfillment, complaints, and evidence.
+
+#### 158.10 STEP 7 — ENGINEERING CONTRACT ALIGNMENT
+
+After classification is approved:
+- Configure invoice/e-receipt responsibility without inventing tax data.
+- Configure platform-revenue/commission accounting fields.
+- Validate seller/customer disclosures.
+- Run negative-path and Browser Gate verification.
+- Deploy only to Restore-Test/Preview during audit; Production remains frozen.
+
+#### 158.11 STEP 8 — PRODUCTION HUMAN GATES
+
+Production commercial activation requires separate human gates for:
+- legal publication;
+- tax/accounting sign-off;
+- PSP merchant approval;
+- applicable product/regulatory evidence;
+- backup/rollback and infrastructure readiness;
+- Browser/Provider evidence;
+- owner release approval.
+
+#### 158.12 MESSAGE 39 DECISION
+
+- Owner operating model = CLOSED-DONE.
+- Digital-first government-service availability = VERIFIED.
+- Step 1 registration profile = STARTED / NOT SUBMITTED.
+- Exact government activity classification = OPEN.
+- Exact legal form = OPEN pending activity/path confirmation.
+- Exact online address/evidence requirements = OPEN pending chosen workflow.
+- Tax registration = PENDING Step 1 classification.
+- Simplified-tax eligibility = CANDIDATE / NOT YET CLASSIFIED.
+- Commercial registry = PENDING prerequisite resolution.
+- PSP = PENDING legal/tax identity.
+- Legal publication = OPEN.
+- Production = FROZEN.
