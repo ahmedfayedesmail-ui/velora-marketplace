@@ -13557,3 +13557,63 @@ CARRY-FORWARD:
 - Nothing from earlier Master messages is deleted.
 - All non-AI OPEN / BLOCKED / PENDING items remain tracked.
 - No other execution track is entered by this message; the Customer Beauty AI track is now explicitly closed.
+
+
+## MESSAGE 63 — CANONICAL BEAUTY RECOMMENDATION BROWSER CLOSURE (2026-09-29)
+
+CLASSIFICATION: CUSTOMER RECOMMENDATION BROWSER EVIDENCE / CLOSED-DONE AT CURRENT VERIFIED RUNTIME SCOPE
+
+OBJECTIVE:
+- Close the carried OPEN browser-verification item for the canonical Beauty Recommendation V2 path without creating a second recommendation engine.
+- Verify authenticated customer flow from saved Beauty Passport -> canonical recommendation RPC -> existing customer recommendation cards/reason evidence.
+
+VERIFIED RUNTIME:
+- Browser gate job: \`109536777932\`
+- Tested Preview: \`https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app\`
+- Preview is the latest observed READY runtime-changing deployment for the current recommendation/UI source scope; subsequent branch changes in this sequence are test/workflow/docs changes.
+- Production remains frozen.
+
+BROWSER EVIDENCE:
+- HTTP status = 200.
+- Authenticated Supabase session = true.
+- Authenticated user ID present = true.
+- Canonical \`velora_get_beauty_recommendations\` RPC observed in browser network.
+- Customer Beauty AI endpoint requests = 0.
+- Recommendation response status = \`success\`.
+- Canonical recommendation count = 5.
+- Customer recommendation cards rendered = 5.
+- Recommendation reason chips rendered = 17.
+- UI status showed the existing recent personalized-result cache message.
+- Rendered products were sourced from the canonical response and displayed through the existing customer recommendation surface.
+- Browser gate conclusion = SUCCESS.
+
+SOURCE/ARCHITECTURE BOUNDARY:
+- \`src/scripts/59-s1-b2-beauty-recommendations.js\` remains the canonical customer recommendation surface.
+- It calls \`velora_get_beauty_recommendations\` only; no second recommendation engine was introduced.
+- The duplicate helper removed in Message 60 remains removed; source still contains exactly one \`getRecommendations()\` declaration.
+- Recommendation logic, ranking, feedback signal, catalog/availability/budget guards, reason codes, and cart/product bridges were not replaced by browser-test code.
+- Customer Beauty AI remains separate and has no authority over recommendation selection.
+
+ACTION FLOW:
+Authenticated customer
+-> saved Beauty Passport
+-> recommendation render trigger
+-> authenticated guard
+-> canonical recommendation RPC
+-> deterministic recommendation state
+-> customer recommendation rendering
+-> evidence-backed reason chips
+-> existing product/cart actions
+No new human gate was introduced.
+
+STATUS:
+- Recommendation source duplicate cleanup = CLOSED-DONE.
+- Canonical recommendation contract = CLOSED-DONE at source/DB scope.
+- Authenticated recommendation Browser verification = CLOSED-DONE for the verified current runtime.
+- Customer recommendation AI ownership = none.
+- Production = FROZEN.
+
+CARRY-FORWARD:
+- All other OPEN / BLOCKED / PENDING / NOT EVIDENCED Master items remain active.
+- Do not treat this Message 63 closure as a global Browser Gate closure.
+- Next active work must be selected from the remaining ordered non-legal OPEN queue.
