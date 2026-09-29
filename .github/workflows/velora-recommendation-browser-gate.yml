@@ -1,0 +1,202 @@
+name: Velora Recommendation Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/59-s1-b2-beauty-recommendations.js"
+      - ".github/workflows/velora-recommendation-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recommendation-browser:
+    name: Passport -> Canonical Recommendations -> Customer UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tested branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run authenticated recommendation browser evidence
+        env:
+          PREVIEW_URL: https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          url = os.environ["PREVIEW_URL"].rstrip("/")
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
+
+          evidence = {
+              "schema": "recommendation-browser.v1",
+              "preview_url": url,
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "failures": [],
+          }
+
+          if not email or not password:
+              evidence["failures"].append("Missing E2E_EMAIL/E2E_PASSWORD repository secrets")
+              with open("recommendation-browser-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(evidence, f, ensure_ascii=False, indent=2)
+              print(json.dumps(evidence, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(
+                  viewport={"width": 1440, "height": 1000},
+                  locale="en-US"
+              )
+
+              recommendation_requests = []
+              ai_requests = []
+
+              def on_request(req):
+                  if "velora_get_beauty_recommendations" in req.url:
+                      recommendation_requests.append(req.url)
+                  if "velora-beauty-ai-intent" in req.url:
+                      ai_requests.append(req.url)
+
+              page.on("request", on_request)
+
+              response = page.goto(
+                  url + "/#home",
+                  wait_until="domcontentloaded",
+                  timeout=60000
+              )
+              evidence["checks"]["http_status"] = response.status if response else None
+              evidence["checks"]["title"] = page.title()
+
+              page.evaluate("() => openAuthModal('login')")
+              page.locator("#loginEmail").fill(email)
+              page.locator("#loginPassword").fill(password)
+              page.locator("#authFormContent button[type='submit']").click()
+              page.wait_for_timeout(3500)
+
+              auth = page.evaluate("""
+                async () => {
+                  const r = await window.mahaSupabase.auth.getSession();
+                  return {
+                    hasSession: !!r?.data?.session?.user,
+                    userId: r?.data?.session?.user?.id || null
+                  };
+                }
+              """)
+              evidence["checks"]["authenticated_session"] = bool(auth["hasSession"])
+              evidence["checks"]["authenticated_user_id_present"] = bool(auth["userId"])
+
+              if not auth["hasSession"]:
+                  evidence["failures"].append("Authenticated Supabase session was not created")
+                  browser.close()
+                  with open("recommendation-browser-evidence.json", "w", encoding="utf-8") as f:
+                      json.dump(evidence, f, ensure_ascii=False, indent=2)
+                  print(json.dumps(evidence, ensure_ascii=False, indent=2))
+                  sys.exit(1)
+
+              page.wait_for_function(
+                  "() => { const s=document.getElementById('veloraBeautyRecommendationsSection'); return !!s && !s.hidden; }",
+                  timeout=15000
+              )
+
+              section = page.locator("#veloraBeautyRecommendationsSection")
+              grid = page.locator("#veloraBeautyRecommendationsGrid")
+              status = page.locator("#veloraBeautyRecommendationsStatus")
+              cards = grid.locator(".velora-recommendation-card")
+              reasons = grid.locator(".velora-recommendation-reason")
+              empty_state = grid.locator(".empty-state")
+
+              evidence["checks"]["recommendation_section_visible"] = (
+                  section.count() == 1 and section.is_visible()
+              )
+              evidence["checks"]["recommendation_rpc_requests"] = len(recommendation_requests)
+              evidence["checks"]["ai_endpoint_requests"] = len(ai_requests)
+              evidence["checks"]["recommendation_card_count"] = cards.count()
+              evidence["checks"]["reason_chip_count"] = reasons.count()
+              evidence["checks"]["empty_state_visible"] = empty_state.count() > 0 and empty_state.is_visible()
+              evidence["checks"]["status_text"] = status.inner_text() if status.count() else ""
+              evidence["checks"]["grid_text"] = grid.inner_text()
+
+              canonical = page.evaluate("""
+                async () => {
+                  const result = await window.veloraBeautyRecommendations.get();
+                  return result || null;
+                }
+              """)
+              evidence["checks"]["canonical_status"] = (
+                  canonical.get("status") if isinstance(canonical, dict) else None
+              )
+              evidence["checks"]["canonical_recommendation_count"] = (
+                  len(canonical.get("recommendations", []))
+                  if isinstance(canonical, dict) and isinstance(canonical.get("recommendations"), list)
+                  else 0
+              )
+
+              browser.close()
+
+          c = evidence["checks"]
+
+          if c.get("http_status") != 200:
+              evidence["failures"].append("Preview did not return HTTP 200")
+          if not c.get("authenticated_session"):
+              evidence["failures"].append("Authenticated session missing")
+          if not c.get("recommendation_section_visible"):
+              evidence["failures"].append("Recommendation section not visible")
+          if c.get("recommendation_rpc_requests", 0) < 1:
+              evidence["failures"].append("Canonical recommendation RPC was not observed")
+          if c.get("ai_endpoint_requests", 0) != 0:
+              evidence["failures"].append("Recommendation path invoked Customer Beauty AI")
+          if c.get("canonical_status") not in ("ready", "incomplete", "no_matches", "rate_limited"):
+              evidence["failures"].append(
+                  "Unexpected canonical recommendation status: " + str(c.get("canonical_status"))
+              )
+
+          if c.get("canonical_status") == "ready":
+              if c.get("canonical_recommendation_count", 0) < 1:
+                  evidence["failures"].append("Canonical ready response contained no recommendations")
+              if c.get("recommendation_card_count", 0) < 1:
+                  evidence["failures"].append("Recommendation cards did not render")
+              if c.get("reason_chip_count", 0) < 1:
+                  evidence["failures"].append("Recommendation reason evidence did not render")
+          elif c.get("canonical_status") in ("incomplete", "no_matches", "rate_limited"):
+              if not c.get("empty_state_visible"):
+                  evidence["failures"].append("Non-ready recommendation state did not render customer fallback")
+
+          with open("recommendation-browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+
+          if evidence["failures"]:
+              sys.exit(1)
+          PY
+
+      - name: Upload recommendation browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recommendation-browser-evidence
+          path: recommendation-browser-evidence.json
+          retention-days: 7
