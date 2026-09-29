@@ -56,29 +56,25 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: b45697e464bd40305c7bfb4ec38394c82f67a0a9
-Current HEAD commit message: docs: reconcile commission foundation state
+Current application commit before this documentation reconciliation: bf18c647718db250bfd2faf7aaffabcec818aafd
+Current application commit message: feat: surface canonical beauty recommendations
+The branch also contains the subsequent documentation reconciliation commit for this Message 2 closure; therefore the READY Preview below is intentionally recorded against its exact deployed application commit, not assumed to equal the final documentation-only HEAD.
 
 ### 4.1 Current-state reconciliation — 2026-09-29
-CLASSIFICATION: CLOSED-DONE (metadata reconciliation)
+CLASSIFICATION: CLOSED-DONE (metadata + application-baseline reconciliation)
 
 OBSERVED FACT:
-- GitHub branch ref audit/runtime-parity-2026-09-28 currently resolves to b45697e464bd40305c7bfb4ec38394c82f67a0a9.
-- Commit b45697e464bd40305c7bfb4ec38394c82f67a0a9 message: docs: reconcile commission foundation state.
-- The previous 40f237224f5768ec931c90952eac2b3eaf814490 value in this section was valid historical metadata at an earlier execution point and is retained as historical context, not current HEAD.
-- GitHub combined commit status for b45697e464bd40305c7bfb4ec38394c82f67a0a9 reports Vercel SUCCESS.
-- Current exact READY Vercel deployment is dpl_4BpFwCyTDum35JaN7ckfqcQ7vWVA.
-- Current Preview hostname is velora-marketplace-5tlljpt1u-ahmedconccc-7063.vercel.app.
+- The current application change for Message 2 is commit bf18c647718db250bfd2faf7aaffabcec818aafd (feat: surface canonical beauty recommendations).
+- Immediately before this documentation reconciliation, the branch contained that application commit and the earlier metadata reconciliation at b45697e464bd40305c7bfb4ec38394c82f67a0a9.
+- The exact READY Vercel deployment currently available is dpl_4BpFwCyTDum35JaN7ckfqcQ7vWVA at https://velora-marketplace-5tlljpt1u-ahmedconccc-7063.vercel.app/ and it is deployed from b45697e464bd40305c7bfb4ec38394c82f67a0a9.
+- A subsequent code deployment for bf18c647718db250bfd2faf7aaffabcec818aafd is not currently available because the Vercel deployment check is rate-limited for 24 hours.
+- This does NOT invalidate the source-level change; it means L6/L7 evidence for the new recommendation surface remains pending until an exact Preview is available.
+- No Production change was made.
 
 EVIDENCE BOUNDARY:
-- This reconciliation proves branch/commit metadata, Vercel deployment readiness, and CI status only.
-- It does not by itself prove Browser behavior, Provider settlement, or Production readiness.
-- Production remains frozen.
-
-DECISION:
-- b45697e464bd40305c7bfb4ec38394c82f67a0a9 is the authoritative current continuation HEAD for this execution point.
-- 40f237224f5768ec931c90952eac2b3eaf814490 and older SHAs remain historical evidence unless explicitly re-verified.
-- No rollback is justified by stale historical metadata.
+- Source/DB/ACL evidence for the Message 2 engineering baseline is established.
+- The new Recommendation presentation is source-verified but not yet Browser-verified because no exact Preview exists for bf18c647718db250bfd2faf7aaffabcec818aafd.
+- Provider settlement and Production readiness remain separate gates by policy.
 
 
 Historical branch supplied in an earlier handoff:
@@ -178,6 +174,30 @@ For each new work package:
 8. Run Browser Gate where behavior changed.
 9. Record evidence and classification.
 10. Carry unresolved items forward explicitly.
+
+## MESSAGE 2/10 — EXECUTION CLOSURE RECORD (2026-09-29)
+
+CLASSIFICATION: ENGINEERING FOUNDATION CLOSED / EXTERNAL EVIDENCE GATES REMAIN SEPARATE
+
+OBSERVED FACT:
+- Project Identity is represented in the repository and Master execution model.
+- Customer path has canonical Account/Auth, Beauty Passport V2, Beauty Context, deterministic Routine, Recommendation backend + customer presentation, Product/Catalog, canonical Cart bridge, canonical Checkout, Payment/Paymob Restore-Test path, Orders, Manual Fulfillment/Shipping, Feedback, and Replenishment contracts.
+- Seller path has canonical Onboarding, Store/Seller governance, Product create/update/availability, Inventory/variant contract, Orders/Shipping, Subscription purchase/state machine, Advertising purchase/lifecycle, Earnings/Commission, and Payout request/recording contracts.
+- Owner/Governance path has canonical Admin/Owner entry, Users/Sellers/Product/Orders/Payments governance surfaces, Promotions, Gift Cards, Legal control, Trust/Returns, Release/Launch control, and audit/reconciliation control planes.
+- The contract-level audit confirmed the key Customer/Seller/Owner canonical functions exist in Restore-Test; promotion creation uses the actual canonical function velora_create_platform_promotion, not a nonexistent velora_create_promotion name.
+- Current Restore-Test remains ACTIVE_HEALTHY. Production remains FROZEN and was not modified.
+- The current DB snapshot includes live QA/test state across orders, payments, commissions, shipments, beauty profiles/routines, notifications, coupons, legal QA fixtures, and seller/ad foundations; these counts are QA evidence, not production-usage claims.
+
+EVIDENCE STATUS:
+- L1/L2/L3 foundation: verified for the mapped canonical paths.
+- L4 negative/transactional evidence: retained from the existing Master evidence where present.
+- L6/L7 for the new recommendation surface: pending exact Preview/Browser evidence.
+- L8 provider settlement: remains a distinct external evidence gate.
+- L9 Production: intentionally not attempted during audit/hardening.
+
+NON-NEGOTIABLE DECISION:
+- Message 2 does not create any duplicate engine, speculative schema, new permission engine, new scheduler, Cart rewrite, V1 Beauty Passport revival, or Production mutation.
+- Remaining items are not to be reopened as "Message 2 work"; they are carried under their dedicated later Master gates only when reached.
 
 ## 12. Message execution rule
 
@@ -682,7 +702,7 @@ OBSERVED FACT:
 - If a remaining subsystem depends on a V1-shaped field, reconcile that dependency to V2 rather than reviving V1.
 
 ### 50-51. Beauty Recommendation Integration
-CLASSIFICATION: BACKEND CONTRACT CLOSED-DONE / BROWSER + CUSTOMER UX NOT EVIDENCED
+CLASSIFICATION: BACKEND CONTRACT + CUSTOMER SURFACE SOURCE CLOSED / BROWSER EVIDENCE OPEN
 
 OBSERVED FACT:
 - The current public recommendation RPC is:
@@ -721,11 +741,14 @@ ACL/runtime issue found and fixed:
   supabase/migrations/20260928151000_fix_beauty_recommendation_v2_public_wrapper_acl.sql
 - Commit: 71877779d573b016d23c6729d875844416e61ab2.
 
-CUSTOMER-SURFACE FINDING:
-- src/scripts/59-s1-b2-beauty-recommendations.js is only a client RPC/API wrapper; it does not mount a customer recommendation presentation.
-- Current source/code search found no other caller of veloraBeautyRecommendations or velora_get_beauty_recommendations in the inspected branch.
-- Therefore backend recommendation integration is CLOSED-DONE, but a customer-facing Recommendation UX is NOT EVIDENCED / remains an OPEN product-surface question.
-- Do not build a new recommendation UI before confirming the intended existing customer surface and researching prior art.
+CUSTOMER-SURFACE STATUS:
+- src/scripts/59-s1-b2-beauty-recommendations.js now contains the customer presentation adapter for the existing recommendation RPC; no second recommendation engine or new persistence model was introduced.
+- src/index.html now contains the canonical personalized-beauty-picks surface on the existing home page.
+- The presentation reuses the existing canonical product detail and cart bridge paths: openProductDetail() and addToCart(), with the existing cloud-cart override remaining the canonical server write path.
+- The surface handles incomplete Passport, no-match/rate-limited states, Arabic/English labels, product imagery when available, recommendation reasons, and links back to the existing beauty catalog when a local product representation is unavailable.
+- Source-level implementation is CLOSED for the customer surface.
+- Browser verification remains OPEN only because the new bf18 application commit does not yet have an exact READY Preview due to Vercel rate limiting.
+- Do not build another recommendation engine or duplicate customer presentation surface.
 
 ### 52-55. Routine
 CLASSIFICATION: CLOSED-DONE FOUNDATION / BROWSER EVIDENCE OPEN
