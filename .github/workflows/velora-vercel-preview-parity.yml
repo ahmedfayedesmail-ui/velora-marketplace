@@ -1,0 +1,155 @@
+name: Velora Zero-Cost Vercel Preview Parity Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Git SHA that the Preview must contain"
+        required: true
+        type: string
+      branch:
+        description: "Git branch expected on the Preview"
+        required: true
+        default: "audit/runtime-parity-2026-09-28"
+        type: string
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".github/workflows/velora-vercel-preview-parity.yml"
+      - ".remote/vercel-preview-parity.json"
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    name: Read-only Vercel Preview parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: prj_cDGSF8k6DPAOwZduQl1UG9ZZOKVY
+      EXPECTED_SHA_INPUT: ${{ inputs.expected_sha }}
+      BRANCH_INPUT: ${{ inputs.branch }}
+    steps:
+      - name: Checkout parity request
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Resolve requested commit and branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${EXPECTED_SHA_INPUT:-}"
+          branch="${BRANCH_INPUT:-}"
+          if [ -z "$expected" ] || [ -z "$branch" ]; then
+            if [ -f ".remote/vercel-preview-parity.json" ]; then
+              expected="$(python3 - <<'PY'
+import json
+with open(".remote/vercel-preview-parity.json", "r", encoding="utf-8") as f:
+    print(json.load(f).get("expected_sha", ""))
+PY
+)"
+              branch="$(python3 - <<'PY'
+import json
+with open(".remote/vercel-preview-parity.json", "r", encoding="utf-8") as f:
+    print(json.load(f).get("branch", "audit/runtime-parity-2026-09-28"))
+PY
+)"
+            fi
+          fi
+          test -n "$expected" || { echo "::error::expected_sha is required"; exit 1; }
+          test -n "$branch" || { echo "::error::branch is required"; exit 1; }
+          echo "EXPECTED_SHA=$expected" >> "$GITHUB_ENV"
+          echo "EXPECTED_BRANCH=$branch" >> "$GITHUB_ENV"
+
+      - name: Query Vercel deployments
+        shell: python
+        run: |
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          result = {
+              "schema": "velora-vercel-preview-parity.v1",
+              "project_id": os.environ["VERCEL_PROJECT_ID"],
+              "expected_sha": os.environ.get("EXPECTED_SHA", ""),
+              "expected_branch": os.environ.get("EXPECTED_BRANCH", ""),
+              "status": "BLOCKED",
+              "matching_ready_deployments": [],
+              "latest_ready_for_branch": None,
+              "failures": [],
+          }
+
+          token = os.environ.get("VERCEL_TOKEN", "")
+          if not token:
+              result["failures"].append("VERCEL_TOKEN_NOT_CONFIGURED")
+              result["note"] = "This is a read-only parity tool. Configure a Vercel access token as a GitHub secret to enable verification."
+          else:
+              query = urllib.parse.urlencode({
+                  "projectId": result["project_id"],
+                  "limit": "30",
+              })
+              url = "https://api.vercel.com/v6/deployments?" + query
+              request = urllib.request.Request(
+                  url,
+                  headers={"Authorization": "Bearer " + token, "Accept": "application/json"},
+                  method="GET",
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      payload = json.loads(response.read().decode("utf-8"))
+                      deployments = payload.get("deployments", [])
+                      ready = [
+                          d for d in deployments
+                          if d.get("state") == "READY"
+                          and d.get("meta", {}).get("githubCommitRef") == result["expected_branch"]
+                      ]
+                      if ready:
+                          latest = max(ready, key=lambda d: int(d.get("created", 0) or 0))
+                          result["latest_ready_for_branch"] = {
+                              "id": latest.get("id"),
+                              "url": latest.get("url"),
+                              "state": latest.get("state"),
+                              "githubCommitSha": latest.get("meta", {}).get("githubCommitSha"),
+                              "created": latest.get("created"),
+                          }
+                      matches = [
+                          {
+                              "id": d.get("id"),
+                              "url": d.get("url"),
+                              "state": d.get("state"),
+                              "githubCommitSha": d.get("meta", {}).get("githubCommitSha"),
+                              "created": d.get("created"),
+                          }
+                          for d in ready
+                          if d.get("meta", {}).get("githubCommitSha") == result["expected_sha"]
+                      ]
+                      result["matching_ready_deployments"] = matches
+                      result["status"] = "PASS" if matches else "NOT_MATCHED"
+                      if not matches:
+                          result["failures"].append("NO_READY_PREVIEW_WITH_EXPECTED_SHA")
+              except urllib.error.HTTPError as exc:
+                  result["failures"].append("VERCEL_API_HTTP_" + str(exc.code))
+              except Exception as exc:
+                  result["failures"].append("VERCEL_API_" + type(exc).__name__)
+
+          with open("vercel-preview-parity.json", "w", encoding="utf-8") as f:
+              json.dump(result, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          if result["status"] != "PASS":
+              raise SystemExit(1)
+
+      - name: Upload parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-vercel-preview-parity
+          path: vercel-preview-parity.json
+          retention-days: 3
