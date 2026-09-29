@@ -3712,3 +3712,85 @@ EVIDENCE:
 - L1/L2/L3: source/DB/ACL contract inspected.
 - L4: no failure incident reproduced; the theoretical claim-before-send crash remains a HYPOTHESIS only.
 - L5/L6/L7/L8/L9: no CI/Preview/Browser/provider/Production PASS claimed for this review.
+
+
+
+### Continuation Update — Notifications / Push Delivery Recovery — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT L1-L4; L6/L7 FINAL AGGREGATE GATES REMAIN
+
+OPERATING RULES REASSERTED:
+1. MASTER HANDOFF FIRST — this item was traced against the Master Execution Plan; no prior OPEN/BLOCKED/PENDING item is silently dropped.
+2. RESEARCH/REUSE FIRST — existing notifications, push_subscriptions, notification_push_deliveries, trigger, pg_net dispatch, and velora-dispatch-notification Edge Function were reused. No second notification service, queue, delivery table, or push state machine was introduced.
+3. ACTION FLOW PARALLEL — notification event -> existing notification row -> existing DB trigger -> pg_net async dispatch -> internal-secret validation -> active subscription lookup -> delivery claim -> push send -> mark delivered -> stale/invalid subscription cleanup -> retry/recovery when a worker crashes. Human intervention is not required for the normal push path.
+
+OBSERVED FACT — REAL GAP FOUND:
+- notification_push_deliveries previously had notification_id + subscription_id + delivered_at, with a unique PK.
+- velora_claim_push_delivery inserted the row with delivered_at=now() BEFORE the web-push send.
+- velora-dispatch-notification then sent the push, and only deleted the row on send error.
+- Therefore a worker crash/process interruption after claim but before send could leave a row permanently looking delivered, preventing future delivery attempts for that notification/subscription.
+- The existing DB trigger uses pg_net asynchronously to invoke velora-dispatch-notification. Supabase documents pg_net as asynchronous and notes that queued requests are executed by a background worker; response records are retained separately. This confirms that the dispatcher must not equate request/claim with successful push delivery. citeturn1search0turn1search6
+- Web Push guidance confirms the application should evaluate the push response and remove subscriptions returning 404/410; the existing Velora dispatcher already does that. citeturn0search1turn0search10
+
+RESEARCH / PRIOR ART:
+- Supabase's own documented async trigger architecture uses pg_net for database-to-Edge-Function dispatch and recommends observing request responses for failures. citeturn1search0turn1search2
+- web.dev documents Web Push 201 as accepted by the push service, 404/410 as expired/invalid subscriptions requiring removal, and 429 as rate limiting with Retry-After handling. citeturn0search1turn0search8
+- The correction therefore follows existing delivery/queue semantics instead of creating a new queue.
+
+IMPLEMENTED:
+- Migration: supabase/migrations/20260929070000_notification_push_delivery_recovery.sql.
+- Migration commit: 840a039a51827ed882ac739c9e1c88c812b02496.
+- notification_push_deliveries.delivered_at is now nullable for in-flight claims.
+- Existing rows are preserved as already delivered; claimed_at is backfilled from delivered_at.
+- Added claimed_at plus a partial index for undelivered claims.
+- velora_claim_push_delivery now:
+  * creates an in-flight claim with claimed_at and delivered_at=NULL;
+  * returns false for already-delivered rows;
+  * reclaims only undelivered claims older than 5 minutes.
+- Added velora_mark_push_delivery, which sets delivered_at only after successful web-push send.
+- velora_unmark_push_delivery only removes an undelivered in-flight claim.
+- Client anon/authenticated EXECUTE is explicitly revoked for claim/mark/unmark; these are internal SECURITY DEFINER boundaries.
+- Edge Function source: supabase/functions/velora-dispatch-notification/index.ts.
+- Source commit: e7059e7c791073c825227774bf1c54f53d3609ef (file SHA after branch updates: 91434b554a9a1f724fec20699bac0fb4680d99b8).
+- Restore-Test Edge Function deployed as velora-dispatch-notification version 10, SHA256 040d62bf5f03f204cac2cca5dd8e13d3f5889283cc0fe938adc9330fdc935f0e.
+- Edge function now calls velora_mark_push_delivery only after webpush.sendNotification resolves successfully.
+
+TRANSACTIONAL VERIFICATION:
+- Used an existing delivery fixture inside a transaction; no permanent fixture was created.
+- First claim=true; second claim=false.
+- After claim: delivered_at=NULL and claimed_at populated.
+- First mark=true; second mark=false.
+- A stale undelivered claim at 6 minutes old was successfully reclaimed=true by the 5-minute recovery lease.
+- Entire fixture mutation rolled back.
+- Existing delivery rows therefore remain untouched by the proof.
+
+ACL / CONTRACT VERIFICATION:
+- anon/authenticated EXECUTE for velora_claim_push_delivery = false.
+- anon/authenticated EXECUTE for velora_mark_push_delivery = false.
+- anon/authenticated EXECUTE for velora_unmark_push_delivery = false.
+- Existing internal dispatch-secret guard remains in place.
+- 404/410 push subscription deactivation remains intact.
+
+EVIDENCE LEVEL:
+- L1 Source: PASS.
+- L2 DB: PASS.
+- L3 ACL/Internal boundary: PASS.
+- L4 Transactional crash-recovery semantics: PASS.
+- L5 CI: NOT EVIDENCED for the exact latest combined branch state.
+- L6 Preview: NOT EVIDENCED.
+- L7 Browser: deferred to final aggregate Browser Gate.
+- L8 Provider: not claimed; actual push-provider acceptance still needs final Browser/provider evidence.
+- L9 Production: not claimed; Production remains FROZEN.
+
+DECISION:
+- Notifications/Push delivery recovery is CLOSED at source/DB/ACL/transactional levels.
+- Do not create a second notification queue or delivery engine.
+- Do not add arbitrary client listeners or polling.
+- Keep the 5-minute lease as infrastructure recovery only; it is not a customer-facing notification TTL or business policy.
+- Existing 404/410 stale subscription cleanup remains canonical.
+
+CARRY-FORWARD:
+- Final aggregate Browser Gate.
+- Provider-level push delivery evidence.
+- Production cutover/evidence.
+- Any owner/legal/provider decisions listed elsewhere in the Master remain open and are not affected by this closure.
