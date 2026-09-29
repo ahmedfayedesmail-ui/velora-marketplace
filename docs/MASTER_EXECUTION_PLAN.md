@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 8b656d9f2bcb3ce8cd18014aa7354c5afa485b3e
+Current observed branch HEAD: 574020f9e55eb35b150bc7649d5565103ebea0ac
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3235,3 +3235,20 @@ EVIDENCE:
 - Edge Function v5 is ACTIVE on Restore-Test with JWT verification enabled.
 - Source TypeScript was not locally parser-verified because the available runtime did not include Deno/TypeScript dependencies without an unavailable package download; no false parser PASS is claimed.
 - Provider payment initiation/settlement and Browser behavior remain unproven.
+
+
+### Continuation Vercel Exact-HEAD Preview Reconciliation — 2026-09-29
+
+CLASSIFICATION: CLOSED FOR DELIVERY CAPACITY / READY FOR AGGREGATE BROWSER GATE
+
+OBSERVED FACT:
+- Current exact branch HEAD is 574020f9e55eb35b150bc7649d5565103ebea0ac.
+- Vercel deployment dpl_CGu1H42wa3TbUDftomUKbaMkikNc maps exactly to that SHA and is READY.
+- The Vercel combined GitHub status for the same SHA is success.
+- Preview URL: https://velora-marketplace-761zysvyh-ahmedconccc-7063.vercel.app
+- The previously recorded build-rate-limit blocker no longer blocks this exact HEAD.
+
+DECISION:
+- Do not start per-item Browser Gates.
+- Keep the prepared final aggregate Browser Gate as the single L7 verification pass after the remaining source/DB work is frozen.
+- Exact Preview URL + SHA are now available for that final gate.
