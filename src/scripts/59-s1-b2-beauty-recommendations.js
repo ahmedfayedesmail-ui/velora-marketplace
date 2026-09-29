@@ -25,18 +25,6 @@
     return data;
   }
 
-  async function getRecommendations() {
-    const client = getClient();
-    const { data, error } = await client.rpc('velora_get_beauty_recommendations');
-
-    if (error) throw error;
-    if (!data || typeof data !== 'object') {
-      throw new Error('BEAUTY_RECOMMENDATION_EMPTY_RESPONSE');
-    }
-
-    return data;
-  }
-
   function t(en, ar) {
     return document.documentElement.lang === 'ar' ? ar : en;
   }
