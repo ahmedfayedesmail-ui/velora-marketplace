@@ -11,6 +11,11 @@ assert.match(canonical, /let sellerPlatformOperation\s*=\s*0/);
 assert.match(canonical, /const operation=\+\+sellerPlatformOperation/);
 assert.match(canonical, /document\.getElementById\('sellerContent'\)!==c/);
 assert.match(canonical, /platform\.classList\.contains\('active'\)/);
+assert.match(canonical, /invalidateSellerPlatformOperations\(\)/);
+assert.match(canonical, /invalidateAdminPlatformOperations\(\)/);
+assert.match(canonical, /window\.closeSellerPlatform=window\.VELORA_CLOSE_SELLER/);
+assert.match(canonical, /window\.closeAdminPlatform=window\.VELORA_CLOSE_ADMIN/);
+assert.match(canonical, /p\.hidden=true/);
 
 assert.match(canonical, /let adminPlatformOperation\s*=\s*0/);
 assert.match(canonical, /const operation=\+\+adminPlatformOperation/);
