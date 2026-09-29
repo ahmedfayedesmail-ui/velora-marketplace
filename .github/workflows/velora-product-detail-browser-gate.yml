@@ -1,0 +1,184 @@
+name: Velora Product Detail Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/52-s2a-variants.js"
+      - "tests/product-detail-contract.test.mjs"
+      - ".github/workflows/velora-product-detail-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  product-detail-browser:
+    name: Authenticated canonical Product Detail
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tested branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run Product Detail browser evidence
+        env:
+          PREVIEW_URL: https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          PRODUCT_ID: 21d977a0-111b-4bb4-9736-0f2994294d48
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          url = os.environ["PREVIEW_URL"].rstrip("/")
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
+          product_id = os.environ["PRODUCT_ID"]
+
+          evidence = {
+              "schema": "product-detail-browser.v1",
+              "preview_url": url,
+              "product_id": product_id,
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "failures": [],
+          }
+
+          if not email or not password:
+              evidence["failures"].append("Missing E2E_EMAIL/E2E_PASSWORD")
+              with open("product-detail-browser-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(evidence, f, ensure_ascii=False, indent=2)
+              print(json.dumps(evidence, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              page_errors = []
+              page.on("pageerror", lambda e: page_errors.append(str(e)))
+
+              response = page.goto(url + "/#home", wait_until="domcontentloaded", timeout=60000)
+              evidence["checks"]["http_status"] = response.status if response else None
+
+              page.evaluate("() => openAuthModal('login')")
+              page.locator("#loginEmail").fill(email)
+              page.locator("#loginPassword").fill(password)
+              page.locator("#authFormContent button[type='submit']").click()
+              page.wait_for_timeout(3000)
+
+              auth = page.evaluate("""
+                async () => {
+                  const r = await window.mahaSupabase.auth.getSession();
+                  return {session: !!r?.data?.session?.user, user_id: r?.data?.session?.user?.id || null};
+                }
+              """)
+              evidence["checks"]["authenticated_session"] = bool(auth["session"])
+
+              if not auth["session"]:
+                  evidence["failures"].append("Authenticated session missing")
+              else:
+                  page.evaluate("(id) => window.openProductDetail(id)", product_id)
+                  page.wait_for_function(
+                      "() => document.getElementById('productModal')?.classList.contains('active') && !!document.getElementById('productModalContent')?.innerText",
+                      timeout=15000
+                  )
+                  page.wait_for_timeout(1200)
+
+                  modal = page.locator("#productModal")
+                  content = page.locator("#productModalContent")
+                  text = content.inner_text()
+
+                  evidence["checks"]["product_modal_active"] = modal.count() == 1 and modal.locator("xpath=.").get_attribute("class").find("active") >= 0
+                  evidence["checks"]["product_name_visible"] = "Test Vitamin C Serum" in text
+                  evidence["checks"]["description_visible"] = "Test data: follow product instructions." in text
+                  evidence["checks"]["ingredients_visible"] = "Ingredients" in text and "vitamin_c" in text
+                  evidence["checks"]["benefits_visible"] = "Benefits" in text and "brightening" in text
+                  evidence["checks"]["how_to_use_visible"] = "How to Use" in text
+                  evidence["checks"]["skin_type_detail_visible"] = "Best For" in text and "oily" in text
+                  evidence["checks"]["add_to_cart_visible"] = modal.locator("button").filter(has_text="Add to Cart").count() > 0
+
+                  canonical = page.evaluate("""
+                    (id) => {
+                      const p = Array.isArray(window.MAHA_DATA?.PRODUCTS)
+                        ? window.MAHA_DATA.PRODUCTS.find(x => String(x?.id) === String(id))
+                        : null;
+                      return p ? {
+                        id: p.id,
+                        ingredients: Array.isArray(p.ingredients) ? p.ingredients : [],
+                        benefits: Array.isArray(p.benefits) ? p.benefits : [],
+                        howToUse: p.howToUse || "",
+                        skinTypes: Array.isArray(p.skinTypes) ? p.skinTypes : [],
+                        concerns: Array.isArray(p.concerns) ? p.concerns : [],
+                        warnings: p.warnings || "",
+                        seasonal_fit: p.seasonal_fit || {}
+                      } : null;
+                    }
+                  """, product_id)
+
+                  evidence["checks"]["canonical_detail_merge_present"] = bool(canonical)
+                  evidence["checks"]["canonical_ingredients"] = canonical.get("ingredients", []) if canonical else []
+                  evidence["checks"]["canonical_benefits"] = canonical.get("benefits", []) if canonical else []
+                  evidence["checks"]["canonical_how_to_use_present"] = bool(canonical and canonical.get("howToUse"))
+                  evidence["checks"]["canonical_skin_types"] = canonical.get("skinTypes", []) if canonical else []
+                  evidence["checks"]["canonical_concerns"] = canonical.get("concerns", []) if canonical else []
+                  evidence["checks"]["canonical_seasonal_fit_present"] = bool(canonical and canonical.get("seasonal_fit"))
+
+              evidence["checks"]["page_errors"] = page_errors
+              browser.close()
+
+          c = evidence["checks"]
+          required = [
+              "authenticated_session",
+              "product_modal_active",
+              "product_name_visible",
+              "description_visible",
+              "ingredients_visible",
+              "benefits_visible",
+              "how_to_use_visible",
+              "skin_type_detail_visible",
+              "add_to_cart_visible",
+              "canonical_detail_merge_present",
+              "canonical_how_to_use_present",
+              "canonical_seasonal_fit_present",
+          ]
+          for key in required:
+              if not c.get(key):
+                  evidence["failures"].append(key)
+
+          if c.get("http_status") != 200:
+              evidence["failures"].append("http_status_not_200")
+          if c.get("page_errors"):
+              evidence["failures"].append("page_errors=" + str(len(c["page_errors"])))
+
+          with open("product-detail-browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+          sys.exit(1 if evidence["failures"] else 0)
+          PY
+
+      - name: Upload Product Detail evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-detail-browser-evidence
+          path: product-detail-browser-evidence.json
+          retention-days: 7
