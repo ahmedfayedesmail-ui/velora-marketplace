@@ -11507,3 +11507,172 @@ STATUS:
 - Privacy operational mapping = OPEN.
 - No Production change.
 - No claim of full legal compliance has been made.
+
+### 156. MESSAGE 37 — MINIMUM REAL-WORLD REGISTRATION PACK / DIGITAL-FIRST EXECUTION (2026-09-29)
+
+CLASSIFICATION:
+- LEGAL / OPERATING MODEL EXECUTION PREPARATION = OPEN / HUMAN-GATED.
+- PURPOSE: minimize paperwork and physical visits while preserving the full transactional Velora Marketplace vision.
+- NO PRODUCTION CHANGE.
+- NO TAX RATE / VAT / MOR / SELLER-OF-RECORD ASSUMPTION.
+
+#### 156.1 CURRENT OFFICIAL DIGITAL ROUTES VERIFIED
+
+A. GAFI — ELECTRONIC INCORPORATION
+- GAFI confirms that certain legal forms, including individual establishments, partnerships, and qualifying limited-liability companies, can be established through its electronic incorporation portal.
+- The portal workflow includes account creation, choosing the legal form, reviewing the exact required documents/fees, uploading documents, submitting for review, electronic payment, electronic signing where applicable, and GAFI completing the remaining incorporation procedures; outputs are delivered through the Investor Services Center or Egypt Post.
+- This means the incorporation route itself can be substantially digital; it does NOT prove that every possible legal form or every downstream license is fully paperless.
+
+B. ITDA / MINISTRY OF SUPPLY — COMMERCIAL REGISTER
+- The Internal Trade Development Authority confirms digital commercial-registry services and states that a digital commercial-registry extract can be requested through Egypt Digital, paid electronically, and downloaded with a QR code.
+- Since January 2026, a defined set of commercial-registry services is provided exclusively through Egypt Digital, including adding a non-listed establishment, moving an individual establishment within the governorate, commercial-registry extracts, data certificates, and negative certificates.
+
+C. ETA — TAXPAYER ELECTRONIC PORTAL
+- The Egyptian Tax Authority's electronic portal provides a new-taxpayer registration path and supports electronic tax filings and tax services.
+- The current portal exposes a legal-form choice for natural versus juridical persons and includes tax-accounting-system workflows.
+
+D. ETA — LAW 6/2025 SIMPLIFIED TAX SYSTEM
+- ETA confirms that qualifying businesses with annual turnover not exceeding EGP 20 million may apply for the simplified system electronically using Form 1/10.
+- ETA states that the system has simplified records/documents and that the minimum records may be maintained electronically or on paper.
+- Eligibility and the actual tax basis for Velora must still be determined from the real operating entity, activity, and marketplace role.
+
+E. ELECTRONIC SIGNATURE
+- GAFI's electronic-incorporation workflow requires electronic signing for the relevant incorporation instruments.
+- ITIDA identifies Egypt's electronic-signature framework and the availability of electronic signature/certificate services; exact certificate/provider requirements depend on the workflow being performed.
+
+#### 156.2 WHAT WE SHOULD PREPARE NOW — "ONE FOLDER, NOT A PAPER MOUNTAIN"
+
+The engineering/legal preparation pack should contain only the following categories before any commercial activation:
+
+1. OWNER IDENTITY PACK
+- Valid national ID data for the real applicant/operator.
+- Contact email and phone for official portals.
+- Proof/address data only if the selected registration workflow actually requests it.
+
+2. BUSINESS IDENTITY PACK
+- Proposed legal/business name(s) for Velora/operator.
+- Exact business activity description to be used consistently across registration, tax, PSP, customer Terms, and seller agreement.
+- Proposed operating address / residence-based activity only where officially accepted.
+
+3. MARKETPLACE ROLE PACK
+- Explicit answer to: who is the customer-facing contracting seller?
+- Explicit answer to: who issues the invoice/e-receipt?
+- Explicit answer to: who receives customer funds?
+- Explicit answer to: who refunds the customer?
+- Explicit answer to: who bears seller/product compliance obligations?
+- Explicit answer to: who owns the commercial relationship with each seller?
+- These answers must match the real operating contracts and website behavior.
+
+4. TAX / ACCOUNTING PACK
+- Tax-registration status, if any.
+- VAT status, if any.
+- Accountant/counsel confirmation of applicable treatment.
+- Treatment of marketplace commission, seller subscriptions, seller ads, provider fees, refunds/credit notes, and payouts.
+- No engineering guess substitutes for this pack.
+
+5. PRODUCT / SELLER REGULATORY PACK
+- Seller identity and verification evidence.
+- Product compliance / regulatory evidence for applicable cosmetics and other regulated inventory.
+- Evidence-backed claims and product information.
+
+6. LEGAL DOCUMENT PACK
+- Final Terms of Service.
+- Privacy Policy.
+- Returns / Refunds / Cancellation / COD policy.
+- Seller Agreement.
+- Seller Subscriptions Terms.
+- Seller Advertising Terms.
+- Promotion Terms.
+- Gift Card Terms.
+- Complaint / dispute / escalation policy.
+- These remain draft until counsel/owner publication gate is completed.
+
+#### 156.3 WHAT CAN BE DONE DIGITALLY VS WHAT CANNOT BE "DONE FOR THE OWNER"
+
+DIGITAL / PREPARABLE BY US:
+- Portal account checklist and exact application sequence.
+- Business activity wording draft.
+- Marketplace-role decision matrix.
+- Legal document drafts and publication checklist.
+- Tax/commission/fee data model configuration plan (without invented tax rules).
+- Invoice/e-receipt integration contract once issuer/status is confirmed.
+- Seller compliance evidence checklist.
+- Audit/evidence retention matrix.
+- Exact website disclosures and legal acceptance wiring.
+
+EXTERNAL HUMAN / REAL-WORLD GATE:
+- The owner's identity verification and any required official authentication.
+- Selecting/confirming the actual legal entity and applicant.
+- Submission of legally binding declarations under the owner's name.
+- Any required electronic-signature certificate issuance or identity verification.
+- Counsel/accountant approval of tax classification, VAT treatment, MoR/Seller-of-Record role, and accounting treatment.
+- Any sector-specific license/approval required by the actual activity or products.
+- Any payment-provider onboarding/KYC/KYB decision that requires the real merchant's documents.
+
+#### 156.4 MINIMUM NEXT-STEP DECISION TREE
+
+STEP 1 — Choose the real operator form.
+- Candidate: natural person / qualifying small-business route.
+- Candidate: formal entity via GAFI electronic incorporation.
+- Candidate: registered partner/MoR route only if a real partner will actually assume that role.
+- Do not choose by convenience alone; choose based on the actual business role and intended commercial structure.
+
+STEP 2 — Confirm whether Velora is selling directly or only providing a platform/service layer for the initial release.
+- This controls the tax, invoice, consumer-contract, PSP, and seller-contract mapping.
+
+STEP 3 — Build the application pack for the selected route.
+- Use the exact document list shown by the official portal for the selected legal form.
+- Avoid printing anything unless the portal or authority explicitly requires an original/physical document.
+
+STEP 4 — Complete tax onboarding and simplified-tax request where legally eligible.
+- ETA confirms the simplified-system request is electronic through Form 1/10.
+- Do not assume the simplified system eliminates other registrations or activity-specific obligations.
+
+STEP 5 — Lock invoice/e-receipt responsibility and integrate only after the tax role is confirmed.
+- ETA confirms e-invoice/e-receipt obligations depend on the taxpayer and applicable transaction type/phase.
+
+STEP 6 — Complete legal publication and seller/product gates.
+- No transactional production activation before these gates close.
+
+#### 156.5 CURRENT PAPERWORK TARGET
+
+TARGET = MINIMUM NECESSARY REAL-WORLD DOCUMENTS + MAXIMUM DIGITAL EXECUTION.
+
+The team should NOT:
+- create duplicate entities merely to reduce paperwork;
+- use a nominee or borrowed registration;
+- call a party "MoR" when it does not actually perform that role;
+- split sales to avoid thresholds;
+- activate Production while the legal/tax/payment role is unresolved.
+
+The team SHOULD:
+- use official digital portals whenever the service is offered there;
+- prepare a single reusable document pack;
+- reuse one coherent business identity across GAFI/ITDA/ETA/PSP/legal documents;
+- keep Velora's full product and monetization architecture intact;
+- activate only the commercial paths covered by the selected legal/tax/payment model.
+
+#### 156.6 OFFICIAL SOURCE REGISTER — 2026-09-29
+
+- GAFI electronic incorporation: https://gafi.gov.eg/ar/contenttemplate/ca1d9b8d-76d1-46dc-a677-eb4ba5ccaae3
+- GAFI portal/current e-services: https://gafi.gov.eg/ar
+- Egyptian Tax Authority portal: https://portal.eta.gov.eg/ar/home
+- ETA electronic taxpayer registration: https://eservice.incometax.gov.eg/ETax/TaxpayerRegistration/AddTaxpayer
+- ETA simplified tax system / Ministerial Decision 420/2025: https://eta.gov.eg/ar/news/qrar-wzyr-almalyt-rqm-420-lsnt-2025
+- ITDA commercial registry: https://itda.gov.eg/sgl.aspx
+- ITDA digital registry services: https://www.itda.gov.eg/registry.aspx
+- ITDA FAQ confirming Egypt Digital commercial-registry extract: https://itda.gov.eg/ask.aspx
+- Ministry of Supply announcement on Egypt Digital commercial-registry services from January 2026: https://www.msit.gov.eg/?p=7073
+- ITIDA electronic signature: https://www.itida.gov.eg/Arabic/Pages/E-Signature.aspx
+
+#### 156.7 MESSAGE 37 DECISION
+
+STATUS:
+- Digital-first legal/registration route = VERIFIED AS AVAILABLE FOR RELEVANT SERVICES.
+- Commercial-register digital services = VERIFIED.
+- ETA electronic taxpayer registration/services = VERIFIED.
+- Simplified-tax application = VERIFIED AS ELECTRONIC WHERE THE ACTUAL TAXPAYER QUALIFIES.
+- Full legal/tax/operator selection = OPEN / HUMAN-GATED.
+- Exact document list for the final legal form = PENDING FORM SELECTION.
+- Final invoice/e-receipt issuer and VAT treatment = BLOCKED ON REAL-WORLD CLASSIFICATION.
+- No Production change.
