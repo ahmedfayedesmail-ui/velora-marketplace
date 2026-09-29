@@ -39,7 +39,7 @@ jobs:
 
       - name: Run Product Detail browser evidence
         env:
-          PREVIEW_URL: https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app
+          PREVIEW_URL: https://velora-marketplace-gfmw5qztb-ahmedconccc-7063.vercel.app
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           PRODUCT_ID: 21d977a0-111b-4bb4-9736-0f2994294d48
