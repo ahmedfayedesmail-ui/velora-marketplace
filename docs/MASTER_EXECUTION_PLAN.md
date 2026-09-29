@@ -13167,3 +13167,61 @@ VERIFICATION:
 - Real OpenAI provider execution: BLOCKED / NOT CONFIGURED.
 - CI on these latest commits: NOT EVIDENCED through the available GitHub workflow-run connector.
 - Production: untouched / FROZEN.
+
+
+## MESSAGE 57 — CLARIFICATION NAVIGATION GUARD + NATURAL-LANGUAGE RUNTIME PARITY (2026-09-29)
+
+CLASSIFICATION: IMPLEMENTED / SOURCE VERIFIED / PREVIEW READY / CI NOT EVIDENCED / BROWSER GATE OPEN
+
+OBSERVED GAP:
+- In the canonical Routine Discovery clarification path, the Back control was enabled based only on the absolute question index.
+- When the first missing clarification field was not Question 1, the control could appear enabled even though there was no previous missing field to navigate to.
+- This was a UX/state-navigation defect in the existing flow, not an AI-engine defect.
+
+IMPLEMENTATION:
+- File: `src/scripts/61-s1-c-quiz-v2.js`
+- Clarification navigation now derives `previousClarificationStep` from the existing `nextMissingStep(...,-1)` contract.
+- The Back control is disabled unless a prior missing field actually exists.
+- Existing forward navigation and final Passport save path are unchanged.
+- No new listener architecture, MutationObserver, schema, RPC, AI engine, or commerce authority was introduced.
+
+REGRESSION CONTRACT:
+- File: `tests/customer-beauty-ai-contract.test.mjs`
+- Contract now asserts the clarification back-navigation guard and its disabled-state expression.
+- Existing invisible-AI, natural-language, ready, clarification, fallback, and canonical Passport assertions remain in place.
+
+COMMIT EVIDENCE:
+- `36b3592aa774f232e9fc6752aab66b9d3b4bc753` — `Fix clarification back navigation guard`
+- `7669f689924d6230f583bded35aeb8904fa9e0f3` — `Cover clarification back navigation guard`
+
+PREVIEW EVIDENCE:
+- Vercel deployment: `dpl_DraQZACR9GMYUiCf1BnttAHUcD53`
+- State: READY
+- Branch: `audit/runtime-parity-2026-09-28`
+- Source SHA: `7669f689924d6230f583bded35aeb8904fa9e0f3`
+- This is documentation/test parity for the source fix; it does not constitute Browser PASS.
+
+STATUS:
+- Natural-language customer surface = IMPLEMENTED at source; customer sees an ordinary Routine Discovery experience, not an AI feature.
+- Invisible AI interpreter = CLOSED-DONE at source/contract.
+- Clarification navigation guard = CLOSED-DONE at source/contract scope.
+- Restore-Test AI function V2 = ACTIVE and JWT-protected.
+- Live OpenAI provider = BLOCKED / NOT CONFIGURED.
+- Real provider execution = NOT EVIDENCED.
+- Browser E2E = OPEN / NOT EVIDENCED.
+- CI for the latest commits = NOT EVIDENCED through the currently available workflow connector.
+- Production = FROZEN.
+
+ACTION FLOW REMAINS:
+Natural-language submit
+-> authentication/flow guard
+-> internal intent interpretation
+-> strict candidate validation
+-> ready confirmation OR missing-field clarification OR manual fallback
+-> canonical `velora_save_beauty_passport_v2`
+-> deterministic routine
+-> deterministic recommendations
+-> existing Routine -> Cart
+-> existing audit/retry/fallback paths
+
+No AI step gains product selection, pricing, inventory, seller, payment, order, promotion, gift-card, commission, payout, or governance authority.
