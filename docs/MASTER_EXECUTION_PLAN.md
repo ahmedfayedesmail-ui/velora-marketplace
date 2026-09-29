@@ -13363,3 +13363,48 @@ DECISION:
 - Customer Beauty AI provider remains BLOCKED / NOT CONFIGURED.
 - DR actual backup artifact/rehearsal remains OPEN / PENDING.
 - Performance optimization remains OPEN.
+
+
+## MESSAGE 60 — CANONICAL RECOMMENDATION HELPER DEDUPE CORRECTION (2026-09-29)
+
+CLASSIFICATION: SOURCE MAINTENANCE / SMALLEST SAFE CHANGE
+
+OBSERVED GAP:
+- Source inspection of `src/scripts/59-s1-b2-beauty-recommendations.js` found the same `getRecommendations()` helper declared twice consecutively.
+- Both declarations called the same canonical RPC `velora_get_beauty_recommendations` and had identical behavior.
+- This was not a second recommendation engine or a contract fork, but it was unnecessary duplicate source that could create maintenance ambiguity.
+
+IMPLEMENTATION:
+- Removed exactly one duplicate `getRecommendations()` declaration.
+- Kept the existing canonical RPC, response contract, rendering path, lifecycle listeners, cache behavior, product/cart bridges, and reason-code handling unchanged.
+- No schema change.
+- No RPC change.
+- No new engine.
+- No customer AI authority change.
+- No Production mutation.
+
+COMMIT EVIDENCE:
+- `1f337ea291f453991cd3193ce081e37358c84f38` — `fix: remove duplicate recommendation helper`
+- Updated source blob: `8ea99a6e7e23ca93ce24cc56d6bb07f8dfff60eb`
+
+SOURCE VERIFICATION:
+- The updated file parses successfully.
+- Exact source count for `async function getRecommendations(` is now 1.
+- This is source-level verification only; it is not a Browser PASS.
+
+CI / PREVIEW:
+- The Customer Beauty AI workflow does not trigger on `59-s1-b2-beauty-recommendations.js`; therefore no new AI-workflow CI run is claimed for this maintenance change.
+- Existing READY Preview deployments remain the available runtime evidence for the surrounding recommendation implementation, but no new Preview claim is made for this specific commit unless independently observed.
+
+ACTION FLOW IMPACT:
+- This maintenance change does not alter the recommendation state machine:
+  Passport state -> canonical recommendation RPC -> deterministic recommendation response -> existing customer rendering -> existing product/cart actions.
+- No new human gate or manual Owner operation introduced.
+
+STATUS:
+- Duplicate recommendation helper source gap = CLOSED-DONE.
+- Canonical recommendation engine = unchanged.
+- Recommendation browser verification = OPEN / NOT EVIDENCED.
+- Customer Beauty AI live provider = BLOCKED / NOT CONFIGURED.
+- Browser Gate overall = OPEN / NOT EVIDENCED.
+- Production = FROZEN.
