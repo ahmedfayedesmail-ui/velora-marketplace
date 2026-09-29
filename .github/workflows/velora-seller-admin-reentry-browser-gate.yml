@@ -54,12 +54,14 @@ jobs:
 
           from playwright.sync_api import sync_playwright
 
+          browser_errors = []
+
           BASE = os.environ["SUPABASE_URL"].rstrip("/")
           PREVIEW = os.environ["PREVIEW_URL"].rstrip("/")
           SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
           evidence = {
-              "schema": "seller-admin-reentry-browser.v1",
+              "schema": "seller-admin-reentry-browser.v2",
               "preview_url": PREVIEW,
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
               "checks": {},
@@ -194,8 +196,87 @@ jobs:
               platform_node = page.locator("#" + platform_id)
               content_node = page.locator("#" + content_id)
 
-              role["first_open_active"] = platform_node.count() == 1 and platform_node.get_attribute("aria-hidden") == "false"
-              role["first_open_expected_content"] = (platform == "seller" and platform_node.locator("#sellerSidebar").count() == 1 and platform_node.locator("#sellerHeaderTitle").inner_text().strip() == "Dashboard" and platform_node.locator("#sellerContent").count() == 1) or (platform == "admin" and platform_node.locator("#adminSidebar").count() == 1 and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard") and platform_node.locator("#adminContent").count() == 1)
+              def runtime_snapshot(stage):
+                  snapshot = page.evaluate(
+                      """(stage) => {
+                        const platform = stage.platform;
+                        const el = document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform');
+                        const content = document.getElementById(platform === 'seller' ? 'sellerContent' : 'adminContent');
+                        const stateUser = window.STATE?.user || null;
+                        return {
+                          stage: stage.name,
+                          hash: String(location.hash || ''),
+                          url: String(location.href),
+                          documentId: window.__VELORA_BROWSER_EVIDENCE_DOCUMENT_ID || null,
+                          platformPresent: !!el,
+                          platformActive: !!el?.classList.contains('active'),
+                          ariaHidden: el?.getAttribute('aria-hidden') ?? null,
+                          contentPresent: !!content,
+                          contentTextLength: String(content?.innerText || '').trim().length,
+                          stateUser: stateUser ? {
+                            uid: stateUser.uid || null,
+                            email: stateUser.email || null,
+                            role: stateUser.role || null,
+                            roles: Array.isArray(stateUser.roles) ? [...stateUser.roles] : null
+                          } : null
+                        };
+                      }""",
+                      stage,
+                  )
+                  session = page.evaluate(
+                      """async () => {
+                        try {
+                          const r = await window.mahaSupabase?.auth?.getSession?.();
+                          const s = r?.data?.session;
+                          return {
+                            available: !!window.mahaSupabase?.auth?.getSession,
+                            present: !!s,
+                            userId: s?.user?.id || null,
+                            email: s?.user?.email || null
+                          };
+                        } catch (e) {
+                          return {
+                            available: !!window.mahaSupabase?.auth?.getSession,
+                            present: false,
+                            userId: null,
+                            email: null,
+                            error: String(e?.message || e)
+                          };
+                        }
+                      }"""
+                  )
+                  snapshot["session"] = session
+                  snapshot["browserErrors"] = list(browser_errors)
+                  return snapshot
+
+              page.evaluate("""() => {
+                if (!window.__VELORA_BROWSER_EVIDENCE_DOCUMENT_ID) {
+                  window.__VELORA_BROWSER_EVIDENCE_DOCUMENT_ID =
+                    (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + String(Math.random()));
+                }
+              }""")
+
+              first_open = runtime_snapshot({"name": "first_open", "platform": platform})
+              role["first_open"] = first_open
+              role["first_open_hash"] = first_open["hash"]
+              role["first_open_document_id"] = first_open["documentId"]
+              role["first_open_active"] = bool(
+                  first_open["platformPresent"] and first_open["platformActive"] and first_open["ariaHidden"] == "false"
+              )
+              role["first_open_expected_content"] = bool(
+                  first_open["contentPresent"]
+                  and first_open["contentTextLength"] > 0
+                  and (
+                      platform == "seller"
+                      and platform_node.locator("#sellerSidebar").count() == 1
+                      and platform_node.locator("#sellerHeaderTitle").inner_text().strip() == "Dashboard"
+                  )
+                  or (
+                      platform == "admin"
+                      and platform_node.locator("#adminSidebar").count() == 1
+                      and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard")
+                  )
+              )
 
               close_fn = "window.VELORA_CLOSE_SELLER()" if platform == "seller" else "window.VELORA_CLOSE_ADMIN()"
               page.evaluate(close_fn)
@@ -204,8 +285,19 @@ jobs:
                   arg=platform,
                   timeout=10000
               )
-              role["closed_without_refresh"] = not platform_node.locator("xpath=..").count() if False else True
-              role["closed_hash"] = page.evaluate("() => location.hash")
+
+              close_snapshot = runtime_snapshot({"name": "close", "platform": platform})
+              role["close"] = close_snapshot
+              role["closed_hash"] = close_snapshot["hash"]
+              role["closed_document_id"] = close_snapshot["documentId"]
+              role["closed_platform_active"] = bool(close_snapshot["platformActive"])
+              role["closed_without_refresh"] = bool(
+                  close_snapshot["documentId"]
+                  and close_snapshot["documentId"] == role["first_open_document_id"]
+                  and not close_snapshot["platformActive"]
+              )
+
+              page.screenshot(path=f"{label}-closed.png", full_page=True)
 
               page.evaluate("(platform) => window.switchPlatform(platform)", platform)
               page.wait_for_function(
@@ -214,8 +306,32 @@ jobs:
                   timeout=15000
               )
 
-              role["reentry_active_without_refresh"] = True
-              role["reentry_expected_content"] = (platform == "seller" and platform_node.locator("#sellerSidebar").count() == 1 and platform_node.locator("#sellerHeaderTitle").inner_text().strip() == "Dashboard" and platform_node.locator("#sellerContent").count() == 1) or (platform == "admin" and platform_node.locator("#adminSidebar").count() == 1 and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard") and platform_node.locator("#adminContent").count() == 1)
+              second_open = runtime_snapshot({"name": "second_open", "platform": platform})
+              role["second_open"] = second_open
+              role["second_open_hash"] = second_open["hash"]
+              role["second_open_document_id"] = second_open["documentId"]
+              role["reentry_active_without_refresh"] = bool(
+                  second_open["platformPresent"]
+                  and second_open["platformActive"]
+                  and second_open["ariaHidden"] == "false"
+                  and second_open["documentId"] == role["first_open_document_id"]
+              )
+              role["reentry_expected_content"] = bool(
+                  second_open["contentPresent"]
+                  and second_open["contentTextLength"] > 0
+                  and (
+                      platform == "seller"
+                      and platform_node.locator("#sellerSidebar").count() == 1
+                      and platform_node.locator("#sellerHeaderTitle").inner_text().strip() == "Dashboard"
+                  )
+                  or (
+                      platform == "admin"
+                      and platform_node.locator("#adminSidebar").count() == 1
+                      and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard")
+                  )
+              )
+              page.screenshot(path=f"{label}-first-open.png", full_page=True)
+              page.screenshot(path=f"{label}-second-open.png", full_page=True)
 
               page.evaluate("() => { window.location.hash = 'home'; }")
               page.wait_for_timeout(1200)
@@ -247,6 +363,9 @@ jobs:
 
               seller_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
               admin_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              for browser_page in (seller_page, admin_page):
+                  browser_page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + str(exc)))
+                  browser_page.on("console", lambda msg: browser_errors.append("console:" + msg.text) if msg.type == "error" else None)
 
               run_role(seller_page, "seller", seller_user, "seller", "Canonical Seller Center")
               run_role(admin_page, "admin", admin_user, "admin", "Dashboard")
@@ -285,6 +404,8 @@ jobs:
                   if r.get("forward_hash") != "#admin":
                       evidence["failures"].append("admin: forward did not restore #admin")
 
+          evidence["browser_errors"] = list(dict.fromkeys(browser_errors))[:50]
+
           with open("seller-admin-reentry-browser-evidence.json", "w", encoding="utf-8") as f:
               json.dump(evidence, f, ensure_ascii=False, indent=2)
           print(json.dumps(evidence, ensure_ascii=False, indent=2))
@@ -298,5 +419,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: seller-admin-reentry-browser-evidence
-          path: seller-admin-reentry-browser-evidence.json
+          path: |
+            seller-admin-reentry-browser-evidence.json
+            seller-first-open.png
+            seller-closed.png
+            seller-second-open.png
+            admin-first-open.png
+            admin-closed.png
+            admin-second-open.png
           retention-days: 7
