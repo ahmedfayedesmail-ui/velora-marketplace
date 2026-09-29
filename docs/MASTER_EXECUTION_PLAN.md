@@ -9518,3 +9518,202 @@ STATUS:
 - Final aggregate Browser Gate = OPEN / NOT EVIDENCED.
 - Next execution must select the next OPEN item from Master order after current-state reconciliation.
 - Velora is CONTINUING, not restarting.
+
+## 2026-09-29 — MESSAGE 25/24 EXECUTION / COD POLICY FIND-RESEARCH-COMPARE-REUSE-GAP PROOF
+
+CLASSIFICATION:
+- Message 25 executed as the first ordered OPEN workstream after the Message 24 continuation protocol.
+- Restore-Test COD implementation was inspected at source and database levels.
+- External marketplace/COD prior art was researched.
+- No speculative schema, scheduler, reservation table, TTL, or worker was introduced.
+- The result is a proven policy gap, not an unproven engineering gap.
+- Existing canonical checkout/cancellation/inventory primitives are sufficient to serve as the eventual implementation foundation once policy is approved.
+
+### 95. CURRENT COD IMPLEMENTATION — VERIFIED
+
+SOURCE:
+- src/scripts/13-payments.js currently:
+  1. validates the selected operational payment method;
+  2. calls velora_create_order_with_commercials;
+  3. creates the order in pending state;
+  4. calls velora_set_order_payment_method;
+  5. when the selected method is cash_on_delivery, it clears the canonical/local cart and navigates to Orders;
+  6. does not create a Paymob provider session for COD.
+
+DATABASE:
+- public.orders has no expires_at field.
+- velora_create_order_with_commercials -> velora_create_order creates the canonical order as status=pending and payment_status=pending, then decrements product/variant stock atomically and creates order_items + pending commission + pending payment row.
+- velora_set_order_payment_method validates the operational route and updates the canonical payment row to the selected method/provider.
+- Cash on Delivery is an active operational payment method in Restore-Test.
+- Current pending orders were inspected. Their payment rows are historical test-mode/Paymob states; no current pending order was identified as a canonical cash_on_delivery fixture.
+- Therefore current old pending QA rows must not be interpreted as COD abandonment evidence.
+
+CANONICAL CANCELLATION REUSE:
+- velora_cancel_order(uuid) is the existing canonical customer cancellation contract.
+- It locks the order, validates authenticated ownership, pending payment state, and pending/confirmed order state.
+- It restores variant/product stock, reverses pending commissions, releases coupon/promotion redemptions, compensates gift-card redemption when applicable, cancels the pending payment row, and writes audit evidence.
+- This is strong reuse evidence: an eventual automated COD expiry should reuse the same canonical state transition and side-effect semantics rather than implementing a second inventory/payment/coupon/promotion cancellation engine.
+- Current velora_cancel_order is customer-authenticated and therefore is not itself a ready system/cron entry point for autonomous expiry. That is a future implementation consideration only after the COD policy is approved; no system cancellation bypass was invented in Message 25.
+
+### 96. RESEARCH / BENCHMARK FINDINGS
+
+EGYPT / MARKETPLACE:
+- noon Egypt currently documents COD rules including an EGP 25,000 COD order-value ceiling and temporary COD restriction when a customer has multiple pending/open COD orders. Source: noon Help Center, How does Cash on Delivery work?
+- noon Egypt Terms of Sale allow customer cancellation immediately before shipping and allow cancellation when delivery cannot be completed after reasonable attempts/instruction.
+- Jumia Egypt terms state that the platform may temporarily limit payment options to prepaid only when customers repeatedly cancel orders, with standard methods restored after a set number of successfully received orders.
+- Jumia VendorHub guidance emphasizes checking pending orders at least daily and completing them promptly, but it does not establish a universal 15/30/60-minute seller SLA.
+- Egyptian Consumer Protection Agency guidance confirms statutory return/exchange rights and emphasizes clear purchase/return information; this does not itself define a COD reservation TTL.
+- Egypt-focused COD operational guidance identifies refusal/RTO, confirmation, address quality, and customer communication as key operational controls.
+
+GENERAL COMMERCE PRIOR ART:
+- WooCommerce provides configurable Hold Stock duration for unpaid pending-payment orders, then cancels eligible orders and releases held stock.
+- Medusa models reservations explicitly as inventory state, releasing reservations on fulfillment or cancellation and allowing custom reservation lifecycles.
+- Shopify documentation ties payment state/cancellation behavior to payment-provider/order state rather than prescribing a universal COD TTL.
+
+RESEARCH CONCLUSION:
+- Mature commerce systems separate inventory reservation/release semantics from payment-provider lifecycle.
+- COD is not equivalent to Paymob's provider-derived payment expiry.
+- Prior art supports business-defined reservation/abandonment rules rather than a universal COD timeout.
+- Market examples also support restricting COD availability based on multiple open/pending orders or repeated cancellations, but exact thresholds differ by platform.
+
+### 97. RECOMMENDED VELORA COD POLICY — PROPOSAL, NOT YET ACTIVATED
+
+This is a proposed Egypt-first launch baseline derived from the observed architecture and research above. It is not recorded as an active production policy until Owner/Legal governance approves it.
+
+PROPOSED BASELINE:
+1. COD reservation starts when the canonical order is created and inventory is decremented.
+2. Seller confirmation SLA: 24 hours from order creation.
+3. Warning checkpoint: 12 hours without Seller confirmation.
+4. At 24 hours without confirmation: automatically cancel the COD order, release inventory, reverse pending commission effects, release applicable promotion/coupon/gift-card redemption effects through canonical cancellation semantics, emit audit evidence, and notify customer + seller.
+5. Customer cancellation remains allowed while the order is in the existing cancellable pre-fulfillment state.
+6. Do not impose a customer abandonment fee at this stage; any fee/penalty requires separate legal/business approval.
+7. Treat post-shipment refusal/RTO as a delivery exception, not as the same event as pre-shipment order abandonment.
+8. Do not make the inventory reservation duration seller-specific in v1 unless measurable operational evidence justifies it.
+9. Consider limiting new COD placement when a customer has multiple already-open COD orders; keep the exact threshold as a configurable policy decision rather than hard-coding an unexplained number.
+10. Any future COD expiry must be monotonic/idempotent: a concurrently confirmed/cancelled/shipped order must not be cancelled by the expiry process.
+
+WHY THIS MODEL:
+- It gives sellers a bounded inventory commitment while avoiding an arbitrary 15/30/60-minute payment timeout.
+- It creates explicit warning and automatic recovery steps.
+- It reuses existing order cancellation and inventory compensation semantics.
+- It preserves the distinction between business policy and provider-derived Paymob expiry.
+- It avoids punitive customer fees until legal/business review is complete.
+- It leaves room for evidence-based refinement from real COD conversion/RTO/SLA data.
+
+### 98. POLICY -> IMPLEMENTATION GAP ANALYSIS
+
+POLICY GAP:
+- The current platform does not have an approved canonical COD reservation duration or seller confirmation SLA.
+- Therefore an automatic expiration worker cannot be safely enabled yet.
+
+TECHNICAL GAP AFTER POLICY APPROVAL:
+- A system-authorized canonical cancellation/expiry entry point will be required because the current velora_cancel_order function validates auth.uid ownership.
+- The expiry operation must select only canonical COD orders that are still pending and eligible under the approved policy.
+- It must lock and guard each candidate so that a concurrent Seller confirmation, customer cancellation, shipment, or other state transition wins safely.
+- It must reuse the existing cancellation side effects rather than duplicating stock and financial logic.
+- It must have idempotent behavior and an explicit audit reason such as COD reservation expiry.
+- A scheduled execution mechanism can then call that canonical entry point at the policy-defined cadence.
+- No new generic pending-order engine should be introduced; the future implementation should be explicitly COD-policy scoped.
+
+### 99. ACTION FLOW — PROPOSED COD EXPIRY
+
+EVENT
+-> COD order created
+
+GUARD / AUTHORIZATION
+-> authenticated checkout + operational COD method
+-> approved COD reservation policy
+-> system-authorized lifecycle processor for expiry only
+
+VALIDATION
+-> order still pending
+-> payment still pending
+-> method still cash_on_delivery
+-> expiry threshold reached
+-> no fulfillment or confirmation transition has won the race
+
+STATE TRANSITION
+-> order cancelled
+-> payment cancelled
+
+AUTOMATIC SIDE EFFECT
+-> existing canonical inventory release
+-> pending commission reversal
+-> existing coupon/promotion/gift-card compensation
+-> audit
+-> customer/seller notification
+
+NEXT EVENT
+-> customer may place a new order
+OR
+-> seller receives/continues another valid order
+
+RETRY / DEDUPE
+-> locked candidate selection + idempotent state guard
+-> repeated execution converges to already-cancelled/no-op
+
+HUMAN EXCEPTION
+-> seller/customer dispute
+-> policy exception
+-> provider/logistics ambiguity
+-> governance override
+
+IMPORTANT:
+- This is the proposed future flow only.
+- It is not active in Restore-Test or Production.
+- No automatic expiry worker was created in Message 25.
+
+### MESSAGE 25 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Current checkout source and canonical cancellation/currency/payment-method paths were inspected.
+- Current COD path reuses canonical order creation and payment-method selection.
+- No duplicate COD engine exists.
+
+L2 DATABASE:
+- Current orders schema was rechecked.
+- Current Restore-Test has no orders.expires_at.
+- Current pending/pending order set was inspected.
+- Pending orders include old QA/test/Paymob rows; no canonical COD fixture was identified in the current pending set.
+- Current active cron jobs remain Notification Lifecycle + Paymob Reconciliation.
+- No COD expiry worker exists.
+
+L3 CONTRACT / ACL:
+- velora_set_order_payment_method enforces customer ownership/payment-state guards and only admits operational routes.
+- velora_cancel_order enforces authenticated customer ownership and cancellable order/payment state.
+- This proves the future automated path cannot simply impersonate a customer; it needs a deliberate system-authorized canonical entry point after policy approval.
+
+L4 NEGATIVE / TRANSACTIONAL:
+- No new destructive test was run because there is no approved COD expiry policy and there is no canonical COD fixture to expire safely.
+- No current pending QA rows were altered.
+- No bulk cleanup was performed.
+
+L5 CI:
+- NO NEW CI execution; Message 25 made no deployable source change.
+
+L6 PREVIEW:
+- NO NEW Preview was required; Message 25 made no deployable source change.
+
+L7 BROWSER:
+- NO NEW Browser run; the current COD blocker is a business-policy contract, not a proven UI implementation gap.
+
+L8 PROVIDER:
+- No new provider transaction was executed.
+- COD remains an offline/manual tender path separate from Paymob provider settlement.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### MESSAGE 25 DECISION
+
+STATUS:
+- COD core checkout path = CLOSED-DONE at current source/DB scope.
+- COD canonical cancellation/release capability = CLOSED-DONE for current customer-cancel semantics.
+- COD abandonment/reservation policy = OPEN.
+- Proposed 24-hour seller SLA + 12-hour warning + automatic expiry is a RECOMMENDATION ONLY, not an activated policy.
+- Technical implementation should begin only after the business policy is explicitly approved.
+- No speculative schema/scheduler/worker was introduced.
+
+NEXT ORDERED WORK:
+- Keep COD policy OPEN until governed approval.
+- Continue to the next OPEN item in the Master order rather than inventing COD implementation details.
