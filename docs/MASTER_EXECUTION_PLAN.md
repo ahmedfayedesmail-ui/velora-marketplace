@@ -13225,3 +13225,50 @@ Natural-language submit
 -> existing audit/retry/fallback paths
 
 No AI step gains product selection, pricing, inventory, seller, payment, order, promotion, gift-card, commission, payout, or governance authority.
+
+
+### 160.19 MESSAGE 57 — BEAUTY AI CONTRACT CI REPAIR + CLARIFICATION NAVIGATION RECONCILIATION (2026-09-29)
+
+CI FAILURE DISCOVERY + REPAIR:
+- A real push-triggered Customer Beauty AI Contract Gate failure was observed on run 36572182212 at commit af5bb66601ba3900d68457753894fea11de8361b.
+- The failure was isolated to tests/customer-beauty-ai-contract.test.mjs at the deepStrictEqual assertion for a candidate object returned from vm.runInNewContext.
+- Root cause: the returned object/array belongs to the VM realm, so Node strict deep equality rejected cross-realm prototypes even though the structure and values were identical.
+- The repair normalizes the returned contract value through JSON serialization before comparison. This changes test comparison semantics only; it does not change the customer runtime, AI contract, provider behavior, or database behavior.
+- Repair commit: eeb889bc09d6c1c66cde4791c277f29ec008e6a8 — Fix Beauty AI VM contract test comparison.
+
+CI RE-VERIFICATION:
+- Customer Beauty AI Contract Gate run 36586113895 completed SUCCESS on eeb889bc09d6c1c66cde4791c277f29ec008e6a8.
+- All relevant steps passed: JavaScript syntax, Customer Beauty AI contract tests, Product Detail canonical contract tests, and Static audit.
+- This closes the newly discovered CI regression at source+CI scope.
+
+CLARIFICATION UX RECONCILIATION:
+- A source review also confirmed the intended clarification-only back-navigation guard is present in src/scripts/61-s1-c-quiz-v2.js.
+- Clarification mode now computes previousClarificationStep from only the returned missing_fields and derives canGoBack from that value; the Back control is disabled when no earlier missing question exists.
+- Contract coverage records this invariant in tests/customer-beauty-ai-contract.test.mjs.
+- The implementation preserves the non-chat clarification model: customer text -> known transient fields -> only missing questions -> canonical Passport V2 save.
+- No MutationObserver, arbitrary routing listener, duplicate AI engine, commerce authority, or Supabase schema change was introduced.
+
+BRANCH / PREVIEW RECONCILIATION:
+- Current branch HEAD: 723e216b8ccc9bdabd3355d3122061f745960447 — Record clarification navigation guard evidence.
+- READY Vercel Preview exists through runtime commit 7669f689924d6230f583bded35aeb8904fa9e0f3; the later 723e216 commit is documentation/evidence-only, so it does not introduce a new runtime delta beyond the already deployed clarification fix.
+- Exact current-HEAD Preview equality is therefore not required for the runtime behavior introduced by the clarification fix, but Browser verification must still target a READY deployment that contains the runtime-changing commit.
+
+AI STATUS:
+- Invisible customer AI boundary = CLOSED-DONE.
+- Natural-language Routine Discovery -> clarification -> Passport V2 source flow = CLOSED-DONE at source+contract+CI scope.
+- Multilingual intent prompt hardening + Restore-Test Edge Function V2 = EVIDENCED at Restore-Test deployment level.
+- Live OpenAI provider = BLOCKED / NOT CONFIGURED by deliberate credential gate.
+- Real provider execution = NOT EVIDENCED.
+- Browser E2E = OPEN / NOT EVIDENCED.
+
+OTHER BOUNDARIES:
+- DR/backup/restore actual artifact and rehearsal remain OPEN / PENDING; no Production recovery operation was executed.
+- Performance optimization remains OPEN; no speculative migration justified.
+- Legal registration remains PAUSED / CARRY-FORWARD pending identity renewal.
+- Production remains FROZEN.
+
+MESSAGE 57 DECISION:
+- Beauty AI CI regression = CLOSED-DONE after verified repair.
+- Clarification back-navigation invariant = CLOSED-DONE at source+contract+CI scope.
+- Customer AI provider and Browser gates remain explicitly open/blocking; no false runtime PASS is claimed.
+- Continue the next independent non-legal technical track while preserving the same Action Flow and evidence hierarchy.
