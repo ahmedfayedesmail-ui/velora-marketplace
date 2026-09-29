@@ -14128,3 +14128,81 @@ STATUS:
 - Auth contract remains PASS.
 - The current Auth Browser closure remains OPEN until the isolated run completes.
 - Do not move to OTP/password-reset/session-expiry sub-items until this closure reaches a valid evidence state.
+
+## MESSAGE 71 — AUTONOMOUS AUTH BROWSER GATE / AUTH BASE LIFECYCLE CLOSED (2026-09-29)
+
+CLASSIFICATION: AUTH BASE LIFECYCLE — CLOSED-DONE / AUTONOMOUS EVIDENCE GATE ESTABLISHED
+
+AUTONOMOUS VERIFICATION TOOL:
+- Added `tools/auth_browser_evidence.py`.
+- Added/updated `.github/workflows/velora-authentication-browser-gate.yml`.
+- The gate runs headless Chromium on a GitHub runner against the exact checked-out source served locally.
+- It does not require a laptop, manual Preview opening, Vercel deployment, or persistent test credentials.
+- It creates an ephemeral Restore-Test Auth fixture through the existing service-role boundary, exercises the real browser lifecycle, uploads machine-readable evidence, and deletes the fixture afterward.
+- Service-role credentials remain runner-side and are never injected into browser page state or evidence output.
+- Cleanup is verified after every run.
+
+FINAL BROWSER EVIDENCE:
+- Workflow run: `36625477696`
+- Job: `109601235873`
+- Head/source commit: `8528ed57a1cf382c9a81e720fe52c0fd60d968e7`
+- Artifact: `11060830652`
+- Result: SUCCESS
+
+PROVEN AUTH BASE CHECKS:
+- orphan Auth fixture prepared with missing `public.users` / `public.profiles`
+- unconfirmed password login blocked
+- real signup confirmation action link establishes session
+- canonical Velora `public.users` row bootstrapped
+- canonical `public.profiles` row bootstrapped
+- confirmed session present
+- invalid password produces no authenticated session
+- valid UI password login establishes session
+- authenticated user identity matches expected email
+- Velora `STATE.user` becomes authenticated
+- session refresh preserves authenticated identity
+- logout clears Supabase session
+- logout clears Velora application identity
+- real magic-link action establishes session
+- magic-link logout clears session
+- real recovery action establishes recovery session
+- password recovery UI opens
+- password update completes and clears session
+- login succeeds with the new password
+- final session is absent
+- ephemeral fixture cleanup succeeds
+
+AUTH SOURCE HARDENING INCLUDED:
+- Existing `velora_ensure_own_profile` reused as the canonical bootstrap path.
+- `loadOrBootstrapAuthProfile(authUser)` is shared by initial session hydration and Auth-state hydration.
+- Stage 8 Auth callback role sync is deferred outside the Supabase Auth callback lock.
+- Stage 8 role sync now updates the canonical lexical `STATE` binding instead of `window.STATE`.
+- No new Auth engine, MutationObserver, arbitrary global listener, schema change, or Production change was introduced.
+
+HEALTH / CI:
+- Zero-Cost Health Gate for the final runner/source commit: Run `36625477564` / Job `109601224529` — SUCCESS.
+- Authentication lifecycle contract passed within that health gate.
+- JavaScript syntax, Product Detail, Beauty AI, platform re-entry, and static audit checks also passed.
+- Vercel status remains independently blocked by deployment rate limiting and is not used as Auth evidence.
+
+EVIDENCE BOUNDARY:
+- This closes the Auth base runtime/lifecycle path on exact-source Restore-Test evidence.
+- It does NOT claim production email-delivery success.
+- It does NOT claim numeric OTP delivery from an email/SMS provider.
+- It does NOT close multi-device/duplicate-tab resilience or broader authorization-negative-path testing.
+- It does NOT claim Production readiness.
+
+ACTION FLOW CONFIRMED:
+Auth confirmation/login/recovery event
+-> auth/session guard
+-> canonical profile check
+-> existing governed profile bootstrap when missing
+-> Velora identity transition
+-> role/platform side-effect
+-> refresh/logout/recovery continuation
+-> evidence + cleanup
+-> continue into remaining session/authorization edges.
+
+CURRENT STATUS:
+- Authentication base lifecycle = CLOSED-DONE.
+- Remaining Auth/Resilience edges = OPEN and must be handled without regressing the closed base.
