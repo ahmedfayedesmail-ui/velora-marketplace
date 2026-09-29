@@ -11,6 +11,9 @@ function billing(profile:Record<string,unknown>,seller:Record<string,unknown>){
     first_name:first.slice(0,50),last_name:last.slice(0,50),email:(String(profile.email||"").trim()||String(Deno.env.get("VELORA_FALLBACK_SELLER_EMAIL")||"seller@velora.local").trim()),
     phone_number:String(seller.phone||"+200000000000").trim()||"+200000000000"};
 }
+let startedPaymentAttemptId:string|null=null;
+let providerIntentCreated=false;
+
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS") return new Response("ok",{headers:cors});
   if(req.method!=="POST") return json({ok:false,error:"method_not_allowed"},405);
@@ -48,6 +51,7 @@ Deno.serve(async(req:Request)=>{
     if(startError) throw startError;
     const start=Array.isArray(startRows)?startRows[0]:startRows;
     if(!start?.campaign_id||!start?.payment_attempt_id) throw new Error("seller_ad_purchase_not_created");
+    startedPaymentAttemptId=String(start.payment_attempt_id);
     if(String(start.campaign_status).toLowerCase()==="active") return json({ok:true,status:"ALREADY_ACTIVE",campaign_id:start.campaign_id});
 
     const markInitializationFailed=async(code:string,reason:string)=>{
@@ -84,7 +88,6 @@ Deno.serve(async(req:Request)=>{
     }
 
     const notificationUrl=(Deno.env.get("SUPABASE_URL")??"")+"/functions/v1/velora-paymob-webhook-restore-test";
-    let providerIntentCreated=false;
     let intentionId:string|null=null;
     let intentionOrderId:string|null=null;
     const paymobResponse=await fetch(BASE+"/v1/intention/",{
@@ -152,7 +155,7 @@ Deno.serve(async(req:Request)=>{
       console.error("seller_ad_provider_intent_unexpected_failure",error instanceof Error?error.message:"unknown_error");
     }
     return json({ok:false,status:"FAILED",error:error instanceof Error?error.message:"seller_ad_paymob_checkout_failed",
-      payment_attempt_id:providerIntentCreated?String(start?.payment_attempt_id??""):null,
+      payment_attempt_id:startedPaymentAttemptId,
       local_payment_attempt_status:providerIntentCreated?"pending":null,
       recovery:providerIntentCreated?"retry_seller_ad_checkout_or_reconcile_provider_intention":null},400);
   }
