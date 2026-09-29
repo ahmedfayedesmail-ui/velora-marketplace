@@ -3474,3 +3474,94 @@ CARRY-FORWARD:
 - Seller subscription replacement/upgrade/downgrade/proration/refund policy remains open.
 - Promotion free_shipping/stacking/targeting/reversal economics remain open.
 - Gift-card broader refund/expiry policy remains open beyond the already-closed pending-order cancellation compensation.
+
+
+
+### Continuation Update — 2026-09-29 — Inventory Item 28 — Variant / Parent Stock Contract
+
+CLASSIFICATION: CLOSED-DONE AT L1-L4 (SOURCE / DB / ACL / TRANSACTIONAL NEGATIVE-PATH); PREVIEW/BROWSER REMAIN SEPARATE GATES
+
+OPERATING-RULE REASSERTION:
+- Rule 1 remains mandatory: this Master Execution Plan is the one source of truth; every prior OPEN/BLOCKED/PENDING/NOT EVIDENCED item remains carried forward.
+- Rule 2 remains mandatory: existing canonical inventory/product/checkout paths were inspected first; no new inventory engine, table, RPC family, or parallel state machine was introduced.
+- Rule 3 remains mandatory: the Inventory Action Flow is evaluated end-to-end in the same change:
+  SELLER VARIANT STOCK EVENT -> APPROVED SELLER/OWNERSHIP GUARD -> INPUT VALIDATION -> LOCK PARENT PRODUCT -> CANONICAL VARIANT STATE TRANSITION -> RECOMPUTE ACTIVE-VARIANT STOCK AGGREGATE -> UPDATE PARENT PRODUCT STOCK -> AUDIT -> RETRY/DEDUPE VIA EXISTING RPC CONTRACT -> EXISTING CHECKOUT/CANCELLATION/PAYMENT-FAILURE RECOVERY PATHS.
+  Human intervention is not required for the normal stock path.
+
+OBSERVED FACT — ACTUAL GAP FOUND:
+- Current Inventory has no separate public inventory table. The active contract is products.stock plus product_variants.stock_quantity.
+- Before this hardening, velora_upsert_product_variant and velora_retire_product_variant changed variant state but did not synchronize products.stock.
+- src/scripts/52-s2a-variants.js attempted to compensate with direct browser products UPDATE DML after variant writes.
+- Restore-Test ACL shows authenticated and anon do not have UPDATE privilege on public.products or public.product_variants, so that browser DML does not belong at the client boundary.
+- Existing checkout/cancellation/failure-release flows already depend on both parent product stock and selected variant stock. A single canonical aggregate invariant is therefore the smallest coherent correction.
+- Current Restore-Test had products=5, total variants=1, active variants=0, and no existing parent/active-variant stock mismatch at the time of verification.
+- The historical order_items.status issue remains DEPRECATED/closed for client execution. No order_items.status column was added or reintroduced.
+
+IMPLEMENTED:
+- Migration: supabase/migrations/20260929062000_inventory_variant_parent_stock_invariant.sql.
+- Migration commit: b7c6f3454f53d2dec84c381356fed1d87572d513.
+- Effective Restore-Test DB application was performed directly from that migration SQL.
+- velora_upsert_product_variant now locks the parent product first, mutates the variant, recomputes SUM(stock_quantity) across active variants, writes products.stock to that aggregate, and audits the aggregate.
+- velora_retire_product_variant now locks the parent product first, retires the variant, recomputes the active-variant aggregate, writes products.stock, and audits the aggregate.
+- velora_seller_update_product and velora_seller_update_product_full now treat active variant stock as the authoritative parent aggregate whenever active variants exist; seller p_stock input cannot overwrite that aggregate.
+- src/scripts/52-s2a-variants.js no longer performs direct products UPDATE DML for variant inventory.
+- No new inventory table, parallel engine, MutationObserver, arbitrary click listener, or alternate business path was introduced.
+
+RESTORE-TEST TRANSACTIONAL VERIFICATION:
+- Seller context: approved seller f7b4ea90-9470-4827-b9ae-23532765f021 / user 2bf8c15d-543e-400d-83fa-50f28bb9beff.
+- Product fixture: Test Vitamin C Serum, product id 21d977a0-111b-4bb4-9736-0f2994294d48.
+- Baseline parent stock: 23; active variants: 0.
+- Temporary variant create with stock 7 -> parent stock 7 / active-variant sum 7 = PASS.
+- Same variant update to stock 3 -> parent stock 3 / active-variant sum 3 = PASS.
+- Seller stock write with p_stock=999 while active variant sum remained 3 -> parent stock stayed 3 / active-variant sum 3 = PASS.
+- Variant retirement -> parent stock 0 / active-variant sum 0 = PASS.
+- Entire transactional fixture rolled back.
+- Post-rollback persistent state: parent stock 23, active variants 0, temporary verification variants persisted 0.
+
+ACL / CONTRACT VERIFICATION:
+- velora_upsert_product_variant, velora_retire_product_variant, velora_seller_update_product, velora_seller_update_product_full remain SECURITY DEFINER with authenticated execute=true and anon execute=false.
+- authenticated/anon direct UPDATE privilege remains false for public.products and public.product_variants.
+- order_items.status remains absent.
+- velora_update_order_item_status remains non-executable by anon/authenticated per the established deprecation contract.
+
+SOURCE:
+- src/scripts/52-s2a-variants.js current variant save flow now delegates inventory authority entirely to the canonical RPCs.
+- Source commit: 8485fd5072c102f277c3924032f2362494595d3e.
+- No unrelated seller/customer/payment code was changed in this package.
+
+EVIDENCE / DELIVERY:
+- L1 Source: PASS for the intended source change and migration file.
+- L2 DB: PASS; effective Restore-Test functions and schema contract verified.
+- L3 ACL: PASS; direct table UPDATE remains unavailable and canonical RPC execute boundaries remain intact.
+- L4 Transactional/negative-path: PASS; variant create/update/retire and conflicting seller stock input were verified inside rollback.
+- L5 CI / latest-commit delivery: NOT EVIDENCED. Current GitHub status for source commit 8485fd5072c102f277c3924032f2362494595d3e reports a Vercel failure targeting the build-rate-limit/upgrade path. This is an external deployment-capacity signal, not evidence of an Inventory source failure.
+- L6 Preview: NOT EVIDENCED for this exact latest SHA.
+- L7 Browser: intentionally deferred to the single final aggregate Browser Gate.
+- L8 Provider and L9 Production: not applicable to this Inventory source/DB package and remain separate release gates.
+
+DECISION:
+- Inventory Item 28 is closed at L1-L4 for the actual identified contract gap.
+- Do not add an order_items.status field.
+- Do not create a second inventory subsystem.
+- Keep the canonical parent-product + variant stock model.
+- Keep the final Browser Gate aggregated with the rest of the platform; no per-item Browser Gate is required.
+
+CARRY-FORWARD FROM MASTER — NOTHING DROPPED:
+- Seller post-approval re-review policy.
+- Generic pending-order / reservation / COD abandonment policy; no arbitrary TTL.
+- Seller Dashboard re-entry Browser evidence.
+- Seller subscription cancel/upgrade/downgrade/replacement/proration/refund/entitlement/provider/browser gaps.
+- Seller Ads provider settlement/reporting/attribution/browser/market validation.
+- Payout provider settlement/reconciliation/browser evidence.
+- Promotion free_shipping/stacking/targeting/economics policy.
+- Gift-card broader expiry/refund policy beyond closed cancellation compensation.
+- Returns/refund policy and provider/browser evidence.
+- Notifications/device push/browser/service-worker evidence.
+- Recommendation / Beauty Journey customer UX and Beauty AI roadmap.
+- Paymob production settlement/cutover and webhook evidence, plus remaining sandbox Case C/Case D evidence where still open.
+- Owner Dashboard / privileged-action Browser coverage.
+- Legal publication of approved current documents; checkout remains fail-closed until published legal content exists.
+- Production infrastructure, capacity, backup/rollback.
+- Supabase leaked-password protection platform configuration.
+- pg_net live dependency review.
+- Final aggregate Browser Gate, Preview parity, provider evidence, and Production gates.
