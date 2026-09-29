@@ -6306,3 +6306,80 @@ No new duplicate engine, duplicate persistence model, or new state machine was i
 ### Carry-forward
 No build gap was justified by Message 3 itself. Existing implementation is retained. Any later Message that touches a specific lane must re-verify that lane and execute/fix its own remaining gaps without rebuilding the canonical platform model.
 
+
+
+## 2026-09-29 — MESSAGE 4/24 EXECUTION / TECHNICAL ENVIRONMENT + EVIDENCE GATE
+**CLASSIFICATION:** CLOSED-DONE — technical environment and evidence hierarchy reconciled against live repository, Vercel, and Supabase state. No speculative code/schema change was justified.
+
+### Repository / branch truth
+- Repository verified: `ahmedfayedesmail-ui/velora-marketplace`.
+- Continuation branch verified: `audit/runtime-parity-2026-09-28`.
+- **Current live branch HEAD is `19f010bf6ebd5ff86d1956b89bb6e5e0d128e155`**, commit message `docs: record message 3 platform model reconciliation`.
+- The supplied `40f237224f5768ec931c90952eac2b3eaf814490` is a real commit, but it is **not the current branch HEAD**. GitHub compare shows `40f237...` is 33 commits behind `19f010...` and therefore remains historical relative to the continuation branch.
+- No branch ref was moved or force-updated merely to match stale handoff metadata.
+- `docs/MASTER_EXECUTION_PLAN.md` remains the authoritative continuation ledger.
+
+### Supabase environment gate
+- Production project verified: `maha-beauty`, ref `cogplqokzxqaedvjxbwu`, region `eu-central-1`.
+- Production project is `ACTIVE_HEALTHY` at infrastructure level, but the project remains **FROZEN by platform policy**. No Production mutation was performed by Message 4.
+- Restore-Test verified: `velora-restore-test`, ref `arlaxqmhtvjwjbjinjfw`, region `eu-central-1`, status `ACTIVE_HEALTHY`.
+- Current engineering/verification remains scoped to Restore-Test unless an explicit release gate documents otherwise.
+
+### Vercel environment gate
+- Project verified: `prj_cDGSF8k6DPAOwZduQl1UG9ZZOKVY`.
+- Team verified: `team_OVPYuZ9zuxZDGlCxgNq0FQ2i`.
+- The known READY deployment `dpl_E5FEuLo9BaFT2pt9EQEMq2ivCGpB` is real and maps exactly to commit `40f237224f5768ec931c90952eac2b3eaf814490`, URL `https://velora-marketplace-9a3va2kpj-ahmedconccc-7063.vercel.app`.
+- That deployment is **READY**, but it is not the current continuation-branch HEAD and therefore is not promoted as current-head Preview evidence.
+- No Vercel deployment exists for current branch HEAD `19f010...` in the live deployment listing after the commit timestamp.
+- GitHub combined status for `19f010...` reports Vercel **failure** with the `upgradeToPro=build-rate-limit` target. This is a Vercel deployment/rate-limit signal; it is **not** evidence of application compile failure.
+- Therefore: **L6 current-head Preview = NOT EVIDENCED**. The earlier READY Preview remains valid only for its exact commit.
+
+### Evidence hierarchy — enforced
+The following hierarchy is now the governing evidence contract for subsequent Messages:
+L1 Source
+L2 DB
+L3 Contract / ACL / RLS
+L4 Negative / Transactional
+L5 CI
+L6 Preview
+L7 Browser
+L8 Provider
+L9 Production
+
+Required distinctions remain explicit:
+- SQL PASS ≠ Browser PASS.
+- Restore-Test Paymob PASS ≠ Production Paymob PASS.
+- Preview READY ≠ Browser PASS.
+- Source compile/static inspection ≠ runtime PASS.
+- A deployment for an older commit ≠ Preview proof for the current HEAD.
+
+### Historical non-negotiables — re-locked
+Message 4 re-confirms that subsequent work must not:
+- rewrite the whole Cart;
+- add MutationObservers;
+- add arbitrary click handlers/listeners;
+- change Supabase schema without evidence of an actual need;
+- touch Production during audit/hardening;
+- resurrect V1 Beauty Passport;
+- add random/speculative contract fields;
+- claim browser cache as a cause without evidence;
+- claim a fix works without the evidence level required for that claim;
+- promote source/SQL inspection into Browser or Production proof;
+- create a second engine when a canonical engine already exists.
+
+### Action Flow
+Environment/release evidence remains governed by:
+EVENT → AUTH/ROLE → GUARD → VALIDATION → CANONICAL STATE TRANSITION → AUTOMATIC SIDE EFFECTS → AUDIT → RETRY/IDEMPOTENCY/DEDUPE → NEXT EVENT → RECOVERY/ESCALATION.
+
+### Current release/evidence boundary after Message 4
+- Repository/branch identity: **VERIFIED** at L1.
+- Restore-Test availability: **VERIFIED** at L2/infrastructure.
+- Production frozen policy: **RETAINED**; no mutation.
+- Exact READY Preview for `40f237...`: **VERIFIED**, but historical relative to current HEAD.
+- Exact current-HEAD Preview: **NOT EVIDENCED**.
+- Browser: remains subject to separate Browser Gate; no Browser PASS inferred here.
+- Provider: remains separate from Preview/DB evidence.
+- Production: remains a separate release/evidence gate.
+
+### Carry-forward
+The ledger now contains the live-versus-historical distinction so future Messages do not accidentally build or verify against `40f237...` as though it were the current branch tip. Any new implementation change must target the actual branch HEAD and then obtain its own exact evidence chain; no unnecessary redeploy or architecture rewrite is implied by this reconciliation.
