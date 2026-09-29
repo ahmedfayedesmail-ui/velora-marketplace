@@ -4322,8 +4322,6 @@ async function loadOrBootstrapAuthProfile(authUser) {
     }
 }
 
-let __mahaAuthCallbackHydrationRetries = 0;
-
 async function initializeSupabaseAuth() {
     if (!window.mahaSupabase || !window.mahaSupabase.auth) {
         console.warn('⚠️ initializeSupabaseAuth: Supabase client not available yet.');
@@ -4331,11 +4329,7 @@ async function initializeSupabaseAuth() {
     }
 
     try {
-        const callbackSurface =
-            String(window.location?.hash || '') + '&' + String(window.location?.search || '');
-        const recoveryHint = /(?:^|[&#?])type=recovery(?:[&#]|$)/.test(callbackSurface);
-        const authCallbackHint =
-            /(?:^|[&#?])(code|access_token|refresh_token|type)=[^&#]*/.test(callbackSurface);
+        const recoveryHint = /(?:^|&)type=recovery(?:&|$)/.test(String(window.location?.hash || ''));
         registerAuthListenerOnce();
         const { data, error } = await window.mahaSupabase.auth.getSession();
 
@@ -4347,13 +4341,6 @@ async function initializeSupabaseAuth() {
 
         // --- No session ---
         if (!session || !session.user) {
-            if (authCallbackHint && __mahaAuthCallbackHydrationRetries < 5) {
-                __mahaAuthCallbackHydrationRetries += 1;
-                setTimeout(() => initializeSupabaseAuth(), 300);
-                return;
-            }
-
-            __mahaAuthCallbackHydrationRetries = 0;
             STATE.user = null;
             try { localStorage.removeItem(KEYS.USER); } catch (e) {}
             updateAccountButton();
@@ -4363,8 +4350,6 @@ async function initializeSupabaseAuth() {
             registerAuthListenerOnce();
             return;
         }
-
-        __mahaAuthCallbackHydrationRetries = 0;
 
         // --- Session exists ---
         const authUser = session.user;
@@ -4546,14 +4531,6 @@ function initApp() {
     updateAccountButton();
     if (window.mahaSupabase && window.mahaSupabase.auth) {
         initializeSupabaseAuth();
-        // Supabase may finish restoring a redirect session just after startup.
-        // Re-run the existing initializer once, only when Velora identity is
-        // still absent. This is a bounded startup retry, not an auth listener.
-        setTimeout(() => {
-            if (!STATE.user && window.mahaSupabase && window.mahaSupabase.auth) {
-                initializeSupabaseAuth();
-            }
-        }, 750);
     } else {
         let __authInitTries = 0;
         const __authInitTimer = setInterval(() => {
