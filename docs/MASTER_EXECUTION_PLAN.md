@@ -8323,3 +8323,343 @@ HUMAN EXCEPTION -> fulfillment exception only
 - Recommendation low-risk duplicate getRecommendations() declaration remains OPEN as source hygiene.
 - Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
 - Paymob webhook legacy processor retirement and current v30 webhook canonical routing are complete in Restore-Test.
+
+
+## 2026-09-29 — MESSAGE 21/24 EXECUTION / COD POLICY + RETURNS + CROSS-SYSTEM + TRUST + ADS ACCOUNTING + PERFORMANCE + PRODUCTION INFRA + AUTH
+
+CLASSIFICATION:
+- Message 21 executed against the current Restore-Test/runtime baseline.
+- No Production mutation was made; Production remains FROZEN.
+- No speculative business policy was invented.
+- No duplicate scheduler, reservation engine, fraud engine, advertising ledger, or performance rewrite was introduced.
+- Current verification was used to distinguish policy gaps from implementation gaps.
+
+### 78. COD / PENDING ORDER POLICY
+
+FIND / RESEARCH / COMPARE:
+- Current payment UI and canonical checkout were inspected. Cash on Delivery is represented as an operational payment method and is not treated as a provider-settled Paymob transaction.
+- Restore-Test current active payment method registry includes `cash_on_delivery`.
+- Current `orders` schema contains: status, payment_status, created_at, updated_at, but no `expires_at`.
+- Current active cron jobs are only:
+  - `velora-notification-lifecycle` every minute -> `velora_process_notification_lifecycle(100)`
+  - `velora-paymob-reconciliation` every 5 minutes -> Paymob reconciliation Edge Function through `net.http_post`
+- No active cron job is an order-TTL/COD-expiry/reservation worker.
+- No public function name matched order-expiry, reservation, or pending-order-expiration conventions in the current Restore-Test function namespace.
+- Current Restore-Test has 8 orders with `status='pending'` and `payment_status='pending'`.
+- Current pending orders were not bulk-cleaned or altered based on age.
+
+DECISION:
+- COD expiry/reservation policy remains OPEN.
+- Do NOT create a generic TTL, 15/30/60-minute timeout, reservation table, expiry worker, or scheduler until business policy is explicitly defined.
+- Current pending-order age must not be treated as evidence of abandonment.
+
+OPEN POLICY CONTRACT:
+- COD inventory reservation window
+- Seller confirmation SLA
+- Warning/notification sequence
+- Automatic cancellation vs escalation
+- Variability by seller/product/region/order value
+- Customer/seller notification timing
+- Audit semantics for automatic expiry
+- Recovery/exception handling when the seller or customer is unavailable
+
+ACTION FLOW:
+EVENT -> COD checkout creates canonical pending order
+AUTH/ROLE -> authenticated customer; seller/staff only on operational order actions
+GUARD -> canonical checkout/payment-method availability + order ownership/state
+VALIDATION -> country/currency/payment method/cart/shipping/total contracts
+CANONICAL STATE -> orders + order_items + payment representation
+AUTOMATIC SIDE EFFECT -> inventory decrement and existing notification/lifecycle paths
+AUDIT/DEDUPE -> existing order/payment idempotency and audit paths
+NEXT EVENT -> seller confirmation -> processing -> shipment -> delivery
+RECOVERY/HUMAN EXCEPTION -> only after an approved COD policy defines expiry/escalation; seller/customer governance exception as needed
+STATUS: OPEN
+
+### 79. RETURNS POLICY
+
+CURRENT ENGINE RESEARCH:
+- `velora_request_return(order, store, items, reason, description)` requires authenticated customer ownership, delivered order status, paid/refunded payment state, valid store membership, non-duplicate return, valid selected quantities, delivered shipment item evidence, and no prior active return for the item.
+- Requested refund amount is derived from order-item unit price × returned quantity.
+- The request writes `returns` + `return_items` and a `return_requested` audit record.
+- `velora_resolve_return` is staff-only and enforces an explicit return state transition graph.
+- Refund terminal transition requires a refund reference (`REFUND_EVIDENCE_REQUIRED`) and records provider/method/reference/process timestamp.
+- No automatic restock or provider refund engine was invented or introduced.
+
+POLICY GAP:
+The runtime is sufficiently guarded for the currently observed contract, but the business policy that should determine final behavior remains OPEN:
+- return window
+- final-sale/non-returnable rules
+- discount allocation
+- shipping/tax refund treatment
+- restocking treatment
+- damaged/used/incorrect-condition handling
+- automatic vs manual restock
+- external provider refund semantics
+- partial/full refund policy and exception handling
+
+ACTION FLOW:
+EVENT -> customer requests return after delivery
+AUTH/ROLE -> authenticated order owner
+GUARD -> delivered + settled + store/item ownership + duplicate-return guard
+VALIDATION -> reason/description/quantity/item-delivery checks
+CANONICAL STATE -> returns + return_items
+AUTOMATIC SIDE EFFECT -> audit + existing notification/lifecycle paths
+NEXT EVENT -> Staff review -> approved/rejected/in_transit/received -> refund when policy/evidence permits
+RETRY/DEDUPE -> existing duplicate-return and state-transition guards
+HUMAN EXCEPTION -> policy exception, condition dispute, refund exception, provider ambiguity
+STATUS: OPEN (policy), while current source/DB contract remains operationally CLOSED-DONE at its current defined scope
+
+### 80. PROMOTION / GIFT CARD / PAYMENT CROSS-SYSTEM TESTING
+
+HISTORICAL TRANSACTIONAL PROOF:
+- QA Order #77 previously proved the composed path:
+  subtotal 140
+  coupon 20% = 28
+  gift card = 50
+  shipping = 30
+  final total = 92
+  payment pending
+- The proof verified coupon redemption, gift card redemption/balance, payment rows, inventory decrement, and canonical checkout composition, then rolled the test state back.
+
+CURRENT ROLLBACK RECONCILIATION:
+- Current Restore-Test `orders` contains 0 rows with `order_number=77`.
+- Current `promotions` count = 0.
+- Current `coupon_redemptions` count = 0.
+- Current `gift_cards` count = 0.
+- Therefore the historical Order #77 fixture is not left persisted in current Restore-Test.
+- A new full cross-system replay was NOT fabricated because the current Gift Card dataset is empty and Gift Card issuance is Owner-governed; bypassing that control would violate the canonical authority model.
+
+BOUNDARY:
+- Current state/rollback integrity is verified at L2.
+- The prior composition run remains historical L4 evidence.
+- External provider settlement and full Browser evidence remain OPEN.
+
+ACTION FLOW:
+EVENT -> checkout composition
+AUTH/ROLE -> authenticated customer + canonical checkout guards
+GUARD -> coupon/gift-card eligibility + order ownership
+VALIDATION -> discount/balance/stock/currency/total
+CANONICAL STATE -> order + redemption/payment state
+AUTOMATIC SIDE EFFECT -> inventory/payment/redemption synchronization + audit
+NEXT EVENT -> payment provider or COD -> fulfillment
+RETRY/DEDUPE -> existing checkout reference/payment idempotency
+HUMAN EXCEPTION -> only issuance/policy/refund/fraud/provider exceptions
+STATUS: CLOSED-DONE for the previously proven transactional composition; broader provider/browser/policy scope remains OPEN
+
+### 81. FRAUD / TRUST
+
+CURRENT ARCHITECTURE:
+- `fraud_risk_events` exists as a canonical trust/governance table.
+- Current Restore-Test fraud-risk event count = 0.
+- Existing Trust & Compliance surface handles privacy, disputes, returns/refund evidence through canonical RPCs.
+- Normal transaction workflows remain automated.
+- No observed gap requires a separate fraud engine, risk scorer, or autonomous decision engine.
+
+HUMAN GATES:
+- suspected fraud
+- exceptional financial case
+- exceptional refund
+- account restriction
+- irreversible governance decision
+
+ACTION FLOW:
+EVENT -> fraud/trust signal or exception
+AUTH/ROLE -> system for normal detection; Staff/Owner for governed review
+GUARD -> canonical fraud/trust case + operation authorization
+VALIDATION -> evidence and affected account/order context
+CANONICAL STATE -> fraud_risk_events / support/dispute/account-action domain
+AUTOMATIC SIDE EFFECT -> existing notification/audit/escalation path
+NEXT EVENT -> resolved/blocked/exception path as authorized
+RETRY/DEDUPE -> existing case/event identity and domain guards
+HUMAN EXCEPTION -> required for actual fraud/trust decision
+STATUS: CLOSED-DONE for "no duplicate engine justified"; fraud policy/operational governance remains OPEN
+
+### 82. SELLER ADVERTISING ACCOUNTING
+
+FIND:
+- Current Restore-Test has canonical seller advertising objects: `seller_ad_packages` and `seller_ad_campaigns`.
+- `seller_ad_campaigns` contains campaign price/currency, dates, seller/store/product/package linkage, payment_attempt_id, idempotency key, completion/cancellation fields.
+- Existing financial primitives remain canonical: payments, commissions, ledger_entries, payouts, reconciliation.
+- No separate advertising ledger has been introduced.
+
+RESEARCH:
+- Current marketplace-provider documentation shows that marketplace platforms explicitly allocate transaction amounts/fees to marketplace and seller accounts, and explicitly model refund/chargeback allocation rather than treating one gross amount as sufficient accounting state. Adyen's marketplace documentation is representative of this pattern: payment/capture/refund operations can carry split instructions for user balances and marketplace commission/fees, and refund behavior must preserve or redefine those allocations. citeturn972069search0turn972069search4turn972069search9
+
+COMPARE:
+- Velora currently has enough financial primitives to express advertising settlement later, but the advertising contract does not yet define the accounting semantics required to map campaign spend to captured platform revenue, seller earnings, or reversal/refund effects.
+- Therefore creating a new ledger now would be premature.
+
+OPEN ACCOUNTING CONTRACT:
+- campaign spend vs booked amount
+- payable amount
+- captured amount
+- platform revenue/fee
+- seller earning effect
+- refund/reversal handling
+- attribution basis and recognition point
+- provider/local mismatch treatment
+- reporting cutoff/reconciliation rules
+
+ACTION FLOW:
+EVENT -> seller purchases/renews/cancels an ad campaign
+AUTH/ROLE -> authenticated seller for purchase; Staff/Owner for governed exceptions
+GUARD -> active package + seller/product ownership + currency + idempotency
+VALIDATION -> price/package/dates/provider/payment state
+CANONICAL STATE -> seller_ad_campaigns + payment_attempts/payments
+AUTOMATIC SIDE EFFECT -> campaign activation/deactivation + existing financial/audit events
+NEXT EVENT -> provider capture/refund/reconciliation -> reporting/settlement
+RETRY/DEDUPE -> purchase idempotency + payment state guards
+HUMAN EXCEPTION -> provider mismatch, refund exception, accounting/reconciliation exception, governance decision
+STATUS: OPEN
+
+### 83. PERFORMANCE ADVISOR
+
+CURRENT RESTORE-TEST ADVISOR:
+- Unindexed foreign keys = 93.
+- Multiple permissive RLS policies = 45.
+- Unused-index findings are also present.
+- These remain optimization findings, not demonstrated correctness failures.
+
+DECISION:
+- No mass index creation.
+- No RLS policy consolidation.
+- No historical policy/index rewrite without workload evidence.
+- Correctness and launch gates remain higher priority.
+
+ACTION FLOW FOR PERFORMANCE CHANGES:
+EVENT -> measured workload/query evidence indicates a hot path
+AUTH/ROLE -> engineering/governance review
+GUARD -> reproducible workload evidence
+VALIDATION -> query plan/latency/lock/resource impact
+CANONICAL STATE -> smallest targeted index/policy/workload change
+AUTOMATIC SIDE EFFECT -> CI/performance regression measurement
+NEXT EVENT -> observe and compare
+RETRY/DEDUPE -> migration only after evidence and rollback plan
+HUMAN EXCEPTION -> release gate when production-impact risk exists
+STATUS: OPEN optimization queue
+
+### 84. PRODUCTION INFRASTRUCTURE
+
+CURRENT BOUNDARY:
+- Production remains FROZEN and was not modified.
+- Restore-Test contains DR governance tables (`dr_recovery_runs`, `dr_recovery_checkpoints`, `platform_cutover_gates`, `platform_release_blueprints`), but no executed DR recovery run is currently recorded.
+- Current Restore-Test table inventory shows `dr_recovery_runs` = 0 and `dr_recovery_checkpoints` = 0.
+- Connected control surfaces did not provide a verified current backup inventory/restore execution proof for Production, and attempts to read platform project metadata through the connected management action were blocked by a tool-contract mismatch. No unsupported claim was made.
+- Therefore backup proof, rollback proof, production infrastructure readiness, Vercel capacity/plan considerations, Supabase plan considerations, and controlled Production cutover remain OPEN / PENDING.
+
+RESEARCH BOUNDARY:
+- Supabase currently documents daily database backups for Pro/Team/Enterprise projects, with PITR available as an add-on on supported paid plans; restoration makes the project temporarily inaccessible during the restore process. citeturn119930search1turn119930search7
+- Supabase's Production Checklist separately recommends reviewing Performance Advisor, suitable indexes, and load testing before production. citeturn119930search3
+- These platform capabilities do not prove that Velora's Production project has a tested backup/restore path.
+
+ACTION FLOW:
+EVENT -> planned release/cutover or infrastructure incident
+AUTH/ROLE -> Owner/Release governance
+GUARD -> release gates + backup/rollback prerequisites
+VALIDATION -> exact source/DB/Preview/Browser/provider evidence
+CANONICAL STATE -> release/cutover records
+AUTOMATIC SIDE EFFECT -> deployment/promote/rollback only after governed gate
+NEXT EVENT -> smoke/monitoring/reconciliation
+RETRY/DEDUPE -> bounded rollback/recovery procedure
+HUMAN EXCEPTION -> release approval, rollback decision, infrastructure/provider ambiguity
+STATUS: OPEN / PENDING
+
+### 85. SUPABASE AUTH PLATFORM WARNING
+
+CURRENT EVIDENCE:
+- Restore-Test Security Advisor reports `auth_leaked_password_protection` WARN.
+- Current warning says leaked-password protection is disabled.
+- This remains a platform/Auth configuration issue.
+- No app-side password engine was built.
+- Supabase documentation states leaked-password protection can reject passwords exposed in known breach data and is available on Pro plan and above. citeturn119930search0
+- Hosted Supabase email verification behavior and Auth settings are platform configuration concerns, not an app-side replacement for Auth controls. citeturn119930search2
+
+ACTION FLOW:
+EVENT -> signup/password-change/recovery
+AUTH/ROLE -> Supabase Auth
+GUARD -> platform password/security settings
+VALIDATION -> provider-side password/security policy
+CANONICAL STATE -> Auth user/session
+AUTOMATIC SIDE EFFECT -> Auth rejection/acceptance + existing app session synchronization
+NEXT EVENT -> authenticated journey or controlled failure
+HUMAN EXCEPTION -> platform configuration/plan decision only
+STATUS: OPEN
+
+### MESSAGE 21 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Current checkout/payment source, customer Orders/Returns adapter, Trust & Compliance surface, seller advertising schema/path, and current Master architecture were inspected.
+- No duplicate COD expiry/reservation/fraud/ads-ledger engine was found or added.
+
+L2 DATABASE:
+- 8 pending orders currently exist in Restore-Test.
+- `cash_on_delivery` is active.
+- `orders` has no `expires_at`.
+- Active cron set is limited to Notification Lifecycle + Paymob Reconciliation.
+- No current expiry/reservation-style function names detected.
+- Order #77 = 0.
+- Promotions = 0.
+- Coupon redemptions = 0.
+- Gift Cards = 0.
+- Fraud risk events = 0.
+- DR recovery runs/checkpoints = 0.
+- Performance Advisor currently reports 93 unindexed FKs and 45 multiple-permissive-policy findings.
+- Security Advisor still reports leaked-password protection WARN and the previously known security findings.
+
+L3 CONTRACT / ACL:
+- Returns request remains customer-owned and delivered/settled guarded.
+- Return resolution remains Staff-only with explicit state transitions and refund evidence guard.
+- Gift Card issuance remains Owner-governed; no bypass was used for a new test fixture.
+- Existing financial primitives remain canonical.
+
+L4 NEGATIVE / TRANSACTIONAL:
+- Historical QA Order #77 cross-system composition proof remains valid as historical L4 evidence.
+- Current L2 rollback reconciliation confirms Order #77 and its Gift Card/Promotion/coupon-redemption artifacts are absent from the current Restore-Test dataset.
+- No new transactional re-run was fabricated where current governed fixtures were absent.
+
+L5 CI:
+- NO NEW CI run required for Message 21 because no deployable source change was justified.
+
+L6 PREVIEW:
+- NO NEW Preview created; no application source was changed by Message 21.
+
+L7 BROWSER:
+- NO NEW Browser run; Message 21 did not introduce a UI behavior change.
+- Aggregate Browser Gate remains OPEN / NOT EVIDENCED.
+
+L8 PROVIDER:
+- NO NEW external provider settlement/advertising/return/refund proof.
+- Historical Paymob sandbox proof remains separate.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### MESSAGE 21 NON-NEGOTIABLES RECONFIRMED
+
+- No invented COD timeout/reservation policy.
+- No bulk cleanup of pending orders by age.
+- No guessed return/refund business policy.
+- No Gift Card issuance-policy bypass for testing.
+- No duplicate fraud engine.
+- No advertising ledger created solely for dashboard completeness.
+- No mass performance indexes.
+- No RLS policy collapse.
+- No Production changes.
+- No Auth replacement engine.
+- No Browser PASS inferred from source/DB.
+- Action Flow remains mandatory for every material workflow.
+
+### CARRY-FORWARD AFTER MESSAGE 21
+
+NEW / CONFIRMED OPEN:
+- COD/pending-order business policy = OPEN.
+- Returns business policy = OPEN.
+- External provider settlement for cross-system financial paths = OPEN.
+- Advertising accounting semantics = OPEN.
+- Performance Advisor optimization queue = OPEN.
+- Production backup/restore/rollback proof = OPEN / PENDING.
+- Production infrastructure/capacity/plan readiness = OPEN / PENDING.
+- Supabase Auth leaked-password protection = OPEN.
+- Production Auth readiness = OPEN.
+
+No previously open item was silently closed or dropped.
