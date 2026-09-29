@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 1421dc2d3d006d03693cd5cc4428326744cf4e5c
+Current observed branch HEAD: fbf076fab5e07fde2fb25de62cbb9a5031fa03a7
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3398,3 +3398,23 @@ VERIFICATION:
 - src/scripts/35-seller.js parser check passed after the change.
 - Existing backend lifecycle remains authoritative for duplicate active/pending placement prevention.
 - Provider payment and browser behavior remain separate evidence layers.
+
+
+### Continuation Security Advisor / Storage Final Technical Classification — 2026-09-29
+
+CLASSIFICATION: TECHNICAL SECURITY REVIEW CLOSED / PLATFORM CONFIGURATION + HISTORICAL OPTIMIZATION OPEN
+
+OBSERVED FACT:
+- Current Supabase Security Advisor still reports many authenticated SECURITY DEFINER warnings because the functions are callable through Data API RPCs. Targeted source/ACL review found the high-impact writer set has server-side auth/role/ownership guards; the remaining warnings do not by themselves prove an authorization bypass.
+- Current anonymous SECURITY DEFINER set remains limited to intentional public read functions.
+- Current Restore-Test Auth warning remains Leaked Password Protection Disabled. This is an Auth configuration/plan boundary, not an application-code defect.
+- pg_net remains non-relocatable and is actively referenced by cron; moving/replacing it would be a platform migration, not a lint cleanup.
+- Product image storage remains intentionally URL-based. Seller UI uses image URLs, no file-upload caller exists, and Restore-Test has zero storage buckets.
+
+DECISION:
+- No blanket SECURITY DEFINER revocation.
+- No synthetic RLS policies.
+- No pg_net migration.
+- No product-image Storage subsystem.
+- Platform Auth leaked-password protection remains OPEN until the Supabase project plan/configuration permits enabling it.
+- Performance Advisor findings remain an optimization queue, not a correctness blocker.
