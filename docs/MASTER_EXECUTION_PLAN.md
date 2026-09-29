@@ -10581,3 +10581,127 @@ L9 PRODUCTION:
 - Seller Ads accounting/tax/settlement remains OPEN.
 - Exact current-code Preview and aggregate Browser Gate remain OPEN.
 - Production Paymob and legal publication remain OPEN.
+## 2026-09-29 — PERFORMANCE ADVISOR TARGETED RECONCILIATION
+
+CLASSIFICATION:
+- Performance Advisor was revisited after Infrastructure/Auth gates using actual pg_stat_statements and pg_stat_user_tables evidence.
+- No mass index or RLS policy change was justified.
+
+### 122. CURRENT PERFORMANCE EVIDENCE
+
+- Performance Advisor currently reports 93 unindexed foreign keys, 45 multiple-permissive-policy findings, and unused-index findings.
+- pg_stat_statements is enabled in Restore-Test.
+- Current table access stats show high historical scan counts on small QA tables: orders seq_scan=35,542 with n_live_tup=18; product_variants seq_scan=8,721 with n_live_tup=1; order_items seq_scan=4,147 with n_live_tup=22. These counters include cumulative QA/audit activity and are not by themselves evidence of a production bottleneck.
+- notifications has seq_scan=3,222 and idx_scan=3,428 with n_live_tup=48.
+- payment_attempts has idx_scan=2,772 versus seq_scan=1,579 with n_live_tup=64.
+- seller_ad_campaigns has idx_scan=5,797 versus seq_scan=31 with n_live_tup=0.
+
+### 123. CURRENT TOP CANONICAL QUERY SIGNALS
+
+- velora_process_notification_lifecycle: 6,753 calls, mean execution ~6.63 ms.
+- velora_generate_beauty_routine: observed mean execution ~77.70 ms across 12 direct calls in the captured stats.
+- velora_get_beauty_recommendations: observed mean execution ~33.23 ms across 7 calls.
+- velora_get_marketplace_catalog: observed mean execution ~93.09 ms across two count probes plus a single full read at ~175.71 ms; sample size is too small and includes QA inspection.
+- velora_create_order_with_commercials: observed mean execution ~54.36 ms across 4 calls.
+- velora_cancel_order: observed mean execution ~45.93 ms across 5 calls.
+- velora_apply_paymob_marketplace_transaction: observed mean execution ~23.07 ms across 7 calls.
+
+INTERPRETATION:
+- These figures establish a measurement baseline, not a declaration of production performance.
+- No query currently demonstrates a combination of high production-like volume and unacceptable latency that would justify immediate index/schema changes.
+- Some top total-time entries are test/advisor/introspection operations rather than customer-facing workload and must not drive optimization decisions.
+
+### 124. TARGETED OPTIMIZATION QUEUE
+
+Priority candidate A — Marketplace catalog:
+- Collect realistic search/category pagination workload and EXPLAIN/EXPLAIN ANALYZE plans before changing indexes.
+- Compare catalog latency with and without search/category filters under representative product volume.
+
+Priority candidate B — Beauty routine/recommendation:
+- Measure deterministic routine/recommendation latency against realistic Passport/catalog sizes.
+- Preserve deterministic rules and avoid optimization changes that alter ordering/eligibility semantics.
+
+Priority candidate C — Orders/Checkout:
+- Capture representative customer order and seller-order-read plans because orders currently has many cumulative sequential scans but very few live rows in Restore-Test.
+- Determine whether scans originate from QA/admin introspection or actual application paths before adding order indexes.
+
+Priority candidate D — Notification lifecycle:
+- Existing mean latency is low at current volume; observe under realistic notification backlog before modifying claim/lease logic or indexes.
+
+Priority candidate E — Payment reconciliation:
+- Current apply-paymob mean latency is modest in the sampled stats; keep provider reconciliation correctness ahead of micro-optimization.
+
+NO-ACTION FINDINGS:
+- Unused indexes should not be removed solely because current Restore-Test volume is small.
+- Multiple permissive RLS policies should not be collapsed without proving identical authorization semantics and measuring query impact.
+- Unindexed foreign keys should be prioritized only when the relationship participates in a measured hot query, delete/update path, or lock-sensitive workload.
+
+### 125. PERFORMANCE ACTION FLOW
+
+EVENT
+-> measured workload or release-scale test identifies a performance risk
+
+GUARD / AUTHORIZATION
+-> engineering review + release risk assessment
+
+VALIDATION
+-> pg_stat_statements + representative dataset + EXPLAIN/EXPLAIN ANALYZE + lock/resource observations
+
+STATE TRANSITION
+-> one targeted index/query/RLS change
+
+AUTOMATIC SIDE EFFECT
+-> CI regression/performance measurement
+
+NEXT EVENT
+-> compare baseline versus changed workload
+
+RETRY / DEDUPE
+-> migration is reversible and only retained if the measured result improves without changing behavior
+
+HUMAN EXCEPTION
+-> production performance risk, capacity decision, or release-impacting regression
+
+### PERFORMANCE DECISION
+
+STATUS:
+- Performance correctness = no new defect established.
+- Performance Advisor findings = OPEN optimization queue.
+- Targeted workload measurement = NEXT requirement.
+- Mass indexing = REJECTED pending evidence.
+- Mass RLS consolidation = REJECTED pending evidence.
+- No schema/source change justified in this pass.
+
+### PERFORMANCE EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Canonical catalog, recommendation, routine, checkout, notification, and reconciliation paths remain the authoritative workloads.
+
+L2 DATABASE:
+- pg_stat_statements and pg_stat_user_tables were queried directly in Restore-Test.
+
+L3 CONTRACT / ACL:
+- No authorization or business rule was changed.
+
+L4 NEGATIVE:
+- No destructive performance change was attempted.
+
+L5 CI / L6 PREVIEW / L7 BROWSER:
+- No deployable change, so no new CI/Preview/Browser gate was required.
+
+L8 PROVIDER:
+- No provider state changed.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### CARRY-FORWARD AFTER PERFORMANCE RECONCILIATION
+
+- COD reservation/abandonment policy remains OPEN.
+- Returns legal/business policy remains OPEN.
+- Promotion/Gift Card legal/economic policy remains OPEN.
+- Seller Ads accounting/tax/provider settlement remains OPEN.
+- Backup/restore/rollback and production capacity remain OPEN.
+- Leaked-password protection remains OPEN pending plan/configuration.
+- Exact current-HEAD Preview and aggregate Browser Gate remain OPEN.
+- Production Paymob and legal publication remain OPEN.
