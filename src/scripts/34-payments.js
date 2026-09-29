@@ -17,18 +17,6 @@ function saveRecent(id){
   }catch(_){ }
 }
 function getRecent(){try{return JSON.parse(localStorage.getItem('velora_recently_viewed_v1')||'[]')}catch(_){return[]}}
-function pickRecommendations(limit=4){
-  const all=products();
-  if(!all.length)return[];
-  const recent=new Set(getRecent());
-  const preferred=all.filter(p=>!recent.has(p.id)).sort((a,b)=>{
-    const ar=Number(a.rating||0),br=Number(b.rating||0);
-    const ac=Number(a.review_count||a.reviewsCount||0),bc=Number(b.review_count||b.reviewsCount||0);
-    const as=Number(a.stock||0)>0?1:0,bs=Number(b.stock||0)>0?1:0;
-    return (br*2+Math.log1p(bc)+bs)-(ar*2+Math.log1p(ac)+as);
-  });
-  return preferred.slice(0,limit);
-}
 function cardMarkup(p){
   if(typeof renderProductCard==='function')return renderProductCard(p);
   return `<article class="product-card"><div class="product-info"><h3>${esc(p.name)}</h3><div>${price(p)}</div><button class="btn btn-primary" onclick="openProductDetail('${esc(p.id)}')">View product</button></div></article>`;
@@ -53,8 +41,6 @@ function injectTrust(){
 function renderHomeExperience(){
   const all=products();
   if(!all.length)return;
-  const rec=pickRecommendations(4);
-  if(rec.length)section('veloraCxRecommended','Recommended for you','Quality-first discovery using Velora catalog signals. Personalized recommendations are only used when the relevant consent allows them.',rec);
   const viewed=getRecent().map(id=>all.find(p=>p.id===id)).filter(Boolean).slice(0,4);
   if(viewed.length)section('veloraCxRecent','Continue exploring','Pick up where you left off with products you viewed recently.',viewed);
   const trust=document.getElementById('veloraCxTrustBanner');
