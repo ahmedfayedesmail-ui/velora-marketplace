@@ -121,6 +121,20 @@ async function v39LoadSubscription(){
    host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Subscription unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
  }
 }
+function v39AdIdempotencyKey(packageId,productId){
+ const key='VELORA-AD-'+String(packageId||'')+'-'+String(productId||'');
+ try{
+  const existing=sessionStorage.getItem(key);
+  if(existing) return existing;
+  const created='VELORA-AD-'+String(packageId||'')+'-'+String(productId||'')+'-'+
+    (typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2,10));
+  sessionStorage.setItem(key,created);
+  return created;
+ }catch(_){
+  return key+'-'+Date.now();
+ }
+}
+
 async function v39LoadAds(){
  const host=v39El('veloraSellerAds39'); if(!host)return;
  host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading advertising…'))+'</div></div>';
@@ -160,7 +174,7 @@ async function v39LoadAds(){
     }
     const fn=(window.mahaSupabase||client)?.functions;
     if(!fn?.invoke)throw new Error('Payment session service unavailable');
-    const x=await fn.invoke('velora-seller-ad-paymob-checkout-restore-test',{body:{ad_package_id:packageEl.value,product_id:productEl.value,country_code:String(d.country_code||'EG').toUpperCase(),idempotency_key:'VELORA-AD-'+packageEl.value+'-'+productEl.value+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,9),return_url:window.location.href}});
+    const x=await fn.invoke('velora-seller-ad-paymob-checkout-restore-test',{body:{ad_package_id:packageEl.value,product_id:productEl.value,country_code:String(d.country_code||'EG').toUpperCase(),idempotency_key:v39AdIdempotencyKey(packageEl.value,productEl.value),return_url:window.location.href}});
     if(x.error)throw x.error;
     const data=x.data||{};
     if(data.checkout_url){window.location.assign(data.checkout_url);return;}
