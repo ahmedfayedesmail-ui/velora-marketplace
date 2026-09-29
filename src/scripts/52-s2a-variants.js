@@ -297,12 +297,8 @@
         if(rr.error)throw rr.error;
       }
     }
-    var totalStock=rows.reduce(function(n,x){return n+Number(x.stock_quantity||0);},0);
-    var seller=(typeof SELLER_STATE!=="undefined"&&SELLER_STATE&&SELLER_STATE.currentSeller)?SELLER_STATE.currentSeller:null;
-    if(seller&&seller.id){
-      var ur=await db.from("products").update({stock:totalStock,updated_at:new Date().toISOString()}).eq("id",productId).eq("seller_id",seller.id);
-      if(ur.error)throw ur.error;
-    }
+    // Parent product stock is synchronized inside the canonical variant/product RPCs.
+    // Direct browser table DML is intentionally not used for inventory state.
     variantCache.delete(productId);
   }
   function renderLegacyNotice(host,message){
