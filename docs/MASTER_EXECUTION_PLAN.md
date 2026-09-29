@@ -7518,3 +7518,176 @@ HUMAN EXCEPTION: provider ambiguity, financial exception, legal publication, or 
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
 - Inventory migration provenance timestamp mismatch between source filename and Restore-Test migration-history entry is documented; runtime state is aligned and no duplicate source migration was added.
+
+## 2026-09-29 — MESSAGE 17/24 EXECUTION / PAYMOB MISSED WEBHOOK + NORMALIZATION + WEBHOOK SECURITY
+CLASSIFICATION:
+- Message 17 executed.
+- Paymob Restore-Test engineering remains CLOSED-DONE at the evidenced sandbox scope.
+- Production Paymob remains OPEN.
+- Missed-webhook recovery, normalization, webhook security, monotonic transitions, and provider-retry assumptions were reviewed and exercised.
+- One real architectural duplication found in the live webhook handler was removed: marketplace transaction state transition logic in the webhook Edge Function now delegates to the canonical transaction applicator.
+- A historical legacy Paymob processor was also retired from API/service execution after confirming no current DB or Edge Function references.
+
+### 50. PAYMOB CASE D — WEBHOOK MISSED
+FINAL HISTORICAL PROVIDER EVIDENCE:
+- Restore-Test transaction fixture: Paymob transaction 543891883, Order #78, 190 EGP.
+- Historical evidence states the webhook row was removed, local payment/order/payment were reset to pending, the canonical inquiry applicator was executed, and the path converged to payment_attempt=captured, provider transaction=543891883, payment=paid/paymob, order=confirmed/paid, reconciliation=completed, inquiry HTTP=200, provider transaction state=captured.
+- Current live Restore-Test still contains Order #78 as confirmed/paid, attempt fb39853d-84f4-4802-bc7a-3f5c0e278186 captured, payment ae13f9e2-e3dc-4df4-a18f-8f94a98777c2 paid/paymob, and webhook event 543891883 signed+processed.
+
+MESSAGE 17 TRANSACTIONAL REPLAY:
+- A real existing Restore-Test fixture for transaction 543891883 was used.
+- Webhook evidence row was removed only inside a transaction.
+- Local payment attempt/order/payment state was reset to pending only inside that transaction.
+- Canonical reconciliation claim was established through the public service wrapper.
+- Canonical transaction applicator velora_apply_paymob_marketplace_transaction() was executed twice with incoming status captured / source inquiry.
+- First apply changed state to captured; second apply converged idempotently with changed=false.
+- Canonical reconciliation result was then recorded twice with captured / provider transaction 543891883 / HTTP 200.
+- First reconciliation result completed; second returned idempotent=true.
+- Payment attempt count for the order remained unchanged; no second payment attempt was created.
+- Entire simulation rolled back.
+- Post-rollback: Order #78 remained confirmed/paid; payment attempt remained captured; payment remained paid/paymob; original webhook row remained present.
+- Direct reads of private.paymob_reconciliation_state are intentionally blocked from this SQL execution context; the canonical public reconciliation wrappers/results were used instead of bypassing the private boundary.
+
+### 51. PAYMOB NORMALIZATION GAP — VERIFIED AND HARDENED
+ROOT CAUSE:
+- Older normalization logic relied too heavily on is_captured.
+- Actual provider evidence proves the observed Paymob shape can be pending=false, success=true, is_captured=false, MIGS status=CAPTURED, MIGS result=SUCCESS, txn response code=APPROVED.
+- is_captured alone is therefore insufficient.
+
+CANONICAL NORMALIZATION CONTRACT:
+- Captured is recognized when success=true AND pending=false AND one of: is_captured=true, is_capture=true, or MIGS status=CAPTURED + MIGS result=SUCCESS + txn_response_code=APPROVED/00.
+- Current Restore-Test reconciliation Edge Function source implements this normalization.
+- Current webhook normalization also understands the same MIGS CAPTURED/SUCCESS shape.
+
+REGRESSION:
+- Re-ran 8 normalization cases against the current v6 logic:
+  explicit is_captured -> captured;
+  explicit is_capture -> captured;
+  MIGS CAPTURED/SUCCESS/APPROVED -> captured;
+  MIGS CAPTURED/SUCCESS/00 -> captured;
+  pending -> pending;
+  success=false -> failed;
+  refunded -> refunded;
+  authorized -> authorized.
+- Result: 8/8 PASS.
+- This is a local regression of the exact current v6 normalization logic; it does not replace provider/CI evidence.
+- Final Paymob CI run 36519231052 independently recorded the real provider case with is_captured=false + MIGS CAPTURED/SUCCESS + APPROVED and passed.
+
+RECONCILIATION:
+- velora-paymob-reconciliation-restore-test remains ACTIVE version 6 in Restore-Test.
+- Exact source and deno.json are tracked in repository.
+- Reconciliation correlates provider order id, performs bounded inquiry, normalizes provider state, applies terminal recognized states only through velora_apply_paymob_marketplace_transaction(), and records reconciliation through velora_record_paymob_reconciliation_result().
+
+### 52. PAYMOB WEBHOOK SECURITY
+CORRELATION:
+- Paymob order ID correlates to payment_attempts.metadata.paymob_order_id.
+- Unsigned/mismatched velora_payment_attempt_id correlation is rejected with PAYMENT_CORRELATION_MISMATCH.
+- Missing Paymob order ID or missing payment-attempt correlation fails closed.
+
+HMAC:
+- HMAC verification is mandatory.
+- Restore-Test webhook uses constant-time comparison and HMAC-SHA512.
+- provider_webhook_events stores event ID, payload hash, signature verification, processing status, and timestamps.
+
+DEDUPLICATION:
+- provider_webhook_events has UNIQUE(provider_code,event_id).
+- Webhook checks an existing event before state processing.
+- Same event ID + same payload hash and already processed -> duplicate/no state change.
+- Same event ID + different payload hash -> WEBHOOK_EVENT_PAYLOAD_MISMATCH and no state mutation.
+- Internal webhook record RPC is service_role-only.
+- Transactional test called the internal webhook record RPC twice with the same provider/event identity and exact payload; both converged to the same event id and the temporary event rolled back.
+
+MONOTONIC TRANSITIONS:
+- Captured is not downgraded by later pending/non-terminal events.
+- Transactional test applied captured then pending through canonical applicator and confirmed the second call remained captured with changed=false.
+- Existing refunded/failed/cancelled terminal protections remain intact.
+
+RUNTIME HARDENING:
+- The active webhook Edge Function had a duplicated marketplace order/payment transition block instead of delegating to the canonical transaction applicator.
+- Message 17 removed that duplicate logic.
+- Marketplace webhook branch now calls only velora_apply_paymob_marketplace_transaction(..., source='webhook'), then marks the webhook processed.
+- Restore-Test webhook deployed successfully to version 30, verify_jwt=false.
+- No second webhook/payment state-machine engine remains in the active Paymob webhook path.
+
+LEGACY PROCESSOR RETIREMENT:
+- public.velora_process_paymob_transaction_internal(jsonb) contained stale is_captured-only normalization and a parallel marketplace transition path.
+- Live DB inspection found no other DB function bodies or triggers referencing it.
+- Current Paymob-related Restore-Test Edge Functions also contain no references to it.
+- Targeted retirement migration added:
+  supabase/migrations/20260929111500_retire_legacy_paymob_transaction_processor.sql
+- Restore-Test migration applied successfully.
+- Post-hardening ACL: legacy processor = postgres only; canonical applicator/webhook record/reconciliation wrapper remain service_role-capable as designed.
+- This is targeted legacy retirement, not mass revoke.
+
+### 53. PAYMOB PROVIDER CALLBACK RETRY
+STATUS:
+- Independent real provider callback replay/retry behavior remains NOT INDEPENDENTLY PROVEN.
+- Do not assume undocumented Paymob retry semantics.
+- Correctness does not depend on provider retries because Velora's own reconciliation/inquiry path is the automatic fallback.
+- Provider uncertainty must not create durable commerce mutation.
+- Genuine ambiguous/unrecognized/exhausted state remains an escalation condition.
+
+### MESSAGE 17 ACTION FLOW
+MISSED WEBHOOK:
+EVENT -> reconciliation service
+AUTH/ROLE -> service boundary
+GUARD -> payment attempt + Paymob order correlation + bounded lease
+VALIDATION -> provider inquiry HTTP + correlation + normalized state
+CANONICAL STATE -> payment_attempt/payment/order
+AUTOMATIC SIDE EFFECT -> existing financial/order lifecycle through one canonical applicator
+AUDIT -> reconciliation + transaction reconciliation evidence
+RETRY/DEDUPE -> bounded lease/retry + webhook event idempotency + monotonic transition
+NEXT EVENT -> reconciled order lifecycle
+HUMAN EXCEPTION -> only genuinely ambiguous/exhausted provider state
+
+WEBHOOK:
+EVENT -> Paymob callback
+AUTH/ROLE -> webhook provider HMAC boundary
+GUARD -> HMAC + correlation + duplicate event check
+VALIDATION -> canonical provider normalization
+CANONICAL STATE -> velora_apply_paymob_marketplace_transaction()
+AUTOMATIC SIDE EFFECT -> existing order/payment/financial lifecycle
+AUDIT/DEDUPE -> provider_webhook_events payload hash + unique event ID
+RETRY -> webhook replay is not assumed; reconciliation is fallback
+
+### MESSAGE 17 EVIDENCE BOUNDARY
+- L1 Source: reconciliation v6 normalization, inquiry, webhook v30 source, canonical transaction applicator, legacy processor, and retirement migration were inspected.
+- L2 DB: Order #78 / transaction 543891883, signed webhook, webhook uniqueness constraint, function ACLs, and Edge Function inventory were verified.
+- L3 Contract / ACL: HMAC/correlation, event uniqueness, service-role canonical paths, and legacy processor retirement were verified.
+- L4 Negative / transactional: missed-webhook replay passed with two convergent applicator calls and completed reconciliation; monotonic downgrade protection passed; exact webhook record dedupe passed; all fixtures rolled back.
+- L5 CI: final Paymob run 36519231052 remains PASS; no new provider CI run was required for this targeted source hardening.
+- L6 Preview: no customer UI deployment was required; Restore-Test webhook deployment was separately successful.
+- L7 Browser: Paymob-specific historical PASS remains evidenced by run 36519231052; complete Velora Browser Gate remains open.
+- L8 Provider: Restore-Test sandbox PASS; transactions 543891883 and 543892734 remain provider-evidenced.
+- L9 Production: OPEN / UNTOUCHED / FROZEN.
+
+### MESSAGE 17 NON-NEGOTIABLES RECONFIRMED
+- No second Paymob webhook processor.
+- No second payment state machine.
+- No duplicate reconciliation engine.
+- No duplicate inventory-release engine.
+- No naive is_captured-only normalization.
+- No undocumented provider retry assumption.
+- Production remains untouched.
+- Complete Browser Gate remains open.
+
+### CARRY-FORWARD AFTER MESSAGE 17
+- Paymob Restore-Test engineering = CLOSED-DONE.
+- Production Paymob = OPEN.
+- Complete Beauty Browser Gate = OPEN / NOT EVIDENCED.
+- Future Passport Dimensions remain OPEN.
+- Customer Beauty AI remains OPEN / NOT DONE.
+- Current Restore-Test legal publication prerequisite still blocks general successful checkout Browser runs outside retained Paymob evidence.
+- Subscription commercial/runtime/provider/browser open items remain open.
+- Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Notification Browser/provider/Production delivery evidence remains open.
+- Passport Browser journey evidence remains open.
+- Recommendation Browser evidence remains open.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
+- Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
