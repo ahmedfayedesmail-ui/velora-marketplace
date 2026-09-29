@@ -13316,3 +13316,50 @@ STATUS:
 - Browser verification of the full recommendation refresh path = OPEN / NOT EVIDENCED.
 - Provider configuration for Customer Beauty AI = BLOCKED / NOT CONFIGURED.
 - Production = FROZEN.
+
+
+## MESSAGE 59 — SUPABASE AUTH SECURITY / LEAKED-PASSWORD PROTECTION RECONCILIATION (2026-09-29)
+
+CLASSIFICATION: REVIEWED / BLOCKED BY PLAN CAPABILITY — NO CODE OR SCHEMA CHANGE JUSTIFIED
+
+OBSERVED CURRENT STATE:
+- Restore-Test organization `Maha Beauty` is currently on the Supabase Free plan.
+- Current Restore-Test Security Advisor reports one `auth_leaked_password_protection` warning: leaked-password protection is disabled.
+- Current official Supabase documentation states that leaked-password protection is available on the Pro plan and above.
+- Therefore this is a plan-capability blocker, not an application-code defect that should be patched in the repository.
+- No Auth schema, password policy, RLS policy, function privilege, or application code was changed.
+
+SECURITY ADVISOR RECONCILIATION:
+- The same current Security Advisor snapshot also reports:
+  - 6 RLS-enabled tables without policies;
+  - 1 `pg_net` extension in the public schema;
+  - 7 anonymous-executable SECURITY DEFINER public-read functions;
+  - 213 authenticated-executable SECURITY DEFINER functions.
+- These warnings are not treated as a mass-remediation authorization.
+- Existing prior function-by-function review remains authoritative for the 7 anonymous public-read SECURITY DEFINER functions: they are intentional public-read contracts and no blanket revoke/conversion is justified without an equivalent access path and contract proof.
+- The 6 RLS/no-policy findings remain subject to ACL/contract review; no speculative policies were added.
+- No Production project was touched.
+
+RESEARCH BASIS:
+- Official Supabase password-security documentation confirms leaked-password protection uses the HaveIBeenPwned password corpus and is available on Pro Plan and above.
+- Official Supabase production guidance recommends reviewing Security Advisor findings and enabling appropriate RLS/security controls before production.
+
+ACTION FLOW:
+Security finding detected
+-> classify as application defect vs platform-capability constraint
+-> verify current plan/documentation
+-> avoid speculative mutation
+-> carry the blocker until the required platform capability/plan decision exists
+-> re-verify after any future plan change
+-> only then execute/verify the setting change.
+
+DECISION:
+- Leaked-password protection = BLOCKED / PLAN CAPABILITY.
+- No implementation change required now.
+- Plan upgrade is an owner/business decision and is NOT executed automatically.
+- Production remains FROZEN.
+- Legal registration remains PAUSED / CARRY-FORWARD.
+- Browser Gate remains OPEN / NOT EVIDENCED.
+- Customer Beauty AI provider remains BLOCKED / NOT CONFIGURED.
+- DR actual backup artifact/rehearsal remains OPEN / PENDING.
+- Performance optimization remains OPEN.
