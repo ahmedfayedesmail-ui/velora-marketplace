@@ -1,6 +1,6 @@
 {
-  "id": "local-ai-final-clean-test-2026-09-29",
-  "command": "npm run test:beauty-ai",
+  "id": "final-ai-check-2026-09-29",
+  "command": "npm run check",
   "requested_by": "owner",
-  "purpose": "final clean zero-cost Beauty AI contract test after diagnostics removed"
+  "purpose": "final project check after Customer Beauty AI zero-cost closure"
 }
