@@ -91,6 +91,7 @@ const helperSandbox = {
 };
 
 const helperSourceForTest =
+  'let __mahaAuthProfileBootstrap = null;\n' +
   source.slice(helperStart, helperEnd) +
   '\nglobalThis.testLoadOrBootstrapAuthProfile = loadOrBootstrapAuthProfile;';
 
