@@ -6192,3 +6192,53 @@ HUMAN EXCEPTION: none
 - No pg_net relocation performed.
 - No second localization MutationObserver added.
 - No Browser PASS inferred from source/SQL.
+
+
+
+## 2026-09-29 — MESSAGE 2/24 EXECUTION / NON-DUPLICATION + ACTION-FLOW GOVERNANCE
+
+**CLASSIFICATION:** CLOSED-DONE for the proven execution gap in scope; separate legacy architecture debt remains explicitly OPEN.
+
+### A. Scope executed
+Message 2/24 was treated as an execution constraint, not a documentation-only audit. The active source, deployed Preview, Restore-Test DB function inventory, and Edge Function inventory were inspected for duplicate engines/processors and for the required canonical Action Flow boundary.
+
+### B. Proven duplicate found and fixed
+**OBSERVED FACT:** `src/scripts/34-payments.js` was an actively loaded Home-experience runtime and contained a local `pickRecommendations()` ranking engine. Its `renderHomeExperience()` auto-mounted a second "Recommended for you" section.
+**OBSERVED FACT:** `src/scripts/59-s1-b2-beauty-recommendations.js`, also actively loaded by `src/index.html`, is the canonical Beauty Recommendation surface and calls `velora_get_beauty_recommendations`.
+**GAP:** Two active recommendation-ranking/presentation paths existed.
+**REMEDIATION:** Reused the canonical Beauty recommendation operation in `59-s1-b2-beauty-recommendations.js` and removed only the legacy local recommendation-ranking block and its Home insertion from `34-payments.js`. Recently-viewed and marketplace-trust compatibility behavior in `34-payments.js` was preserved.
+**Commit:** `7704542beee2eb7db831d6dad6b27e8e62d24e51` — `fix: remove legacy duplicate recommendation engine`.
+
+### C. Post-fix proof
+**L1 Source:** Updated `34-payments.js` contains no `pickRecommendations` function and no "Recommended for you" insertion; canonical recommendation runtime remains in `59-s1-b2-beauty-recommendations.js`.
+**L6 Preview:** Vercel deployment `dpl_B92LmnPD6zMEmJZh7VsNh1Hf3VEm` is READY for commit `7704542beee2eb7db831d6dad6b27e8e62d24e51`.
+**Preview content verification:** deployed Home contains "Beauty picks built around your Passport" and does not contain the removed "Recommended for you" legacy section.
+**L7 Browser:** NOT EVIDENCED. Interactive browser automation could not start because the browser automation wallet reported insufficient balance. This is intentionally not classified as Browser PASS.
+
+### D. Canonical-engine checks
+**Payment:** `src/scripts/13-payments.js` is the canonical checkout business-logic owner; `src/scripts/57-s2-checkout-e2e.js` is a validation/harness layer and explicitly delegates business logic to 13-payments.js. Restore-Test `velora_create_payment_attempt` overloads delegate to the 6-argument implementation rather than implementing separate engines.
+**Webhook:** Restore-Test has a single marketplace Paymob settlement webhook function `velora-paymob-webhook-restore-test`; the card-token webhook is a distinct token-event domain, not a second settlement processor.
+**Reconciliation:** Restore-Test has one `velora-paymob-reconciliation-restore-test` Edge Function; the public SQL wrapper delegates to the private reconciliation implementation.
+**Notifications:** the public notification runtime is `55-s2e-notifications.js`, backed by the notification RPC lifecycle; `velora-dispatch-notification` is the server dispatch boundary and `src/api/cron/notifications.js` is scheduling/orchestration, not a second presentation engine.
+**Cart:** `62-s1-c-routine-cart.js` is the existing Routine→Cart adapter; it updates the canonical server cart through the existing cart RPCs and synchronizes the legacy visual projection. No cart rewrite was performed.
+**Beauty recommendations:** the active Beauty UI now has one recommendation-ranking source: the canonical `velora_get_beauty_recommendations` operation.
+**Legacy recommendation debt:** `velora_get_recommendations` and `public.recommendation_runs` remain an explicitly documented legacy architecture-debt boundary under FIND-BE-028. The new Beauty operation does not use that legacy model. Retirement/convergence remains an OPEN governance decision and was not speculatively migrated.
+
+### E. Action Flow enforcement
+All changes in this Message were constrained to the existing canonical control-plane pattern:
+EVENT → AUTH/ROLE → GUARD → VALIDATION → CANONICAL STATE TRANSITION → AUTOMATIC SIDE EFFECTS → AUDIT → RETRY/IDEMPOTENCY/DEDUPE → NEXT EVENT → RECOVERY/ESCALATION.
+No new state machine, payment engine, webhook processor, reconciliation engine, inventory engine, notification engine, cart engine, refund engine, or schema was introduced.
+
+### F. Explicit non-negotiable confirmations
+- Production Supabase remained untouched.
+- No MutationObserver was introduced by this remediation.
+- No arbitrary click-listener or cart rewrite was introduced.
+- No speculative schema/field was added.
+- No V1 Beauty Passport code was resurrected.
+- No Sandbox/Restore-Test result was promoted to Production settlement evidence.
+- No Preview READY result was promoted to Browser PASS.
+
+### G. Follow-through items retained
+1. FIND-BE-028 legacy recommendation-model coexistence remains OPEN until deliberate architecture governance decides retirement/isolation/convergence.
+2. Existing legacy catalog consumption in compatibility code remains separately tracked; this Message's recommendation-engine remediation did not broaden into an unrequested catalog cutover.
+3. Browser evidence for this exact commit remains NOT EVIDENCED and belongs to the aggregate Browser Gate.
