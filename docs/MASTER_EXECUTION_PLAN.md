@@ -5800,7 +5800,7 @@ The current migration ledger records these versions:
 - 20260929025556 `resolve_gift_card_payment_placeholder`
 - 20260929025659 `sync_payment_placeholder_after_discounts`
 
-The version/file timestamp prefix changed during migration creation, but the canonical migration names and implementations are present in the repository and applied in Restore-Test.
+The repository filenames use a later timestamp prefix than the corresponding Restore-Test migration-ledger version IDs, while the migration names and live implementations match. Treat this as migration-ledger/source parity evidence hygiene; it is not a demonstrated financial-logic gap.
 
 CURRENT CONTRACT:
 - `velora_set_order_payment_method` writes `payments.amount = orders.total` for the selected payment route.
