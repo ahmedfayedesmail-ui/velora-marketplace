@@ -3144,3 +3144,31 @@ RESTORE-TEST VERIFICATION:
 
 CARRY-FORWARD:
 - Coupon redemption consumption on cancelled orders remains a separate business-policy question because the current redemption table has no status/cancellation state and usage semantics are not explicitly defined. Do not reverse or delete coupon redemptions until that policy is approved.
+
+
+### Continuation Promotion + Gift Card + Checkout Cross-System Proof — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT L1-L4 / PROVIDER PAYMENT + BROWSER EVIDENCE REMAIN SEPARATE
+
+OBSERVED FACT:
+- Canonical checkout uses velora_create_order_with_commercials, which calls the canonical order creator, then applies either a supplied coupon or the best applicable promotion, then an optional gift card.
+- Legal acceptance is enforced before commercial application.
+- The full interaction was executed transactionally with temporary published customer legal documents and matching checkout acceptances.
+
+RESTORE-TEST VERIFICATION:
+- QA Order #77 was created in the transaction with subtotal 140 EGP, coupon discount 28 EGP (20%), gift-card amount 50 EGP, shipping 30 EGP, final total 92 EGP, and payment_status pending.
+- Exactly one coupon redemption was created and coupon used_count became 1 within the transaction.
+- Exactly one gift-card redemption was created and gift-card balance moved from 50 to 0 within the transaction.
+- Two payment rows existed for the order: the gift-card tender plus the remaining canonical payment representation.
+- Product stock decremented from 23 to 22 during order creation.
+- The transaction was fully rolled back; no legal fixture, coupon, gift card, order, payment, or inventory state persisted.
+- Earlier fixture mistakes were caught before any persistent state: psql-only gset syntax and an invalid legal acceptance method were corrected by using the existing legal acceptance contract (checkout).
+
+INFERRED:
+- The canonical commercial engine composes promotion, coupon, gift card, shipping, inventory, and legal gating without requiring a second checkout implementation.
+- Partial gift-card payment correctly leaves the external payment remainder pending instead of falsely marking the whole order paid.
+
+CARRY-FORWARD:
+- Full external provider settlement for the 92 EGP remainder remains unproven.
+- Coupon free_shipping contract mismatch remains a separate policy/control-surface item.
+- Production settlement and final Browser Gate remain open.
