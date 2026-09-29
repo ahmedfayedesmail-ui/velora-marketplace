@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 0ccbab3cf8b4de2c59dd4ca633c68f39410f71bb
+Current observed branch HEAD: c32fc625d65554ce88857cdefd69020cd1f4fa35
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3331,3 +3331,25 @@ RESTORE-TEST VERIFICATION:
 INFERRED:
 - The canonical checkout representations now converge on the same final commercial amount before external provider initialization.
 - The remaining provider settlement question is about real external movement, not local order/payment amount calculation.
+
+
+### Continuation Shipping URL Security Hardening — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/NEGATIVE-PATH
+
+OBSERVED FACT:
+- Seller/Staff shipment writers accepted arbitrary tracking_url schemes before this hardening, while the Customer Orders UI renders tracking URLs as hrefs.
+- Delivery proof photo URLs had the same trust boundary.
+
+IMPLEMENTED:
+- Migration 20260929081000_validate_shipping_urls.sql, commit c32fc625d65554ce88857cdefd69020cd1f4fa35.
+- velora_create_shipment and velora_update_shipment_status now accept only http/https tracking URLs and preserve the existing 2048-character bound.
+- velora_submit_delivery_proof now accepts only http/https proof URLs and preserves the existing 2048-character bound.
+- No schema change or second sanitizer/security engine was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Non-web ftp tracking URL was rejected with INVALID_TRACKING_URL before shipment write.
+- Non-web ftp proof URL was rejected with INVALID_PROOF_URL before proof write.
+- Valid https tracking + delivery proof path succeeded transactionally: shipment reached delivered, one proof row existed, and delivery_proof_submitted audit was present; transaction rolled back.
+- Historical data scan found 0 bad tracking URLs, 0 bad proof URLs, and 0 bad product image URLs.
+- A literal javascript: test was correctly blocked by the tool's safety controls and was not sent to the database; the equivalent non-web scheme boundary was tested instead.
