@@ -18,7 +18,8 @@ declare
   v_gc_refund numeric(18,4) := 0;
   v_gc_balance_after numeric(18,4);
   v_gc_refund_exists boolean := false;
-  v_coupon record;
+  v_coupon_id uuid;
+  v_coupon_code text;
   v_coupon_discount numeric(18,4) := 0;
 begin
   if v_customer is null then raise exception 'AUTH_REQUIRED'; end if;
@@ -98,7 +99,7 @@ begin
   end if;
 
   select c.id,c.code,cr.discount_amount
-    into v_coupon.id,v_coupon.code,v_coupon_discount
+    into v_coupon_id,v_coupon_code,v_coupon_discount
   from public.coupon_redemptions cr
   join public.coupons c on c.id=cr.coupon_id
   where cr.order_id=v_order.id
@@ -107,16 +108,16 @@ begin
   limit 1
   for update;
 
-  if v_coupon.id is not null then
+  if v_coupon_id is not null then
     delete from public.coupon_redemptions
-    where coupon_id=v_coupon.id
+    where coupon_id=v_coupon_id
       and order_id=v_order.id
       and customer_id=v_order.customer_id;
 
     update public.coupons
     set used_count=greatest(0,used_count-1),
         updated_at=now()
-    where id=v_coupon.id;
+    where id=v_coupon_id;
 
     insert into public.audit_logs(
       actor_id,action,entity_type,entity_id,metadata
@@ -127,8 +128,8 @@ begin
       'order',
       v_order.id,
       jsonb_build_object(
-        'coupon_id',v_coupon.id,
-        'coupon_code',v_coupon.code,
+        'coupon_id',v_coupon_id,
+        'coupon_code',v_coupon_code,
         'discount_amount',v_coupon_discount
       )
     );
@@ -178,7 +179,7 @@ begin
     jsonb_build_object(
       'restocked',true,
       'gift_card_refunded',v_gc_refund>0,
-      'coupon_released',v_coupon.id is not null
+      'coupon_released',v_coupon_id is not null
     )
   );
 
