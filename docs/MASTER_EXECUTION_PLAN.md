@@ -3964,3 +3964,58 @@ CURRENT RELEASE DECISION:
 - Paymob Restore-Test work is now complete enough to stop engineering changes in this lane.
 - Do not build another payment/reconciliation/webhook engine.
 - Do not move to another Master workstream while the user has explicitly instructed that Paymob must be finished; the next action in this lane is only the eventual Production cutover gate under explicit release governance.
+
+
+### Band 1 Reconciliation — Seller Status / Lifecycle Source-Runtime Parity — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACL FOR SELLER STATUS FOUNDATION; SOURCE/RUNTIME PARITY GAP CLOSED; BROWSER REMAINS AGGREGATE EVIDENCE
+
+OPERATING RULES APPLIED:
+- Master remains the single execution source; no prior seller OPEN/BLOCKED/PENDING/NOT EVIDENCED item was removed.
+- Research/reuse first: existing seller RPCs, triggers, RLS, Store projection, notification, audit, and route controller were inspected before any change.
+- No duplicate seller lifecycle engine, routing engine, notification engine, or speculative schema was introduced.
+- Browser Gate remains deferred to the final aggregate gate.
+
+OBSERVED FACT — SELLER STATUS FOUNDATION:
+- Restore-Test seller statuses currently include pending / approved / rejected / suspended; current snapshot has 1 approved seller and 1 pending seller.
+- canonical public.velora_set_seller_status is SECURITY DEFINER, explicitly Staff-only, validates the four statuses, updates seller status/approval/rejection fields, grants the seller role on approval, synchronizes the owned Store status, and writes audit evidence.
+- direct client seller/store lifecycle mutation remains constrained by RLS plus private mutation guards; seller status changes by non-staff are rejected except the narrow material-profile re-review path from approved/rejected -> pending.
+- seller status changes trigger the existing seller-status notification path for pending/approved/rejected. No second notification system exists.
+- Current Seller + Store projection is aligned for the observed approved seller.
+
+OBSERVED FACT — ACTUAL GAP FOUND:
+- Restore-Test had a newer canonical velora_update_seller_profile implementation than the repository migration currently present at the older profile-sync point.
+- The DB migration history contained version 20260929030650 / route_legacy_store_profile_through_canonical_rereview, but the corresponding migration file was missing from the Git branch.
+- The live DB function includes the intended material-change re-review contract, Store projection synchronization, slug-conflict protection, operational-phone distinction, audit evidence, and review_required result.
+- This was a source/runtime parity/documentation gap, not a request to redesign seller lifecycle behavior.
+
+IMPLEMENTED — SMALLEST SAFE CHANGE:
+- Restored the missing repository migration:
+  supabase/migrations/20260929030650_route_legacy_store_profile_through_canonical_rereview.sql
+- Commit: d82931d68e60c492078c4abee32383e04c7ba6a5.
+- The migration records the already-observed Restore-Test canonical function implementation; no additional DB mutation was performed by this reconciliation step.
+- Existing 20260929024000 profile projection migration remains historical; the later 20260929030650 migration is the canonical re-review refinement.
+
+VERIFICATION:
+- Restore-Test DB function was re-read before repository reconciliation and matched the intended current contract.
+- Current seller/store RLS and mutation guards were re-read; no direct client status-write path was found.
+- Branch comparison confirms the new commit is the only code change after the prior docs reconciliation plus this migration parity file; no unrelated seller/customer/payment system was changed.
+- Browser behavior is NOT claimed. Final aggregate Browser Gate remains the required L7 evidence layer.
+
+SELLER STATUS ACTION FLOW:
+Seller status event
+-> Staff/Owner authorization
+-> status validation
+-> canonical seller state transition
+-> Store status projection
+-> seller role grant on approval
+-> notification trigger
+-> audit log
+-> subsequent marketplace/product visibility guards
+-> human escalation only for governance exceptions.
+
+DECISION:
+- Seller Status/Lifecycle foundation remains CLOSED-DONE at source/DB/ACL/action-flow level.
+- The newly identified source/runtime parity gap is CLOSED by restoring the missing migration file to the repository.
+- Do not add transition tables, duplicate status engines, or speculative seller lifecycle states.
+- Carry forward, unchanged: post-approval product re-review policy, pending-order/COD reservation policy, Seller Dashboard re-entry Browser evidence, subscription commercial policy/runtime/provider gaps, Seller Ads provider/analytics gaps, payout settlement/reconciliation, and all other Master OPEN/BLOCKED/PENDING items.
