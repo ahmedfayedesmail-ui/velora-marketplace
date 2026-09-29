@@ -88,13 +88,24 @@ jobs:
                   body = resp.read().decode("utf-8")
                   return json.loads(body) if body else None
 
+          def auth_users():
+              users = api("/auth/v1/admin/users?page=1&per_page=1000")
+              if isinstance(users, dict):
+                  users = users.get("users", [])
+              return users or []
+
+          AUTH_USERS = auth_users()
+          AUTH_BY_ID = {str(u.get("id") or ""): u for u in AUTH_USERS if u.get("id")}
+
           def first_role_user(role):
               rows = api(
                   "/rest/v1/user_roles?select=user_id&role=eq." + urllib.parse.quote(role)
               )
-              if not rows:
-                  raise RuntimeError("No user found for role " + role)
-              return str(rows[0]["user_id"])
+              for row in rows or []:
+                  uid = str(row.get("user_id") or "")
+                  if uid in AUTH_BY_ID:
+                      return uid
+              raise RuntimeError("No authenticated user found for role " + role)
 
           def first_approved_seller_user():
               rows = api(
@@ -102,31 +113,21 @@ jobs:
               )
               for row in rows or []:
                   uid = str(row.get("user_id") or "")
-                  if not uid:
+                  if not uid or uid not in AUTH_BY_ID:
                       continue
                   roles = api(
                       "/rest/v1/user_roles?select=user_id&user_id=eq." + urllib.parse.quote(uid) + "&role=eq.seller"
                   )
                   if roles:
                       return uid
-              raise RuntimeError("No approved seller user with seller role found")
+              raise RuntimeError("No approved seller user with seller role and Auth account found")
 
           def user_email(user_id):
-              page = 1
-              per_page = 1000
-              while page <= 5:
-                  users = api(
-                      "/auth/v1/admin/users?page=" + str(page) + "&per_page=" + str(per_page)
-                  )
-                  if isinstance(users, dict):
-                      users = users.get("users", [])
-                  for user in users or []:
-                      if str(user.get("id") or "") == user_id:
-                          return str(user.get("email") or "")
-                  if not users or len(users) < per_page:
-                      break
-                  page += 1
-              raise RuntimeError("Auth user email not found for " + user_id)
+              user = AUTH_BY_ID.get(user_id)
+              email = str(user.get("email") or "") if user else ""
+              if not email:
+                  raise RuntimeError("Auth user email not found for " + user_id)
+              return email
 
           def magic_link(email):
               payload = {
