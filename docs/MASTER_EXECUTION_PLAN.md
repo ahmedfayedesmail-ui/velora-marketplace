@@ -13668,3 +13668,143 @@ CARRY-FORWARD:
 - Leaked-password protection remains a Supabase plan-capability blocker.
 - Browser Gate global closure remains separate from this security finding.
 - Production remains frozen.
+
+
+## MESSAGE 65 — ZERO-COST EXECUTION LAYER + SELLER/ADMIN RE-ENTRY BROWSER CLOSURE (2026-09-29)
+
+CLASSIFICATION: ZERO-COST TOOLING FOUNDATION CLOSED-DONE / SELLER-ADMIN RE-ENTRY BROWSER EVIDENCE CLOSED FOR TESTED PREVIEW
+
+### 65.1 ZERO-COST TOOLING DECISION
+
+OBJECTIVE:
+- Remove paid-tooling dependency wherever a repository-native or GitHub-hosted equivalent can safely provide the required engineering/evidence function.
+- Preserve the evidence hierarchy and never turn a tooling workaround into a fake product/runtime PASS.
+- Keep Production frozen.
+
+ZERO-COST TOOLING NOW CANONICAL:
+1. `.github/workflows/velora-remote-exec.yml`
+   - bounded, explicit command allowlist;
+   - phone-friendly execution through GitHub Actions;
+   - artifacts preserve machine-readable evidence;
+   - arbitrary shell execution is rejected.
+
+2. Repository-native Playwright Browser Gates
+   - Customer Beauty AI;
+   - canonical Beauty Recommendations;
+   - Seller/Admin re-entry;
+   - additional domain-specific gates may reuse the same pattern.
+   - This removes the mandatory dependency on a metered browser-agent service for supported flows.
+
+3. `.github/workflows/velora-dr-preflight.yml`
+   - zero-cost read-only DR/backup readiness check;
+   - verifies pg_dump/openssl/sha256sum availability;
+   - verifies presence/absence of required secrets without revealing them;
+   - does not open or mutate Production.
+
+4. `docs/FREE_ZERO_COST_TOOLING.md`
+   - canonical tooling policy and cost boundary;
+   - requires existing capability -> repository-native replacement -> bounded CI/local implementation -> free external API only when essential -> paid provider only when no safe zero-cost path exists.
+
+COST BOUNDARY:
+- "Zero-cost" means no intentional metered dependency in the current Velora design.
+- No third-party platform can be contractually guaranteed to remain free forever; quotas, policies, and limits can change.
+- Therefore the system is designed for graceful fallback and evidence-based detection of capacity limits rather than assuming permanent free service.
+
+NON-REPLACEABLE HUMAN/PROVIDER GATES:
+- identity/document renewal;
+- legal publication;
+- tax/entity/Merchant-of-Record decisions;
+- provider-side account upgrades or paid-plan capabilities;
+- irreversible Production financial actions.
+These are intentionally not simulated.
+
+### 65.2 SELLER / ADMIN RE-ENTRY BROWSER GATE
+
+VERIFIED WORKFLOW:
+- GitHub Actions run: `36609243955`
+- Job: `109546129160`
+- Conclusion: SUCCESS
+- Evidence artifact: `11052926357`
+- Tested Preview: `https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app`
+
+AUTHENTICATED SELLER:
+- HTTP 200
+- Authenticated session = true
+- Authenticated user match = true
+- First open active = true
+- Canonical seller shell/content markers = true
+- Close without refresh = true
+- Re-entry without refresh = true
+- Back returns to marketplace = true
+- Forward restores `#seller` and active Seller platform = true
+- failures = []
+
+AUTHENTICATED ADMIN:
+- HTTP 200
+- Authenticated session = true
+- Authenticated user match = true
+- First open active = true
+- Canonical admin shell/content markers = true
+- Close without refresh = true
+- Re-entry without refresh = true
+- Back returns to marketplace = true
+- Forward restores `#admin` and active Admin platform = true
+- failures = []
+
+IMPORTANT EVIDENCE BOUNDARY:
+- The previous failure was in the test's overly-specific content-text assertion, not proven to be a runtime re-entry failure.
+- The assertion was corrected to use the canonical structural markers already produced by `canonicalSellerLayout()` / `canonicalAdminLayout()`.
+- The subsequent Browser Gate passed with zero failures.
+- This closes the observed re-entry behavior for the tested Preview.
+- It does not authorize a Production change and does not claim every future Preview is identical without deployment parity.
+
+### 65.3 AI CARRY-FORWARD STATUS
+
+Customer Beauty AI remains:
+- CLOSED-DONE for the finite V2 customer intent contract.
+- Zero-cost local interpreter = canonical.
+- Paid OpenAI provider = optional, not required for customer flow.
+- Customer AI Browser E2E = PASS.
+- No customer path AI endpoint call observed.
+- No AI track remains open that justifies blocking the next technical track.
+
+### 65.4 ACTION FLOW
+
+Tooling blocker
+-> identify exact capability required
+-> inspect existing repository/GitHub capability
+-> choose bounded zero-cost implementation when safe
+-> execute
+-> preserve artifact/evidence
+-> classify capacity limitations honestly
+-> retain human/provider gates where they cannot be replaced.
+
+Seller/Admin re-entry:
+User enters platform
+-> authenticate/role guard
+-> canonical platform opener
+-> canonical layout/state transition
+-> close through canonical close API
+-> re-enter without refresh
+-> history traversal
+-> Browser evidence
+-> no duplicate listener or MutationObserver introduced.
+
+### 65.5 STATUS
+
+CLOSED-DONE:
+- Customer Beauty AI zero-cost path.
+- Zero-cost bounded remote execution.
+- Zero-cost Playwright Browser evidence path for supported flows.
+- DR preflight tooling.
+- Seller/Admin re-entry Browser evidence for the tested Preview.
+
+STILL OPEN/BLOCKED AND CARRIED FORWARD:
+- Supabase leaked-password protection remains a platform-plan capability item.
+- Production backup/restore rehearsal remains pending until deliberately configured credentials/secrets exist.
+- Current payment/provider Browser + live provider evidence remains open where not independently re-verified.
+- Legal identity/publication remains paused by owner governance.
+- Product Detail source-of-truth contract remains open.
+- All other Master OPEN/BLOCKED/PENDING items remain active.
+
+Production remains frozen.
