@@ -27,14 +27,14 @@ vm.runInNewContext(source, { window, document, console, Set, Array, String, Erro
 
 const validate = window.veloraBeautyAI.validateCandidate;
 
-assert.deepEqual(
-  validate({ decision: "ready", skin_type: "oily", goal: "hydration", routine_budget: "under_500", missing_fields: [] }),
-  { decision: "ready", skin_type: "oily", goal: "hydration", routine_budget: "under_500", missing_fields: [] }
+assert.equal(
+  JSON.stringify(validate({ decision: "ready", skin_type: "oily", goal: "hydration", routine_budget: "under_500", missing_fields: [] })),
+  JSON.stringify({ decision: "ready", skin_type: "oily", goal: "hydration", routine_budget: "under_500", missing_fields: [] })
 );
 
-assert.deepEqual(
-  validate({ decision: "needs_clarification", skin_type: null, goal: "hydration", routine_budget: "unknown", missing_fields: ["skin_type"] }).missing_fields,
-  ["skin_type"]
+assert.equal(
+  JSON.stringify(validate({ decision: "needs_clarification", skin_type: null, goal: "hydration", routine_budget: "unknown", missing_fields: ["skin_type"] }).missing_fields),
+  JSON.stringify(["skin_type"])
 );
 
 assert.throws(
