@@ -6792,3 +6792,75 @@ CLASSIFICATION: EXECUTED — Canonical Notifications/Push architecture and the c
 - Shipping visual-vs-canonical discrepancy remains open.
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Browser/provider/Production Notification delivery evidence remains open.
+## 2026-09-29 — MESSAGE 10/24 EXECUTION / BEAUTY PASSPORT V2 + V1 RETIREMENT
+CLASSIFICATION: EXECUTED — Beauty Passport V2 first-class platform track and exact V2 value-contract hardening are CLOSED-DONE at L1-L4 for the current scope. V1 runtime is not loaded and its legacy save RPC is client-inaccessible. Browser/runtime visual evidence remains OPEN.
+
+### 22. BEAUTY PASSPORT — FIRST-CLASS PLATFORM TRACK
+- The platform model remains: Passport = Memory / Identity; Routine / Advisor = Current Decision; Catalog / Cart / Orders = Commerce; Feedback = Learning.
+- The intended loop remains: Customer ↔ Beauty Profile ↔ Products ↔ Routine ↔ Purchases ↔ Outcomes ↔ Time.
+- Message 10 did not replace this model, create a second Passport engine, or alter the established Routine / Recommendation / Commerce architecture.
+
+### 23. BEAUTY PASSPORT V2
+- Customer implementation is src/scripts/61-s1-c-quiz-v2.js and declares quiz version beauty-quiz.v2.
+- Current V2 questions are exactly: skin_type, goal, routine_budget.
+- Canonical skin_type tokens: oily, dry, combination, normal, sensitive, unknown.
+- Canonical goal tokens: brightening, hydration, acne, anti-aging, oil.
+- Canonical routine_budget tokens: under_500, 500_1000, 1000_2000, over_2000, unknown.
+- The canonical save path is velora_save_beauty_passport_v2(text,text,text). Its current function privilege contract is anon=false, authenticated=true, service_role=true.
+- The V2 UI loads authoritative persisted beauty_profiles values before editing, writes only through velora_save_beauty_passport_v2, emits velora:passport-v2-updated after successful persistence, and then opens the current Routine UX.
+- No second persistence engine was introduced and no new MutationObserver was added by Message 10.
+- The machine token remains acne. The customer-facing label remains Blemish-prone skin care; no machine-token rename was introduced merely because older handoff wording differed.
+
+### 24. BEAUTY PASSPORT V2 CONTRACT HARDENING
+- Migration verified in the branch: supabase/migrations/20260928152000_harden_beauty_passport_v2_value_contract.sql.
+- Corrective commit: d6a57dd5004c60f2ede656cc75fef1f5df645e47.
+- The canonical save function enforces exact V2 token sets for skin_type, goal, and routine_budget and persists quiz_version=beauty-quiz.v2.
+- beauty_profiles RLS insert/update policies enforce user ownership plus the exact same V2 quiz version and token sets.
+- Restore-Test invalid-profile scan is currently 0.
+- The current live function privilege contract confirms canonical V2 save is callable by authenticated users but not anon; the historical velora_save_beauty_profile(...) legacy save contract is not callable by authenticated users and remains service_role-only.
+- No new columns were introduced by this hardening.
+- A direct attempted call to velora_save_beauty_passport_v2 from the unauthenticated DB execution context failed closed with AUTH_REQUIRED; no persistent mutation occurred. The exact invalid-goal token rejection is also enforced directly in the live function definition with SQLSTATE 22023 / INVALID_GOAL.
+
+### 25. V1 BEAUTY PASSPORT — RETIRED RUNTIME
+- Historical file remains src/scripts/58-s1-b1-beauty-passport.js, but it is not a supported runtime path.
+- Current src/index.html script inventory was inspected: src/scripts/61-s1-c-quiz-v2.js is loaded, while src/scripts/58-s1-b1-beauty-passport.js is not loaded at all.
+- Migration verified: supabase/migrations/20260928141000_retire_v1_beauty_passport_runtime.sql.
+- Retirement commit lineage revokes authenticated execution of velora_save_beauty_profile(...). Current live privileges confirm anon=false, authenticated=false, service_role=true.
+- beauty_profiles client write policies require quiz_version=beauty-quiz.v2, so V1-shaped persisted values are not accepted through the client write contract.
+- Current Restore-Test scan found 2 persisted beauty_profiles, all V2; non-V2 profiles=0.
+- Absolute rule reconfirmed: V1 must never be resurrected as a shortcut. If another subsystem appears V1-shaped, it must be reconciled to the V2 contract.
+
+### MESSAGE 10 EVIDENCE BOUNDARY
+- L1 Source: V2 quiz implementation, script inventory, V2 hardening migration, and V1 retirement migration verified.
+- L2 DB: live V2 save function, beauty_profiles fields/policies, privilege contracts, and persisted profile token scan verified against arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL / RLS: V2 authenticated-only save, exact-token insert/update policies, and legacy V1 save client denial verified.
+- L4 Negative / transactional: unauthenticated V2 save returned AUTH_REQUIRED with no mutation; exact invalid-token rejection exists in the canonical function contract; persisted invalid-profile scan=0.
+- L5 CI: no new CI run required because Message 10 did not introduce a new application/schema change; it verifies previously landed V2 hardening/retirement work.
+- L6 Preview: no new deployment required because Message 10 added no application source change.
+- L7 Browser: NOT EVIDENCED for the complete mobile V2 UI journey.
+- L8 Provider: not applicable to Passport itself.
+- L9 Production: untouched and frozen.
+
+### MESSAGE 10 NON-NEGOTIABLES RECONFIRMED
+- Beauty Passport remains a first-class platform track.
+- No V1 runtime resurrection.
+- No duplicate Passport persistence engine.
+- No new MutationObserver.
+- No speculative new columns or tokens.
+- Canonical V2 save/RLS contract remains authoritative.
+- Machine token acne remains unchanged.
+- Browser PASS is not inferred from source/DB evidence.
+- Production remains untouched.
+
+### CARRY-FORWARD AFTER MESSAGE 10
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Message 9 notification Browser/provider/Production delivery evidence remains open.
+- Commission cross-financial reconciliation remains open.
+- Payout external settlement/reconciliation/browser/Production remains open.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
