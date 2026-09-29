@@ -78,7 +78,7 @@ jobs:
               page.on('pageerror', lambda e: page_errors.append(str(e)))
 
               def on_response(resp):
-                  if 'functions/v1/velora-beauty-ai-intent' in resp.url:
+                  if 'velora-beauty-ai-intent' in resp.url:
                       payload = None
                       try:
                           payload = resp.json()
@@ -122,7 +122,20 @@ jobs:
               evidence['checks']['natural_submit_present'] = page.locator('#veloraQuizIntentSubmit').count() == 1
 
               page.locator('#veloraQuizIntentInput').fill('بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه')
-              page.locator('#veloraQuizIntentSubmit').click()
+              try:
+                  with page.expect_response(lambda r: 'velora-beauty-ai-intent' in r.url, timeout=15000) as ai_resp_info:
+                      page.locator('#veloraQuizIntentSubmit').click()
+                  ai_resp = ai_resp_info.value
+                  if not any(x['url'] == ai_resp.url for x in responses):
+                      payload = None
+                      try:
+                          payload = ai_resp.json()
+                      except Exception:
+                          pass
+                      responses.append({'status': ai_resp.status, 'url': ai_resp.url, 'payload': payload})
+              except Exception as e:
+                  evidence['checks']['ai_response_capture_error'] = str(e)
+                  page.locator('#veloraQuizIntentSubmit').click()
 
               try:
                   page.wait_for_function("() => window.__VELORA_AI_BROWSER_DONE === true", timeout=1000)
@@ -136,7 +149,7 @@ jobs:
               evidence['checks']['console_errors'] = console_errors
               evidence['checks']['page_errors'] = page_errors
               evidence['checks']['review_visible'] = 'Review what we understood' in page.locator('#veloraQuizBody').inner_text() if page.locator('#veloraQuizBody').count() else False
-              evidence['checks']['manual_fallback_message_visible'] = 'regular routine' in page.locator('#veloraQuizBody').inner_text().lower() if page.locator('#veloraQuizBody').count() else False
+              evidence['checks']['manual_fallback_message_visible'] = 'regular questions' in page.locator('#veloraQuizBody').inner_text().lower() if page.locator('#veloraQuizBody').count() else False
 
               provider_response = responses[-1] if responses else None
               if provider_response and provider_response['status'] == 200:
