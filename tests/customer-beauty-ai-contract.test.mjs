@@ -48,7 +48,7 @@ assert.equal(typeof window.veloraBeautyAI.validateCandidate, "function");
 assert.equal(window.veloraBeautyAI.maxInputChars, 800);
 assert.equal(window.veloraBeautyIntentInterpreter, window.veloraBeautyAI);
 
-assert.doesNotMatch(source, /createElement|appendChild|addEventListener|classList|innerHTML|functions\\.invoke|fetch\\(/);
+assert.doesNotMatch(source, /createElement|appendChild|addEventListener|classList|innerHTML|functions\.invoke|fetch\(/);
 assert.doesNotMatch(source, /veloraBeautyAiModal|veloraBeautyAiEntry|Describe it your way|Tell us in your own words/);
 
 // vm.runInNewContext creates values with the VM realm's Array/Object prototypes.
