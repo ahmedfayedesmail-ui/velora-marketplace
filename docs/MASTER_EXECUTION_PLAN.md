@@ -7691,3 +7691,6 @@ RETRY -> webhook replay is not assumed; reconciliation is fallback
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
 - Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
+
+
+<!-- MESSAGE18_WRITE_PROBE -->
