@@ -13948,5 +13948,6 @@ STATUS:
 - Source root cause = CLOSED-DONE.
 - Source fix = CLOSED-DONE.
 - CI/static health = CLOSED-DONE.
-- Browser proof after fix = OPEN / PENDING run `36613787928`.
+- Authenticated Product Detail Browser proof = CLOSED-DONE for the verified exact-source local gate run `36614158098`, with all required checks passing and no page errors.
+- Preview-specific evidence remains separately tracked; the exact-source gate intentionally verifies the exact checked-out source rather than claiming a different deployment.
 - Production = FROZEN.
