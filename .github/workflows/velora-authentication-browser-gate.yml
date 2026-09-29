@@ -114,7 +114,8 @@ jobs:
               }""")
 
               evidence["checks"]["valid_login_session"] = bool(session.get("present"))
-              evidence["checks"]["authenticated_user_matches_email"] = session.get("email","").lower() == email.lower()
+              session_email = str(session.get("email") or "").lower()
+              evidence["checks"]["authenticated_user_matches_email"] = session_email == email.lower()
               evidence["checks"]["account_page_authenticated"] = page.locator("#accountContent").count() == 1 and "Not logged in" not in page.locator("#accountContent").inner_text()
 
               bootstrap_probe = page.evaluate("""async () => {
