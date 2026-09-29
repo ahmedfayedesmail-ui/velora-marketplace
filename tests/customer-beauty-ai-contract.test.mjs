@@ -138,7 +138,7 @@ assert.deepEqual(
 
 assert.deepEqual(
   normalize(window.veloraBeautyAI.interpret("بشرتي دهنية وجافة وميزانيتي 700 وعايزة ترطيب")),
-  { decision: "needs_clarification", skin_type: null, goal: "hydration", routine_budget: "500_1000", missing_fields: ["skin_type"] }
+  { decision: "ready", skin_type: "combination", goal: "hydration", routine_budget: "500_1000", missing_fields: [] }
 );
 
 assert.deepEqual(
