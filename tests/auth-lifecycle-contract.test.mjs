@@ -35,4 +35,25 @@ assert.ok(
   'Passwords must never be persisted in localStorage'
 );
 
+assert.ok(
+  source.includes('loadOrBootstrapAuthProfile(authUser)'),
+  'Authenticated session hydration must use the canonical profile bootstrap path'
+);
+
+assert.ok(
+  source.includes(".from('profiles')"),
+  'Auth bootstrap must verify the canonical profiles row'
+);
+
+assert.ok(
+  source.includes('if (!profile || !canonicalResult.data)'),
+  'Missing legacy/canonical profile state must trigger governed bootstrap'
+);
+
+assert.ok(
+  source.indexOf('profile = await loadOrBootstrapAuthProfile(authUser);') !==
+    source.lastIndexOf('profile = await loadOrBootstrapAuthProfile(authUser);'),
+  'Initial session and auth-state listener must both use the bootstrap path'
+);
+
 console.log('AUTH_LIFECYCLE_CONTRACT_PASS');
