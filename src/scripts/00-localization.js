@@ -3504,7 +3504,7 @@ function openAuthModal(mode = 'login') {
         content.innerHTML = `
             <form class="auth-form" onsubmit="handlePasswordResetRequest(event)">
                 <div class="form-group">
-                    <label>\${veloraCheckoutText('Email')}</label>
+                    <label>${veloraCheckoutText('Email')}</label>
                     <input type="email" class="form-input" id="resetEmail" required autocomplete="email" placeholder="example@email.com">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Send Reset Email</button>
@@ -3517,7 +3517,7 @@ function openAuthModal(mode = 'login') {
         content.innerHTML = `
             <form class="auth-form" onsubmit="handleMagicLinkRequest(event)">
                 <div class="form-group">
-                    <label>\${veloraCheckoutText('Email')}</label>
+                    <label>${veloraCheckoutText('Email')}</label>
                     <input type="email" class="form-input" id="magicLinkEmail" required autocomplete="email" placeholder="example@email.com">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Send Login Link</button>
@@ -3531,7 +3531,7 @@ function openAuthModal(mode = 'login') {
         content.innerHTML = `
             <form class="auth-form" onsubmit="handleResendConfirmation(event)">
                 <div class="form-group">
-                    <label>\${veloraCheckoutText('Email')}</label>
+                    <label>${veloraCheckoutText('Email')}</label>
                     <input type="email" class="form-input" id="resendEmail" required autocomplete="email" placeholder="example@email.com">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Resend Confirmation</button>
