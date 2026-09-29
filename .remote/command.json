@@ -1,0 +1,6 @@
+{
+  "id": "bootstrap-2026-09-29T19:24:00+03:00",
+  "command": "git status --short --branch",
+  "requested_by": "owner",
+  "purpose": "bootstrap-check"
+}
