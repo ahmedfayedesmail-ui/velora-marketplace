@@ -1,6 +1,12 @@
 name: Velora Zero-Cost Restore-Test Evidence
 
 on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".remote/restore-test-evidence.json"
+      - ".github/workflows/velora-restore-test-evidence.yml"
   workflow_dispatch:
     inputs:
       probe:
@@ -24,8 +30,14 @@ jobs:
     env:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      PROBE: ${{ inputs.probe }}
+      PROBE_INPUT: ${{ inputs.probe }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
       - name: Validate secret
         run: |
           set -euo pipefail
@@ -45,7 +57,13 @@ jobs:
 
           base = os.environ["SUPABASE_URL"].rstrip("/")
           key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-          probe = os.environ["PROBE"]
+          probe = os.environ.get("PROBE_INPUT", "").strip()
+          if not probe:
+              try:
+                  with open(".remote/restore-test-evidence.json", "r", encoding="utf-8") as f:
+                      probe = str(json.load(f).get("probe") or "").strip()
+              except Exception:
+                  probe = ""
 
           headers = {
               "apikey": key,
