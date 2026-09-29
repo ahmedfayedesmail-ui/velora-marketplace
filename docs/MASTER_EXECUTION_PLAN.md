@@ -3684,3 +3684,31 @@ DECISION:
 EVIDENCE:
 - L1/L2/L3: source and Restore-Test contract inspected; return request/resolution ACL boundaries verified.
 - L4/L5/L6/L7/L8/L9: no new return automation or provider/browser/Production PASS claimed.
+
+
+
+### Continuation Notifications / Push Reliability Review — 2026-09-29
+
+CLASSIFICATION: ARCHITECTURE / SOURCE / DB CONTRACT RETAINED; BROWSER DELIVERY EVIDENCE OPEN
+
+OBSERVED FACT:
+- The canonical notification path remains: notification insert -> AFTER INSERT push-dispatch trigger -> internal-secret Edge Function -> active user subscriptions -> existing push-delivery dedupe record -> Web Push send -> stale 404/410 endpoint deactivation.
+- notification_push_deliveries is RLS-enabled and service/postgres-only; its primary key is (notification_id, subscription_id), and current rows contain delivered_at timestamps.
+- velora_claim_push_delivery uses the existing delivery row as the dedupe claim, while the dispatcher removes that row when a send fails and stale 404/410 subscriptions are disabled.
+- The current design therefore provides at-most-once behavior once a delivery row exists. A theoretical crash after claim and before send could leave a row that suppresses a later retry, but no observed failed-delivery record or runtime incident was found proving that this loss path has occurred.
+- Adding a new queue, lease scheduler, or parallel notification delivery engine without incident evidence would violate the reuse-first rule and widen the architecture unnecessarily.
+
+DECISION:
+- Do not redesign the notification system at this point.
+- Preserve the existing notification lifecycle cron and push dispatcher.
+- Keep the current delivery row as the existing dedupe/audit mechanism until an actual provider/runtime failure demonstrates that a lease/outbox change is required.
+- Browser proof of bell/read state, push enable/disable, device delivery, and service-worker behavior remains OPEN and belongs to the final aggregate Browser Gate.
+
+ACTION FLOW:
+Business event -> canonical notification writer -> notification row -> push-dispatch trigger -> internal authentication -> active subscription lookup -> delivery dedupe claim -> provider send -> successful delivery record / failed-send unclaim -> stale endpoint disable on 404/410 -> notification lifecycle continuation -> audit/recovery.
+Normal notification generation requires no human intervention; provider/runtime ambiguity remains observable for escalation.
+
+EVIDENCE:
+- L1/L2/L3: source/DB/ACL contract inspected.
+- L4: no failure incident reproduced; the theoretical claim-before-send crash remains a HYPOTHESIS only.
+- L5/L6/L7/L8/L9: no CI/Preview/Browser/provider/Production PASS claimed for this review.
