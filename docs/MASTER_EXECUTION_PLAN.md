@@ -4041,3 +4041,27 @@ DECISION:
 - Do not change the existing technical contract merely because the Master previously labeled the policy OPEN.
 - Keep the business-policy item OPEN until the owner explicitly confirms that the current split (content changes require review; price/stock preserve lifecycle) is the intended commercial/governance policy.
 - No new schema, review engine, or Browser test is justified at this point.
+
+
+### Band 1 Subscription Reconciliation — 2026-09-29
+
+CLASSIFICATION: FOUNDATION CLOSED / COMMERCIAL POLICY + PROVIDER + BROWSER OPEN
+
+OBSERVED FACT:
+- Restore-Test currently has the canonical subscription purchase/state infrastructure: approved seller/store guard, store-country binding, regional price resolution, legal acceptance guard, card payment method, idempotency, pending subscription creation, payment-attempt creation, and canonical state synchronization.
+- State synchronization covers pending -> active on captured payment, pending expiry -> cancelled, active expiry -> past_due when uncaptured, past_due capture -> active, and past_due grace expiry -> expired.
+- State changes are audited and existing notification lifecycle scheduling is reused; no second scheduler is justified.
+- Current seller subscription read policy is seller-owned/staff-readable through the existing RLS policy.
+- Restore-Test currently has no populated seller subscription rows in the inspected snapshot.
+- Current active plan features are empty objects; no business-approved entitlement matrix is contractually defined.
+- No dedicated public cancel/upgrade/downgrade/replacement RPC exists.
+
+RESEARCH-FIRST FINDING:
+- Current Shopify subscription documentation demonstrates that cancellation/replacement and plan changes can involve materially different choices such as immediate vs deferred cancellation and prorated credits. This confirms these are business/billing-policy decisions that must be explicitly selected for Velora rather than inferred from an industry default. citeturn0search0turn0search1
+
+DECISION:
+- No new subscription engine or state machine is justified.
+- Do not implement cancel/upgrade/downgrade/replacement/proration/refund/entitlement semantics until the commercial policy is explicitly defined.
+- Do not populate the empty features JSON with guessed entitlements.
+- Do not claim provider payment/settlement PASS or Browser PASS.
+- Carry forward unchanged: provider charge/capture evidence, browser runtime evidence, failure/recovery evidence beyond source/DB, notification delivery/browser evidence, and all commercial policy items.
