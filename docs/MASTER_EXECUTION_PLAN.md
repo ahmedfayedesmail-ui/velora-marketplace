@@ -498,7 +498,6 @@ VALIDATION: all required launch gates and exact artifact/Preview references
 CANONICAL STATE: gate statuses / release readiness
 AUTOMATION: audits collect evidence; release promotion remains governed
 NEXT EVENT: ready-to-promote or remediationHUMAN EXCEPTION: final release/cutover authorization### AUTOMATION POLICY FOR MESSAGE 2
-
 Observed automation already present:
 - payment_attempts automation trigger
 - failed-payment inventory-release trigger
@@ -997,8 +996,7 @@ OBSERVED FACT:
 - Transactional probes confirmed Staff-only promotion creation and canonical rejection of free_shipping with PROMOTION_TYPE_NOT_SUPPORTED.- No seller-owned promotion engine exists; current platform promotion scope is global.
 OPEN:
 - free_shipping semantics- stacking/combination policy
-- targeting beyond global scope
-- seller-funded vs platform-funded economics
+- targeting beyond global scope- seller-funded vs platform-funded economics
 - reversal/refund economics beyond current cancellation path
 - abuse/rate-limit policy
 - future management semantics for the existing coupon record
@@ -1497,8 +1495,7 @@ Non-negotiable future constraints:
 ### 65. AI Failure Model
 CLASSIFICATION: ROADMAP / NOT IMPLEMENTED
 Required future safe handling:
-- AI unavailable -> deterministic fallback
-- invalid structured output -> discard
+- AI unavailable -> deterministic fallback- invalid structured output -> discard
 - canonical constraint violation -> canonical rejection
 - timeout -> bounded safe retry
 - ambiguous interpretation -> deterministic/safe path
@@ -1997,8 +1994,7 @@ SMALLEST SAFE CHANGE IMPLEMENTED:
 - Canonical navigation now labels the Dashboard as Owner Dashboard when the authenticated role set contains owner.- Existing Legal UI is exposed as a canonical Legal section and routes to renderAdminLegal(), reusing existing Legal RPCs and controls.
 - No new database table, enum, permission string, scheduler, analytics engine, audit engine, legal engine, or Owner engine was introduced.
 
-IMPLEMENTATION COMMIT:
-- c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8
+IMPLEMENTATION COMMIT:- c4fe4dfdb817a7ca46dbfe2a664a8fea2f9350a8
 - file changed: src/scripts/12-localization.js
 - no Production change
 
@@ -2498,7 +2494,6 @@ OPEN:- full browser/provider settlement proof.
 - reconciliation drill across captured payment -> commission -> eligibility -> payout -> external execution -> ledger.
 - refund/cancellation effects across financial objects.
 - exceptions where provider state and local state disagree.
-
 ### 100. Promotion / Gift Card / Payment Interactions
 CLASSIFICATION: CROSS-SYSTEM TESTING OPEN
 
@@ -2997,8 +2992,7 @@ IMPLEMENTED:
 
 VERIFICATION:
 - The updated `src/scripts/63-platform-router.js` successfully compiled through a JavaScript Function parser harness.
-- A deterministic harness using mocked browser primitives verified:
-  - `window.VELORA_CLOSE_SELLER === window.closeSellerPlatform`
+- A deterministic harness using mocked browser primitives verified:  - `window.VELORA_CLOSE_SELLER === window.closeSellerPlatform`
   - the unified close path invokes the route-aware close logic
   - marketplace navigation resolves to `home` for a direct `#seller` starting state
 - Latest Vercel Preview deployment created from the first fix commit is READY:
@@ -3497,8 +3491,7 @@ OBSERVED FACT:
 - The function already owns all state transitions and renewal/expiry side effects, making it the correct place for a single audit event rather than adding a second trigger or audit engine.
 
 IMPLEMENTED:
-- Migration 20260929041000_audit_subscription_state_transitions.sql.
-- velora_sync_subscription_state now records seller_subscription_state_changed only when status, payment_status, payment_id, started_at, or expires_at actually changes.
+- Migration 20260929041000_audit_subscription_state_transitions.sql.- velora_sync_subscription_state now records seller_subscription_state_changed only when status, payment_status, payment_id, started_at, or expires_at actually changes.
 - Idempotent/no-op syncs do not create duplicate audit events.
 - Renewal-job cancellation and expiry notification cleanup remain on the same canonical function.
 
@@ -3997,7 +3990,6 @@ OBSERVED FACT:
 DECISION:
 - Seller onboarding Action Flow is closed at source/DB/audit level.
 - A no-op governed save currently still produces an audit row; this is audit noise, not a correctness/security gap, and no speculative refactor is justified.
-
 
 ### Continuation Seller Commerce Settings Auditability — 2026-09-29
 
@@ -4498,7 +4490,6 @@ PRODUCTION PAYMOB GATE — REMAINS OPEN:
 - Therefore no Production settlement/cutover PASS exists and none is claimed.
 - Required future Production gate: controlled promotion of the verified Restore-Test contracts, live Paymob credentials/environment, production webhook endpoint/configuration, backup/rollback readiness, controlled live smoke/evidence, and provider settlement/reconciliation proof.
 - Do not modify Production in this audit/continuation.
-
 CURRENT RELEASE DECISION:
 - Paymob Restore-Test work is now complete enough to stop engineering changes in this lane.
 - Do not build another payment/reconciliation/webhook engine.
@@ -4998,7 +4989,6 @@ DECISION:
 - Carry this as OPEN: decide whether product_interaction remains an allowed non-purchase signal, is deprecated, or should be retired.
 - Any future tightening must include ACL/RLS/function-contract reconciliation and a regression probe.
 No change was made for this policy item.
-
 #### Replenishment
 OBSERVED FACT:
 - Canonical RPC: velora_get_replenishment_signals().
@@ -5498,7 +5488,6 @@ OFFICIAL PROVIDER RESEARCH:
 ### 47. PAYMOB CASE A
 CLASSIFICATION:
 - CLOSED-DONE
-
 OBSERVED FACT:
 - Attempt creation followed by provider intention failure already has canonical backend compensation.
 - Failure compensation releases reserved inventory and reverses pending financial effects through the existing canonical payment-failure path.
@@ -5997,8 +5986,7 @@ RETRY/DEDUPE: canonical transaction
 HUMAN EXCEPTION: governance decisions only
 
 ### 64. AUTHENTICATION
-CLASSIFICATION:
-- OPEN / NOT READY FOR FINAL PRODUCTION READINESS
+CLASSIFICATION:- OPEN / NOT READY FOR FINAL PRODUCTION READINESS
 
 OBSERVED FACT:
 - Current Restore-Test Security Advisor reports `auth_leaked_password_protection` WARN: Leaked Password Protection Disabled.
@@ -6497,8 +6485,7 @@ The following remain OPEN and must not be silently inferred:
 - Browser evidence.
 No new subscription policy, status enum, entitlement rule, refund rule, or provider contract was created by Message 6.
 
-### Evidence / Release Boundary
-- L1 Source: current projection, seller status, Product re-review/translation, and subscription control-plane source reviewed.
+### Evidence / Release Boundary- L1 Source: current projection, seller status, Product re-review/translation, and subscription control-plane source reviewed.
 - L2 DB: Seller/Store/Product/Translation/Subscription/Plan objects and live function inventory verified in Restore-Test `arlaxqmhtvjwjbjinjfw`.
 - L3 Contract / ACL / RLS: Staff-only Seller/Product status paths, seller-owned profile updates, translation ownership, closed direct subscription writes, and service-role subscription synchronization verified.
 - L4 Negative / Transactional: projection conflict, suspension sync, price-only lifecycle preservation, material Product re-review, Product approval notification, and translation re-review all exercised in rollback-safe tests.
@@ -6997,8 +6984,7 @@ DECISION-IMPACT RESEARCH:
 - avoidance_preferences has REAL CURRENT ROUTINE impact: the deterministic Routine engine excludes products whose ingredients/tags conflict with the customer's configured avoidance lists.
 - texture_preference currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint, so changing it can invalidate/rebuild the deterministic routine, but it is not itself used as a current scoring/filter criterion.
 - effect_preference currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint but not used as a current scoring/filter criterion.
-- shopping_priority currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint but not used as a current scoring/filter criterion.
-- The current Beauty Recommendation V2 engine does NOT consume concern, texture_preference, effect_preference, avoidance_preferences, or shopping_priority in its active candidate input/scoring contract. Its current input snapshot is based on the V2 three-question Passport values plus approved-feedback revision.
+- shopping_priority currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint but not used as a current scoring/filter criterion.- The current Beauty Recommendation V2 engine does NOT consume concern, texture_preference, effect_preference, avoidance_preferences, or shopping_priority in its active candidate input/scoring contract. Its current input snapshot is based on the V2 three-question Passport values plus approved-feedback revision.
 - Therefore the five optional dimensions do not currently have uniform downstream value: two affect deterministic Routine behavior (concern/avoidance), while three are currently fingerprint-only, and none is part of the active Recommendation V2 decision input.
 
 REQUIRED PRODUCT PROCESS STATUS:
@@ -7497,8 +7483,7 @@ HUMAN EXCEPTION: provider ambiguity, financial exception, legal publication, or 
 - L1 Source: Routine→Cart adapter, variant inventory migration, variant/Product seller writers, canonical checkout source, legacy checkout wrapper, and current checkout route were inspected.
 - L2 DB: live inventory functions, products/variants baseline, direct-DML grants, legacy order-item status absence/ACL, checkout/shipping function definitions, shipping quote, legal publication state, and invariant scan were verified against Restore-Test project arlaxqmhtvjwjbjinjfw.
 - L3 Contract / ACL: authenticated seller variant RPC boundary, no direct table UPDATE grants, deprecated legacy order-item status non-client execution, canonical checkout/payment RPC authority, and server shipping validation were verified.
-- L4 Negative / transactional: full variant aggregate lifecycle test passed and rolled back; direct products/variant UPDATE attempts failed closed; checkout legal gate failed closed with no order mutation; server shipping quote returned valid store-rate evidence.
-- L5 CI: NO NEW CI RUN. No customer-facing application runtime source change was introduced by Message 15; the source inventory migration was already present and the checkout/cart source paths were reused.
+- L4 Negative / transactional: full variant aggregate lifecycle test passed and rolled back; direct products/variant UPDATE attempts failed closed; checkout legal gate failed closed with no order mutation; server shipping quote returned valid store-rate evidence.- L5 CI: NO NEW CI RUN. No customer-facing application runtime source change was introduced by Message 15; the source inventory migration was already present and the checkout/cart source paths were reused.
 - L6 Preview: NO NEW PREVIEW DEPLOYMENT. No customer-facing source change was introduced.
 - L7 Browser: NOT EVIDENCED for the complete current flow. Historical Routine→Cart Browser evidence remains historical; current full Beauty/Checkout Browser gate remains open.
 - L8 Provider: NOT APPLICABLE for the inventory invariant itself; no new provider payment attempt was initiated.
