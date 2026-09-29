@@ -40,4 +40,4 @@ return json({
   status:applied.data?.status??incomingStatus,
   transaction_id:tx||null,
   changed:applied.data?.changed??null
-})}
+})}catch(e){console.error("paymob_webhook_failed",e instanceof Error?e.message:"unknown_error");return json({ok:false,error:e instanceof Error?e.message:"paymob_webhook_failed"},500)}})
