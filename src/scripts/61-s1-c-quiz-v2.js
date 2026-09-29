@@ -8,6 +8,8 @@
 
   const ROOT_ID = 'veloraQuizV2Modal';
   const QUIZ_VERSION = 'beauty-quiz.v2';
+  const NATURAL_INPUT_ID = 'veloraQuizIntentInput';
+  const NATURAL_INPUT_BUTTON_ID = 'veloraQuizIntentSubmit';
   const QUESTIONS = [
     {
       id: 'skin_type',
@@ -118,6 +120,17 @@
       '#veloraQuizV2Modal .velora-quiz-option.selected .velora-quiz-check{border-color:var(--primary);background:var(--primary);color:#fff;}',
       '#veloraQuizV2Modal .velora-quiz-footer{display:flex;justify-content:space-between;gap:.6rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);}',
       '#veloraQuizV2Modal .velora-quiz-error{margin-top:.8rem;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(244,67,54,.35);background:rgba(244,67,54,.06);font-size:.82rem;}',
+      '#veloraQuizV2Modal .velora-quiz-natural{margin-bottom:1.2rem;padding:1rem;border:1px solid var(--border);border-radius:18px;background:var(--bg-alt);}',
+      '#veloraQuizV2Modal .velora-quiz-natural-label{display:block;font-weight:800;margin-bottom:.35rem;}',
+      '#veloraQuizV2Modal .velora-quiz-natural-help{font-size:.8rem;color:var(--text-muted);line-height:1.45;margin:0 0 .7rem;}',
+      '#veloraQuizV2Modal .velora-quiz-natural-input{width:100%;min-height:108px;resize:vertical;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);padding:.8rem;font:inherit;line-height:1.5;}',
+      '#veloraQuizV2Modal .velora-quiz-natural-actions{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-top:.7rem;}',
+      '#veloraQuizV2Modal .velora-quiz-natural-status{font-size:.76rem;color:var(--text-muted);flex:1 1 220px;}',
+      '#veloraQuizV2Modal .velora-quiz-understood{display:grid;gap:.65rem;margin-top:1rem;}',
+      '#veloraQuizV2Modal .velora-quiz-understood-row{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.75rem .85rem;border:1px solid var(--border);border-radius:12px;background:var(--bg-alt);}',
+      '#veloraQuizV2Modal .velora-quiz-understood-row span{color:var(--text-muted);font-size:.8rem;}',
+      '#veloraQuizV2Modal .velora-quiz-understood-row strong{text-align:end;}',
+      '@media(max-width:600px){#veloraQuizV2Modal .velora-quiz-understood-row{align-items:flex-start;flex-direction:column;gap:.25rem}#veloraQuizV2Modal .velora-quiz-understood-row strong{text-align:start;}}',
       '@media(max-width:600px){#veloraQuizV2Modal .velora-quiz-modal{border-radius:18px;width:calc(100vw - .75rem)}#veloraQuizV2Modal .velora-quiz-body{padding:.8rem}#veloraQuizV2Modal .velora-quiz-question{font-size:1.15rem}}'
     ].join('');
     document.head.appendChild(style);
@@ -163,7 +176,178 @@
     return state.answers[currentQuestion().id];
   }
 
+  function answerLabel(id, value) {
+    const question = QUESTIONS.find((item) => item.id === id);
+    const option = question?.options?.find((item) => item.value === value);
+    return option ? t(option.ar, option.en) : String(value || '—');
+  }
+
+  function nextMissingStep(currentIndex, direction) {
+    if (state.ai.mode !== 'clarify') return -1;
+    let index = currentIndex + direction;
+    while (index >= 0 && index < QUESTIONS.length) {
+      const question = QUESTIONS[index];
+      if (question && state.ai.missingFields.includes(question.id)) return index;
+      index += direction;
+    }
+    return -1;
+  }
+
+  function naturalInputMarkup() {
+    const status = state.ai.message || (
+      state.ai.busy
+        ? t('بنراجع كلامك…', 'We are reviewing what you wrote…')
+        : t('ممكن تكتبي بطريقتك العادية. ولو حبيتي، كمّلي بالاختيارات العادية.', 'You can describe your routine in your own words, or continue with the regular choices.')
+    );
+    return '<section class="velora-quiz-natural" aria-labelledby="veloraQuizNaturalLabel">'
+      + '<label class="velora-quiz-natural-label" id="veloraQuizNaturalLabel" for="' + NATURAL_INPUT_ID + '">'
+      + escapeHtml(t('احكيلنا عن بشرتك والروتين اللي نفسك فيه', 'Tell us about your skin and the routine you want'))
+      + '</label>'
+      + '<p class="velora-quiz-natural-help">'
+      + escapeHtml(t('اكتبي اللي تعرفيه عن بشرتك وهدفك وميزانيتك بأي طريقة مريحة ليكي.', 'Write whatever you know about your skin, your goal, and your budget in the way that feels natural to you.'))
+      + '</p>'
+      + '<textarea id="' + NATURAL_INPUT_ID + '" class="velora-quiz-natural-input" maxlength="800" '
+      + 'placeholder="' + escapeHtml(t('مثال: بشرتي دهنية وعندي حبوب وعايزة روتين بسيط في حدود 700 جنيه.', 'Example: My skin is oily, I have some blemishes, and I want a simple routine around EGP 700.')) + '" '
+      + 'aria-describedby="veloraQuizNaturalStatus">' + escapeHtml(state.ai.input) + '</textarea>'
+      + '<div class="velora-quiz-natural-actions">'
+      + '<button type="button" class="btn btn-outline" id="' + NATURAL_INPUT_BUTTON_ID + '" ' + (state.ai.busy ? 'disabled' : '') + '>'
+      + escapeHtml(state.ai.busy ? t('ثواني…', 'One moment…') : t('كمّل من كلامي', 'Continue from my description'))
+      + '</button>'
+      + '<span id="veloraQuizNaturalStatus" class="velora-quiz-natural-status" aria-live="polite">' + escapeHtml(status) + '</span>'
+      + '</div>'
+      + '</section>';
+  }
+
+  function renderIntentConfirmation(errorMessage) {
+    const body = document.getElementById('veloraQuizBody');
+    const progress = document.getElementById('veloraQuizProgress');
+    const fill = document.getElementById('veloraQuizProgressFill');
+    if (!body || !progress || !fill) return;
+
+    progress.textContent = t('مراجعة فهمنا ليكي', 'Review');
+    fill.style.width = '100%';
+
+    const rows = QUESTIONS.map((question) => {
+      return '<div class="velora-quiz-understood-row">'
+        + '<span>' + escapeHtml(t(question.ar, question.en)) + '</span>'
+        + '<strong>' + escapeHtml(answerLabel(question.id, state.answers[question.id])) + '</strong>'
+        + '</div>';
+    }).join('');
+
+    body.innerHTML = '<h3 class="velora-quiz-question">'
+      + escapeHtml(t('راجعي اللي فهمناه من كلامك', 'Review what we understood'))
+      + '</h3>'
+      + '<p class="velora-quiz-subtitle">'
+      + escapeHtml(t('دي البيانات اللي هنستخدمها لبناء الروتين. تقدري تعدّلي أي إجابة قبل الحفظ.', 'These are the details we will use to build your routine. You can adjust any answer before saving.'))
+      + '</p>'
+      + '<div class="velora-quiz-understood">' + rows + '</div>'
+      + (errorMessage ? '<div class="velora-quiz-error" role="alert">' + escapeHtml(errorMessage) + '</div>' : '')
+      + '<div class="velora-quiz-footer">'
+      + '<button type="button" class="btn btn-outline" id="veloraQuizAdjust">'
+      + escapeHtml(t('عدّلي الإجابات', 'Adjust answers'))
+      + '</button>'
+      + '<button type="button" class="btn btn-primary" id="veloraQuizConfirm" ' + (state.ai.busy ? 'disabled' : '') + '>'
+      + escapeHtml(t('تأكيد وبناء الروتين', 'Confirm & build routine'))
+      + '</button>'
+      + '</div>';
+
+    const adjust = document.getElementById('veloraQuizAdjust');
+    const confirm = document.getElementById('veloraQuizConfirm');
+    if (adjust) adjust.addEventListener('click', () => {
+      if (state.ai.busy) return;
+      state.ai.mode = 'manual';
+      state.ai.missingFields = [];
+      state.ai.message = '';
+      state.step = 0;
+      render();
+    });
+    if (confirm) confirm.addEventListener('click', () => {
+      if (state.ai.busy) return;
+      saveAndBuild();
+    });
+  }
+
+  async function interpretNaturalLanguage() {
+    const input = document.getElementById(NATURAL_INPUT_ID);
+    const text = String(input?.value || '').trim();
+    if (!text || state.ai.busy) return;
+
+    state.ai.input = text;
+    state.ai.busy = true;
+    state.ai.message = '';
+    render();
+
+    try {
+      if (!window.veloraBeautyAI || typeof window.veloraBeautyAI.interpret !== 'function') {
+        throw new Error('AI_SERVICE_UNAVAILABLE');
+      }
+
+      const candidate = await window.veloraBeautyAI.interpret(text);
+      state.ai.busy = false;
+
+      if (candidate.decision === 'ready') {
+        state.answers = {
+          skin_type: candidate.skin_type,
+          goal: candidate.goal,
+          routine_budget: candidate.routine_budget
+        };
+        state.ai.candidate = candidate;
+        state.ai.mode = 'confirm';
+        state.ai.missingFields = [];
+        state.ai.message = '';
+        render();
+        return;
+      }
+
+      if (candidate.decision === 'needs_clarification') {
+        state.answers = {
+          skin_type: candidate.skin_type,
+          goal: candidate.goal,
+          routine_budget: candidate.routine_budget
+        };
+        state.ai.candidate = candidate;
+        state.ai.mode = 'clarify';
+        state.ai.missingFields = candidate.missing_fields.slice();
+        state.ai.message = t(
+          'فهمنا جزء من احتياجك. خلّينا نكمّل بس المعلومات الناقصة.',
+          'We understood part of your request. Let’s fill only the missing details.'
+        );
+        const firstMissing = nextMissingStep(-1, 1);
+        state.step = firstMissing === -1 ? 0 : firstMissing;
+        render();
+        return;
+      }
+
+      // Unsupported/unsafe requests never become Passport data. The customer
+      // stays on the existing deterministic/manual path.
+      state.ai.mode = 'manual';
+      state.ai.missingFields = [];
+      state.ai.candidate = candidate;
+      state.ai.message = candidate.decision === 'unsafe'
+        ? t('خلّينا نكمّل بأسئلة الروتين العادية.', 'Let’s continue with the regular routine questions.')
+        : t('خلّينا نكمّل باختيارات الروتين العادية.', 'Let’s continue with the regular routine choices.');
+      state.step = 0;
+      render();
+    } catch (error) {
+      state.ai.busy = false;
+      state.ai.mode = 'manual';
+      state.ai.candidate = null;
+      state.ai.missingFields = [];
+      state.ai.message = t(
+        'مفيش مشكلة — نقدر نكمّل بالأسئلة العادية.',
+        'No problem — we can continue with the regular questions.'
+      );
+      state.step = 0;
+      render();
+    }
+  }
+
   function render(errorMessage) {
+    if (state.ai.mode === 'confirm') {
+      renderIntentConfirmation(errorMessage);
+      return;
+    }
+
     const q = currentQuestion();
     const body = document.getElementById('veloraQuizBody');
     const progress = document.getElementById('veloraQuizProgress');
@@ -182,14 +366,32 @@
         + '<span class="velora-quiz-check" aria-hidden="true">'+(selected?'✓':'')+'</span></button>';
     }).join('');
 
-    body.innerHTML = '<h3 class="velora-quiz-question">'+escapeHtml(t(q.ar, q.en))+'</h3>'
+    const naturalSurface = state.step === 0 && state.ai.mode === 'manual' ? naturalInputMarkup() : '';
+    const clarificationBanner = state.ai.mode === 'clarify'
+      ? '<div class="velora-quiz-natural" style="margin-bottom:1rem;"><strong>'
+        + escapeHtml(t('معلومة سريعة', 'A quick note'))
+        + '</strong><div class="velora-quiz-natural-help" style="margin:.3rem 0 0;">'
+        + escapeHtml(state.ai.message || t('هنسأل بس عن اللي ناقص.', 'We will ask only for what is missing.'))
+        + '</div></div>'
+      : '';
+
+    body.innerHTML = naturalSurface
+      + clarificationBanner
+      + '<h3 class="velora-quiz-question">'+escapeHtml(t(q.ar, q.en))+'</h3>'
       + '<p class="velora-quiz-subtitle">'+escapeHtml(t(q.subtitleAr, q.subtitleEn))+'</p>'
       + '<div class="velora-quiz-options">'+options+'</div>'
       + (errorMessage ? '<div class="velora-quiz-error" role="alert">'+escapeHtml(errorMessage)+'</div>' : '')
       + '<div class="velora-quiz-footer">'
       + '<button type="button" class="btn btn-outline" id="veloraQuizBack" '+(state.step===0?'disabled':'')+'>'+escapeHtml(t('رجوع','Back'))+'</button>'
-      + '<button type="button" class="btn btn-primary" id="veloraQuizNext" '+(selectedValue()?'':'disabled')+'>'+escapeHtml(state.step===QUESTIONS.length-1 ? t('احفظي واعملي روتينك','Save & build routine') : t('التالي','Next'))+'</button>'
+      + '<button type="button" class="btn btn-primary" id="veloraQuizNext" '+(selectedValue()?'':'disabled')+'>'+escapeHtml(state.ai.mode === 'clarify'
+        ? (nextMissingStep(state.step, 1) === -1 ? t('احفظي واعملي روتينك','Save & build routine') : t('التالي','Next'))
+        : (state.step===QUESTIONS.length-1 ? t('احفظي واعملي روتينك','Save & build routine') : t('التالي','Next')))+'</button>'
       + '</div>';
+
+    const naturalSubmit = document.getElementById(NATURAL_INPUT_BUTTON_ID);
+    if (naturalSubmit) naturalSubmit.addEventListener('click', () => {
+      interpretNaturalLanguage();
+    });
 
     body.querySelectorAll('.velora-quiz-option').forEach((button) => {
       button.addEventListener('click', () => {
@@ -202,14 +404,21 @@
     const back = document.getElementById('veloraQuizBack');
     const next = document.getElementById('veloraQuizNext');
     if (back) back.addEventListener('click', () => {
-      if (state.busy || state.step === 0) return;
-      state.step -= 1;
+      if (state.busy) return;
+      const previous = state.ai.mode === 'clarify'
+        ? nextMissingStep(state.step, -1)
+        : state.step - 1;
+      if (previous === -1 || previous < 0) return;
+      state.step = previous;
       render();
     });
     if (next) next.addEventListener('click', () => {
       if (state.busy || !selectedValue()) return;
-      if (state.step < QUESTIONS.length - 1) {
-        state.step += 1;
+      const nextStep = state.ai.mode === 'clarify'
+        ? nextMissingStep(state.step, 1)
+        : state.step + 1;
+      if (nextStep !== -1 && nextStep < QUESTIONS.length) {
+        state.step = nextStep;
         render();
       } else {
         saveAndBuild();
@@ -281,7 +490,15 @@
     state = {
       step: 0,
       answers: { skin_type: null, goal: null, routine_budget: null },
-      busy: false
+      busy: false,
+      ai: {
+        mode: 'manual',
+        input: '',
+        candidate: null,
+        missingFields: [],
+        message: '',
+        busy: false
+      }
     };
   }
 
