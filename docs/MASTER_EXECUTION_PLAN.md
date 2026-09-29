@@ -12776,3 +12776,50 @@ MESSAGE 50 DECISION:
 - Live Beauty AI provider: BLOCKED / NOT CONFIGURED.
 - Legal registration: PAUSED / CARRY-FORWARD.
 - Production: FROZEN.
+
+
+### 160.15 MESSAGE 51 — PLATFORM CLOSE CONTRACT GAP + RE-ENTRY GATE RE-RUN (2026-09-29)
+
+SOURCE RECONCILIATION:
+- A follow-up source review found that the actual branch state still had a close-contract gap not covered by the earlier documented re-entry hardening:
+  - canonical Seller/Admin close functions removed `active` but did not invalidate the in-flight platform operation generation;
+  - canonical `window.closeSellerPlatform` / `window.closeAdminPlatform` aliases were not registered before the platform router captured its original close functions.
+- This was treated as a source/contract reconciliation issue, not as Browser evidence.
+
+IMPLEMENTATION:
+- `src/scripts/12-localization.js`
+  - Seller/Admin close now invalidate their respective platform operation generation.
+  - Close now restores `hidden` and `aria-hidden` state as part of the canonical shell lifecycle.
+  - Registered `window.closeSellerPlatform = window.VELORA_CLOSE_SELLER`.
+  - Registered `window.closeAdminPlatform = window.VELORA_CLOSE_ADMIN`.
+- `tests/platform-reentry-contract.test.mjs`
+  - Added blocking assertions for close invalidation, canonical close aliases, and hidden-state restoration.
+- No MutationObserver.
+- No arbitrary routing listener.
+- No Supabase schema/RPC/ACL change.
+- No Production change.
+
+CI EVIDENCE:
+- Commit `2cec5ecc80438aae1ec1e155bd12382e8c8d3636` = source close-lifecycle correction.
+- Commit `4f880d78ecae1dc4fb53f2d64eaaee23f5e0e848` = regression-contract assertions.
+- Platform Re-entry Contract Gate run `36569041504` = SUCCESS.
+- All relevant steps passed:
+  - Checkout
+  - Node version
+  - JavaScript syntax
+  - Platform re-entry contract tests
+  - Static audit
+- This is source + contract/CI evidence only.
+
+BROWSER / PREVIEW BOUNDARY:
+- Seller/Admin runtime behavior remains OPEN / NOT EVIDENCED.
+- No Browser PASS is claimed.
+- The current branch is now `4f880d78ecae1dc4fb53f2d64eaaee23f5e0e848`.
+- A current-HEAD Vercel Preview matching this SHA is still required before Browser verification.
+- TinyFish Browser capacity remains the known blocker.
+
+MESSAGE 51 DECISION:
+- Seller/Admin close lifecycle + re-entry contract = CLOSED-DONE at source + contract/CI scope.
+- Seller/Admin actual browser re-entry = OPEN / NOT EVIDENCED.
+- Exact current-HEAD Preview parity = OPEN.
+- Continue remaining non-legal OPEN tracks.
