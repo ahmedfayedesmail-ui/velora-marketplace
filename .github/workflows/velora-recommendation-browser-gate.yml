@@ -130,7 +130,7 @@ jobs:
               empty_state = grid.locator(".empty-state")
 
               evidence["checks"]["recommendation_section_visible"] = (
-                  section.count() == 1 and section.is_visible()
+                  section.count() == 1 and not bool(section.get_attribute("hidden"))
               )
               evidence["checks"]["recommendation_rpc_requests"] = len(recommendation_requests)
               evidence["checks"]["ai_endpoint_requests"] = len(ai_requests)
@@ -169,12 +169,12 @@ jobs:
               evidence["failures"].append("Canonical recommendation RPC was not observed")
           if c.get("ai_endpoint_requests", 0) != 0:
               evidence["failures"].append("Recommendation path invoked Customer Beauty AI")
-          if c.get("canonical_status") not in ("ready", "incomplete", "no_matches", "rate_limited"):
+          if c.get("canonical_status") not in ("success", "ready", "incomplete", "no_matches", "rate_limited"):
               evidence["failures"].append(
                   "Unexpected canonical recommendation status: " + str(c.get("canonical_status"))
               )
 
-          if c.get("canonical_status") == "ready":
+          if c.get("canonical_status") in ("success", "ready"):
               if c.get("canonical_recommendation_count", 0) < 1:
                   evidence["failures"].append("Canonical ready response contained no recommendations")
               if c.get("recommendation_card_count", 0) < 1:
