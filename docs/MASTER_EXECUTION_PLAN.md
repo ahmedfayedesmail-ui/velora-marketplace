@@ -893,230 +893,256 @@ RESEARCH-FIRST DECISION:
 - No feature build is justified while the canonical features object is empty and business entitlements are unspecified.
 - Keep numeric and regional pricing contracts as current observed DB state; do not invent a new plan matrix.
 
-### 34. Seller Advertising
-CLASSIFICATION: FOUNDATION CLOSED / PAYMENT SETTLEMENT + ANALYTICS OPEN
+### MESSAGE 4/11 EXECUTION RECONCILIATION — 2026-09-29
+All user-provided items 14–21 have been reviewed against current Restore-Test source/DB/ACL/runtime state. Closed items remain closed; open/blocked evidence is explicitly carried forward.
+
+### 14. Seller Advertising
+CLASSIFICATION: FOUNDATION CLOSED / ERROR-PATH HARDENING CLOSED / PROVIDER SETTLEMENT + ANALYTICS OPEN
 
 OBSERVED FACT:
-- Current active ad packages:
+- Canonical backend remains authoritative. Current packages remain:
   product_boost_3d = 99 EGP / 3 days / shop_sponsored
   featured_product_7d = 199 EGP / 7 days / shop_sponsored
   home_spotlight_7d = 499 EGP / 7 days / home_spotlight
-- These prices remain PROVISIONAL and NOT MARKET VALIDATED.
-- velora_start_seller_ad_purchase is the canonical purchase path. It requires approved seller/store, Egypt country alignment, legal acceptance, active EGP package, approved seller-owned product, idempotency, and creates a pending_payment campaign plus canonical seller-ad payment attempt.
-- velora_sync_seller_ad_campaign handles pending_payment capture/failure/refund, activation, product approval guard, duration expiry -> completed, auditing, and seller notifications.
-- velora_process_seller_ad_lifecycle expires active campaigns and delegates to the canonical sync function.
-- Existing notification lifecycle infrastructure is sufficient to run this automatically; no second scheduler or ad engine is justified.
-- Current seller_ad_campaigns=0 and seller-ad payment attempts=0, so no persistent runtime/capture evidence exists.
-- Current architecture is fixed-price, fixed-duration packages; CPC auction / advanced targeting is NOT currently part of the proven Velora contract.
+- The platform remains a fixed-price, fixed-duration package model. CPC/auction/advanced targeting is not part of the current Velora contract.
+- Seller Command Center in src/scripts/35-seller.js already contains Seller Advertising.
+- The UI reads velora_get_seller_ad_checkout_context, shows only approved seller-owned products and current campaigns, enforces legal readiness, records explicit legal acceptance, and delegates checkout to the canonical Paymob Edge Function.
+- The UI does not independently determine seller-ad eligibility, price, payment state, or activation.
+- No second advertising engine was introduced.
+- Existing idempotency is scoped to the active browser purchase intent via sessionStorage and is cleared after terminal campaign states.
+- Current Restore-Test seller_ad_campaigns=0 and seller-ad payment attempts=0; therefore no persistent live provider-capture/settlement proof exists.
+- The canonical ad purchase RPC requires approved seller/store, EG country alignment, published legal acceptance, active EGP package, approved seller/store product, idempotency, and creates a pending_payment campaign plus payment attempt.
+- velora_sync_seller_ad_campaign is service-role controlled and maps capture/failure/refund/product-approval/duration-expiry to canonical campaign states with audit and seller notifications.
+- Existing notification lifecycle infrastructure is sufficient for campaign expiry; no second ad scheduler was added.
 
-RESEARCH:
-- Amazon Ads current official material confirms Sponsored Products are CPC/auction-based and reports metrics such as impressions, clicks, average CPC, cost, attributed sales and ROAS. This is useful prior art for future analytics vocabulary but does NOT establish Velora policy or justify introducing a CPC auction model now.
-- Decision: preserve Velora's existing package model; do not build CPC/auction/advanced targeting merely because another marketplace uses it.
-
-OPEN:
-- live provider capture/settlement
-- refund/accounting treatment
-- reporting/analytics persistence and definitions
-- attributed-order methodology
-- seller-facing ad management UI
-- market validation of package pricing
+ERROR-PATH HARDENING:
+- Restore-Test Seller Ad Paymob Edge Function is now deployed at version 6.
+- The v6 fix removes module-global payment-attempt state and keeps attempt state request-local.
+- When an error occurs after canonical payment-attempt creation but before provider intent creation, the function now calls velora_mark_seller_ad_payment_initialization_failed so the local attempt is not left pending indefinitely.
+- When provider intent creation has already occurred, the function preserves the pending local state and returns a recovery path instead of falsely finalizing payment.
+- Source of truth updated at supabase/functions/velora-seller-ad-paymob-checkout-restore-test/index.ts.
+- Git commit: bd93461e206f61b69557d00d9a5d14591163c793.
+- Deployed Edge Function version: 6 (ACTIVE).
+- This hardening is a reliability correction; it does not prove live Paymob settlement.
 
 ACTION FLOW:
-Detect package purchase/expiry/payment outcome -> validate package/product/store/legal -> create/attach payment attempt -> provider result -> activate/fail/refund/complete -> notify/audit -> retry/escalate provider ambiguity.
-
-### 35. Commission
-CLASSIFICATION: ENGINE CLOSED / COMMERCIAL POLICY OPEN
-
-OBSERVED FACT:
-- commissions currently contain 13 pending, 1 finalized, and 1 reversed row in Restore-Test.
-- Canonical velora_get_commission_rate resolves an active non-Free paid subscription's commission rate first, otherwise seller-plan rate, otherwise the 12.5 fallback.
-- Current subscription plan commission rates are 12.5 / 10 / 7.5 / 5 by Free / Basic / Pro / Enterprise.
-- The 12.5 value remains an observed current fallback/default, not a user-approved final commercial policy.
-- Historical legacy seller-plan UI in 00-localization.js advertises different commission values and must not be treated as canonical.
+Ad purchase event -> authenticated approved seller/store guard -> legal/package/product/idempotency validation -> canonical pending campaign + payment attempt -> Paymob provider intent -> provider callback/reconciliation -> canonical campaign state transition -> notification/audit -> retry/recovery or provider ambiguity escalation -> terminal completion.
 
 OPEN:
-- final commercial commission policy
-- exact fee basis (gross, discounted amount, shipping, taxes, seller-funded promotions, platform-funded promotions)
-- effect of plan changes on already-created orders/commissions
-- refund/chargeback treatment beyond the current reversal engine
+- provider capture/settlement
+- campaign accounting
+- reporting/analytics
+- attribution methodology
+- revenue recognition
+- refund/reversal economics
+- market validation
+- Browser evidence
+- legal publication
+
+POLICY GUARDRAIL:
+- active campaign != settled payment.
+
+### 15. Commission
+CLASSIFICATION: ENGINE CLOSED / FINANCIAL STATE ENGINE PRESENT / COMMERCIAL POLICY OPEN
+
+OBSERVED FACT:
+- Current commissions count = 20: 14 pending, 5 finalized, 1 reversed.
+- All current commission rows inspected use rate 12.50%.
+- velora_get_commission_rate(uuid) is not callable by anon or authenticated clients; service_role only. It resolves active paid subscription rate first, then seller-plan rate, then the observed 12.5 fallback.
+- The internal order/commission calculation path remains canonical.
+- No customer-facing arbitrary commission lookup surface is exposed.
+- Commission status transitions remain tied to canonical financial state sync; commission is not payout settlement.
+
+OPEN:
+- final business commission policy
+- exact fee basis: gross/discounted amount/shipping/tax/promotion treatment
+- effect of future plan changes on existing commissions
+- refund/chargeback treatment beyond current reversal engine
 - seller-facing presentation
-
-No new commission engine is justified.
-
-### 36. Payouts
-CLASSIFICATION: CALCULATION / REQUEST / RECORDING CLOSED; PROVIDER SETTLEMENT OPEN
-
-OBSERVED FACT:
-- Current payout count is 0.
-- Canonical velora_request_seller_payout:
-  requires authenticated approved seller/store,
-  prevents duplicate pending/processing payouts,
-  calculates only finalized commissions for paid+delivered orders with shipment delivered at least 7 days ago,
-  excludes order items already included in seller_payout_items,
-  creates a pending payout plus itemized payout rows,
-  and audits the request.
-- Canonical velora_record_payout_execution is staff-governed; it moves pending/processing -> paid, requires method/reference, is idempotent for an already-paid matching reference, writes a conflict-safe payout ledger entry, and audits.
-- Current cron inventory did not show a dedicated payout processor. This is consistent with the current contract where execution is explicit staff/provider-side action rather than an autonomous external settlement engine.
-- Actual provider transfer/settlement is NOT evidenced.
-- Do not equate payout eligibility, payout request, or recorded execution with money actually transferred.
+- full provider/refund/payout reconciliation
 
 ACTION FLOW:
-Detect payout eligibility -> calculate/validate -> seller requests -> create pending payout -> staff/provider execution -> record execution -> ledger/audit -> reconcile or escalate provider ambiguity.
-Human involvement remains necessary at the external settlement boundary unless a real provider contract is later established.
+Order financial event -> resolve canonical rate internally -> create/update commission ledger -> payment/order state changes -> finalize/reverse/pending transition -> audit -> payout eligibility later -> reconciliation/escalation on exception.
 
-### Cross-cutting Message 4 conclusion
-CLOSED-DONE / FOUNDATION:
-- Seller status authority remains server-side.
-- Current canonical seller route source is aligned to canonical opener; previous router-captures-legacy hypothesis is invalidated by current source.
-- Subscription state/renewal/action-flow foundation exists.
-- Numeric plan entitlement fields and regional pricing are verified.
-- Seller ad package/purchase/state/action-flow foundation exists.
-- Commission calculation engine exists.
-- Payout eligibility/request/execution-recording foundation exists.
+No second commission engine is justified.
 
-OPEN / NOT EVIDENCED:
-- Seller dashboard Browser reproduction.
-- Post-approval product re-review policy.
-- Pending-order reservation/abandonment policy and implementation.
-- Order-item status contract decision; current legacy function is incompatible with current order_items schema.
-- Subscription cancel/upgrade/downgrade/replacement policy + implementation.
-- Subscription feature entitlements; current features objects are empty.
-- Subscription/ad provider capture and settlement.
-- Seller ad reporting/attribution analytics.
-- Payout provider settlement.
-- Current runtime/browser proof for subscriptions, ads, and payouts.
-- Stale legacy Seller Plans dependency in 00-localization.js remains an OPEN legacy-surface audit item; do not copy or silently treat it as canonical.
-
-### Message 4 Action Flow Carry-Forward
-The Action Flow continues in parallel with all later handoff messages:
-Detect -> Decide -> Execute -> Verify -> Recover/Escalate.
-For seller systems, automatic normal-path actions should be driven by existing canonical RPCs/jobs/triggers; human intervention remains restricted to seller approval, commercial-policy decisions, legal/provider ambiguity, refunds/exceptions, payout execution, suspension, and release control.
-
-## Message 5/11 — Promotions / Gift Cards / Returns / Notifications
-
-### 37. Promotions / Coupons
-CLASSIFICATION: CANONICAL ENGINE CLOSED / POLICY + CONTROL-SURFACE GAPS OPEN
+### 16. Payouts
+CLASSIFICATION: CALCULATION / REQUEST / RECORDING CLOSED / EXTERNAL SETTLEMENT OPEN
 
 OBSERVED FACT:
-- Restore-Test currently has 1 coupon (WELCOME20), 0 coupon_redemptions, 0 promotions, and 0 promotion_redemptions.
-- WELCOME20 is currently percentage 20%, EGP, minimum order 200 EGP, maximum discount 500 EGP, global usage limit 1000, customer usage limit 1, first_order_only=true, platform-funded, active, no expiry.
-- Canonical coupon validation enforces authentication, active window, currency, minimum subtotal, global/customer usage limits, first-order-only, and percentage/fixed calculation with maximum discount cap.
-- Canonical coupon application is customer-owned-order locked, idempotent per coupon/order, records redemption, increments used_count, recalculates order total, and audits.
-- Canonical automatic promotion selection enforces active window, currency, global scope, minimum order and usage limits, then chooses by priority/creation order. It does not stack multiple promotions.
-- Canonical promotion creation and activation are Staff/Owner governed through RPCs and auditable. Creation supports percentage/fixed only and hard-sets stackable=false.
-- The DB coupons constraint still permits discount_type='free_shipping', while canonical coupon validate/apply reject unsupported types. This is a real contract mismatch and remains OPEN pending business decision; do not silently implement free-shipping semantics or remove the allowed type without policy.
-- Coupon/promotion creation from the current canonical Admin Center was not previously exposed. The smallest justified UI change was to surface the existing control planes rather than build a new engine.
-- Current canonical checkout integrates exactly one coupon OR the automatic best promotion, followed by an optional gift card as tender.
-- Negative-path DB probes verified WELCOME20 below minimum -> COUPON_MINIMUM_ORDER_NOT_MET, wrong currency -> COUPON_CURRENCY_MISMATCH, no active automatic promotion -> no promotion applied, and unauthorised promotion creation -> STAFF_ONLY.
-- No seller-owned coupon/promotion creation contract is currently evidenced. Current promotion scope is global.
+- Current payouts=0 and seller_payout_items=0.
+- Seller Command Center payout surface in src/scripts/35-seller.js is the canonical UI; no src/scripts/72-seller-payouts.js exists and no script tag remains in src/index.html.
+- velora_get_seller_financial_summary() is the canonical balance/eligibility calculation.
+- velora_request_seller_payout() creates a pending payout only from finalized commissions on paid+delivered orders whose shipment was delivered at least 7 days ago and excludes order items already assigned to seller_payout_items.
+- A transactional payout-request probe for the current seller correctly failed closed with NO_PAYOUT_ELIGIBLE_BALANCE; no payout row was persisted.
+- velora_record_payout_execution() is staff-governed, requires method/reference, is idempotent for a matching already-paid reference, writes a conflict-safe payout ledger entry, and audits.
+- No frontend simulation of external payout settlement exists.
+
+ACTION FLOW:
+Eligible finalized earnings -> seller request -> canonical pending payout + payout items -> Staff/external provider execution -> record external reference -> ledger/audit -> reconciliation or provider exception.
 
 OPEN:
-- free_shipping contract decision
-- whether stacking/combination policy should ever change from current non-stackable MVP
-- exact promotion targeting policy beyond current global scope
-- seller-funded vs platform-funded coupon economics
-- reversal/refund treatment of coupon/promotion redemptions
-- abuse/rate-limit strategy beyond current usage/customer limits
-- coupon writer/management semantics if business requires changing the existing single WELCOME20 record
+- provider/external settlement
+- reconciliation
+- Browser proof
+- Production settlement
 
-### 38. Gift Cards
-CLASSIFICATION: SERVER FOUNDATION CLOSED / REFUND ACCOUNTING + RUNTIME EVIDENCE OPEN
+### 17. Promotions / Coupons
+CLASSIFICATION: CANONICAL ENGINE CLOSED / POLICY GAPS OPEN
+
+OBSERVED FACT:
+- Current Restore-Test: promotions=0, promotion_redemptions=0, coupons=1, coupon_redemptions=0.
+- Promotion table contract supports percentage/fixed only; canonical velora_create_platform_promotion rejects free_shipping and hard-sets stackable=false / global scope for created platform promotions.
+- The existing coupons table still permits a historical free_shipping enum value, but canonical coupon application rejects unsupported coupon types. This is a deliberate unresolved contract boundary, not a reason to invent free-shipping economics.
+- Canonical coupon application remains customer-order locked, usage-limited, currency/amount validated, idempotent per coupon/order, and audited.
+- Automatic promotion selection remains single-promotion/non-stacking by current canonical priority behavior.
+- Order cancellation contains canonical coupon and promotion reversal logic: delete matching redemption, decrement used_count with floor at zero, and audit the release.
+- Transactional probes confirmed Staff-only promotion creation and canonical rejection of free_shipping with PROMOTION_TYPE_NOT_SUPPORTED.
+- No seller-owned promotion engine exists; current platform promotion scope is global.
+
+OPEN:
+- free_shipping semantics
+- stacking/combination policy
+- targeting beyond global scope
+- seller-funded vs platform-funded economics
+- reversal/refund economics beyond current cancellation path
+- abuse/rate-limit policy
+- future management semantics for the existing coupon record
+
+ACTION FLOW:
+Checkout promotion/coupon event -> auth/legal/eligibility guard -> canonical discount calculation -> redemption + order/payment adjustment -> audit -> cancellation/refund reversal where policy allows -> reconciliation.
+
+### 18. Gift Cards
+CLASSIFICATION: SERVER FOUNDATION CLOSED / CANCELLATION COMPENSATION CLOSED / BROADER POLICY + RUNTIME EVIDENCE OPEN
 
 OBSERVED FACT:
 - Current Restore-Test gift_cards=0 and gift_card_transactions=0 after rollback.
-- velora_issue_gift_card is explicitly OWNER_ONLY, requires positive amount, active currency, future expiry if supplied, unique code, creates active card and issue transaction, and writes an audit record.
-- Gift-card constraints enforce initial_amount > 0, balance between 0 and initial, allowed statuses active/exhausted/expired/disabled, unique code, and restricted deletion.
-- velora_quote_gift_card supports partial balance application.
-- velora_apply_gift_card_to_order locks the customer order and gift card, protects against duplicate redemption, validates active/expiry/currency, applies up to remaining order total, can make the order paid when fully covered, writes a redeem transaction with idempotency key, updates card balance/status, creates a gift-card payment record, and audits.
-- No separate function was evidenced that automatically credits/reverses a gift card when an order is cancelled/refunded. Refund/cancellation-to-gift-card interaction is therefore OPEN.
-- No dedicated gift-card expiry scheduler was evidenced; expired cards are detected during use and marked expired on that path.
-- There is no independent gift-card ledger engine; current architecture uses gift_card_transactions plus the canonical payments row for an order fully/partially covered by gift card.
-- The smallest justified UI hardening was to expose the existing gift-card control plane in the canonical Admin Center and enforce an explicit Owner-role gate before rendering it. The underlying Owner-only RPC remains authoritative.
+- velora_issue_gift_card is Owner-only, validates positive amount/currency/future expiry/unique code, creates the card + issue transaction, and audits.
+- velora_apply_gift_card_to_order locks order/card, validates ownership/currency/expiry/status/balance, is idempotent per order redemption, updates order total/payment representation, records redeem transaction, updates balance/status, and audits.
+- velora_cancel_order now includes canonical gift-card compensation for qualifying pre-payment cancellation: restores the balance, writes one refund transaction keyed by cancel:<order_id>, records an internal velora_gift_card refund payment representation, updates card lifecycle, and audits.
+- Transactional probe confirmed Owner gift-card issuance succeeds and customer issuance fails OWNER_ONLY; the transaction was rolled back.
+- Owner-only issuance remains Owner-only.
+- No new gift-card ledger/engine was introduced.
+
+ACTION FLOW:
+Owner issuance / customer redemption event -> auth/ownership/currency/expiry/balance guards -> canonical card state transition -> transaction/payment representation -> audit -> cancellation/refund compensation where eligible -> reconciliation/exception.
 
 OPEN:
-- gift-card refund/cancellation credit policy
-- accounting/reconciliation policy
-- expiry lifecycle policy beyond on-use expiry detection
-- issuance amount business limits beyond >0
-- fraud/abuse controls beyond unique codes, ownership and transaction idempotency
+- broader expiry policy
+- broader refund/accounting policy
+- fraud/abuse controls
+- issuance limits
 - Browser/runtime evidence
+- Production evidence
 
-### 39. Customer Returns
-CLASSIFICATION: BACKEND FOUNDATION CLOSED / CUSTOMER UX + REFUND ACCOUNTING POLICY OPEN
+### 19. Customer Returns / Refunds
+CLASSIFICATION: BACKEND FOUNDATION CLOSED / BUSINESS REFUND POLICY + PROVIDER RECONCILIATION OPEN
 
 OBSERVED FACT:
-- Current returns=0 and return_items=0.
-- velora_request_return is already split-aware by store and item: customer ownership, delivered order, settled payment, valid store membership, per-item delivery proof, quantity validation, duplicate-return protection, per-line refund calculation, and audit.
-- Current returns status contract is requested / approved / rejected / in_transit / received / refunded / cancelled.
-- return_items protects order-item ownership via foreign keys and unique(return_id,order_item_id).
-- Current velora_resolve_return has two overloaded signatures with incompatible contracts:
-  1. legacy (uuid,text,text) allows requested/approved/rejected/received/refunded/closed without transition validation.
-  2. transition-aware (uuid,text,text,text,text,text) allows requested/approved/rejected/in_transit/received/refunded/cancelled, validates transitions, and requires refund evidence when moving to refunded.
-- Canonical Trust & Compliance UI in src/scripts/70-s1-d-trust-operations.js uses the transition-aware 6-argument resolver.
-- No automatic provider refund call was evidenced; the resolver records external refund evidence/reference.
-- Current partial-return refund calculation is unit_price * returned quantity and does not show explicit allocation of order-level coupon/promotion discount. This is an OPEN business/accounting policy gap.
-- No return-window enforcement is currently evidenced in the request function.
-- No new customer return UI was built in Message 5; the correct next step remains research + policy before any UX/contract expansion.
-
-RESEARCH-FIRST:
-- Prior-art review indicates modern commerce systems treat return eligibility, return state, and refund processing as related but distinct workflows. This supports retaining Velora's existing split-aware contract and avoiding a second return engine.
+- Current Restore-Test returns=0 and return_items=0.
+- velora_request_return is authenticated customer-only and requires customer-owned delivered order, paid/refunded payment state, valid store membership, valid item quantities, per-item delivered shipment evidence, duplicate protection, calculated refund amount, and audit.
+- Current canonical lifecycle is requested -> approved/rejected/cancelled -> in_transit -> received -> refunded/cancelled according to the transition-aware resolver.
+- The canonical 6-argument velora_resolve_return is executable by authenticated staff path and requires Staff via velora_is_staff(); the legacy 3-argument overload is not executable by authenticated clients and is retained only as compatibility history.
+- Refunded transition requires refund reference evidence.
+- Customer Orders UI remains in src/scripts/71-customer-orders-returns.js and uses the canonical return/cancellation/shipment/tracking paths; no second Orders/Returns engine was introduced.
+- Transactional negative probe confirmed a pending order cannot create a return and fails closed with RETURN_NOT_ELIGIBLE.
 
 OPEN:
-- return window
-- discount allocation on partial returns
-- shipping/tax refund policy
-- restocking policy
-- seller/customer vs staff resolution authority
-- actual refund provider integration
-- legacy 3-argument resolver retirement/compatibility decision
-- customer-facing return UX
+- return-window business rule (no invented 14/30/90-day window)
+- final-sale rules
+- partial-return discount allocation
+- shipping refund policy
+- tax treatment
+- restocking/damaged-condition/restock timing
+- external refund provider execution
+- provider refund reconciliation
+- full Browser proof
+- retirement/compatibility decision for legacy 3-argument resolver
 
-### 40. Notifications / Push
-CLASSIFICATION: ARCHITECTURE CLOSED / BROWSER DELIVERY EVIDENCE OPEN
+ACTION FLOW:
+Customer return request -> ownership/order/store/item delivery guard -> canonical return creation -> Staff transition/review -> physical state transitions -> external refund provider boundary -> refund reference/evidence -> canonical refunded state -> audit -> reconciliation/escalation.
+
+### 20. Notifications / Push
+CLASSIFICATION: ARCHITECTURE CLOSED / RELIABILITY CLOSED / DEVICE/PROVIDER BROWSER EVIDENCE OPEN
 
 OBSERVED FACT:
-- Current Restore-Test has 38 notifications, 6 push-delivery records with delivered_at timestamps, and 3 push subscriptions (1 active, 2 inactive).
-- All notification/push/lifecycle tables have RLS enabled.
-- src/scripts/55-s2e-notifications.js is the authoritative public notification UI; it reads through canonical RPCs and does not treat localStorage as notification truth.
-- src/scripts/68-s1-d-mobile-push.js requires authenticated user/browser permission, registers /sw.js, subscribes through the existing VAPID key, persists via velora_register_push_subscription, and unregisters through the matching RPC.
-- trg_velora_notification_push_dispatch invokes the existing private push dispatcher on notification insert. The dispatcher calls the existing velora-dispatch-notification Edge Function using the internal secret.
-- Notification lifecycle processing is handled by the existing canonical lifecycle function and one active cron job: velora-notification-lifecycle / * * * * * / velora_process_notification_lifecycle(100).
-- No second notification engine, scheduler framework, or ad-hoc cron was added.
-- Endpoint ownership is protected by the hardened push-subscription contract.
-- Browser push end-to-end PASS is still NOT EVIDENCED.
+- Current Restore-Test has 47 notifications, 6 notification_push_deliveries, 3 push subscriptions; all current delivery rows are delivered and there are no in-flight undelivered rows.
+- src/scripts/55-s2e-notifications.js is the authoritative public notification UI and does not use localStorage as notification truth.
+- src/scripts/68-s1-d-mobile-push.js registers/unregisters authenticated browser push subscriptions through canonical RPCs.
+- src/sw.js handles notification display/click behavior.
+- Notification insert trigger invokes the existing private push dispatcher through pg_net; no second notification engine exists.
+- Active lifecycle cron remains velora-notification-lifecycle every minute.
+- Push dispatcher runtime ordering is claim -> Web Push sendNotification -> mark delivered only after successful send.
+- On send failure the dispatcher calls velora_unmark_push_delivery; 404/410 disables stale subscriptions.
+
+### 21. Notification Reliability Gap — CLOSED
+ORIGINAL GAP:
+- delivered_at could previously be written before actual Web Push delivery, making a crashed in-flight send look permanently delivered.
+
+CURRENT LIVE CONTRACT:
+- delivered_at remains NULL while delivery is in-flight.
+- claimed_at records claim state.
+- Repeated claim of an active/in-flight delivery returns false.
+- Claims older than 5 minutes can be reclaimed.
+- mark_delivery is performed only after successful Web Push send.
+- unmark removes only undelivered in-flight claims.
+- claim/mark/unmark are not client-executable.
+- The 5-minute period is an infrastructure recovery lease, NOT a customer notification TTL.
+
+DRIFT FIX:
+- Live Restore-Test had drifted to a 10-minute reclaim condition.
+- This was corrected to the canonical 5-minute contract from migration 20260929070000_notification_push_delivery_recovery.sql.
+- New alignment migration applied successfully: 20260929081900_align_notification_push_delivery_lease_contract.
+- Git source committed: supabase/migrations/20260929081900_align_notification_push_delivery_lease_contract.sql
+- Git commit: a73ddb4b52e69a1d67cbbc87102931a4d954c77a.
+- Live function now visibly uses the 5-minute reclaim condition and client EXECUTE remains revoked.
+
+TRANSACTIONAL PROOF:
+- First claim = true.
+- Second claim = false.
+- After claim: delivered_at remains NULL.
+- Artificial 6-minute stale claim is reclaimed = true.
+- Successful mark = true.
+- Repeated mark = false.
+- Final delivered_at is populated only after mark.
+- Entire probe was rolled back; no fixture data was persisted.
+
+ACTION FLOW:
+Notification event -> notification row -> pg_net dispatcher -> per-subscription claim -> Web Push send -> mark delivered on success OR unmark on failure -> stale reclaim after 5 minutes -> stale endpoint removal for 404/410 -> audit/retry behavior.
 
 OPEN:
 - Browser proof of notification bell/read state
 - Browser proof of push enable/disable and actual device delivery
 - provider/service-worker delivery edge cases
-- stale subscription cleanup is implemented in the dispatcher but full browser evidence is pending
+- production delivery evidence
 
-### Message 5 implementation actually made
-OBSERVED FACT:
-- src/scripts/12-localization.js now exposes the existing commercial control planes in the canonical Admin Center: Promotions, Coupons, Gift Cards.
-- Gift Cards are explicitly Owner-gated before the existing issue/list UI is rendered.
-- These controls reuse existing RPCs and existing legacy rendering functions; no second promotion, coupon or gift-card engine was created.
-- Commit: 81096861caf5d09de87f1ed751d0668ff0432ee2.
-- Vercel created a READY Preview deployment for exactly this commit: deployment dpl_C1PCNHCU2pdtijx5mTMmxiznJFZT, URL https://velora-marketplace-8rgtwyi3m-ahmedconccc-7063.vercel.app.
-- Preview HTTP fetch returned 200 OK and served the updated deployment.
-- Browser Gate was attempted against this exact deployment but could not start because the TinyFish wallet balance was -$0.07. Therefore Browser PASS is NOT claimed and the attempt is not retryable until the wallet is funded.
+### MESSAGE 4/11 FINAL RECONCILIATION
+CLOSED-DONE:
+- 14 Seller Advertising foundation + Edge v6 error-path hardening
+- 15 Commission engine/current internal rate path
+- 16 Payout calculation/request/execution recording foundation
+- 17 Promotion/coupon engine + cancellation release path
+- 18 Gift Card foundation + cancellation compensation
+- 19 Customer Return backend foundation + transition-aware Staff resolver
+- 20 Notification architecture
+- 21 Notification reliability contract
 
-INFERRED:
-- The canonical Admin commercial control surface is now aligned with the existing backend authority for the surfaces exposed in Message 5.
-- The backend remains the source of truth for Owner/Staff authorization.
+OPEN / BLOCKED / NOT EVIDENCED:
+- Seller Ad provider settlement/accounting/analytics/attribution/revenue recognition/refund economics/market validation/Browser/legal publication
+- Commission commercial policy/full financial reconciliation/seller presentation
+- Payout provider settlement/reconciliation/Browser/Production
+- Promotion free_shipping/stacking/targeting/economics/reversal policy
+- Gift-card expiry/accounting/fraud/issuance limits/Browser/Production
+- Return business policy/provider refund/reconciliation/Browser/legacy resolver decision
+- Notification Browser/device/provider/Production evidence
 
-HYPOTHESIS / OPEN:
-- The legacy overloaded 3-argument return resolver may be dead compatibility code, but no deletion/contract change is justified until usage and business policy are established.
-- Partial-return refund allocation may require a future policy/contract change once real commercial discount behavior is confirmed.
-
-### Message 5 Action Flow
-The Action Flow remains parallel:
-- Promotions: detect checkout/promotion request -> validate eligibility -> apply once -> record redemption -> audit -> later reversal/reconciliation if policy permits.
-- Gift Cards: detect issuance/redeem -> Owner/customer authorization -> validate balance/expiry/currency -> lock/apply -> record transaction/payment -> audit -> exception/reconciliation.
-- Returns: detect request -> validate order/store/item delivery -> create split return -> staff transition -> external refund evidence -> record refund -> audit -> reconcile/escalate.
-- Notifications: detect event -> create notification -> push dispatch -> delivery/disable stale endpoint -> lifecycle job when due -> audit/recover.
-No new automation framework or scheduler was introduced.
-
+NO NEW SYSTEMS:
+- No duplicate ad engine
+- No duplicate commission engine
+- No duplicate payout engine
+- No duplicate promotion/gift-card/returns/notification engine
+- No frontend settlement simulation
+- No Production mutation
 
 ## Message 6/11 — Beauty Passport / Customer Intelligence
 
