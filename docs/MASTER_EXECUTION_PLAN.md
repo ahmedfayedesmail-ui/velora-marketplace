@@ -554,6 +554,193 @@ OPEN / NOT EVIDENCED:
 - Active variant Browser runtime is not evidenced because Restore-Test currently has zero active variants.
 - Browser / Provider / Production evidence remains separate gates.
 
+## MESSAGE 3/11 — SELLER TRACK EXECUTION RECONCILIATION (2026-09-29)
+
+CLASSIFICATION: MESSAGE 3/11 EXECUTED / 100-OF-100 RECONCILED
+
+### 6. CORE MARKETPLACE / PRODUCT FOUNDATION
+CLASSIFICATION: CLOSED-DONE (architecture + canonical-path verification)
+
+OBSERVED FACT:
+- Customer account, seller model, stores, products, variants, cart, orders, payment records, shipping, audit, localization, and marketplace catalog remain present in the canonical platform model.
+- Canonical server-side state remains authoritative. Legacy frontend state is retained only where compatibility requires it.
+- No new cart/order/payment/recommendation engine was introduced in this message.
+- Existing platform Action Flow Register from Message 2 remains the cross-system operating model.
+
+EVIDENCE BOUNDARY:
+- Source/DB/contract evidence is established.
+- Browser/provider/Production evidence remains governed by their aggregate gates and is not promoted into Message 3 source closure.
+
+### 7. SELLER STATUS
+CLASSIFICATION: CLOSED-DONE (source + DB + Action Flow); BROWSER = AGGREGATE PENDING
+
+OBSERVED FACT:
+- `velora_set_seller_status(uuid,text,text)` is server-side governed and requires `velora_is_staff()`; anon EXECUTE is false.
+- Seller statuses remain pending / approved / rejected / suspended.
+- The current Restore-Test seller is approved; the current Store projection is approved.
+- Non-staff seller mutation guard permits only the governed material-change path to move approved/rejected -> pending; direct arbitrary seller status changes fail closed.
+- Store status is synchronized by canonical seller status transition.
+- Seller status notification trigger exists for pending/approved/rejected transitions.
+- Material seller profile change policy is explicit: approved/rejected -> pending -> Store pending -> notification -> Staff/Owner review -> governed approval/rejection.
+- Phone is operational-only and is excluded from material-change detection.
+
+ACTION FLOW:
+Seller profile event -> authenticate/ownership guard -> material-change detection -> canonical seller update -> seller/store pending projection when policy applies -> notification trigger -> Staff/Owner review -> canonical status transition -> audit -> next seller operational state.
+
+VERIFICATION:
+- Transactional Restore-Test simulation with the E2E seller identity was executed and rolled back.
+- Material profile mutation produced audit action `seller_profile_re_review_required` with `material_change=true`.
+- Phone-only mutation retained seller/store approved state in the transaction and was rolled back.
+- No fixture mutation was persisted.
+
+### 8. SELLER DASHBOARD RE-ENTRY
+CLASSIFICATION: SOURCE / DETERMINISTIC ROUTE LOGIC CLOSED; BROWSER = NOT EVIDENCED / AGGREGATE GATE
+
+OBSERVED FACT:
+- Current `src/scripts/12-localization.js` assigns `window.openSellerPlatform=openCanonicalSeller` before `63-platform-router.js`.
+- Current router captures that canonical opener and owns route/hash sequencing.
+- Current `63-platform-router.js` sets `window.VELORA_CLOSE_SELLER = window.closeSellerPlatform`.
+- `currentMarketplaceHash()` preserves only a recognized marketplace route and defaults safely to `home`; direct `#seller` is not treated as a marketplace return target.
+- The historical hypothesis that the router captured a legacy seller opener is invalidated by current source inspection.
+- Browser reproduction of the historical fail-to-reenter journey remains unavailable; no Browser PASS is claimed.
+
+REQUIRED BROWSER FLOW:
+Seller open -> #seller route -> close -> marketplace route -> re-enter Seller -> Seller Dashboard visible -> Back/Forward -> same SPA document -> no full document reload.
+
+ACTION FLOW:
+Route open event -> auth/session guard -> canonical seller activation -> visible-shell verification -> route-aware close -> marketplace return hash -> re-entry -> Back/Forward route reconciliation -> escalate only if auth/session genuinely missing.
+
+### 9. SELLER ONBOARDING
+CLASSIFICATION: CLOSED-DONE (source + DB + Action Flow); CURRENT FIXTURE STATE = NOT BETA-READY
+
+OBSERVED FACT:
+- Canonical UI: `src/scripts/69-s1-d-seller-onboarding.js`.
+- Canonical mutation: `velora_upsert_seller_onboarding_case`; anon EXECUTE is false and the function requires Staff.
+- Validation covers application, identity, authenticity, catalog, SLA, pilot, contact channel, evidence JSON, review notes, rejection reason, and lifecycle timestamps.
+- The function returns deterministic `beta_ready` based on the canonical onboarding state.
+- Current Restore-Test case is application=approved but identity/catalog/SLA/authenticity remain pending and pilot=not_started; therefore the fixture is not beta-ready. This is test-data state, not an implementation failure.
+- No direct UI table-write path was introduced; onboarding control remains RPC-governed and auditable.
+
+ACTION FLOW:
+Application -> approved -> identity verified -> catalog approved -> SLA accepted -> pilot active/passed -> authenticity verified/not_required -> required contact/evidence -> beta-ready projection -> normal seller activation.
+
+HUMAN EXCEPTION:
+Staff/Owner approval/review remains deliberate governance; routine state persistence is automated.
+
+### 10. SELLER PROFILE / STORE PROJECTION
+CLASSIFICATION: CLOSED-DONE (source + transactional proof + Action Flow)
+
+OBSERVED FACT:
+- Migration `20260929024000_sync_seller_profile_store_projection.sql` provides the canonical atomic seller-profile/store-projection update path.
+- Seller name, slug, description and logo are projected to the owned Store in the same transaction.
+- Country, currency, language and status are not overwritten by the profile projection path.
+- Store slug conflict is checked before the Store update, preventing partial projection drift on that conflict.
+- Canonical Seller UI refreshes both seller and store session state after save.
+- Current fixture contains pre-existing seller/store naming differences; these were NOT silently mutated. Transactional verification proves the governed profile mutation path synchronizes the projection.
+
+ACTION FLOW:
+Seller profile save -> owner guard -> validation -> seller row update -> owned Store projection update -> material-change status guard if applicable -> audit -> refresh canonical seller/store session state -> next seller operation.
+
+### 11. SELLER SUSPENSION / STORE / CATALOG
+CLASSIFICATION: CLOSED-DONE (source + DB/ACL + Action Flow); BROWSER = AGGREGATE PENDING
+
+OBSERVED FACT:
+- `velora_set_seller_status` requires Staff/Owner governance through `velora_is_staff()`.
+- Canonical status update synchronizes Seller status and Store status.
+- Catalog visibility continues to require eligible approved Seller/Store/Product state.
+- The current product-mutation guard rejects non-governed arbitrary status changes.
+- No alternate self-service suspension path was introduced.
+
+ACTION FLOW:
+Suspension/governance event -> Staff/Owner auth guard -> valid lifecycle state -> canonical seller status update -> Store status projection -> product/catalog visibility consequences -> seller notification where supported -> audit -> recovery only through governed status transition.
+
+### 12. SELLER PRODUCT RE-REVIEW
+CLASSIFICATION: CLOSED-DONE (source + transactional path + notification + audit + Action Flow)
+
+POLICY (CURRENT / CONSERVATIVE):
+- Price and stock are operational offer changes and preserve lifecycle.
+- Material content/listing changes are name, brand, category, subcategory, description, image, tags and emoji.
+- Translation changes remain a policy guardrail for any future translation-management surface; no translation feature was invented in this message.
+
+OBSERVED FACT:
+- Canonical Seller Product updates use `velora_seller_update_product_full` / `velora_seller_update_product`.
+- For approved/rejected products, the canonical product mutation path changes status to pending only when a material content change is detected.
+- Price/stock-only changes do not set the material-change flag.
+- `private.velora_notify_product_status()` explicitly emits `product_re_review_required` when approved/rejected -> pending.
+- The seller-product mutation path writes `seller_product_re_review_required` audit evidence when the status actually re-enters pending.
+- Product status guard prevents arbitrary seller status changes outside the governed pending-review transition.
+- No second moderation engine was created.
+
+TRANSACTIONAL VERIFICATION:
+- A Restore-Test transaction under the E2E seller identity changed a canonical approved product's material content and produced `seller_product_re_review_required` audit evidence; the transaction was rolled back.
+- A phone-only seller mutation was separately verified not to trigger seller re-review.
+- Source inspection establishes the price/stock-only lifecycle-preserving rule; no persisted test mutation was kept.
+
+ACTION FLOW:
+Seller material edit -> authenticated approved-seller guard -> validate content -> canonical product state becomes pending -> product status notification -> Staff/Owner review -> approved/rejected canonical status transition -> approval/rejection notification -> audit -> catalog eligibility/next event.
+
+### 13. SELLER SUBSCRIPTIONS
+CLASSIFICATION: FOUNDATION CLOSED / RUNTIME + COMMERCIAL + PROVIDER + BROWSER OPEN
+
+OBSERVED FACT:
+- Current Restore-Test counts: seller_subscriptions=0; seller_subscription_renewal_jobs=0.
+- Current active plans are Free / Basic / Pro / Enterprise.
+- `velora_start_subscription_purchase` is the canonical purchase contract; it requires authenticated approved seller/store, store-country match, active non-Free plan, legal acceptance, resolved regional price, card method, idempotency, and creates a pending subscription with `pending_expires_at`.
+- `velora_sync_subscription_state` is service-role controlled and implements the current pending/active/past_due/cancelled/expired transitions.
+- Meaningful subscription state/payment changes produce `seller_subscription_state_changed` audit evidence; no-op syncs do not duplicate that transition audit.
+- Current Seller Command Center subscription UI exists in `src/scripts/35-seller.js` and is loaded by `src/index.html`. The older Master note saying subscription UI was absent is STALE and has been superseded by this reconciliation.
+- The UI uses canonical DB plan values and intentionally disables plan changes when a paid subscription is active, displaying that governed replacement semantics are required.
+- Seller subscription Paymob checkout Edge Function is ACTIVE and uses the canonical subscription purchase contract; this proves provider orchestration exists, not live settlement.
+- Current Restore-Test legal state has zero published seller subscription/agreement/commission documents, so subscription checkout is correctly fail-closed until legal publication. No fake legal documents were created.
+
+AUTOMATION / ACTION FLOW:
+Subscription purchase/renewal/expiry event -> seller/store/legal/payment guards -> canonical state transition -> payment attempt/provider orchestration -> provider callback/reconciliation -> canonical subscription state sync -> renewal/expiry notifications -> audit -> retry/lease/attempt cap -> human exception only for provider ambiguity or commercial policy.
+
+REAL AUTOMATION GAP FOUND:
+- `velora-renewal-orchestrator-restore-test-7a` is ACTIVE and safely authorizes scheduled calls, then invokes service-role `velora_run_renewal_batch`.
+- `velora_run_renewal_batch` correctly creates/claims renewal jobs with leases, retry attempts and SKIP LOCKED.
+- HOWEVER, current active `cron.job` contains only:
+  1. `velora-notification-lifecycle` every minute
+  2. `velora-paymob-reconciliation` every 5 minutes
+- No active Cron invokes the renewal orchestrator/batch.
+- The separate `velora-renewal-provider-executor-restore-test-sim` is explicitly a Mock/Restore-Test executor. It is not a real payment-settlement processor and must not be promoted to Production/live provider settlement.
+
+WHY THIS IS NOT BEING PATCHED BLINDLY:
+- The renewal orchestrator expects `X-Velora-Scheduler-Token` backed by the `VELORA_SCHEDULER_TOKEN` Edge environment secret.
+- Restore-Test Vault currently exposes no configured scheduler/renewal secret by name, and the Mock executor's optional RT-SIM4 token helper is not present in the current public function inventory.
+- Creating a cron with a non-existent secret, weakening the authorization contract, or scheduling the mock provider as though it were real settlement would create a false or unsafe automation path.
+- Therefore the renewal automation gap is OPEN / BLOCKED pending proper scheduler credential configuration and an explicit provider execution contract. This preserves the desired low-human-intervention architecture without inventing security or payment semantics.
+
+OPEN (must carry forward):
+- cancellation semantics
+- upgrade / downgrade / replacement semantics
+- proration / deferral / refund policy
+- business-approved entitlement matrix
+- broader runtime enforcement beyond current numeric max-products contract
+- provider capture / settlement evidence
+- renewal scheduler credential/configuration
+- browser runtime evidence
+- renewal failure/recovery/provider ambiguity evidence beyond source contracts
+- notification delivery/browser evidence
+
+CURRENT NUMERIC ENTITLEMENT OBSERVATION:
+- `velora_get_seller_entitlement` resolves the canonical plan and exposes `max_products`, `commission_rate`, and `features`.
+- `velora_assert_seller_product_capacity` actually enforces the current `max_products` numeric contract at product creation.
+- Current `subscription_plans.features` is `{}` for all four plans, so no named feature-entitlement matrix is contractually populated. No feature build is justified until policy exists.
+
+EVIDENCE BOUNDARY:
+- Source/DB/ACL/action-flow: established.
+- Provider settlement: NOT EVIDENCED.
+- Browser runtime: NOT EVIDENCED.
+- Production: untouched / NOT EVIDENCED by policy.
+
+### MESSAGE 3/11 RECONCILIATION RESULT
+CLOSED-DONE items are explicitly preserved above.
+OPEN/BLOCKED items are explicitly carried above.
+No speculative policy or schema change was introduced.
+No new duplicate engine/scheduler/provider state machine was introduced.
+Production remains frozen.
+
 ## Message 3/11 — Product Lifecycle + Seller Products + Cross-System
 
 CLOSED-DONE:
