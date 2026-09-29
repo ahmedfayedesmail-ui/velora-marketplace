@@ -13617,3 +13617,54 @@ CARRY-FORWARD:
 - All other OPEN / BLOCKED / PENDING / NOT EVIDENCED Master items remain active.
 - Do not treat this Message 63 closure as a global Browser Gate closure.
 - Next active work must be selected from the remaining ordered non-legal OPEN queue.
+
+
+## MESSAGE 64 — RESTORE-TEST RLS NO-POLICY OBJECT PATH CLOSURE (2026-09-29)
+
+CLASSIFICATION: SECURITY REVIEW CLOSED FOR CURRENT EVIDENCE / NO REMEDIATION JUSTIFIED
+
+OBJECTS RECHECKED:
+- \`public.billing_instruments\`
+- \`public.paymob_card_tokenization_sessions\`
+- \`public.regional_pricing\`
+- \`public.seller_subscription_renewal_jobs\`
+
+DIRECT TABLE ACCESS:
+- Current \`information_schema.role_table_grants\` evidence shows direct table privileges only for \`postgres\` and \`service_role\` on these four objects.
+- No direct \`anon\` or \`authenticated\` table privileges were observed.
+- RLS therefore remains enabled without adding blanket policies.
+
+FUNCTION PATH REVIEW:
+- Functions that directly reference these private/no-policy objects are SECURITY DEFINER and their current ACLs expose EXECUTE only to \`postgres\` and/or \`service_role\`, except for the existing authenticated entrypoints that reach them through controlled SECURITY DEFINER helper calls.
+- \`velora_start_subscription_purchase(...)\` is authenticated and validates \`auth.uid()\`, approved seller state, approved store ownership, country binding, plan state, idempotency, and payment configuration before it reaches \`velora_resolve_subscription_price(...)\`.
+- \`velora_resolve_subscription_price(...)\` itself is service-role/postgres EXECUTE only and is the controlled regional-pricing path.
+- \`velora_mark_subscription_payment_initialization_failed(...)\` is authenticated and binds the payment attempt to \`auth.uid()\` before mutating subscription/payment state; it does not expose the no-policy private tables as direct customer reads/writes.
+- Sensitive card-token helpers are service-role/postgres EXECUTE only.
+- Renewal-job helpers are service-role/postgres EXECUTE only, including the internal creation, callback correlation, result recording, batch claim, and subscription synchronization functions.
+- No anonymous direct table-DML path was evidenced.
+- No authenticated direct table-DML grant was evidenced.
+
+DECISION:
+- The Security Advisor RLS/no-policy warnings are not sufficient evidence for a blanket policy mutation.
+- Current evidence does not establish an unauthorized public capability on these four objects.
+- No RLS policy was added.
+- RLS was not disabled.
+- No mass privilege revoke was performed.
+- Security remediation for this specific four-object finding is therefore CLOSED-DONE for the current evidenced contract, while future changes to the access paths require a new review.
+
+ACTION FLOW:
+Security Advisor finding
+-> catalog/ACL recheck
+-> exact function-path review
+-> authenticate/ownership/role guard verification
+-> determine whether an actual unauthorized capability exists
+-> no capability proven
+-> no remediation mutation
+-> preserve RLS configuration
+-> re-open only on contract/access-path change.
+
+CARRY-FORWARD:
+- Other Security Advisor findings remain separate items.
+- Leaked-password protection remains a Supabase plan-capability blocker.
+- Browser Gate global closure remains separate from this security finding.
+- Production remains frozen.
