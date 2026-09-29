@@ -202,9 +202,23 @@ export default {
     }).catch(() => null);
 
     if (!moderationResult || !moderationResult.response.ok) {
+      let providerError = null;
+      try {
+        const payload = await moderationResult?.response?.json();
+        providerError = payload?.error
+          ? {
+              type: payload.error.type || null,
+              code: payload.error.code || null,
+              message: typeof payload.error.message === "string" ? payload.error.message.slice(0, 300) : null
+            }
+          : null;
+      } catch (_) {}
+
       console.warn(JSON.stringify({
         request_id: requestId,
         provider_request_id: moderationResult?.providerRequestId || null,
+        provider_status: moderationResult?.response?.status || null,
+        provider_error: providerError,
         outcome: "moderation_unavailable",
         latency_ms: Date.now() - startedAt
       }));
@@ -248,9 +262,24 @@ export default {
     }).catch(() => null);
 
     if (!responseResult || !responseResult.response.ok) {
+      let providerError = null;
+      try {
+        const payload = await responseResult?.response?.json();
+        providerError = payload?.error
+          ? {
+              type: payload.error.type || null,
+              code: payload.error.code || null,
+              message: typeof payload.error.message === "string" ? payload.error.message.slice(0, 300) : null
+            }
+          : null;
+      } catch (_) {}
+
       console.warn(JSON.stringify({
         request_id: requestId,
         provider_request_id: responseResult?.providerRequestId || null,
+        provider_status: responseResult?.response?.status || null,
+        provider_error: providerError,
+        model,
         outcome: "generation_unavailable",
         latency_ms: Date.now() - startedAt
       }));
