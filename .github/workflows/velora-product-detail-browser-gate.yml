@@ -37,9 +37,26 @@ jobs:
           python -m pip install "playwright==1.57.0"
           python -m playwright install --with-deps chromium
 
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          print("local source server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_SOURCE_SERVER_NOT_READY")
+          PY
+
       - name: Run Product Detail browser evidence
         env:
-          PREVIEW_URL: https://velora-marketplace-gfmw5qztb-ahmedconccc-7063.vercel.app
+          BASE_URL: http://127.0.0.1:4173
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
           PRODUCT_ID: 21d977a0-111b-4bb4-9736-0f2994294d48
@@ -48,16 +65,18 @@ jobs:
           import json, os, sys
           from playwright.sync_api import sync_playwright
 
-          url = os.environ["PREVIEW_URL"].rstrip("/")
+          url = os.environ["BASE_URL"].rstrip("/")
           email = os.environ.get("E2E_EMAIL", "")
           password = os.environ.get("E2E_PASSWORD", "")
           product_id = os.environ["PRODUCT_ID"]
 
           evidence = {
-              "schema": "product-detail-browser.v1",
-              "preview_url": url,
+              "schema": "product-detail-browser.v2-local-source",
+              "target_url": url,
+              "preview_url": null,
               "product_id": product_id,
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "execution_mode": "local_exact_source",
               "checks": {},
               "failures": [],
           }
