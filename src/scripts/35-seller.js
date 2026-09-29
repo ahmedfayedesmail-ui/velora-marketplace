@@ -121,18 +121,32 @@ async function v39LoadSubscription(){
    host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Subscription unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
  }
 }
+function v39AdIdempotencyStorageKey(packageId,productId){
+ return 'VELORA-AD-'+String(packageId||'')+'-'+String(productId||'');
+}
 function v39AdIdempotencyKey(packageId,productId){
- const key='VELORA-AD-'+String(packageId||'')+'-'+String(productId||'');
+ const key=v39AdIdempotencyStorageKey(packageId,productId);
  try{
   const existing=sessionStorage.getItem(key);
   if(existing) return existing;
-  const created='VELORA-AD-'+String(packageId||'')+'-'+String(productId||'')+'-'+
+  const created=key+'-'+
     (typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2,10));
   sessionStorage.setItem(key,created);
   return created;
  }catch(_){
   return key+'-'+Date.now();
  }
+}
+function v39ReconcileAdIdempotencyKeys(campaigns){
+ try{
+  const terminal=new Set(['active','completed','payment_failed','refunded','cancelled']);
+  (Array.isArray(campaigns)?campaigns:[]).forEach(c=>{
+    if(!c?.ad_package_id||!c?.product_id) return;
+    if(terminal.has(String(c.status||'').toLowerCase())){
+      sessionStorage.removeItem(v39AdIdempotencyStorageKey(c.ad_package_id,c.product_id));
+    }
+  });
+ }catch(_){}
 }
 
 async function v39LoadAds(){
@@ -142,6 +156,7 @@ async function v39LoadAds(){
   const r=await v39Rpc('velora_get_seller_ad_checkout_context');
   if(r.error)throw r.error;
   const d=r.data||{}, packages=Array.isArray(d.packages)?d.packages:[], products=Array.isArray(d.products)?d.products:[], campaigns=Array.isArray(d.campaigns)?d.campaigns:[], docs=Array.isArray(d.legal_documents)?d.legal_documents:[];
+  v39ReconcileAdIdempotencyKeys(campaigns);
   const legalReady=Boolean(d.legal_ready);
   const packageOptions=packages.map(p=>'<option value="'+v39Esc(p.id)+'">'+v39Esc(p.name)+' — '+v39Esc(Number(p.price||0).toFixed(2))+' '+v39Esc(p.currency_code||d.currency_code||'EGP')+'</option>').join('');
   const productOptions=products.map(p=>'<option value="'+v39Esc(p.id)+'">'+v39Esc((p.brand?p.brand+' · ':'')+p.name)+'</option>').join('');
