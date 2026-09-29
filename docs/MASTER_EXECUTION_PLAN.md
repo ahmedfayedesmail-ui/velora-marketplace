@@ -11190,3 +11190,167 @@ STATUS:
 - Therefore the runtime/source content used by the Preview remains unchanged by those two commits, but the strict SHA-level label 'exact current HEAD' is no longer literal.
 - Status is corrected to: Preview runtime parity = VERIFIED for the last runtime-changing source SHA `f643764...`; strict current-HEAD SHA parity = OPEN until a deployment for `f113847...` (or a later source-changing HEAD) is READY.
 - Browser Gate remains OPEN / NOT EVIDENCED because TinyFish could not start the attempted browser run due to insufficient wallet balance.
+
+## 2026-09-29 — MESSAGE 35/24 EXECUTION / LEGAL COVERAGE RECONCILIATION — BEAUTY REGULATORY + TAX/INVOICING GATE
+
+CLASSIFICATION:
+- Message 35 closes a missing legal-domain review for a Beauty-first Egyptian marketplace.
+- It does not create a legal conclusion where real-world entity, tax, contractual, regulatory, or counsel evidence is missing.
+- It strengthens the launch gate by explicitly including cosmetic-product regulatory compliance, advertising/claims control, privacy regulation, consumer protection, digital contracting, payments/refunds, seller obligations, promotions, gift cards, subscriptions, complaints, and tax/invoicing classification.
+- No legal document was published.
+- No Production change.
+- No speculative tax rate/MoR/invoice issuer was introduced.
+
+### 143. CURRENT LEGAL COVERAGE MATRIX
+
+A. CONSUMER PROTECTION / REMOTE SALES
+STATUS: VERIFIED BASELINE / POLICY OPEN
+- CPA current guidance states a general 14-day exchange/return period from receipt, subject to exceptions, and a separate 30-day remedy for defective goods.
+- Velora customer Terms/Return Policy must preserve mandatory rights and explicitly map cancellation, delivery, return/refund handling, defective-product treatment, fees, and complaint escalation.
+- CPA also warns consumers to verify seller identity, physical/contact information, total purchase value, refund policy, and delivery timing.
+- No blanket "all beauty products are non-returnable" rule is permitted without a product-specific legal basis.
+
+B. BEAUTY / COSMETIC PRODUCT REGULATORY CONTROL
+STATUS: OPEN / SELLER + REGULATORY EVIDENCE GATED
+- The Egyptian Drug Authority (EDA) maintains a dedicated regulatory track for cosmetics and publishes current guidance for cosmetic-product listing/registration and cosmetic claims.
+- EDA's current regulatory materials include a cosmetics listing guide and a 22-Jul-2026 guide concerning cosmetic claims.
+- Accordingly, the marketplace must not treat every beauty product as an ordinary unrestricted consumer good.
+- Seller/product onboarding should support evidence of the applicable regulatory status, product classification, required listing/registration evidence, manufacturer/importer responsibility, and claims support where the product category requires it.
+- Product claims must not be converted into medical/therapeutic claims merely to improve conversion or personalization.
+- Exact product-level regulatory requirements depend on classification, origin, manufacturer/importer role, and applicable EDA rules; those are an external regulatory/legal gate where the source evidence is missing.
+
+C. DIGITAL CONTRACT / CHECKOUT
+STATUS: ENGINEERING FOUNDATION CLOSED / PUBLICATION OPEN
+- Required material transaction terms must be available before commitment.
+- Legal document version/hash/acceptance context must remain auditable.
+- Checkout must fail closed when mandatory customer legal documents are not published/accepted.
+- Existing legal acceptance architecture remains canonical.
+
+D. PERSONAL DATA / PRIVACY / DIRECT MARKETING
+STATUS: OPEN / COUNSEL + DATA GOVERNANCE GATE
+- Egypt Personal Data Protection Law No. 151/2020 applies to qualifying electronic processing of personal data.
+- A secondary legal-source copy identifies Executive Regulations Decision No. 816/2025; the official Gazette/competent-authority copy should be used by counsel as the controlling reference.
+- Final Privacy Policy and operational controls must be based on the actual Velora entity, controller/processor roles, data flows, retention, data-subject rights, processors, cross-border access/transfers, security/incident handling, direct marketing, and any required registrations/licenses/permissions.
+- No statement of "PDPL compliant" is permitted until the real data map and legal classification are reviewed.
+
+E. TAX / INVOICING / E-INVOICE / E-RECEIPT
+STATUS: EXTERNAL HUMAN CLASSIFICATION GATE — BLOCKED
+REQUIRED REAL-WORLD INPUTS:
+- actual legal entity/name/form
+- commercial registration evidence where applicable
+- tax registration evidence
+- VAT registration/status where applicable
+- actual marketplace/operator contract
+- principal vs agent / seller-of-record model
+- Merchant-of-Record responsibility
+- invoice/e-receipt issuer
+- treatment of seller commissions
+- Seller Ads revenue
+- seller subscription revenue
+- provider fees
+- refunds/credit notes
+- accounting basis/tax periods
+- counsel/accountant sign-off
+ENGINEERING RULE:
+- Research may identify applicable frameworks, but engineering cannot infer any of the above.
+- Do not hard-code VAT rate, tax-inclusive/exclusive pricing, invoice issuer, or MoR.
+- ETA currently maintains e-invoice/e-receipt integration and e-commerce tax guidance; those systems are only activated after the actual taxpayer classification is known.
+
+F. PAYMENTS / REFUNDS / CHARGEBACKS / COD
+STATUS: ENGINEERING FOUNDATION CLOSED AT EXISTING SCOPE / COMMERCIAL-LEGAL POLICY OPEN
+- Provider sandbox proof is not a Production legal readiness proof.
+- Final terms must define payment methods, COD, refunds, chargebacks/disputes, provider ambiguity, refund timing, and applicable consumer rights.
+- COD pending-order reservation/expiry remains a business-policy gate; no arbitrary TTL has been activated.
+
+G. SELLER LEGAL / MARKETPLACE ROLE
+STATUS: OPEN
+- Seller terms must cover identity, authenticity/compliance, consumer-rights cooperation, taxes/invoices, returns/refunds, advertising, subscriptions, payouts, suspension, disputes, evidence, and termination.
+- The platform role and seller-of-record/MoR relationship must be explicit and consistent with the real contracts.
+
+H. PROMOTIONS / ADVERTISING
+STATUS: OPEN
+- Discount and advertising claims must be truthful and evidence-backed.
+- Promotion terms must define eligibility, dates, exclusions, use limits, refund interaction, and any required price/history controls.
+- Seller advertising must state package price, duration, placement/attribution basis, refund rules, and final tax treatment after classification.
+
+I. GIFT CARDS
+STATUS: OPEN / LEGAL + TAX + FINANCE
+- Current issuance is Owner-controlled and persistent gift-card population is zero.
+- Expiry, refundability, cash redemption, transferability, breakage, promotional issuance, tax recognition, and consumer-rights interaction require approved policy before activation.
+
+J. SELLER SUBSCRIPTIONS
+STATUS: OPEN / COMMERCIAL + LEGAL
+- Core purchase/state synchronization exists.
+- Final policy must define cancellation, entitlement end, upgrades/downgrades, proration, renewals, failed-renewal grace, refunds, invoice/tax handling, provider settlement, and seller-facing contract language.
+- Seller labeling alone does not decide whether any mandatory consumer/commercial rule applies.
+
+K. FRAUD / TRUST / COMPLAINTS
+STATUS: ARCHITECTURE CLOSED / POLICY OPEN
+- Staff-gated fraud review/account-action architecture exists.
+- Final trust policy still requires lawful purpose, retention, appeal/challenge, explainability/notice as applicable, provider sharing, cross-border handling, reversible vs irreversible actions, and complaint escalation.
+- Trust controls must not block statutory complaint access.
+
+L. COSMETIC CLAIMS / BEAUTY-PERSONALIZATION BOUNDARY
+STATUS: OPEN / PRODUCT + LEGAL SAFETY
+- Beauty Passport, routine, and recommendations may personalize discovery and routine suggestions but must not silently transform into medical diagnosis or unverified treatment claims.
+- Product benefits/warnings/how-to-use content should remain sourced from seller/product records and governed product policy.
+- EDA's current cosmetics guidance should be treated as a live regulatory dependency for claims and listing controls.
+
+M. ELECTRONIC SIGNATURE / ELECTRONIC RECORDS
+STATUS: RESEARCH VERIFIED / IMPLEMENTATION DEPENDS ON BUSINESS NEED
+- ITIDA identifies Law No. 15/2004 as the Egyptian framework governing electronic signatures and electronic transactions.
+- Existing Velora acceptance/version/hash controls provide auditability; any use that requires a legally qualified signature/certificate must use the appropriate provider/process rather than treating a checkbox as an equivalent legal signature.
+
+N. COMPLAINT / EVIDENCE RETENTION
+STATUS: OPEN AS OPERATIONAL POLICY
+- Preserve seller identity, order identity, invoice/receipt where applicable, shipping/delivery evidence, payment evidence, return/refund records, legal acceptance record, and resolution history.
+- Complaint workflows should support customer escalation and Staff/Owner exception governance.
+
+### 144. LAUNCH BLOCKERS THAT CANNOT BE "ENGINEERED AWAY"
+
+The following remain hard external gates:
+1. Actual legal entity and operating entity evidence.
+2. Tax registration/VAT status where applicable.
+3. Marketplace principal/agent and Seller-of-Record/MoR characterization.
+4. Invoice/e-receipt issuer responsibility.
+5. Counsel/accountant-approved tax/accounting treatment.
+6. Counsel-reviewed final Terms/Privacy/Returns/Seller/Subs/Gift-Card/Promotion language.
+7. Final privacy/data-governance classification and required registrations/permissions.
+8. Product-level regulatory classification and EDA evidence for regulated beauty/cosmetic inventory.
+9. Any required payment/licensing/settlement characterization not determinable from the application alone.
+10. Owner approval and controlled publication of the final legal package.
+
+### 145. ENGINEERING PRE-PUBLICATION CONTRACT
+
+Until every external gate above is resolved:
+- customer checkout remains fail-closed on unpublished mandatory legal documents;
+- seller paid commercial features remain bounded by existing legal-acceptance checks;
+- no tax rate/invoice/MoR logic is inferred;
+- no blanket return exclusion is created for beauty products;
+- no automated legal/trust sanction is activated without policy;
+- no Production legal/tax/configuration mutation is performed;
+- no feature is labeled "legally compliant" based solely on web research, source code, or QA fixtures.
+
+### 146. SOURCE BOUNDARY — 2026-09-29 WEB RECHECK
+
+- Egyptian Tax Authority: e-invoice applies to B2B transactions; e-receipt covers qualifying B2C transactions, with current implementation/eligibility depending on the taxpayer and applicable phase. https://www.eta.gov.eg/ar/taxonomy/term/111
+- Egyptian Tax Authority: e-commerce tax treatment is under the Income Tax Law 91/2005, VAT Law 67/2016, and Law 6/2025 for the simplified regime where applicable; there is no separate standalone tax law solely for e-commerce. https://www.eta.gov.eg/ar/alasylt-alshayt
+- Egyptian Tax Authority: current VAT-law materials include 2026 amendments and related tax-law updates; tax mapping must therefore be date-aware. https://portal.eta.gov.eg/ar/content/qwanyn-aldrybt-ly-alqymt-almdaft
+- Egyptian Consumer Protection Agency: 14-day general return/exchange guidance and 30-day defective-goods remedy. https://cpa.gov.eg/ar-eg/%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%D8%A7%D8%AA
+- Egyptian Consumer Protection Agency: online-shopping guidance emphasizes seller identity/contact, total cost, refund policy, delivery timing, and safe purchasing practices. https://cpa.gov.eg/ar-eg/%D8%AA%D8%AD%D8%B0%D9%8A%D8%B1%D8%A7%D8%AA
+- Egyptian Drug Authority: dedicated cosmetics regulatory guides, including a 22-Jul-2026 cosmetics-claims guide and cosmetics listing/registration materials. https://edaegypt.gov.eg/ar/%D8%A7%D9%84%D9%85%D8%B1%D8%AC%D8%B9-%D8%A7%D9%84%D8%AA%D9%86%D8%B8%D9%8A%D9%85%D9%8A-%D9%84%D9%87%D9%8A%D8%A6%D8%A9-%D8%A7%D9%84%D8%AF%D9%88%D8%A7%D8%A1-%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%8A%D8%A9/%D8%A7%D9%84%D8%A3%D8%AF%D9%84%D8%A9-%D8%Aالتنظيمية/%D8%Aالأدلة-الخاصة-بالإدارة-المركزية-للمستحضرات-الصيدلية/
+- State Information Service: Law No. 151/2020 on Personal Data Protection is in force as Egypt's statutory framework for electronic processing of personal data. https://sis.gov.eg/
+- ITIDA: Law No. 15/2004 is the Egyptian electronic-signature framework. https://itida.gov.eg/Arabic/Pages/E-Signature.aspx
+
+### 147. MESSAGE 35 DECISION
+
+STATUS:
+- Overall legal architecture = CLOSED-DONE at current engineering scope.
+- Legal launch readiness = OPEN / HUMAN-GATED.
+- Consumer-protection baseline = VERIFIED.
+- Beauty/cosmetic regulatory dependency = EXPLICITLY TRACKED / OPEN.
+- Privacy/PDPL operational compliance = OPEN.
+- Tax/invoicing classification = BLOCKED on real-world entity/tax/MoR/accounting evidence.
+- Final legal publication = OPEN / COUNSEL + OWNER.
+- No Production change.
+- No speculative legal or tax classification.
