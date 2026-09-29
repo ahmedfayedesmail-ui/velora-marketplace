@@ -389,6 +389,47 @@ def main():
                 bool(page.evaluate("() => !!STATE?.user?.uid"))
             )
 
+            role_snapshot = page.evaluate(
+                """async () => {
+                    await new Promise(resolve => setTimeout(resolve, 350));
+                    return {
+                        role: STATE?.user?.role || null,
+                        roles: Array.isArray(STATE?.user?.roles) ? STATE.user.roles : null
+                    };
+                }"""
+            )
+            evidence["checks"]["canonical_customer_role_hydrated"] = (
+                role_snapshot.get("role") == "customer"
+                and isinstance(role_snapshot.get("roles"), list)
+                and "customer" in [str(r).lower() for r in role_snapshot.get("roles", [])]
+            )
+
+            authorization_snapshot = page.evaluate(
+                """async () => {
+                    const adminResult = typeof openCanonicalAdmin === 'function'
+                        ? await openCanonicalAdmin()
+                        : null;
+                    let staffData = null;
+                    let staffErrorCode = null;
+                    try {
+                        const result = await window.mahaSupabase.rpc('velora_is_staff');
+                        staffData = result?.data ?? null;
+                        staffErrorCode = result?.error?.code || null;
+                    } catch (error) {
+                        staffErrorCode = error?.code || null;
+                    }
+                    return {adminResult, staffData, staffErrorCode};
+                }"""
+            )
+            evidence["checks"]["customer_admin_access_denied"] = (
+                authorization_snapshot.get("adminResult") is False
+            )
+            evidence["checks"]["customer_staff_flag_false"] = (
+                authorization_snapshot.get("staffData") is False
+                and authorization_snapshot.get("staffErrorCode") is None
+            )
+            evidence["observations"]["authorization_snapshot"] = authorization_snapshot
+
             # Refresh lifecycle: request a real token refresh and observe the session survives.
             refresh_result = page.evaluate(
                 """async () => {
@@ -419,6 +460,33 @@ def main():
             evidence["checks"]["logout_clears_session"] = not bool(logged_out.get("present"))
             evidence["checks"]["logout_clears_app_identity"] = not bool(
                 page.evaluate("() => !!STATE?.user")
+            )
+
+            post_logout_refresh = page.evaluate(
+                """async () => {
+                    try {
+                        const refresh = await window.mahaSupabase.auth.refreshSession();
+                        const session = await window.mahaSupabase.auth.getSession();
+                        return {
+                            refreshedSession: !!refresh?.data?.session,
+                            currentSession: !!session?.data?.session,
+                            errorCode: refresh?.error?.code || null
+                        };
+                    } catch (error) {
+                        return {
+                            refreshedSession: false,
+                            currentSession: false,
+                            errorCode: error?.code || null
+                        };
+                    }
+                }"""
+            )
+            evidence["checks"]["logout_session_cannot_be_revived_by_refresh"] = (
+                not post_logout_refresh.get("refreshedSession")
+                and not post_logout_refresh.get("currentSession")
+            )
+            evidence["observations"]["post_logout_refresh_error_code"] = (
+                post_logout_refresh.get("errorCode")
             )
 
             # Passwordless magic-link path is executed through the real generated magic-link action.
