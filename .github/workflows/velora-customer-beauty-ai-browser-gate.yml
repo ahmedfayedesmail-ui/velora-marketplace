@@ -71,6 +71,7 @@ jobs:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page(viewport={'width': 1440, 'height': 1000}, locale='en-US')
               responses = []
+              error_responses = []
               console_errors = []
               page_errors = []
 
@@ -78,6 +79,13 @@ jobs:
               page.on('pageerror', lambda e: page_errors.append(str(e)))
 
               def on_response(resp):
+                  if resp.status >= 400:
+                      payload = None
+                      try:
+                          payload = resp.json()
+                      except Exception:
+                          pass
+                      error_responses.append({'status': resp.status, 'url': resp.url, 'payload': payload})
                   if 'velora-beauty-ai-intent' in resp.url:
                       payload = None
                       try:
@@ -123,7 +131,7 @@ jobs:
 
               page.locator('#veloraQuizIntentInput').fill('بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه')
               try:
-                  with page.expect_response(lambda r: 'velora-beauty-ai-intent' in r.url, timeout=15000) as ai_resp_info:
+                  with page.expect_response(lambda r: r.status >= 400 or 'velora-beauty-ai-intent' in r.url, timeout=15000) as ai_resp_info:
                       page.locator('#veloraQuizIntentSubmit').click()
                   ai_resp = ai_resp_info.value
                   if not any(x['url'] == ai_resp.url for x in responses):
@@ -144,14 +152,19 @@ jobs:
               page.wait_for_timeout(3500)
 
               evidence['checks']['ai_http_responses'] = [
-                  {'status': r['status'], 'payload': r['payload']} for r in responses
+                  {'status': r['status'], 'url': r['url'], 'payload': r['payload']} for r in responses
               ]
+              evidence['checks']['error_responses'] = error_responses
               evidence['checks']['console_errors'] = console_errors
               evidence['checks']['page_errors'] = page_errors
               evidence['checks']['review_visible'] = 'Review what we understood' in page.locator('#veloraQuizBody').inner_text() if page.locator('#veloraQuizBody').count() else False
               evidence['checks']['manual_fallback_message_visible'] = 'regular questions' in page.locator('#veloraQuizBody').inner_text().lower() if page.locator('#veloraQuizBody').count() else False
 
               provider_response = responses[-1] if responses else None
+              if provider_response is None:
+                  ai_like_errors = [x for x in error_responses if 'velora-beauty-ai-intent' in x['url'] or '/functions/v1/' in x['url']]
+                  if ai_like_errors:
+                      provider_response = ai_like_errors[-1]
               if provider_response and provider_response['status'] == 200:
                   payload = provider_response.get('payload') or {}
                   decision = payload.get('decision')
