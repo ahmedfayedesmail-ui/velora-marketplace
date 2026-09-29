@@ -55,7 +55,7 @@ create or replace function public.velora_upsert_store_shipping_zone(
   p_store_id uuid,
   p_name text,
   p_country_code text,
-  p_is_active boolean
+  p_is_active boolean default true
 )
 returns public.store_shipping_zones
 language plpgsql
