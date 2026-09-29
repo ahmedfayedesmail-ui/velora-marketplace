@@ -4135,3 +4135,51 @@ DECISION:
 - Seller Ads engineering foundation and source/runtime parity are CLOSED for this pass.
 - Do not build CPC auctions, advanced targeting, a second scheduler, a second ad/payment engine, or analytics semantics without an explicit business need and defined contract.
 - Carry forward all provider, accounting, analytics, legal-publication, market-validation, and Browser evidence gaps.
+
+
+### Band 1 Commission Reconciliation — 2026-09-29
+
+CLASSIFICATION: ENGINE CLOSED / RATE RESOLUTION + FINANCIAL STATE TRANSITIONS OBSERVED / COMMERCIAL POLICY OPEN
+
+OBSERVED FACT — CURRENT RESTORE-TEST SNAPSHOT:
+- commissions currently contain 14 pending, 5 finalized, and 1 reversed rows. This supersedes the older snapshot in the original Master text (13 pending / 1 finalized / 1 reversed); the Master is updated here rather than silently retaining stale counts.
+- All inspected current commission rows use rate 12.50 in this Restore-Test snapshot.
+- The canonical rate resolver is velora_get_commission_rate(target_seller_id). It first resolves an active non-Free paid seller subscription rate, then the seller's plan rate, then the current 12.5 fallback.
+- The rate resolver is now internal-only at the ACL layer; anon/authenticated direct EXECUTE is revoked. Canonical financial execution may call it through SECURITY DEFINER order logic.
+
+OBSERVED FACT — CANONICAL CREATION AND STATE FLOW:
+- velora_create_order creates the commission at order creation, stores the resolved rate on both order_items and commissions, and stores gross_amount / commission_amount / seller_amount in seller currency with FX metadata.
+- The current canonical commercial wrapper velora_create_order_with_commercials calls the canonical order creation path first, then applies coupon/promotion and gift-card effects to the order.
+- Therefore the existing technical contract currently calculates commission from the seller line before later order-level coupon/promotion/gift-card adjustments. This is an observed implementation fact, not an approved commercial policy.
+- velora_sync_order_financial_state is the canonical commission state synchronizer: pending -> finalized after paid order state; pending/finalized -> reversed when order/payment is cancelled or refunded, with corresponding ledger entries and conflict-safe references.
+- Seller financial summary reads finalized paid/non-cancelled commissions and separately calculates payout eligibility using delivered + 7-day settlement policy plus exclusion of already-requested payout items.
+- No commission table trigger was found; lifecycle is handled by canonical financial functions rather than a duplicate generic trigger engine.
+
+POLICY / RESEARCH GATE:
+- No new commission engine is justified.
+- The current implementation leaves explicit business-policy choices unresolved: commission basis relative to discounts/promotions/gift cards/shipping/taxes, seller-funded versus platform-funded discounts, FX basis, timing/effective-date semantics when a seller changes plans, refund/chargeback economics, and seller-facing presentation.
+- The correct next step is business policy selection and contract documentation, not speculative code. Existing rate resolution and order-state/reversal machinery should be reused once policy is approved.
+
+REMAINING OPEN:
+- final commercial commission policy
+- exact fee basis and funding allocation for discounts/promotions/gift cards/shipping/taxes
+- effect of subscription plan changes on already-created versus future orders
+- refund/chargeback treatment beyond the current reversal state machine
+- seller-facing commission/earnings presentation
+- provider/financial reconciliation evidence where commission depends on externally settled payment state
+
+ACTION FLOW:
+Order created
+-> resolve seller commission rate
+-> persist immutable order-item/commission amounts
+-> payment/order financial state
+-> pending -> finalized or reversed
+-> ledger entries
+-> seller financial summary
+-> payout eligibility after delivered + 7 days
+-> payout request / provider execution / reconciliation.
+
+DECISION:
+- Commission engineering foundation is CLOSED for this pass.
+- Do not change the 12.5 fallback, discount basis, shipping/tax treatment, plan-change semantics, or refund economics without explicit commercial policy.
+- Do not build a second commission calculation/state engine.
