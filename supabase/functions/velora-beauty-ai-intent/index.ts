@@ -21,8 +21,7 @@ const INTENT_SCHEMA = {
     routine_budget: { type: ["string", "null"], enum: [...BUDGETS, null] },
     missing_fields: {
       type: "array",
-      items: { type: "string", enum: MISSING_FIELDS },
-      uniqueItems: true
+      items: { type: "string", enum: MISSING_FIELDS }
     }
   },
   required: ["decision", "skin_type", "goal", "routine_budget", "missing_fields"]
