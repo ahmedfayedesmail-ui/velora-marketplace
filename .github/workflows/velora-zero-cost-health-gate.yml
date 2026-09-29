@@ -53,6 +53,9 @@ jobs:
       - name: Product Detail contract
         run: npm run test:product-detail
 
+      - name: Authentication lifecycle contract
+        run: npm run test:auth-lifecycle
+
       - name: Platform re-entry contract
         run: npm run test:platform-reentry
 
