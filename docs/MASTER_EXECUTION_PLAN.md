@@ -3211,3 +3211,27 @@ DECISION:
 - Do not invent a free-shipping discount semantics, shipping subsidy accounting model, or promotion stacking rule.
 - If business decides free_shipping is required, define whether it means store-rate waiver, platform subsidy, store-funded discount, or some combination before implementation.
 - Until then, percentage/fixed remain the only supported canonical promotion types.
+
+
+### Continuation Seller Ads Paymob Error-Path Hardening — 2026-09-29
+
+CLASSIFICATION: SOURCE + RESTORE-TEST EDGE DEPLOYMENT CLOSED / PROVIDER + BROWSER EVIDENCE OPEN
+
+OBSERVED FACT:
+- Existing velora-seller-ad-paymob-checkout-restore-test Edge Function v4 had an exception-path scope bug: the catch block referenced block-scoped variables start and providerIntentCreated declared inside the try block.
+- This path could fail to return its intended recovery metadata during an unexpected error after a provider intention was created.
+
+IMPLEMENTED:
+- Commit 03117a9f9861e8fae889cfc2d97c208e46a0c962 fixes the function by lifting the required state to function scope and storing the started payment-attempt id before provider interaction.
+- Restore-Test Edge Function was deployed as version 5 using the existing runtime packaging contract and verify_jwt=true. Deployment returned ACTIVE.
+- First deployment attempt failed because the existing import-map metadata was not supplied in the deployment call; the corrected deployment used the existing deno.json as import_map_path and succeeded.
+- No payment state machine, advertising ledger, campaign schema, or duplicate checkout engine was introduced.
+
+AD CONTEXT:
+- velora_get_seller_ad_checkout_context returns three active packages (99/199/499 EGP), five approved Seller products, no active campaigns, and legal_ready=false in the current Restore-Test fixture.
+- velora_start_seller_ad_purchase remains the canonical campaign/payment-attempt/idempotency writer; the Edge Function remains the provider boundary.
+
+EVIDENCE:
+- Edge Function v5 is ACTIVE on Restore-Test with JWT verification enabled.
+- Source TypeScript was not locally parser-verified because the available runtime did not include Deno/TypeScript dependencies without an unavailable package download; no false parser PASS is claimed.
+- Provider payment initiation/settlement and Browser behavior remain unproven.
