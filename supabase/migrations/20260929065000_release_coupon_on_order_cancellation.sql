@@ -189,7 +189,7 @@ begin
     'status','cancelled',
     'gift_card_refunded',v_gc_refund>0,
     'gift_card_refund_amount',v_gc_refund,
-    'coupon_released',v_coupon.id is not null
+    'coupon_released',v_coupon_id is not null
   );
 end;
 $function$;
