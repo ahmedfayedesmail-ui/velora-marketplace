@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: b16df4137c87d97afc6894e1badd7a9b38a136fa
+Current observed branch HEAD: 73854fb2cece0912fc50b34b1a28c61667b84466
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3118,3 +3118,29 @@ Seller profile edit
 
 CARRY-FORWARD:
 - Browser proof is deferred to the final aggregate Browser Gate.
+
+
+### Continuation Gift Card Refund on Customer Order Cancellation — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW
+
+OBSERVED FACT:
+- velora_apply_gift_card_to_order records a gift_card_transactions row with transaction_type=redeem and creates a paid internal payment row for the gift-card tender.
+- velora_cancel_order previously restored inventory/reversed pending commissions but did not reverse a gift-card redemption or its internal payment representation.
+- This created a real financial consistency gap for partially gift-card-funded orders that were cancelled while the external payment portion remained pending.
+
+IMPLEMENTED:
+- Migration 20260929061000_refund_gift_card_on_order_cancellation.sql, commit 73854fb2cece0912fc50b34b1a28c61667b84466.
+- The existing velora_cancel_order now locks the referenced gift card, creates one idempotent gift_card_transactions refund row keyed to the cancelled order, restores the gift-card balance, updates the gift-card lifecycle to active unless already expired, and records an internal velora_gift_card / gift_card_refund payment row with refunded status.
+- Existing cancellation inventory/commission/order/payment compensation remains the single canonical cancellation path.
+- An explicit gift_card_refunded_on_order_cancellation audit event is recorded.
+- No new table, column, refund engine, or payment state machine was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Temporary transaction fixture started with gift-card balance 60 and order redemption 40.
+- Cancellation produced order cancelled/cancelled, gift-card balance 100, active gift-card status, exactly one refund transaction, exactly one refunded internal gift-card payment, one cancellation audit, and one gift-card-refund audit.
+- The entire fixture and cancellation were rolled back; no persistent gift-card/order state changed.
+- An initial fixture test used invalid RETURNING ... INTO TEMP syntax and failed before business logic; the corrected transaction passed.
+
+CARRY-FORWARD:
+- Coupon redemption consumption on cancelled orders remains a separate business-policy question because the current redemption table has no status/cancellation state and usage semantics are not explicitly defined. Do not reverse or delete coupon redemptions until that policy is approved.
