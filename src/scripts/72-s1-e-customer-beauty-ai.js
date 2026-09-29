@@ -140,12 +140,6 @@
     return hasMatch(text, patterns);
   }
 
-  function negated(text, value) {
-    const escaped = value.source.replace(/^\\b/, '').replace(/\b$/, '');
-    const rx = new RegExp('(?:not|never|مش|مش\s+هي|ليست|مش\s+بشرتي)\s+(?:very\s+|كتير\s+|جدًا\s+|جدا\s+)?' + escaped, 'i');
-    return rx.test(text);
-  }
-
   function collectUnique(matches) {
     return [...new Set(matches)];
   }
