@@ -597,7 +597,7 @@
     setTimeout(async()=>{
       try{
         const roles=await canonicalRoles(session.user.id);
-        if(window.STATE?.user){
+        if(typeof STATE !== 'undefined' && STATE?.user){
           STATE.user.roles=roles;STATE.user.role=roles.includes('owner')?'owner':roles.includes('admin')?'admin':roles.includes('seller')?'seller':'customer';STATE.user.isSeller=roles.includes('seller');
           try{saveToStorage('maha_user',STATE.user)}catch(_){ }
         }
