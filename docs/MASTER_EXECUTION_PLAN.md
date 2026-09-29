@@ -4749,3 +4749,316 @@ DECISION:
 - Commission engineering foundation is CLOSED for this pass.
 - Do not change the 12.5 fallback, discount basis, shipping/tax treatment, plan-change semantics, or refund economics without explicit commercial policy.
 - Do not build a second commission calculation/state engine.
+
+
+## MESSAGE 5/11 EXECUTION RECONCILIATION — 2026-09-29
+CLASSIFICATION: COMPLETE SOURCE/DB/ACTION-FLOW RECONCILIATION FOR ITEMS 22–31
+EVIDENCE BOUNDARY: Browser / aggregate E2E remains pending; Production remains frozen; provider settlement is not inferred from Restore-Test.
+
+### 22. BEAUTY PASSPORT — FIRST-CLASS PLATFORM TRACK
+CLASSIFICATION: CLOSED-DONE (architecture + source + DB/action-flow); Browser = AGGREGATE PENDING
+
+OBSERVED FACT:
+- The platform model explicitly keeps Beauty Passport as the customer's memory/identity layer.
+- The authoritative customer loop remains:
+  Customer ↔ Beauty Profile ↔ Products ↔ Routine ↔ Purchases ↔ Outcomes ↔ Time.
+- The application model keeps Passport -> Current Context -> Routine -> Recommendations -> Product -> Cart -> Checkout -> Payment -> Order -> Fulfillment -> Outcome -> Feedback -> Replenishment -> future personalization.
+- Passport is not abandoned, replaced by AI, or reduced to a cosmetic quiz.
+
+ACTION FLOW:
+EVENT: customer creates/updates persistent Beauty Passport
+AUTH/ROLE: authenticated customer
+GUARD: V2 save contract + owner RLS
+VALIDATION: exact V2 token contract
+CANONICAL STATE: public.beauty_profiles (quiz_version = beauty-quiz.v2)
+AUTOMATIC SIDE EFFECTS: velora:passport-v2-updated -> Routine / Recommendation / Beauty Journey refresh paths
+AUDIT/RETRY: transactional save; validation failure does not partially persist invalid state
+NEXT EVENT: deterministic routine/recommendation generation
+HUMAN EXCEPTION: none in the normal customer path
+
+### 23. BEAUTY PASSPORT V2
+CLASSIFICATION: CLOSED-DONE (source + DB contract + ACL); Browser = AGGREGATE PENDING
+
+OBSERVED FACT:
+- Customer implementation: src/scripts/61-s1-c-quiz-v2.js
+- Version token: beauty-quiz.v2
+- Current authoritative questions remain:
+  skin_type, goal, routine_budget
+- Canonical skin_type tokens:
+  oily, dry, combination, normal, sensitive, unknown
+- Canonical goal tokens:
+  brightening, hydration, acne, anti-aging, oil
+- Canonical routine_budget tokens:
+  under_500, 500_1000, 1000_2000, over_2000, unknown
+- Canonical persistence is velora_save_beauty_passport_v2.
+- The client reads authoritative DB values before editing, so editing one answer does not silently wipe the other two.
+- Successful save emits velora:passport-v2-updated and opens current Routine UX.
+- No second Passport persistence engine and no new MutationObserver were introduced.
+- Machine token remains acne. User-facing label remains Blemish-prone skin care. The machine token was not renamed to match descriptive UX copy.
+
+ACTION FLOW:
+EVENT: Quiz completion / Passport edit
+AUTH/ROLE: authenticated customer
+GUARD: velora_save_beauty_passport_v2 + beauty_profiles owner policy
+VALIDATION: exact token sets + quiz_version
+CANONICAL STATE: beauty_profiles V2 row
+AUTOMATION: event fan-out to Routine / Recommendations / Beauty Journey
+NEXT EVENT: current routine generation and recommendation refresh
+HUMAN EXCEPTION: none
+
+### 24. BEAUTY PASSPORT V2 CONTRACT HARDENING
+CLASSIFICATION: CLOSED-DONE
+
+OBSERVED FACT:
+- Migration: 20260928152000_harden_beauty_passport_v2_value_contract.sql
+- Commit: d6a57dd5004c60f2ede656cc75fef1f5df645e47
+- Database contract rejects invalid skin_type / goal / routine_budget tokens.
+- Invalid goal produces SQLSTATE 22023 / INVALID_GOAL.
+- Direct authenticated Data API-style invalid profile updates are blocked by the V2 RLS contract (SQLSTATE 42501 observed in the prior transactional evidence).
+- Current live persisted invalid-profile scan = 0.
+- No new columns were introduced.
+
+EVIDENCE:
+- Current live scan: beauty_profiles invalid rows = 0.
+- Current live DB policies enforce quiz_version = beauty-quiz.v2 and the exact three token sets for INSERT/UPDATE.
+
+### 25. V1 BEAUTY PASSPORT
+CLASSIFICATION: CLOSED-DONE FOR RUNTIME RETIREMENT; legacy historical artifact retained intentionally
+
+OBSERVED FACT:
+- Legacy historical file remains at src/scripts/58-s1-b1-beauty-passport.js.
+- Current src/index.html does NOT load the V1 script.
+- Migration 20260928141000_retire_v1_beauty_passport_runtime.sql revoked authenticated execution of velora_save_beauty_profile(...).
+- Current live ACL shows the legacy save function executable only by postgres/service_role; authenticated execution is not granted.
+- Current persisted profile scan reports v1_profiles = 0.
+- Absolute rule remains: never resurrect V1 as a shortcut. Any V1-shaped subsystem must be reconciled to V2.
+
+### 26. BEAUTY RECOMMENDATION ENGINE
+CLASSIFICATION: CLOSED-DONE (backend + contract + ACL + transactional evidence); Browser = PENDING
+
+OBSERVED FACT:
+- Canonical public RPC: velora_get_beauty_recommendations().
+- It calls private.velora_beauty_recommendation_operation_v2().
+- Public wrapper is SECURITY DEFINER, explicitly requires auth.uid(), and is executable by authenticated only.
+- Private recommendation operation is not executable by authenticated/anon; its current ACL is postgres-only.
+- Current internal contract includes:
+  V2 Passport only; EG/EGP market context; approved Beauty products; positive availability; budget fit; feedback signal; up to 5 results; 24h cache; 5 calls / 10 minutes; recommendation run/item recording.
+- Runtime probe evidence from the prior reconciliation showed successful canonical recommendation generation with 5 recommendations and rollback.
+- Current Restore-Test recommendation_runs grouped by ruleset currently returns no persistent rows because the successful probe was rolled back; this is expected test hygiene, not a missing engine.
+
+ACTION FLOW:
+EVENT: completed Passport + authenticated Home/refresh
+AUTH/ROLE: authenticated customer
+GUARD: V2 Passport + recommendation rate/cache + current catalog eligibility
+VALIDATION: EG/EGP + approved + positive availability + budget + feedback signal
+CANONICAL STATE: recommendation run/items or incomplete/no_matches/rate_limited response
+AUTOMATION: RPC -> mounted Home recommendation surface -> product/cart bridge
+AUDIT/RETRY: 24h cache + 5/10min rate limit + controlled retry for transient client errors
+NEXT EVENT: product detail / add-to-cart
+HUMAN EXCEPTION: none
+
+### 27. CUSTOMER RECOMMENDATION UX
+CLASSIFICATION: CLOSED-DONE AT SOURCE / NOT BROWSER-EVIDENCED YET
+
+IMPORTANT RECONCILIATION:
+The raw Message 5 handoff text says this item is OPEN / NOT EVIDENCED, but the CURRENT BRANCH SOURCE HAS ALREADY CLOSED THE SOURCE GAP. The open status is therefore stale against current audited source.
+
+OBSERVED FACT:
+- src/index.html contains the mounted #veloraBeautyRecommendationsSection, #veloraBeautyRecommendationsGrid and #veloraBeautyRecommendationsStatus.
+- src/index.html loads src/scripts/59-s1-b2-beauty-recommendations.js.
+- The current 59-s1-b2 script is not merely an RPC wrapper; it includes a customer-facing presentation adapter with:
+  Arabic/English copy; incomplete state; no-match state; rate-limited handling; product image/name/brand/price; reason chips; product-detail bridge; cart bridge; Home visibility guard; authenticated lifecycle handling.
+- It reuses existing openProductDetail(), addToCart(), and openMarketplaceCategory() paths. No duplicate Product/Cart engine was introduced.
+- It refreshes after Passport update through velora:passport-v2-updated.
+- It does NOT have Browser PASS evidence; L7 remains pending.
+
+Therefore:
+SOURCE/ARCHITECTURE = CLOSED-DONE
+DB/ACL = CLOSED-DONE
+BROWSER = NOT EVIDENCED / AGGREGATE PENDING
+
+### 27A. RECOMMENDATION LEARNING FRESHNESS GAP — FOUND AND FIXED DURING MESSAGE 5
+CLASSIFICATION: CLOSED-DONE AT SOURCE + DB CONTRACT
+
+OBSERVED FACT:
+Before this fix, the recommendation private operation fingerprint contained only the V2 Passport inputs plus market context. Feedback itself was used for scoring, but a 24-hour cached recommendation run could therefore survive a new approved feedback event for the same Passport/catalog input. The customer Recommendation surface also did not listen to the existing velora:feedback-updated event.
+
+SMALLEST SAFE CHANGE APPLIED:
+1. src/scripts/59-s1-b2-beauty-recommendations.js now listens to velora:feedback-updated and forces an existing canonical recommendation refresh path.
+2. The internal recommendation input fingerprint now includes an approved_feedback_revision derived from the customer's approved Beauty Feedback timestamp/count.
+3. Public recommendation response shape remains unchanged.
+4. No new recommendation engine, table, public contract field, scheduler, or MutationObserver was introduced.
+5. This is cache invalidation for the existing learning signal, not a new learning system.
+
+SOURCE COMMIT:
+3ab605b315eab01c5362a745bb6cc7316dc83104 — fix: invalidate beauty recommendations after feedback
+
+DB MIGRATION COMMITTED:
+supabase/migrations/20260929053700_beauty_recommendation_feedback_cache_invalidation.sql
+Git commit: bc84cd55eca4729cbe151662d4abd871814ef208
+
+LIVE DB VERIFICATION:
+- private recommendation operation now contains v_feedback_revision and approved_feedback_revision.
+- private operation ACL remains postgres=X/postgres.
+- Two hypothetical feedback revisions produce distinct recommendation fingerprints = true.
+- Persisted invalid Beauty Passport rows remain 0.
+- No new recommendation security-advisor finding attributable to this change was observed.
+- Vercel combined status on source commit currently reports FAILURE with target https://vercel.com/ahmedconccc-7063?upgradeToPro=build-rate-limit. This is recorded as an external Vercel build-rate-limit/evidence blocker, not as Browser PASS and not as proof of application failure.
+
+BROWSER BOUNDARY:
+Do not mark this gap Browser-verified until an exact READY Preview of the new source commit is available and Aggregate Browser Gate is executed.
+
+### 28. PRODUCT STATE × BEAUTY
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB; Browser = PENDING
+
+OBSERVED FACT:
+- Recommendation eligibility requires approved product, EGP, positive availability, and budget fit.
+- Current routine logic uses current canonical catalog state and server-side eligibility rather than historical product memory.
+- Inactive/rejected/out-of-stock products are not treated as currently selectable.
+- A stocked active variant can keep a product commercially available when base product stock is zero.
+- Neither Recommendation nor Routine may bypass approval, inventory, currency, budget, or current availability.
+- Historical purchase/feedback context is kept distinct from current catalog availability.
+
+ACTION FLOW:
+EVENT: catalog/product/variant state change or personalized read
+AUTH/ROLE: authenticated customer for personalized operations
+GUARD: canonical catalog/routine/recommendation eligibility
+VALIDATION: approval + active availability + market currency + budget
+CANONICAL STATE: current routine/recommendation candidate set
+NEXT EVENT: product detail -> cart -> purchase -> outcome
+HUMAN EXCEPTION: moderation/policy only on source catalog, never as a Recommendation bypass
+
+### 29. ROUTINE ENGINE
+CLASSIFICATION: CLOSED-DONE (source + DB + deterministic contract); Browser = PENDING
+
+OBSERVED FACT:
+- Canonical current routine RPC: velora_get_current_beauty_routine().
+- Deterministic generator remains private.velora_beauty_routine_operation() behind velora_generate_beauty_routine().
+- Current ruleset: beauty-rules.v5.
+- Routine fingerprint includes Passport context, market context, quiz version, skin_type, goal, concern, routine_budget, texture_preference, effect_preference, avoidance_preferences, shopping_priority, approved feedback revision, purchase revision, context.
+- Routine is regenerated when relevant fingerprint inputs change.
+- No AI owns current routine selection.
+- Current routine presentation remains src/scripts/60-s1-c-routine-ux.js.
+- Naming clarification remains mandatory: routine output contract_version = beauty-routine.v1 is NOT the retired Beauty Passport V1.
+
+ACTION FLOW:
+EVENT: Passport/context/catalog/ruleset change or routine request
+AUTH/ROLE: authenticated customer
+GUARD: V2 Passport completeness
+VALIDATION: deterministic rules + current eligible catalog
+CANONICAL STATE: beauty_routine_runs + beauty_routine_steps
+AUTOMATION: freshness check -> regeneration only when fingerprint/ruleset/catalog is stale
+AUDIT/RETRY: persisted run/steps + deterministic recomputation
+NEXT EVENT: routine product selection -> cart / purchase / outcome
+HUMAN EXCEPTION: none for normal selection
+
+### 30. ROUTINE QA SNAPSHOT
+CLASSIFICATION: OBSERVED QA DATA ONLY — NEVER PRODUCTION USAGE
+
+CURRENT LIVE RESTORE-TEST SNAPSHOT:
+- beauty_routine_runs = 541
+- beauty_routine_steps = 2624
+- Grouped routine rules:
+  beauty-rules.v5 = 522 complete
+  beauty-rules.v4 = 2 complete
+  beauty-rules.v2 = 17 complete
+
+These values differ from the older handoff snapshot (~425 runs / ~2044 steps) because additional QA/test-driven routine runs have occurred since then.
+They do not represent Production adoption or customer volume.
+
+### 31. BEAUTY JOURNEY / FEEDBACK / REPLENISHMENT
+CLASSIFICATION:
+- Beauty Journey source = CLOSED-DONE
+- Replenishment source/DB = CLOSED-DONE
+- Feedback purchase-linked path = CLOSED-DONE
+- Feedback contract breadth reconciliation = OPEN POLICY ITEM
+- Browser = AGGREGATE PENDING
+- Provider/Production = not claimed
+
+#### Beauty Journey
+OBSERVED FACT:
+- Customer surface: src/scripts/64-s1-d-beauty-journey.js.
+- It loads velora_get_current_beauty_routine() and velora_get_replenishment_signals() together.
+- It displays Passport memory, latest routine, season/context, ruleset, routine history, and replenishment.
+- It listens to velora:passport-v2-updated and velora:feedback-updated plus hash/popstate/navigation lifecycle.
+- It reuses the existing current routine/Passport paths; no second journey engine exists.
+
+ACTION FLOW:
+EVENT: account open / Passport update / feedback update / navigation
+AUTH/ROLE: authenticated customer
+GUARD: canonical routine + replenishment reads
+VALIDATION: current customer ownership
+CANONICAL STATE: rendered Beauty Journey from server truth
+AUTOMATION: navigation/event refresh
+NEXT EVENT: edit Passport / view routine / replenishment repurchase / future feedback
+HUMAN EXCEPTION: none
+
+#### Beauty Feedback
+OBSERVED FACT:
+- Customer UI: src/scripts/65-s1-d-beauty-feedback.js.
+- Canonical customer purchase experience is submitted through velora_submit_beauty_feedback.
+- Purchase feedback requires a delivered/completed order, matching order item, product and variant.
+- Idempotency is keyed by the purchase-derived browser key and enforced server-side.
+- Feedback signal is private.velora_beauty_feedback_signal(), returning -1 / 0 / +1 from the latest approved feedback.
+- Routine and Recommendation reuse this existing signal.
+- Current live feedback rows = 2: approved = 1, pending = 1.
+- The signal only uses approved feedback, so pending feedback does not contaminate personalization.
+
+ACTION FLOW:
+EVENT: delivered/completed purchase -> customer submits experience
+AUTH/ROLE: authenticated customer
+GUARD: order ownership + delivered/completed + matching item/product/variant
+VALIDATION: rating 1–5 + texture + effect + idempotency
+CANONICAL STATE: beauty_feedback
+AUTOMATION: feedback lifecycle -> approved signal revision -> Routine / Recommendation freshness
+AUDIT/RETRY: idempotent insert; existing update event fan-out
+NEXT EVENT: personalized routine/recommendation recomputation
+HUMAN EXCEPTION: moderation exception only
+
+#### FEEDBACK CONTRACT DRIFT — OPEN POLICY ITEM
+OBSERVED FACT:
+- The current canonical function velora_submit_beauty_feedback also accepts p_source = product_interaction and permits that source without an order_item_id.
+- The current beauty_feedback RLS INSERT policy also allows source = product_interaction.
+- The customer UI in src/scripts/65-s1-d-beauty-feedback.js currently exposes only the purchase-linked flow.
+INFERRED:
+- The persisted API contract is broader than the Message 5 statement that feedback is strictly purchase-linked.
+- This is a policy/contract decision, not an implementation emergency. Removing the product_interaction path without an explicit policy would silently change the learning contract.
+DECISION:
+- Do NOT silently remove or invent a schema change during this reconciliation.
+- Carry this as OPEN: decide whether product_interaction remains an allowed non-purchase signal, is deprecated, or should be retired.
+- Any future tightening must include ACL/RLS/function-contract reconciliation and a regression probe.
+No change was made for this policy item.
+
+#### Replenishment
+OBSERVED FACT:
+- Canonical RPC: velora_get_replenishment_signals().
+- It derives deterministic signals from delivered/completed purchase history and current product subcategory.
+- Current intervals in the canonical implementation include cleanser = 60d, moisturizer/cream = 60d, sunscreen/SPF = 45d, serum/anti_aging/treatment = 90d, default = 60d.
+- Quantity extends the computed next-replenishment interval deterministically.
+- No weather integration, AI learner, or second replenishment scheduler exists.
+
+ACTION FLOW:
+EVENT: delivered/completed purchase ages into deterministic replenishment window
+AUTH/ROLE: authenticated customer
+GUARD: customer-owned qualifying purchase history
+VALIDATION: product subcategory + quantity + elapsed time
+CANONICAL STATE: replenishment signal
+AUTOMATION: calculation on read from existing engine
+NEXT EVENT: customer repurchase decision
+HUMAN EXCEPTION: none
+
+### MESSAGE 5 OPEN ITEMS CARRY-FORWARD
+1. Aggregate Browser evidence for Passport / Routine / Recommendations / Beauty Journey / Feedback / mobile behavior.
+2. Exact READY Preview is currently blocked by Vercel build-rate-limit evidence on the new recommendation source commit.
+3. Feedback contract policy decision: product_interaction path remains allowed vs deprecated/retired.
+4. Provider / Production evidence where applicable remains separate from Restore-Test/source/DB proof.
+
+### MESSAGE 5 NEGATIVE / SAFETY BOUNDARY
+- No Production mutation.
+- No V1 revival.
+- No duplicate Recommendation/Routine/Learning engine.
+- No MutationObserver.
+- No speculative public contract fields.
+- No frontend payment/provider simulation.
+- No Browser PASS claimed from source/SQL.
+- No recommendation settlement/production claim inferred from Restore-Test.
