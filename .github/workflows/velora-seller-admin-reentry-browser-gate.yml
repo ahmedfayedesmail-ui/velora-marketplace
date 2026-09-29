@@ -277,6 +277,7 @@ jobs:
                       and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard")
                   )
               )
+              page.screenshot(path=f"{label}-first-open.png", full_page=True)
 
               close_fn = "window.VELORA_CLOSE_SELLER()" if platform == "seller" else "window.VELORA_CLOSE_ADMIN()"
               page.evaluate(close_fn)
@@ -330,7 +331,6 @@ jobs:
                       and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard")
                   )
               )
-              page.screenshot(path=f"{label}-first-open.png", full_page=True)
               page.screenshot(path=f"{label}-second-open.png", full_page=True)
 
               page.evaluate("() => { window.location.hash = 'home'; }")
