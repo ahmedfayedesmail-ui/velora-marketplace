@@ -10006,3 +10006,157 @@ STATUS:
 
 NEXT ORDERED WORK:
 - Continue to the next OPEN financial/commercial workstream in Master order.
+## 2026-09-29 — MESSAGE 28/24 EXECUTION / SELLER ADS ACCOUNTING + TAX/REPORTING GAP PROOF
+
+CLASSIFICATION:
+- Message 28 continues the next ordered open financial/commercial workstream.
+- Existing Seller Ads source/DB contracts were inspected.
+- Marketplace advertising prior art was researched.
+- Egyptian Tax Authority guidance on advertising VAT was researched.
+- No separate advertising ledger was created because the current financial primitives may be sufficient once the accounting contract is defined.
+
+### 107. CURRENT SELLER ADS ENGINE — VERIFIED
+
+- seller_ad_packages defines fixed-duration paid placements with EGP package pricing.
+- seller_ad_campaigns is the canonical campaign state record and contains seller/store/product/package linkage, price, currency, lifecycle timestamps, payment_attempt_id, purchase idempotency key, completion/cancellation state and reason.
+- Seller ad purchase requires an approved seller/store/product and seller legal acceptance of seller_agreement + acceptable_use.
+- seller ad payment attempts use the existing payment_attempts domain with purpose='seller_ad' and are idempotency-protected.
+- seller ad state synchronization reacts to captured/failed/refunded payment states and duration expiry.
+- Existing notification lifecycle processing also advances expired seller ads; no second generic scheduler was introduced.
+- Active seller ads are exposed only when campaign/product/store/seller/package state is eligible.
+- Current Restore-Test seller-ad package/campaign accounting state contains no separate advertising ledger.
+
+### 108. ADVERTISING PRIOR ART / ACCOUNTING RESEARCH
+
+- Amazon Sponsored Products uses CPC billing, advertiser-controlled bids and budgets, and provides reporting around impressions, clicks, spend, attributed sales and ROAS. This demonstrates a separation between campaign configuration, billable events, spend, and performance reporting.
+- Adyen marketplace accounting requires explicit booking/split semantics for payments, captures, refunds and chargebacks, and its accounting reports expose credits, debits and fees. This demonstrates that a marketplace needs explicit allocation semantics rather than relying on one gross payment amount.
+- These models support keeping Velora's existing payment_attempts/payments/ledger_entries primitives while defining the advertising-specific recognition and allocation contract first.
+
+### 109. EGYPT ADS TAX / COMPLIANCE BOUNDARY
+
+- The Egyptian Tax Authority states that advertising services are generally subject to VAT at 14% under the current advertising-tax treatment, with narrow statutory exemptions for specified public-interest categories.
+- The exact VAT/invoice treatment for Velora Seller Ads still depends on the legal entity, advertiser/seller relationship, tax registration status, marketplace/operator role, and who is legally supplying the advertising service.
+- Therefore the platform must not hard-code a tax-inclusive or tax-exclusive seller-ad package price as a final legal accounting rule until tax counsel/accounting confirms the model.
+- Seller-facing advertising terms must clearly disclose price, applicable tax treatment, package duration, placement, material restrictions, refund/credit treatment and reporting basis.
+- Advertising claims and promotional representations must remain truthful and not misleading under consumer-protection rules.
+
+### 110. OPEN SELLER ADS ACCOUNTING CONTRACT
+
+Before implementation, the following must be explicitly defined:
+- booked campaign amount
+- VAT/tax component
+- payable seller charge
+- captured amount
+- platform advertising revenue
+- seller earning / balance effect
+- payment-provider fees
+- refund/credit/reversal handling
+- unused service value after early termination
+- service recognition point and period
+- attribution window and attributed sales definition
+- impression/click billing basis if the model later changes from fixed-duration packages
+- reporting cut-off
+- reconciliation source of truth
+- provider/local mismatch treatment
+- chargeback/dispute treatment
+- seller statement presentation
+- accounting treatment of package upgrades/replacements if introduced later.
+
+### 111. REUSE DECISION — NO NEW AD LEDGER YET
+
+- Existing payments/payment_attempts can represent payment collection.
+- Existing commissions are marketplace-sale commission primitives and should not be repurposed as advertising revenue.
+- Existing ledger_entries and payouts can remain the financial posting/reconciliation primitives if the approved advertising accounting contract can map each state into them.
+- Therefore a new seller-ad ledger is NOT justified at this stage.
+- The implementation gap is currently a missing accounting contract and reporting semantics, not proven absence of storage primitives.
+
+### 112. SELLER ADS ACTION FLOW
+
+EVENT
+-> seller purchases approved ad package for approved product
+
+GUARD / AUTHORIZATION
+-> approved seller/store/product
+-> seller legal acceptance
+-> active package
+-> valid country/currency
+-> payment route + idempotency
+
+VALIDATION
+-> package price
+-> tax treatment
+-> campaign dates/duration
+-> provider/payment status
+-> attribution/reporting configuration
+
+STATE TRANSITION
+-> pending_payment
+-> active
+-> completed
+-> payment_failed
+-> cancelled/refunded
+
+AUTOMATIC SIDE EFFECT
+-> payment attempt
+-> campaign activation/deactivation
+-> notifications
+-> accounting/ledger postings only after the approved recognition rule
+-> audit
+
+NEXT EVENT
+-> campaign delivery/reporting
+-> settlement/reconciliation
+-> refund/credit if applicable
+
+RETRY / DEDUPE
+-> purchase idempotency
+-> payment attempt state guards
+-> campaign state transition guard
+-> reconciliation convergence
+
+HUMAN EXCEPTION
+-> tax/accounting interpretation
+-> refund exception
+-> provider mismatch
+-> disputed campaign delivery
+-> fraud/trust issue
+-> legal/governance exception
+
+### MESSAGE 28 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Existing seller-ad package/campaign schema and canonical payment integration were inspected.
+- Current seller-ad lifecycle and payment attempt functions were inspected.
+
+L2 DATABASE:
+- Current Restore-Test promotion and gift-card populations are controlled/empty for the broader commercial proof; no live advertising settlement population was used to fabricate accounting evidence.
+
+L3 CONTRACT / ACL:
+- Seller ad purchase requires approved seller/store/product and legal acceptance.
+- Payment attempts use seller_ad purpose and idempotency boundaries.
+
+L4 NEGATIVE / TRANSACTIONAL:
+- No new live ad purchase/refund mutation was performed because the accounting/tax recognition model is not final.
+
+L5 CI / L6 PREVIEW / L7 BROWSER:
+- No deployable change was made; no new CI/Preview/Browser evidence is claimed.
+
+L8 PROVIDER:
+- No external advertising/provider settlement was executed.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### MESSAGE 28 DECISION
+
+STATUS:
+- Seller Ads control surface = CLOSED-DONE at current source/DB scope.
+- Seller Ads idempotency/payment-domain integration = CLOSED-DONE at current scope.
+- Seller Ads lifecycle = CLOSED-DONE at current fixed-duration package model.
+- Seller Ads accounting/reporting/tax recognition = OPEN.
+- Seller Ads external/provider settlement = OPEN.
+- No new ledger or duplicate advertising engine justified.
+
+NEXT ORDERED WORK:
+- Keep advertising accounting open until commercial/tax contract is approved.
+- Continue to the next ordered OPEN dependency in the Master.
