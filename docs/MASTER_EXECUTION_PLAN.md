@@ -8663,3 +8663,374 @@ NEW / CONFIRMED OPEN:
 - Production Auth readiness = OPEN.
 
 No previously open item was silently closed or dropped.
+
+
+## 2026-09-29 — MESSAGE 22/24 EXECUTION / HUMAN GATES + MASTER CARRY-FORWARD + PLATFORM ACTION-FLOW RECONCILIATION
+
+CLASSIFICATION:
+- Message 22 executed against the current Restore-Test source/DB baseline.
+- No Production mutation was made.
+- No new human-dependency bypass, autonomous governance engine, or duplicate workflow engine was introduced.
+- Human intervention remains deliberately limited to genuine governance/business/provider exceptions.
+- The complete Message 22 preservation list is recorded below so none of these open dependencies can disappear between messages.
+
+### 86. OWNER / LEGAL / RELEASE HUMAN DEPENDENCIES
+
+CONFIRMED CANONICAL HUMAN GATES:
+1. Seller approval / re-review / suspension:
+   - `velora_set_seller_status` is Staff-gated.
+   - The function mutates seller/store lifecycle state and writes audit evidence.
+2. Product moderation/status:
+   - `velora_set_product_status` is Staff-gated.
+   - Product lifecycle mutation and audit remain canonical.
+3. Legal publication:
+   - `velora_publish_legal_document` requires authenticated Owner role and only publishes an approved legal document.
+   - Publication retires the prior published document for the same type/locale and writes audit evidence.
+4. Fraud / trust / exceptional account action:
+   - `velora_account_action` is not executable anonymously.
+   - Current trust architecture retains fraud_risk_events and governed account/dispute/return flows.
+5. Payout execution:
+   - `velora_record_payout_execution` is Staff-gated.
+   - It requires method/reference, prevents conflicting re-payment, writes the canonical payout ledger entry, and records audit evidence.
+6. Release / launch:
+   - Release candidate creation is Staff-gated.
+   - Release status transitions are Staff-gated and constrained by the release state machine.
+   - Approval requires checks to exist and have no failed/blocked/pending checks.
+   - Deployment requires approval, clear checks, and a checkpoint.
+   - Rollback requires a checkpoint.
+7. Production cutover / launch control:
+   - Existing launch/cutover governance objects remain the canonical control surface.
+   - No automatic release/cutover was introduced.
+
+ARCHITECTURAL DECISION:
+- Normal commerce/fulfillment remains automated.
+- Human intervention is reserved for governance/business/provider exceptions only.
+- This is intentional control-plane architecture, not an automation defect.
+
+HUMAN GATE ACTION FLOW:
+EVENT -> governed exception or irreversible decision requested
+AUTH/ROLE -> Staff or Owner according to operation
+GUARD -> operation-specific canonical role/state gate
+VALIDATION -> required evidence, state, target, and policy prerequisites
+CANONICAL STATE -> existing domain table/RPC
+AUTOMATIC SIDE EFFECT -> existing audit/notification/ledger/reconciliation behavior
+NEXT EVENT -> governed downstream transition
+RETRY/DEDUPE -> existing domain-specific idempotency/state guards
+HUMAN EXCEPTION -> remains human because the action itself is governance/business authority
+
+STATUS:
+- Human-dependency architecture = CLOSED-DONE at current source/DB/ACL scope.
+- Actual Production cutover/release readiness = OPEN / PENDING.
+
+### 87. IMPORTANT DO-NOT-FORGET MASTER LIST
+
+The following carry-forward items are explicitly preserved in the Master and must not disappear:
+
+PAYMENTS / PROVIDER:
+- Production Paymob settlement
+- Production Paymob webhook
+- Production cutover
+- live credentials
+- Production reconciliation
+- rollback
+- backup
+- provider ambiguity
+
+SELLER:
+- Dashboard re-entry Browser
+- re-review Browser
+- Seller onboarding Browser
+- Subscription cancellation
+- upgrade
+- downgrade
+- replacement
+- proration
+- refund
+- entitlement runtime
+- provider settlement
+- Ads reporting
+- Ads attribution
+- Ads accounting
+- Ads provider settlement
+- Payout settlement
+- Payout reconciliation
+- Payout Browser
+
+CUSTOMER COMMERCE:
+- COD abandonment policy
+- inventory reservation policy
+- promotion free_shipping
+- promotion stacking
+- promotion targeting
+- promotion economics
+- broader Gift Card expiry/refund policy
+- Returns window
+- refund allocation
+- shipping/tax refund
+- restocking
+- provider refund
+- return Browser UX
+
+BEAUTY:
+- Passport V2 Browser
+- Routine Browser
+- Beauty Journey Browser
+- Feedback Browser
+- Recommendation Browser
+- CUSTOMER Recommendation UX
+- Future Passport dimensions
+- Beauty AI
+- AI failure model
+- AI explanation
+- AI governance
+- AI privacy/consent
+- Beauty mobile flow
+
+NOTIFICATIONS:
+- Browser bell
+- read state
+- mark all read
+- push enable/disable
+- actual device delivery
+- stale device behavior
+- provider edge cases
+- service worker
+- production delivery
+
+GOVERNANCE:
+- Owner Dashboard
+- Owner browser
+- legal publication
+- Owner release control
+- fraud/trust exceptions
+- backup/rollback
+- Production readiness
+
+SECURITY:
+- leaked password protection
+- pg_net review
+- targeted Advisor queue
+- final security verification
+
+INFRASTRUCTURE:
+- exact Preview
+- final aggregate Browser Gate
+- Production capacity
+- Supabase/Vercel plan requirements
+
+PRESERVATION RULE:
+- These labels are carry-forward ledger terms; a label may be implemented by an existing canonical component, but it may not be removed from the ledger until the corresponding evidence gate is actually closed.
+
+### 88. MASTER ACTION FLOW — ENTIRE PLATFORM RECONCILIATION
+
+A. CUSTOMER BEAUTY:
+Customer event
+-> authenticate
+-> read Passport
+-> validate V2 contract
+-> persist Passport
+-> emit event
+-> check routine fingerprint
+-> generate deterministic Routine
+-> check Recommendation V2 eligibility
+-> check current eligible product state
+-> generate canonical reasons
+-> select Product
+-> existing Routine -> Cart bridge
+-> canonical Checkout
+-> payment
+-> Order
+-> fulfillment
+-> feedback
+-> replenishment
+-> next personalization decision.
+
+ACTION FLOW RULE:
+- No AI is inserted into the canonical business-rule transition path.
+- AI future remains interpretive/assistive only.
+
+B. AI FUTURE:
+Customer intent
+-> AI interpretation
+-> structured candidate intent
+-> canonical validation
+-> deterministic Routine/Recommendation
+-> grounded explanation
+-> Customer.
+
+AI MUST FAIL SAFE:
+AI unavailable
+-> deterministic fallback.
+
+Invalid structured AI output
+-> discard/reject.
+
+Canonical violation
+-> canonical rejection.
+
+Provider/model uncertainty
+-> no durable commerce mutation.
+
+C. SELLER:
+Seller applies
+-> auth
+-> Staff governance
+-> approval
+-> Store
+-> Product
+-> moderation
+-> approval
+-> availability
+-> inventory
+-> orders
+-> shipping
+-> delivery
+-> earnings
+-> payout eligibility
+-> payout request
+-> Staff/provider execution
+-> settlement
+-> reconciliation.
+
+D. PAYMENT:
+Order request
+-> cart validation
+-> legal
+-> shipping quote
+-> canonical order
+-> payment placeholder
+-> payment method
+-> provider session
+-> provider result
+-> webhook OR inquiry fallback
+-> normalization
+-> monotonic state transition
+-> commission
+-> ledger
+-> audit
+-> cart clear
+-> reconciliation.
+
+E. FAILED PAYMOB:
+Provider start failure
+-> payment attempt failure
+-> canonical inventory release
+-> pending commission reversal
+-> order/payment failure
+-> audit.
+
+F. MISSED WEBHOOK:
+Payment created
+-> webhook absent
+-> reconciliation detects pending
+-> Transaction Inquiry
+-> normalize provider state
+-> captured/failed/refunded result
+-> canonical state transition
+-> side effects
+-> audit
+-> complete.
+
+G. NOTIFICATIONS:
+Business event
+-> notification row
+-> DB lifecycle trigger/processor
+-> pg_net or canonical internal dispatch path
+-> internal-secret/auth validation
+-> active subscriptions
+-> in-flight claim
+-> push send
+-> mark delivered
+-> 404/410 subscription cleanup
+-> stale-claim recovery
+-> no manual action for normal delivery.
+
+CURRENT NOTIFICATION IMPLEMENTATION EVIDENCE:
+- Authoritative customer notification UI reads through Supabase RPCs and does not use localStorage as notification source of truth.
+- Read and mark-all-read actions use canonical RPCs.
+- Notification dispatch validates an internal secret before accessing the dispatch path.
+- Delivery uses claim/mark/unmark lifecycle calls and removes 404/410 push subscriptions.
+- Current Restore-Test cron includes the notification lifecycle processor every minute.
+- Current Restore-Test has notification rows and active push-subscription state.
+- Browser bell, device delivery, production delivery, provider-edge-case, and stale-device behavioral proof remain OPEN / NOT EVIDENCED.
+
+H. RETURNS:
+Delivered order
+-> customer request
+-> ownership/store/item validation
+-> return created
+-> audit
+-> Staff resolution
+-> approved
+-> in_transit
+-> received
+-> refund decision
+-> provider refund
+-> evidence
+-> refunded
+-> reconciliation.
+
+RETURNS HUMAN GATE:
+- Final refund/business-policy exceptions remain Staff/governance controlled.
+- No automatic provider refund was invented.
+
+### MESSAGE 22 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Canonical Seller/Legal/Payout/Release/Risk control functions and notification source paths were inspected.
+- Existing canonical notification UI uses RPC-backed read/mark/mark-all operations.
+- No duplicate human-governance engine or notification engine was introduced.
+
+L2 DATABASE:
+- Staff/Owner role distribution currently includes customer, seller, admin, and owner roles.
+- Key privileged functions are not anonymously executable.
+- Current release blueprint exists as candidate; no cutover gate rows were created.
+- Current notification state includes existing notification and push-delivery records.
+- Existing active cron remains Notification Lifecycle + Paymob Reconciliation only.
+
+L3 CONTRACT / ACL:
+- Seller status, product status, payout execution, and release status functions require Staff authority.
+- Legal publication requires Owner authority and approved-document state.
+- Release transitions enforce explicit state/checkpoint prerequisites.
+- Anonymous EXECUTE is absent for the inspected privileged functions.
+
+L4 NEGATIVE / TRANSACTIONAL:
+- No new write-side negative-path mutation was necessary because Message 22 found no new contract gap.
+- Earlier privileged negative-path evidence from Message 19 remains carried forward.
+- Human gates therefore remain governed without adding a bypass path.
+
+L5 CI:
+- NO NEW CI required; no deployable source change was justified.
+
+L6 PREVIEW:
+- NO NEW Preview required; no deployable source change was made.
+
+L7 BROWSER:
+- NO NEW Browser run; Message 22 changes documentation/governance reconciliation only.
+- Browser dependencies remain explicitly OPEN in the Master list.
+
+L8 PROVIDER:
+- NO NEW provider execution; production provider items remain OPEN.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### MESSAGE 22 NON-NEGOTIABLES RECONFIRMED
+
+- Do not automate away genuine governance authority.
+- Do not turn Owner/Staff approval into silent automation.
+- Do not create a second release engine.
+- Do not create a second notification engine.
+- Do not create an AI policy engine.
+- Do not remove any carry-forward dependency simply because the current implementation exists.
+- Do not convert source/ACL proof into Browser/Production proof.
+- Do not touch Production.
+
+### CARRY-FORWARD AFTER MESSAGE 22
+
+- All Message 21 OPEN/PENDING items remain carried forward.
+- The complete Message 22 do-not-forget ledger is now explicitly preserved.
+- Human-gate architecture is CLOSED-DONE at current source/DB/ACL scope.
+- Production cutover/release readiness remains OPEN / PENDING.
+- Final aggregate Browser Gate remains OPEN / NOT EVIDENCED.
+- All Browser/provider/Production dependencies in Section 87 remain OPEN until their dedicated evidence gates close.
