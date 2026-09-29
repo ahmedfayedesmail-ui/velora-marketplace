@@ -12443,3 +12443,106 @@ NEXT ORDERED TECHNICAL ACTION:
 2. Reconcile/obtain exact current-HEAD Preview deployment.
 3. Browser-verify Product Detail canonical metadata + variant persistence path.
 4. Continue to the next independent non-legal OPEN track in Master order.
+---
+
+### 160.9 MESSAGE 45 — STATIC GATE CLOSURE + NOTIFICATION/PUSH FOUNDATION RECONCILIATION + PERFORMANCE CLASSIFICATION (2026-09-29)
+
+STATIC / CI GATE:
+- The dedicated Customer Beauty AI + Product Detail workflow now runs the global static audit as a blocking step.
+- Latest successful run:
+  - workflow run = 36563571335
+  - head SHA = ea3245d208da2b92dd27e3bbe17d85bb26070291
+  - conclusion = success
+- Latest successful run steps all passed:
+  - Checkout
+  - Node version
+  - JavaScript syntax
+  - Customer Beauty AI contract tests
+  - Product Detail canonical contract tests
+  - Static audit
+- The previous legacy i18n static-audit gap was repaired in src/scripts/51-localization.js by adding the three missing Arabic translations:
+  - PERSONALIZED FOR YOU
+  - Beauty picks built around your Passport
+  - Recommendations from your saved skin type, goal and routine budget.
+- The global static-audit blocker is therefore CLOSED-DONE at the currently evidenced source/CI gate.
+- Future CI runs should keep the static audit blocking; do not reintroduce continue-on-error for this gate.
+
+PERFORMANCE CLASSIFICATION:
+- Restore-Test pg_stat_statements and pg_stat_user_tables were rechecked.
+- Current observed high cumulative execution is dominated by Supabase introspection/system queries and low-volume QA-table sequential scans.
+- velora_get_current_beauty_routine observed mean execution is approximately 41.76 ms across 1,678 calls.
+- velora_process_notification_lifecycle observed mean execution is approximately 6.67 ms across 6,876 calls.
+- No current measurement established a correctness, integrity, authorization, or release-blocking performance defect.
+- No mass indexing or schema rewrite was justified.
+- Performance optimization queue remains OPEN as a measured-workload optimization track, not a current correctness blocker.
+- No performance migration was applied.
+
+NOTIFICATION / WEB PUSH FOUNDATION:
+SOURCE:
+- src/scripts/68-s1-d-mobile-push.js remains opt-in only; no permission prompt on page load.
+- Customer subscription registration uses the existing authenticated RPC velora_register_push_subscription.
+- Customer unregister uses velora_unregister_push_subscription.
+- Service worker src/sw.js handles push display and notification-click navigation.
+- Internal dispatcher remains supabase/functions/velora-dispatch-notification/index.ts.
+- A previously deployed test-only Edge Function velora-send-push-test existed in Supabase but its source was missing from the repository.
+- Its deployed v8 source has now been restored to supabase/functions/velora-send-push-test/index.ts.
+- This restoration is source-of-truth reconciliation only; no behavior-changing redeploy was performed.
+
+DATABASE / ACL:
+- Restore-Test:
+  - active push subscriptions = 1
+  - notifications = 48
+  - notification_push_deliveries = 6
+  - delivered delivery rows = 6
+  - claimed-but-not-delivered rows = 0
+- Push sender config is complete; only presence was checked and secrets were not recorded.
+- Public VAPID key in the customer source matches the current sender-config public key.
+- ACL:
+  - velora_register_push_subscription: authenticated + service_role
+  - velora_unregister_push_subscription: authenticated + service_role
+  - velora_claim_push_delivery: service_role only
+  - velora_mark_push_delivery: service_role only
+  - velora_unmark_push_delivery: service_role only
+  - velora_get_push_sender_config: service_role only
+- Notification dispatch is protected by its internal dispatch-secret validation and is not an anonymous public sender surface.
+- No RLS or schema changes were made in this reconciliation.
+
+DEPLOYED FUNCTIONS:
+- velora-dispatch-notification = ACTIVE v10, verify_jwt=false, protected by internal secret validation.
+- velora-send-push-test = ACTIVE v8, verify_jwt=true.
+- No provider secret was exposed in source.
+
+PUSH EVIDENCE BOUNDARY:
+- Source + DB + ACL + deployed-function foundation = CLOSED-DONE for Restore-Test engineering scope.
+- Browser/device permission/receipt evidence = OPEN / NOT EVIDENCED.
+- Real external push-provider/device delivery evidence must not be inferred from database delivery rows alone.
+- TinyFish browser capacity remains insufficient for a new Browser Gate.
+- Production push delivery remains unreleased / FROZEN.
+
+CURRENT TECHNICAL GATE SUMMARY:
+- Customer Beauty AI source/contract CI = CLOSED-DONE.
+- Product Detail canonical metadata source/DB + corrected contract test = CLOSED-DONE at source/DB; successful CI execution is evidenced by workflow run 36563571335.
+- Global static audit = CLOSED-DONE at current source/CI gate.
+- Notification/Web Push engineering foundation = CLOSED-DONE for Restore-Test.
+- Notification Browser/device/provider evidence = OPEN.
+- Performance optimization queue = OPEN.
+- Provider live Beauty AI configuration = BLOCKED / NOT CONFIGURED.
+- Exact current-HEAD Vercel Preview parity = OPEN because the latest observed deployment is still behind current branch HEAD.
+- Browser Gate = OPEN / NOT EVIDENCED.
+- Production = FROZEN.
+- Legal registration = PAUSED / CARRY-FORWARD.
+
+MESSAGE 45 DECISION:
+The current technical baseline is materially cleaner:
+- the dedicated source/contract gate is green;
+- the previous global i18n blocker is repaired;
+- canonical Product Detail metadata contract is repaired at source/DB scope;
+- notification/push backend foundation is reconciled and sourced;
+- no unsupported Production or Browser claims were made.
+
+NEXT ORDERED ACTION:
+1. Preserve the green CI gate on subsequent changes.
+2. Obtain exact current-HEAD Vercel Preview when platform deployment capacity permits.
+3. Browser-verify Customer Beauty AI, Product Detail, and notification/device behavior on that exact Preview.
+4. Keep live Beauty AI provider activation gated until intentionally configured.
+5. Continue the next independent non-legal OPEN item while preserving legal carry-forward.
