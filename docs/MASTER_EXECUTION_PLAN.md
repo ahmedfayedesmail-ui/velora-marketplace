@@ -498,7 +498,6 @@ VALIDATION: all required launch gates and exact artifact/Preview references
 CANONICAL STATE: gate statuses / release readiness
 AUTOMATION: audits collect evidence; release promotion remains governed
 NEXT EVENT: ready-to-promote or remediationHUMAN EXCEPTION: final release/cutover authorization
-
 ### AUTOMATION POLICY FOR MESSAGE 2
 
 Observed automation already present:
@@ -997,7 +996,6 @@ OBSERVED FACT:
 - Automatic promotion selection remains single-promotion/non-stacking by current canonical priority behavior.
 - Order cancellation contains canonical coupon and promotion reversal logic: delete matching redemption, decrement used_count with floor at zero, and audit the release.
 - Transactional probes confirmed Staff-only promotion creation and canonical rejection of free_shipping with PROMOTION_TYPE_NOT_SUPPORTED.- No seller-owned promotion engine exists; current platform promotion scope is global.
-
 OPEN:
 - free_shipping semantics
 - stacking/combination policy
@@ -1498,7 +1496,6 @@ Non-negotiable future constraints:
 - never bypass approval, stock, budget, currency, or canonical eligibility- never mutate orders, payments, commissions, payouts, gift-card balances, refunds, seller status, fraud decisions, or irreversible governance
 - never replace canonical DB/business rules
 - never create a second unexplained reason-code system
-
 ### 65. AI Failure Model
 CLASSIFICATION: ROADMAP / NOT IMPLEMENTED
 
@@ -1997,8 +1994,7 @@ OBSERVED PRE-FIX GAP:
 - The canonical Admin/Owner implementation already existed in 12-localization.js and correctly authenticated Admin/Owner roles.
 SMALLEST SAFE CHANGE IMPLEMENTED:
 - openCanonicalAdmin(requiredRole=null) now accepts an optional role requirement.
-- openCanonicalOwner() calls the existing canonical Admin shell with requiredRole='owner'.
-- Existing platform switch behavior now distinguishes admin and owner instead of treating both identically.
+- openCanonicalOwner() calls the existing canonical Admin shell with requiredRole='owner'.- Existing platform switch behavior now distinguishes admin and owner instead of treating both identically.
 - window.openOwnerPlatform is assigned to the canonical Owner opener before the platform router loads, so 63-platform-router.js captures a real Owner function rather than the legacy no-op fallback.
 - window.closeOwnerPlatform is mapped to the existing canonical Admin close surface.
 - Canonical navigation now labels the Dashboard as Owner Dashboard when the authenticated role set contains owner.
@@ -2497,8 +2493,7 @@ OBSERVED CURRENT SNAPSHOT:
 
 RULES:
 - Every stage retains its own state.
-- "Payout eligible" is NOT equivalent to "paid."
-- "Payment captured" is NOT equivalent to external settlement unless provider evidence proves settlement.
+- "Payout eligible" is NOT equivalent to "paid."- "Payment captured" is NOT equivalent to external settlement unless provider evidence proves settlement.
 - Existing commission, payout, payment, ledger and webhook contracts remain authoritative.
 - No new general-purpose ledger engine is justified.
 
@@ -2997,8 +2992,7 @@ CLASSIFICATION: SOURCE CONTRACT GAP CLOSED; BROWSER GATE BLOCKED / NOT EVIDENCED
 
 OBSERVED FACT:
 - Current branch before this change was verified at `f660cee80df9d261904a48f0231393e4d95c4a3a`; the stale HEAD value near the top of this Master remains historical metadata and is not current truth.
-- Current source inspection showed the earlier hypothesis "63-platform-router captured the wrong Seller opener" is invalidated. `src/scripts/12-localization.js` defines the canonical async Seller opener and `src/scripts/63-platform-router.js` loads later and captures that canonical opener.
-- A distinct route-state inconsistency was found: canonical Seller UI controls called `window.VELORA_CLOSE_SELLER`, while `63-platform-router.js` independently defined the route-aware `window.closeSellerPlatform`. The canonical close path did not update the URL route, did not set the platform hidden/aria-hidden state, and could therefore leave `#seller` in the address state while the Seller shell was visually closed.
+- Current source inspection showed the earlier hypothesis "63-platform-router captured the wrong Seller opener" is invalidated. `src/scripts/12-localization.js` defines the canonical async Seller opener and `src/scripts/63-platform-router.js` loads later and captures that canonical opener.- A distinct route-state inconsistency was found: canonical Seller UI controls called `window.VELORA_CLOSE_SELLER`, while `63-platform-router.js` independently defined the route-aware `window.closeSellerPlatform`. The canonical close path did not update the URL route, did not set the platform hidden/aria-hidden state, and could therefore leave `#seller` in the address state while the Seller shell was visually closed.
 - `63-platform-router.js` also initialized `returnHash` from the raw current hash. A direct load at `#seller` could therefore treat `seller` itself as the return target instead of a marketplace route.
 - No DB schema change was required for this gap.
 
@@ -3500,7 +3494,6 @@ Seller payout:
 Seller opens Payouts -> request canonical payout -> server eligibility -> pending payout + itemized rows + audit -> Staff/provider execution -> ledger + audit -> external settlement remains outside frontend authority.
 
 
-
 ### Continuation Subscription State Auditability — 2026-09-29
 
 CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT / RUNTIME EVIDENCE DEFERRED
@@ -3997,7 +3990,6 @@ DECISION:
 - No product-image Storage subsystem.
 - Platform Auth leaked-password protection remains OPEN until the Supabase project plan/configuration permits enabling it.
 - Performance Advisor findings remain an optimization queue, not a correctness blocker.
-
 
 ### Continuation Seller Onboarding Action Flow / Audit Coverage — 2026-09-29
 
@@ -4497,8 +4489,7 @@ OR
 -> human escalation only for true ambiguous/provider-accounting exceptions.
 
 PAYMOB RESTORE-TEST GATE STATUS:
-- Checkout/Intention: CLOSED-DONE.
-- Hosted Checkout sandbox execution: CLOSED-DONE.
+- Checkout/Intention: CLOSED-DONE.- Hosted Checkout sandbox execution: CLOSED-DONE.
 - Provider Transaction Inquiry: CLOSED-DONE as observed successfully.
 - HMAC Webhook verification + processing: CLOSED-DONE for observed sandbox event.
 - Webhook missed -> Inquiry recovery: CLOSED-DONE at local transactional contract + provider-backed response semantics.
@@ -4997,8 +4988,7 @@ OBSERVED FACT:
 ACTION FLOW:
 EVENT: delivered/completed purchase -> customer submits experience
 AUTH/ROLE: authenticated customer
-GUARD: order ownership + delivered/completed + matching item/product/variant
-VALIDATION: rating 1–5 + texture + effect + idempotency
+GUARD: order ownership + delivered/completed + matching item/product/variantVALIDATION: rating 1–5 + texture + effect + idempotency
 CANONICAL STATE: beauty_feedback
 AUTOMATION: feedback lifecycle -> approved signal revision -> Routine / Recommendation freshness
 AUDIT/RETRY: idempotent insert; existing update event fan-out
@@ -5497,8 +5487,7 @@ Provider Intent
 -> provider transaction result
 -> HMAC-verified webhook
 
-MISSED CALLBACK FALLBACK:
-Transaction Inquiry
+MISSED CALLBACK FALLBACK:Transaction Inquiry
 -> provider-state normalization
 -> canonical payment transition
 -> order transition
@@ -5997,8 +5986,7 @@ RETRY/DEDUPE: operation-specific canonical contracts
 HUMAN EXCEPTION: security/governance review for exceptional access
 
 ### 63. SECURITY NEGATIVE PATH HARDENING
-CLASSIFICATION:
-- CLOSED-DONE L1-L4
+CLASSIFICATION:- CLOSED-DONE L1-L4
 
 OBSERVED FACT:
 - Customer/unauthorized attempts against privileged functions remain fail-closed through function-level privileges, role guards, ownership guards, and/or RLS as appropriate.
@@ -6497,8 +6485,7 @@ EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> STORE
 - Current canonical functions include:
   - `velora_start_subscription_purchase`
   - `velora_create_subscription_payment_attempt_internal`
-  - `velora_mark_subscription_payment_initialization_failed`
-  - `velora_record_renewal_result`
+  - `velora_mark_subscription_payment_initialization_failed`  - `velora_record_renewal_result`
   - `velora_sync_subscription_state`
   - `velora_resolve_subscription_price`
 - `velora_sync_subscription_state` is service-role executable only at the function-privilege layer, while seller-facing purchase entry is authenticated and server-governed.
@@ -6997,7 +6984,6 @@ CLASSIFICATION: EXECUTED — Canonical Routine Engine, Beauty Journey/Feedback/R
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
 
-
 ## 2026-09-29 — MESSAGE 13/24 EXECUTION / FUTURE PASSPORT DIMENSIONS + CUSTOMER BEAUTY AI
 CLASSIFICATION:
 - MESSAGE 13 EXECUTED.
@@ -7174,3 +7160,188 @@ HUMAN EXCEPTION: only defined safety/policy/provider ambiguity/governance cases;
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
 - Message 13 Future Passport dimensions remain OPEN for explicit product research/decision before any questionnaire expansion.
 - Message 13 Customer Beauty AI remains OPEN / NOT DONE pending the future contract, privacy/safety/provider design, implementation, and Browser/provider verification.
+
+## 2026-09-29 — MESSAGE 14/24 EXECUTION / BEAUTY AI GUARDRAILS + FAILURE MODEL + EXPLAINABILITY + BROWSER GATE
+CLASSIFICATION:
+- Message 14 executed as a contract/hardening review.
+- No customer AI runtime was implemented.
+- No Passport expansion was implemented.
+- No schema change was justified.
+- The current deterministic Routine/Recommendation architecture remains authoritative.
+
+### 36. BEAUTY AI — MUST NEVER
+FUTURE HARD GUARDRAILS:
+- AI must never invent products.
+- AI must never invent availability.
+- AI must never invent prices or monetary values.
+- AI must never invent or misstate ingredients or other catalog facts.
+- AI must never make unsupported medical/diagnostic/treatment claims.
+- AI must never bypass product approval.
+- AI must never bypass stock/availability guards.
+- AI must never bypass budget guards.
+- AI must never bypass market/currency guards.
+- AI must never mutate orders.
+- AI must never mutate payments.
+- AI must never mutate commissions.
+- AI must never mutate payouts.
+- AI must never mutate gift-card balances or gift-card state.
+- AI must never make refund decisions autonomously.
+- AI must never change Seller status.
+- AI must never make fraud/trust decisions autonomously.
+- AI must never mutate irreversible governance state.
+- AI must never replace canonical DB/business rules.
+- AI must never introduce an opaque second reason-code/explanation vocabulary that competes with canonical deterministic evidence.
+
+IMPLEMENTATION STATUS:
+- These are ROADMAP / architectural MUST-NOT rules.
+- No runtime enforcement layer was added because there is no live Customer Beauty AI runtime yet.
+- Any future implementation must enforce the boundary before model output can reach a canonical operation.
+
+### 37. BEAUTY AI FAILURE MODEL
+REQUIRED FUTURE BEHAVIOR:
+- AI unavailable -> deterministic fallback.
+- Invalid structured output -> discard the model result; do not persist or act on it.
+- Canonical constraint violation -> canonical validation rejects the candidate intent.
+- Timeout -> only bounded, explicitly safe retry; never unbounded retries.
+- Ambiguous interpretation -> deterministic/safe path rather than speculative action.
+- Provider/model uncertainty -> no durable commerce mutation.
+
+IMPORTANT EVIDENCE BOUNDARY:
+- These failure behaviors are roadmap requirements, not live runtime PASS conditions.
+- There is currently no Customer Beauty AI provider/model path in Restore-Test to execute these failure cases against.
+- The deterministic Routine and Recommendation engines already provide the non-AI fallback path.
+
+ACTION FLOW FOR FUTURE AI FAILURE:
+EVENT -> AI attempt -> structured validation -> canonical validation -> deterministic fallback/rejection on failure -> safe customer result.
+HUMAN EXCEPTION:
+- Only defined safety/policy/provider ambiguity or governance exceptions; not normal AI failure.
+
+### 38. BEAUTY AI EXPLAINABILITY
+CURRENT VERIFIED REASON EVIDENCE:
+- The current live Routine reason_codes observed in Restore-Test are:
+  availability_match
+  budget_fit
+  goal_match
+  seasonal_fit
+  skin_type_match
+  step_match
+- Current Recommendation source uses:
+  goal_match
+  skin_type_match
+  feedback_positive
+  budget_fit
+  availability_match
+- The broader Message 14 vocabulary list includes concern_match, texture_match, effect_match, and preference_match. A source/DB check shows these are NOT currently emitted as observed canonical reason_codes across the live persisted routine/recommendation evidence.
+- In particular, concern_match exists as an internal Routine scoring condition, but current routine step reason_codes observed in Restore-Test did not include concern_match.
+- texture_match, effect_match, and preference_match are not currently present as emitted canonical reason_codes in the inspected customer Routine/Recommendation runtime.
+- Because persisted Recommendation items are currently 0, there is no live persisted Recommendation reason-code sample to broaden from; source inspection remains the evidence for its current reason vocabulary.
+
+CORRECTION TO HANDOFF WORDING:
+- Do not describe all of goal_match, concern_match, texture_match, effect_match, preference_match, availability_match, skin_type_match, step_match, budget_fit, feedback_positive, and seasonal_fit as an already-established emitted canonical reason vocabulary.
+- The verified emitted canonical vocabulary is the subset above.
+- The additional codes may remain a FUTURE vocabulary candidate only after they have real deterministic evidence behind them and are explicitly mapped in the canonical engine.
+
+FUTURE EXPLAINABILITY RULE:
+- Future AI explanations must reuse the underlying canonical deterministic reasons that actually occurred.
+- AI may explain evidence already present in the canonical result.
+- AI may not invent an evidence claim, match, ingredient fact, availability fact, price fact, medical assertion, or reason code.
+- UI should distinguish:
+  deterministic = pure deterministic engine result,
+  rule-based = deterministic rules/constraints,
+  AI-assisted = AI interprets or explains while canonical engine decides,
+  AI-driven = model materially controls a decision.
+- Current Routine and Recommendation are deterministic / rule-based, NOT AI-driven.
+
+### 39. BEAUTY BROWSER GATE
+EVENTUAL END-TO-END BROWSER REQUIREMENT:
+guest
+-> auth
+-> incomplete Passport
+-> three questions
+-> complete Passport
+-> edit
+-> change one field
+-> preserve other answers
+-> save
+-> Routine
+-> reasons
+-> Arabic <-> English
+-> Account
+-> Beauty Journey
+-> refresh and verify persistence
+-> mobile quiz
+-> mobile results
+-> mobile routine
+-> product cards
+-> Add All
+-> purchase-linked feedback
+
+SOURCE-LEVEL PRECONDITIONS VERIFIED:
+- V2 quiz entry/authentication/edit/persistence path exists in src/scripts/61-s1-c-quiz-v2.js.
+- Current Routine UX and reason-code presentation exist in src/scripts/60-s1-c-routine-ux.js.
+- Routine -> Cart Add All path exists in src/scripts/62-s1-c-routine-cart.js through window.veloraRoutineCart.addAll and the canonical cart RPCs.
+- Beauty Journey exists in src/scripts/64-s1-d-beauty-journey.js and consumes the canonical current Routine path.
+- Purchase-linked Feedback exists in src/scripts/65-s1-d-beauty-feedback.js.
+- Arabic/English lifecycle hooks exist in the V2/Beauty Journey surfaces.
+- These source checks do NOT constitute Browser PASS.
+
+CURRENT BROWSER STATUS:
+- Browser evidence for the complete flow remains NOT EVIDENCED.
+- The current environment still cannot promote this source-level inventory to browser PASS without actual browser execution.
+- No synthetic browser PASS is recorded.
+
+### MESSAGE 14 ACTION FLOW
+BEAUTY AI GUARDRAILS:
+EVENT: future customer beauty request reaches AI boundary
+AUTH/ROLE: customer/session according to the future surface
+GUARD: AI capability availability + safety boundary + schema contract
+VALIDATION: structured candidate intent + canonical business constraints
+CANONICAL STATE: unchanged unless an existing canonical deterministic operation accepts the validated candidate
+AUTOMATIC SIDE EFFECT: deterministic Routine / Recommendation execution only
+AUDIT/RETRY/DEDUPE: bounded retries, request identity, structured-output validation, and future AI auditability
+NEXT EVENT: canonical result + truthful explanation
+HUMAN EXCEPTION: only explicit safety/policy/provider ambiguity/governance cases
+
+FAILURE PATH:
+AI unavailable/invalid/timeout/ambiguous/provider uncertainty
+-> deterministic fallback or safe rejection
+-> no durable commerce mutation.
+
+### MESSAGE 14 EVIDENCE BOUNDARY
+- L1 Source: future AI boundary, package/runtime inventory, current Routine/Recommendation reason-code emitters, V2 Quiz, Routine UX, Routine->Cart, Beauty Journey, and Feedback surfaces verified.
+- L2 DB: current emitted Routine reason codes, current recommendation persistence state, AI decision-table state, and prior optional-dimension baseline verified against Restore-Test.
+- L3 Contract: MUST-NOT AI boundary, future failure behavior, canonical reason reuse, and Browser Gate requirements recorded.
+- L4 Negative / transactional: Message 13 already provided optional-field preservation and Governance-AI customer-denial proofs; Message 14 introduces no new mutable runtime, so no additional fixture was necessary.
+- L5 CI: NO NEW CI RUN; no application runtime source/schema change.
+- L6 Preview: NO NEW PREVIEW DEPLOYMENT; no customer-facing runtime change.
+- L7 Browser: NOT EVIDENCED for the complete Beauty Browser Gate.
+- L8 Provider: NOT APPLICABLE; no Customer Beauty AI provider/model invoked.
+- L9 Production: UNTOUCHED / FROZEN.
+
+### MESSAGE 14 NON-NEGOTIABLES RECONFIRMED
+- No Customer AI chat requirement is implied by this roadmap.
+- No Customer LLM runtime is added by Message 14.
+- No AI business-rule ownership.
+- No AI-generated catalog/price/stock/ingredient facts.
+- No AI autonomous commerce/governance mutations.
+- No opaque second explanation/reason-code system.
+- Deterministic Routine / Recommendation remain authoritative.
+- Browser PASS is never inferred from source inspection.
+- Production remains untouched.
+
+### CARRY-FORWARD AFTER MESSAGE 14
+- Future Passport Dimensions remain OPEN for product-value, privacy, UX, inferability, and explicit contract decisions.
+- Customer Beauty AI remains OPEN / NOT DONE pending structured intent contract, privacy/safety design, provider/model decision, fallback behavior, observability/audit, cost/latency envelope, implementation, and end-to-end verification.
+- Message 39 Browser Gate remains OPEN / NOT EVIDENCED.
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Message 9 notification Browser/provider/Production delivery evidence remains open.
+- Message 10 Passport Browser journey evidence remains open.
+- Message 11 Recommendation Browser evidence remains open; backend/source-level recommendation surface is present.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
