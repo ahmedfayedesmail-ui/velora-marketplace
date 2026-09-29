@@ -3418,3 +3418,19 @@ DECISION:
 - No product-image Storage subsystem.
 - Platform Auth leaked-password protection remains OPEN until the Supabase project plan/configuration permits enabling it.
 - Performance Advisor findings remain an optimization queue, not a correctness blocker.
+
+
+### Continuation Seller Onboarding Action Flow / Audit Coverage — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW / BROWSER EVIDENCE REMAINS AGGREGATE GATE
+
+OBSERVED FACT:
+- Seller onboarding control plane is implemented in src/scripts/69-s1-d-seller-onboarding.js and delegates mutations to velora_upsert_seller_onboarding_case().
+- The RPC is Staff-only, validates every lifecycle field against the canonical enum/status contract, enforces evidence JSON shape and note/rejection length limits, updates submitted/reviewed/activated/rejected timestamps, and writes seller_onboarding_case_updated audit evidence with before/after lifecycle state.
+- Beta-ready is deterministic and requires application approved, identity verified, catalog approved, SLA accepted, pilot active/passed, authenticity verified/not_required, plus required contact fields in the UI.
+- Transactional Restore-Test verification as Admin showed the RPC returns a governed update result and creates seller_onboarding_case_updated audit evidence; the transaction was rolled back.
+- No direct table-write path is used by the control-plane UI.
+
+DECISION:
+- Seller onboarding Action Flow is closed at source/DB/audit level.
+- A no-op governed save currently still produces an audit row; this is audit noise, not a correctness/security gap, and no speculative refactor is justified.
