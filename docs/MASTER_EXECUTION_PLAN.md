@@ -7893,3 +7893,218 @@ HUMAN EXCEPTION -> exceptional refund/financial governance only
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
 - Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
 - Paymob webhook legacy processor retirement and current v30 webhook canonical routing are complete in Restore-Test.
+
+## 2026-09-29 — MESSAGE 19/24 EXECUTION / LEGAL + OWNER GOVERNANCE + RBAC NEGATIVE-PATH HARDENING
+
+CLASSIFICATION:
+- Message 19 executed against Restore-Test on branch `audit/runtime-parity-2026-09-28`.
+- Production remained untouched and frozen.
+- No new schema, policy, legal content, Owner-only mutation engine, or duplicate security/RBAC engine was introduced.
+- Execution focused on proving the existing server-authoritative Legal/RBAC contracts and reconciling the current Owner Dashboard boundary without speculative rebuilding.
+
+### 60. LEGAL
+
+CURRENT RESTORE-TEST STATE:
+- `public.legal_documents` contains 4 historical QA documents.
+- All 4 are `retired`.
+- Current published legal document count = 0.
+- Therefore the checkout legal prerequisite remains intentionally fail-closed; no new legal content was published.
+- Current retired document examples include:
+  - terms_of_service / ar / `0.0-QA-2026-09-27`
+  - privacy_policy / ar / `0.0-QA-2026-09-27`
+  - privacy_policy / en / `0.0-QA-2026-09-27`
+  - terms_of_service / en / `0.0-QA-2026-09-27`
+
+SERVER AUTHORITY VERIFIED:
+- `velora_publish_legal_document(uuid,timestamptz)` is `SECURITY DEFINER`, with `auth.uid()` and Owner-role enforcement.
+- Non-Owner publication returns `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- Publication additionally requires the selected document to exist and already be `approved`; otherwise it returns `LEGAL_DOCUMENT_MUST_BE_APPROVED`.
+- `velora_upsert_legal_document(...)` allows normal staff preparation states but requires Owner approval for `approved`, `published`, or `retired`.
+
+NEGATIVE-PATH EXECUTION:
+- Admin -> `velora_upsert_legal_document(..., status='approved', ...)` -> `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- Customer -> same approved-status upsert -> `STAFF_ONLY`.
+- Admin -> `velora_publish_legal_document(existing_retired_doc,...)` -> `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- Customer -> same publish attempt -> `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- The Owner publish path was not used to create or publish a test document. No fake legal document, temporary legal acceptance, or bypass was introduced.
+
+LEGAL TABLE CONTRACT:
+- `legal_documents` RLS is enabled.
+- Current policies are read-only/public-safe published-read plus staff-read-all; there is no INSERT/UPDATE/DELETE policy granting ordinary API actors a direct mutation path.
+- Table grants themselves are broad at the PostgreSQL privilege layer, but row-level policy remains the effective client-facing write boundary.
+- Current published count remains 0 after testing.
+
+LEGAL STATUS:
+- Legal publication architecture / server authority = CLOSED-DONE.
+- Actual legal publication prerequisite = OPEN (awaiting legitimate reviewed/approved legal content).
+- Checkout legal fail-closed behavior remains intentional and correct.
+- No legal implementation change was justified by Message 19.
+
+### 61. OWNER DASHBOARD / GOVERNANCE
+
+SOURCE-VERIFIED ENTRY:
+- Canonical Owner entry is `openCanonicalOwner()` -> `openCanonicalAdmin('owner')`.
+- `openCanonicalAdmin(requiredRole)` authenticates the current user, reads canonical `user_roles`, requires `admin` or `owner`, and for Owner entry explicitly requires the `owner` role.
+- The UI labels the shared operations shell as `Owner Dashboard` when the canonical role set contains Owner.
+- The current shell has 13 navigation entries across Overview, Operations, and System.
+- Existing sections include seller/product/order/user operations, audit, seller applications/onboarding, promotions, coupons, gift cards, trust/compliance, and legal.
+
+IMPORTANT ARCHITECTURAL FINDING:
+- The current Owner surface is a role-protected first-class route, but it is still implemented as a governed extension of the canonical Admin controller rather than as a second independent Owner engine.
+- This reuse is consistent with the non-negotiable reuse-first rule and avoids duplicate navigation/authorization/business logic.
+- The current implementation does NOT yet provide complete Owner-only operational coverage for every governance domain described in the Master model (for example: complete subscription governance, advertising governance, full payout/settlement tooling, release/backup visibility, complete exception tooling, and a complete privileged action matrix).
+- No speculative Dashboard rebuild was made because Message 19 does not define the missing Owner contract or exact UI/action schema.
+- Browser proof remains unavailable for the aggregate Owner route; source role-gating is not promoted to Browser PASS.
+
+OWNER STATUS:
+- Canonical Owner entry / server role gate = CLOSED-DONE at L1-L3.
+- Full Owner Dashboard coverage = OPEN.
+- Full privileged action matrix = OPEN.
+- Full exception tooling = OPEN.
+- Launch/backup/rollback visibility = OPEN.
+- Browser verification = NOT EVIDENCED.
+- End-to-end governance proof = OPEN.
+
+### 62. SECURITY / RBAC
+
+CURRENT TARGETED SECURITY BASELINE:
+- Current public `SECURITY DEFINER` function count = 255.
+- Current public `SECURITY DEFINER` functions executable by `anon` = 7.
+- The 7 anon-executable SECURITY DEFINER functions are intentional read surfaces:
+  1. `velora_get_active_seller_ads`
+  2. `velora_get_fx_rate`
+  3. `velora_get_i18n_catalog`
+  4. `velora_get_localized_content`
+  5. `velora_get_marketplace_catalog`
+  6. `velora_get_required_legal_documents`
+  7. `velora_list_active_promotions`
+- Targeted review of privileged writers confirmed explicit authentication/role/ownership gates where applicable.
+- Current targeted checks found the privileged writers relevant to Message 19 have explicit `SET search_path` clauses.
+
+CURRENT SECURITY ADVISOR / SCHEMA FINDINGS:
+- Current RLS-enabled/no-policy table set observed = 4:
+  - `billing_instruments`
+  - `paymob_card_tokenization_sessions`
+  - `regional_pricing`
+  - `seller_subscription_renewal_jobs`
+- `pg_net` is installed in `public`, matching the known advisor warning boundary.
+- The advisor's large SECURITY DEFINER warning count must not be interpreted as an equal vulnerability count; targeted function review is the authoritative classification for each callable writer/read surface.
+- Leaked-password protection remains a separate Auth warning and is not being silently treated as closed by Message 19.
+- No blanket revoke of SECURITY DEFINER functions was performed.
+- No synthetic RLS policies were added.
+
+PRIVILEGED NEGATIVE-PATH EXECUTION:
+- Admin approved-status Legal upsert -> `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- Customer Legal upsert -> `STAFF_ONLY`.
+- Admin Legal publish -> `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- Customer Legal publish -> `LEGAL_OWNER_APPROVAL_REQUIRED`.
+- Admin Seller status mutation against a non-existent seller -> `SELLER_NOT_FOUND` after passing staff authorization.
+- Customer Seller status mutation -> `STAFF_ONLY`.
+- Admin Product status mutation against a non-existent product -> `PRODUCT_NOT_FOUND` after passing staff authorization.
+- Customer Product status mutation -> `STAFF_ONLY`.
+- Admin payout execution against a non-existent payout -> `PAYOUT_NOT_FOUND` after passing staff authorization.
+- Customer payout execution -> `STAFF_ONLY`.
+- Customer platform promotion creation -> `STAFF_ONLY`.
+- Customer privileged account action -> `STAFF_ONLY`.
+- `velora_account_action` has no anonymous EXECUTE privilege; its authenticated wrapper still exists for legitimate Staff use and enforces `velora_is_staff()`.
+- The documented Owner-only Gift Card issuance path remains server-gated by Owner role; prior evidence already established Admin/Customer denial and Owner gate passage.
+
+TEST FIXTURE CLEANUP:
+- One temporary inactive Promotion row was accidentally created while probing the Admin-allowed promotion path.
+- It was immediately deleted together with its corresponding promotion audit row using its exact test UUID.
+- Post-cleanup Restore-Test promotion count = 0.
+- Test artifact code `NEG19` is absent after cleanup.
+- No Production data was touched.
+
+SECURITY STATUS:
+- Privileged negative-path hardening = CLOSED-DONE for the Message 19 call set at L1-L4.
+- Residual advisor/schema/Auth hardening items remain OPEN and are carried forward.
+- No broad permission rewrite is justified.
+
+### 63. MESSAGE 19 ACTION FLOW
+
+LEGAL:
+EVENT -> legal document creation/review/publication
+AUTH/ROLE -> authenticated Staff for preparation; Owner for approval/publication
+GUARD -> server-side role + document lifecycle
+VALIDATION -> required content/status/hash/jurisdiction/approval state
+CANONICAL STATE -> legal_documents
+AUTOMATIC SIDE EFFECT -> publication/retirement + legal audit
+AUDIT/DEDUPE -> existing legal audit path and lifecycle constraints
+NEXT EVENT -> checkout legal acceptance gate
+HUMAN EXCEPTION -> legitimate Legal Owner publication/review decision only
+
+OWNER GOVERNANCE:
+EVENT -> Owner enters a governance area or exception flow
+AUTH/ROLE -> authenticated Owner
+GUARD -> canonical role gate
+VALIDATION -> operation-specific server contract
+CANONICAL STATE -> existing domain tables/RPCs (seller, product, order, financial, legal, trust, etc.)
+AUTOMATIC SIDE EFFECT -> existing canonical domain transitions
+AUDIT/DEDUPE -> existing audit/idempotency/reconciliation paths
+NEXT EVENT -> governed operational transition
+HUMAN EXCEPTION -> governance, settlement, fraud/trust, legal, release/rollback, and irreversible decisions only
+
+RBAC:
+EVENT -> privileged RPC invocation
+AUTH/ROLE -> Auth + canonical user_roles
+GUARD -> function-specific staff/owner/ownership guard
+VALIDATION -> operation-specific parameters/state
+CANONICAL STATE -> existing canonical writer
+AUTOMATIC SIDE EFFECT -> existing domain side effects
+AUDIT -> existing privileged operation audit
+RETRY/DEDUPE -> existing canonical idempotency/terminal-state controls where applicable
+NEXT EVENT -> success or explicit denial
+HUMAN EXCEPTION -> only policy/governance exceptions
+
+### MESSAGE 19 EVIDENCE BOUNDARY
+- L1 Source: current platform router and canonical Seller/Admin controller inspected; Owner entry and Owner role gate are source-connected.
+- L2 DB: legal document state, legal RLS policies, function definitions/ACLs, current SECURITY DEFINER counts, anon-executable list, and current RLS-no-policy table set were verified in Restore-Test.
+- L3 Contract/ACL: Owner/Staff guards and the absence of anonymous execute for `velora_account_action` were verified.
+- L4 Negative/transactional: Legal/Seller/Product/Payout/Promotion/Account privileged negative paths were executed; the single accidental Promotion test fixture was explicitly removed and post-cleanup count returned to 0.
+- L5 CI: NO NEW CI RUN; Message 19 did not change application source or deployable provider code.
+- L6 Preview: NO NEW Preview deployment; no UI/source change was made.
+- L7 Browser: Owner Dashboard Browser evidence = NOT EVIDENCED. Complete Browser Gate remains OPEN.
+- L8 Provider: NO NEW provider test.
+- L9 Production: UNTOUCHED / FROZEN.
+
+### MESSAGE 19 NON-NEGOTIABLES RECONFIRMED
+- No fake or published legal content.
+- No temporary legal acceptance created.
+- No legal gate bypass.
+- Owner remains the only publication authority.
+- No blanket SECURITY DEFINER revoke.
+- No synthetic RLS policy creation.
+- No duplicate Owner Dashboard engine.
+- No speculative Owner governance schema.
+- No Production changes.
+- Browser PASS is never inferred from source/DB.
+- Existing canonical business logic remains authoritative.
+
+### CARRY-FORWARD AFTER MESSAGE 19
+- Legal publication readiness = OPEN pending legitimate documents and Owner publication.
+- Owner Dashboard full coverage = OPEN.
+- Full privileged action matrix = OPEN.
+- Exception tooling = OPEN.
+- Launch/backup/rollback visibility = OPEN.
+- Owner end-to-end governance proof = OPEN.
+- Security Advisor residual items (including current RLS-no-policy tables, pg_net warning boundary, and Auth leaked-password warning) remain OPEN for targeted review.
+- Complete Beauty Browser Gate = OPEN / NOT EVIDENCED.
+- Future Passport Dimensions remain OPEN.
+- Customer Beauty AI remains OPEN / NOT DONE.
+- Paymob Production remains OPEN.
+- Subscription commercial/runtime/provider/browser items remain OPEN.
+- Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain OPEN.
+- Promotion/coupon policy gaps beyond cancellation release remain OPEN.
+- Gift Card broader expiry/refund/accounting/fraud/issuance-limit policy items remain OPEN.
+- Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain OPEN.
+- Notification Browser/provider/Production delivery evidence remains OPEN.
+- Passport Browser journey evidence remains OPEN.
+- Recommendation Browser evidence remains OPEN.
+- Seller Dashboard/Admin re-entry Browser issue remains OPEN.
+- Localization FIND-BE-013 remains OPEN.
+- Product Detail canonical contract audit remains OPEN.
+- Shipping visual-vs-canonical discrepancy remains OPEN.
+- Legacy recommendation DB coexistence FIND-BE-028 remains OPEN.
+- Recommendation low-risk duplicate getRecommendations() declaration remains OPEN as source hygiene.
+- Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
