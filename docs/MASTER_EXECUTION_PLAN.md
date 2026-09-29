@@ -12927,3 +12927,73 @@ NEXT ORDERED ACTION:
 2. Preserve the AI provider as an explicit credential gate; do not introduce a mock provider.
 3. When a credentialed backup path is available, generate a real Production logical backup artifact, preserve it off-site, and rehearse restore in non-Production before closing DR.
 4. When Browser capacity becomes available, run the aggregate Browser Gate against the latest runtime-valid Preview.
+
+
+### 160.17 MESSAGE 53 — CUSTOMER BEAUTY AI VISIBILITY CORRECTION + INTERNAL SERVICE BOUNDARY (2026-09-29)
+
+OWNER REQUIREMENT RECONCILIATION:
+- The Customer Beauty AI must NOT be presented as an AI product, chatbot, visible AI assistant, or separate customer-facing feature.
+- The intended experience is natural customer interaction with Velora; AI is an internal implementation detail.
+- This requirement overrides the earlier temporary visible "Describe it your way" entry experiment.
+
+SOURCE FINDING:
+- src/scripts/72-s1-e-customer-beauty-ai.js previously created:
+  - a visible "Describe it your way" customer button;
+  - a dedicated AI modal;
+  - customer-facing AI explanatory copy;
+  - direct customer-facing AI result/confirmation UI.
+- That implementation did not match the final product intent and was corrected rather than preserved.
+
+IMPLEMENTATION:
+- Replaced src/scripts/72-s1-e-customer-beauty-ai.js with an internal-only intent interpreter.
+- Public internal API:
+  - window.veloraBeautyAI.interpret(text)
+  - window.veloraBeautyAI.validateCandidate(candidate)
+  - window.veloraBeautyAI.maxInputChars
+- Compatibility alias:
+  - window.veloraBeautyIntentInterpreter
+- The module:
+  - performs no DOM creation;
+  - adds no buttons/modals/chat;
+  - registers no customer-facing event listeners;
+  - contains no AI-facing customer copy;
+  - does not write the database;
+  - does not select products;
+  - does not mutate commerce state;
+  - delegates persistence/application to the existing canonical Passport V2 caller.
+- Natural-language input remains bounded at 800 characters.
+- Structured decision contract remains:
+  ready / needs_clarification / unsupported / unsafe.
+- Candidate validation remains strict for skin_type, goal, routine_budget and missing_fields.
+- Provider call remains through the existing authenticated Supabase Edge Function boundary.
+- No Production provider configuration was attempted.
+
+TEST HARDENING:
+- tests/customer-beauty-ai-contract.test.mjs was updated to prove:
+  - internal API exists;
+  - no DOM creation/mutation methods are used by the AI module;
+  - prior visible AI modal/entry strings are absent;
+  - existing strict candidate contract remains enforced.
+- This is a blocking contract-level test; Browser/provider evidence is still separate.
+
+STATUS:
+- Customer-facing AI visibility correction = CLOSED-DONE at source + contract scope.
+- AI internal service boundary = CLOSED-DONE at source + contract scope.
+- Live LLM provider = BLOCKED / NOT CONFIGURED.
+- AI Browser E2E = OPEN / NOT EVIDENCED.
+- No claim of live AI success.
+- No Production change.
+- No architecture rewrite.
+- No MutationObserver.
+- No arbitrary routing listener.
+- No Supabase schema change.
+
+IMPORTANT PRODUCT BOUNDARY:
+- Do NOT reintroduce a visible AI button, modal, chat, "AI" badge, or customer-facing AI explanation unless the owner explicitly changes the product requirement.
+- When the internal interpreter is later connected to an existing natural-language customer input surface, that surface must remain a normal Velora experience; the AI implementation must stay behind the boundary.
+- Existing deterministic Passport V2 -> Routine -> Recommendation -> Routine Cart remains canonical.
+
+NEXT ORDERED ACTION:
+1. Intentional Restore-Test provider configuration is the only remaining AI engineering blocker.
+2. Once provider credentials/model are intentionally configured, run real authenticated provider execution and Browser E2E.
+3. Then continue the next non-legal Master track; do not reopen the visible-AI implementation.
