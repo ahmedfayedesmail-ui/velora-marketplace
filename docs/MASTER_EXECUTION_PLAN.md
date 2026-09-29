@@ -497,8 +497,7 @@ GUARD: launch-control contract + evidence layers
 VALIDATION: all required launch gates and exact artifact/Preview references
 CANONICAL STATE: gate statuses / release readiness
 AUTOMATION: audits collect evidence; release promotion remains governed
-NEXT EVENT: ready-to-promote or remediation
-HUMAN EXCEPTION: final release/cutover authorization
+NEXT EVENT: ready-to-promote or remediationHUMAN EXCEPTION: final release/cutover authorization
 
 ### AUTOMATION POLICY FOR MESSAGE 2
 
@@ -997,8 +996,7 @@ OBSERVED FACT:
 - Canonical coupon application remains customer-order locked, usage-limited, currency/amount validated, idempotent per coupon/order, and audited.
 - Automatic promotion selection remains single-promotion/non-stacking by current canonical priority behavior.
 - Order cancellation contains canonical coupon and promotion reversal logic: delete matching redemption, decrement used_count with floor at zero, and audit the release.
-- Transactional probes confirmed Staff-only promotion creation and canonical rejection of free_shipping with PROMOTION_TYPE_NOT_SUPPORTED.
-- No seller-owned promotion engine exists; current platform promotion scope is global.
+- Transactional probes confirmed Staff-only promotion creation and canonical rejection of free_shipping with PROMOTION_TYPE_NOT_SUPPORTED.- No seller-owned promotion engine exists; current platform promotion scope is global.
 
 OPEN:
 - free_shipping semantics
@@ -1497,8 +1495,7 @@ CLASSIFICATION: POLICY CLOSED / IMPLEMENTATION NOT YET REQUIRED
 Non-negotiable future constraints:
 - never invent products, ingredients, availability, pricing, or catalog facts
 - never make unsupported medical claims
-- never bypass approval, stock, budget, currency, or canonical eligibility
-- never mutate orders, payments, commissions, payouts, gift-card balances, refunds, seller status, fraud decisions, or irreversible governance
+- never bypass approval, stock, budget, currency, or canonical eligibility- never mutate orders, payments, commissions, payouts, gift-card balances, refunds, seller status, fraud decisions, or irreversible governance
 - never replace canonical DB/business rules
 - never create a second unexplained reason-code system
 
@@ -1998,7 +1995,6 @@ OBSERVED PRE-FIX GAP:
 - Prior to this fix, src/scripts/00-localization.js did not contain a real active Owner platform implementation. Its fallback window.openOwnerPlatform routed to window.switchPlatform('owner'), while the legacy switchPlatform('owner') only displayed “Owner Center (coming next)” and did not open a real Owner surface.
 - This created a concrete route-to-no-op path: the router could recognize #owner while the captured opener did not provide a real Owner control surface.
 - The canonical Admin/Owner implementation already existed in 12-localization.js and correctly authenticated Admin/Owner roles.
-
 SMALLEST SAFE CHANGE IMPLEMENTED:
 - openCanonicalAdmin(requiredRole=null) now accepts an optional role requirement.
 - openCanonicalOwner() calls the existing canonical Admin shell with requiredRole='owner'.
@@ -2497,8 +2493,7 @@ OBSERVED CURRENT SNAPSHOT:
 - payments = 11
 - commissions = 15
 - payouts = 0
-- seller_payout_items = 0
-- ledger_entries = 2
+- seller_payout_items = 0- ledger_entries = 2
 
 RULES:
 - Every stage retains its own state.
@@ -2998,7 +2993,6 @@ Payment/order event -> canonical state check -> correlate attempt/order/payment 
 
 
 ### Continuation Seller Dashboard Re-entry RCA + Route-State Hardening — 2026-09-29
-
 CLASSIFICATION: SOURCE CONTRACT GAP CLOSED; BROWSER GATE BLOCKED / NOT EVIDENCED
 
 OBSERVED FACT:
@@ -3498,7 +3492,6 @@ PAYOUT UI:
 CURRENT BRANCH HEAD:
 - Current observed continuation branch HEAD is 41689462a807dba7798dda10f56101bc1a25c231 at the time of this ledger update.
 - This HEAD is not yet represented by a verified latest Vercel Preview because the current Vercel build-rate-limit blocker affects newer commits.
-
 ACTION FLOW:
 Customer cancellation:
 Customer opens Orders -> canonical order state -> cancellable guard -> existing velora_cancel_order -> stock/commission/payment/order compensation -> audit -> Orders refresh.
@@ -3997,7 +3990,6 @@ OBSERVED FACT:
 - Current Restore-Test Auth warning remains Leaked Password Protection Disabled. This is an Auth configuration/plan boundary, not an application-code defect.
 - pg_net remains non-relocatable and is actively referenced by cron; moving/replacing it would be a platform migration, not a lint cleanup.
 - Product image storage remains intentionally URL-based. Seller UI uses image URLs, no file-upload caller exists, and Restore-Test has zero storage buckets.
-
 DECISION:
 - No blanket SECURITY DEFINER revocation.
 - No synthetic RLS policies.
@@ -4497,8 +4489,7 @@ Provider payment intent
 -> provider transaction result
 -> HMAC-verified callback as primary source
 OR
--> Paymob Transaction Inquiry via existing reconciliation fallback if callback is missed
--> provider-state normalization using explicit + MIGS semantics
+-> Paymob Transaction Inquiry via existing reconciliation fallback if callback is missed-> provider-state normalization using explicit + MIGS semantics
 -> canonical payment_attempt/order/payment transition
 -> commission + ledger + audit side effects
 -> webhook dedupe / monotonic state
@@ -4997,8 +4988,7 @@ HUMAN EXCEPTION: none
 OBSERVED FACT:
 - Customer UI: src/scripts/65-s1-d-beauty-feedback.js.
 - Canonical customer purchase experience is submitted through velora_submit_beauty_feedback.
-- Purchase feedback requires a delivered/completed order, matching order item, product and variant.
-- Idempotency is keyed by the purchase-derived browser key and enforced server-side.
+- Purchase feedback requires a delivered/completed order, matching order item, product and variant.- Idempotency is keyed by the purchase-derived browser key and enforced server-side.
 - Feedback signal is private.velora_beauty_feedback_signal(), returning -1 / 0 / +1 from the latest approved feedback.
 - Routine and Recommendation reuse this existing signal.
 - Current live feedback rows = 2: approved = 1, pending = 1.
@@ -5497,8 +5487,7 @@ REUSE RULE:
 - Do not create another inquiry engine, webhook processor, reconciliation engine, or payment state machine.
 - New investigation requires new observed evidence, not historical symptoms.
 
-### 46. PAYMOB CANONICAL ARCHITECTURE
-CLASSIFICATION:
+### 46. PAYMOB CANONICAL ARCHITECTURECLASSIFICATION:
 - CLOSED-DONE
 
 CANONICAL FLOW:
@@ -5997,8 +5986,7 @@ DECISION:
 - Do not add synthetic RLS policies merely to silence Advisor.
 - Review future SECURITY DEFINER additions under the same explicit search_path + role/ownership guard discipline.
 
-ACTION FLOW:
-EVENT: role-sensitive operation
+ACTION FLOW:EVENT: role-sensitive operation
 AUTH/ROLE: Authenticated/Staff/Owner according to operation
 GUARD: function-body role checks + RLS/grants
 VALIDATION: operation-specific authorization
@@ -6497,8 +6485,7 @@ EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> STORE
 - Product re-review notification uses the existing `private.velora_notify_product_status()` path and emits `product_re_review_required`; Staff approval emits `product_approved`.
 - Restore-Test transactional verification was executed and rolled back:
   - price-only update -> Product remained `approved`;
-  - material name edit -> Product became `pending` and `product_re_review_required` count increased;
-  - Staff approval -> Product became `approved` and `product_approved` count increased;
+  - material name edit -> Product became `pending` and `product_re_review_required` count increased;  - Staff approval -> Product became `approved` and `product_approved` count increased;
   - Arabic translation change -> Product became `pending` with `review_required=true`.
 - An initial test assertion incorrectly checked only the latest notification row; this was corrected to compare notification counts, after which the approval notification path passed. This is recorded as harness correction, not a Product notification defect.
 - No second moderation/review engine was introduced.
@@ -6997,8 +6984,7 @@ CLASSIFICATION: EXECUTED — Canonical Routine Engine, Beauty Journey/Feedback/R
 - No Production mutation.
 - Browser PASS is not inferred from source/DB evidence.
 
-### CARRY-FORWARD AFTER MESSAGE 12
-- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+### CARRY-FORWARD AFTER MESSAGE 12- Message 6 subscription commercial/runtime/provider/browser open items remain open.
 - Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
 - Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
 - Message 9 notification Browser/provider/Production delivery evidence remains open.
@@ -7010,3 +6996,181 @@ CLASSIFICATION: EXECUTED — Canonical Routine Engine, Beauty Journey/Feedback/R
 - Shipping visual-vs-canonical discrepancy remains open.
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
+
+
+## 2026-09-29 — MESSAGE 13/24 EXECUTION / FUTURE PASSPORT DIMENSIONS + CUSTOMER BEAUTY AI
+CLASSIFICATION:
+- MESSAGE 13 EXECUTED.
+- Future Passport dimensions remain OPEN BY DESIGN; no speculative questionnaire expansion was justified.
+- Customer Beauty AI remains OPEN / NOT DONE.
+- Existing Governance AI is confirmed as a separate, staff-governed rule-assistance layer and must not be labeled as customer Beauty LLM/AI.
+
+### 32. FUTURE PASSPORT DIMENSIONS — RESEARCH + DECISION
+CURRENT CONTRACT:
+- The customer V2 write surface remains exactly three questions: skin_type, goal, routine_budget.
+- The live beauty_profiles table also contains optional fields: concern, texture_preference, effect_preference, avoidance_preferences, shopping_priority.
+- No new column, token, or questionnaire field was added by Message 13.
+
+RESTORE-TEST LIVE BASELINE:
+- beauty_profiles rows = 2.
+- concern populated = 0.
+- texture_preference populated = 0.
+- effect_preference populated = 0.
+- avoidance_preferences non-empty = 0.
+- shopping_priority populated = 0.
+- avoidance_preferences is structurally present and currently defaults/behaves as an empty JSON object for the observed profiles.
+
+DECISION-IMPACT RESEARCH:
+- concern has REAL CURRENT ROUTINE impact: the deterministic Routine engine reads it for product matching/scoring and includes it in the current input fingerprint.
+- avoidance_preferences has REAL CURRENT ROUTINE impact: the deterministic Routine engine excludes products whose ingredients/tags conflict with the customer's configured avoidance lists.
+- texture_preference currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint, so changing it can invalidate/rebuild the deterministic routine, but it is not itself used as a current scoring/filter criterion.
+- effect_preference currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint but not used as a current scoring/filter criterion.
+- shopping_priority currently has NO DIRECT PRODUCT-SELECTION EFFECT in the inspected Routine engine; it is included in the input fingerprint but not used as a current scoring/filter criterion.
+- The current Beauty Recommendation V2 engine does NOT consume concern, texture_preference, effect_preference, avoidance_preferences, or shopping_priority in its active candidate input/scoring contract. Its current input snapshot is based on the V2 three-question Passport values plus approved-feedback revision.
+- Therefore the five optional dimensions do not currently have uniform downstream value: two affect deterministic Routine behavior (concern/avoidance), while three are currently fingerprint-only, and none is part of the active Recommendation V2 decision input.
+
+REQUIRED PRODUCT PROCESS STATUS:
+- Research: EXECUTED at current source + DB contract level.
+- Signal value: MIXED; direct decision value is demonstrated only for concern and avoidance_preferences in the current Routine engine.
+- Inferability: NOT EVIDENCED. There is no measured customer-data basis in the current Restore-Test population proving customers will reliably supply these fields or that inferred values would be safe.
+- Decision impact: ROUTINE-ONLY today for concern/avoidance; no direct Recommendation impact today.
+- Persistence value: PARTIAL. Persistence affects routine freshness/fingerprint for all five, but only concern/avoidance currently change selection behavior.
+- Privacy / UX review: OPEN PRODUCT DECISION. These are optional preference/beauty-context signals and must not be collected merely because the columns exist; future collection requires an explicit value proposition, minimization decision, user-facing explanation, validation contract, and review of friction.
+- Contract mapping: CLOSED for the current V2 surface — the three-question writer remains authoritative and does not accept these five fields.
+- Implementation: DEFERRED BY EVIDENCE. No new questionnaire fields, migrations, inference engine, or alternate Passport write path were introduced.
+- Verification: PASS for preservation behavior. A transactional fixture populated all five optional dimensions, executed velora_save_beauty_passport_v2() as an authenticated identity, verified that all five optional values remained unchanged, then rolled back the fixture.
+
+IMPORTANT NON-NEGOTIABLE:
+- The existence of optional DB columns is NOT sufficient evidence to promote them to first-class customer questions.
+- Do not add concern, sensory preference, ingredient/tag avoidance, shopping priority, or other Passport questions until the full sequence has an explicit product decision and measurable signal-value rationale.
+
+### 33. CUSTOMER BEAUTY AI — CURRENT STATE
+STATUS:
+- CUSTOMER BEAUTY AI = NOT DONE.
+- No customer-facing LLM runtime, model invocation layer, or customer Beauty AI decision endpoint was implemented by Message 13.
+
+LIVE RESTORE-TEST COUNTS:
+- ai_decision_runs = 0.
+- ai_decision_signals = 0.
+- proposed = 0.
+- requires_human_approval = 0.
+- executed = 0.
+- These are empty governance/decision records, not hidden customer AI usage.
+
+RUNTIME / REPOSITORY EVIDENCE:
+- The current package manifest contains only the existing web-push dependency; no OpenAI, Anthropic, Gemini, or other customer LLM SDK is declared.
+- The current Restore-Test Edge Function inventory contains no customer Beauty AI / LLM function. Existing deployed functions are commerce, payments, notifications, subscriptions, ads, and supporting Restore-Test infrastructure.
+- The current customer index has an AI Beauty Disclaimer link in the Legal/Trust footer, but there is no customer AI chat/interpretation surface mounted by Message 13.
+- Therefore the correct classification is NOT DONE, not "partially implemented customer AI".
+
+### 34. CURRENT "AI" FUNCTIONS — GOVERNANCE TOOLING ONLY
+EXISTING FUNCTIONS:
+- velora_generate_ai_signals()
+- velora_get_ai_decision_center()
+- velora_update_ai_decision(uuid,text)
+
+OBSERVED BEHAVIOR:
+- These functions are rule-assisted governance tooling, not a customer Beauty LLM.
+- velora_generate_ai_signals() is SECURITY DEFINER but explicitly requires velora_is_staff() and generates deterministic governance signals such as reconciliation backlog, payment-failure spikes, and shipment exceptions.
+- velora_get_ai_decision_center() is SECURITY DEFINER and also requires velora_is_staff().
+- velora_update_ai_decision(...) requires an authenticated staff identity, validates allowed state transitions, and blocks execution when required human approval has not been satisfied.
+- The AI decision tables are RLS-enabled.
+- The function ACL currently permits authenticated/service_role/postgres execution but excludes anon; authorization is enforced in the function bodies through staff checks.
+- Negative-path verification with a real active customer identity confirmed that a non-staff customer cannot invoke velora_generate_ai_signals() or velora_get_ai_decision_center(); both failed closed with "staff access required".
+- An earlier probe using a V2 admin/owner account was discarded as invalid customer evidence; the corrected non-staff customer probe is the evidence recorded here.
+
+ARCHITECTURAL RULE:
+- Never describe these rule-assisted governance functions as a Customer Beauty AI / Beauty LLM.
+- Their scope is operational/governance signal generation and human-governed decision handling.
+
+### 35. FUTURE CUSTOMER BEAUTY AI — LOCKED BOUNDARY
+PLANNED DATA/CONTROL FLOW:
+Customer input
+-> AI interpretation
+-> structured candidate intent
+-> canonical validation
+-> deterministic Recommendation / Routine
+-> AI explanation
+-> Customer
+
+HARD BOUNDARIES:
+- AI may interpret natural-language/customer intent.
+- AI may propose structured candidate intent.
+- Canonical server logic must validate the candidate before any downstream use.
+- Deterministic Recommendation and Routine remain authoritative for product eligibility, inventory, price, budget, market/currency, feedback signal, availability, and routine/recommendation selection.
+- AI must NOT own the product catalog.
+- AI must NOT own inventory.
+- AI must NOT own prices or monetary state.
+- AI must NOT own seller governance.
+- AI must NOT own refunds, returns, payouts, gift-card balances, financial reconciliation, or irreversible account/order mutations.
+- AI must NOT bypass existing authorization, approval, RLS, commerce, inventory, legal, or state-transition guards.
+- Structured output / function-calling is the intended interface style for any future model boundary.
+- The first future implementation should be an interpretation boundary with explicit schema validation and no direct canonical-state mutation.
+
+IMPLEMENTATION DECISION:
+- Do NOT add an LLM provider, API key, model call, customer chat surface, AI routine engine, or AI recommendation engine during Message 13.
+- Do NOT duplicate the existing deterministic Routine/Recommendation engines.
+- Do NOT move business rules into a prompt.
+- Do NOT let model output directly mutate orders, carts, inventory, payments, refunds, subscriptions, payouts, promotions, or gift cards.
+- The future Customer AI work remains OPEN pending product requirements, privacy/consent decision, structured intent contract, model/provider decision, safety policy, fallback behavior, observability/audit contract, cost/latency envelope, and end-to-end verification.
+
+### MESSAGE 13 ACTION FLOW
+FUTURE PASSPORT DIMENSIONS:
+EVENT: customer edits/creates Beauty Passport
+AUTH/ROLE: authenticated customer
+GUARD: current V2 Passport ownership + exact existing three-question contract
+VALIDATION: exact V2 token sets
+CANONICAL STATE: velora_save_beauty_passport_v2
+AUTOMATIC SIDE EFFECT: routine freshness/recompute can occur from the canonical fingerprint when already-supported signals change
+AUDIT/RETRY/DEDUPE: existing canonical write/idempotent downstream behavior
+NEXT EVENT: current Routine / Recommendation surfaces
+HUMAN EXCEPTION: only explicit product/privacy/governance decisions for any future field promotion
+
+CUSTOMER BEAUTY AI (FUTURE):
+EVENT: customer provides a natural-language beauty request
+AUTH/ROLE: authenticated customer
+GUARD: input safety + structured-output schema + canonical eligibility validation
+VALIDATION: model output is treated as a candidate intent, not business truth
+CANONICAL STATE: no direct AI-owned commerce state; existing Routine/Recommendation APIs remain authoritative
+AUTOMATIC SIDE EFFECT: deterministic routine/recommendation computation and explanation presentation
+AUDIT/RETRY/DEDUPE: future AI call/request identifiers, structured output validation, bounded retries, and explicit audit trail
+NEXT EVENT: customer sees deterministic products/routine plus model explanation
+HUMAN EXCEPTION: only defined safety/policy/provider ambiguity/governance cases; never as a replacement for normal deterministic flow
+
+### MESSAGE 13 EVIDENCE BOUNDARY
+- L1 Source: current V2 three-question writer, routine/recommendation implementation boundaries, package manifest, and customer index/runtime surface were inspected.
+- L2 DB: optional Passport columns/current population, AI table counts, AI table RLS, live AI function definitions, and function ACLs were verified against Restore-Test project arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL: current three-parameter V2 write contract, staff-only governance AI guards, RLS, and future AI separation from deterministic commerce decisions were verified.
+- L4 Negative / transactional: optional-field preservation transaction passed and rolled back; corrected non-staff customer calls to Governance AI failed closed; final AI table counts remained 0/0.
+- L5 CI: NO NEW CI RUN. Message 13 made no application runtime source/schema change.
+- L6 Preview: NO NEW PREVIEW DEPLOYMENT. No customer-facing source change was justified.
+- L7 Browser: NOT EVIDENCED. No Browser PASS is inferred for future Passport dimensions or Customer Beauty AI.
+- L8 Provider: NOT APPLICABLE. No Customer Beauty AI provider was invoked.
+- L9 Production: UNTOUCHED / FROZEN.
+
+### MESSAGE 13 NON-NEGOTIABLES RECONFIRMED
+- No speculative Passport questionnaire expansion.
+- No new Passport schema or alternate persistence engine.
+- No Customer Beauty LLM implementation without an explicit contract and product/privacy decision.
+- Existing Governance AI must remain separated from Customer Beauty AI.
+- Deterministic Routine/Recommendation remains authoritative.
+- No AI business-rule ownership.
+- No arbitrary client-side workaround or duplicate engine.
+- Browser PASS is not inferred from Source/DB evidence.
+- Production remains untouched.
+
+### CARRY-FORWARD AFTER MESSAGE 13
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Message 9 notification Browser/provider/Production delivery evidence remains open.
+- Message 10 Passport Browser journey evidence remains open.
+- Message 11 Recommendation Browser evidence remains open; backend/source-level recommendation surface is present.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
+- Message 13 Future Passport dimensions remain OPEN for explicit product research/decision before any questionnaire expansion.
+- Message 13 Customer Beauty AI remains OPEN / NOT DONE pending the future contract, privacy/safety/provider design, implementation, and Browser/provider verification.
