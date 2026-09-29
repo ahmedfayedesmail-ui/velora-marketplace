@@ -85,6 +85,12 @@ assert.ok(
 );
 
 assert.ok(
+  source.includes('if (!STATE.user && window.mahaSupabase && window.mahaSupabase.auth)') &&
+  source.includes('}, 750);'),
+  'Startup must retry the existing auth initializer once when Velora identity is still absent'
+);
+
+assert.ok(
   source.includes('(code|access_token|refresh_token|type)'),
   'Callback hydration retry must only target recognized auth callback URL fields'
 );
