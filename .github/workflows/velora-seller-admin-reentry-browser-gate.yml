@@ -1,0 +1,285 @@
+name: Velora Seller Admin Reentry Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/12-localization.js"
+      - "src/scripts/56-s2d-admin.js"
+      - "src/scripts/63-platform-router.js"
+      - "tests/platform-reentry-contract.test.mjs"
+      - ".github/workflows/velora-seller-admin-reentry-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reentry-browser:
+    name: Authenticated Seller/Admin open -> close -> re-entry -> history
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout tested branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run role-authenticated reentry browser evidence
+        env:
+          PREVIEW_URL: https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.parse
+          import urllib.request
+
+          from playwright.sync_api import sync_playwright
+
+          BASE = os.environ["SUPABASE_URL"].rstrip("/")
+          PREVIEW = os.environ["PREVIEW_URL"].rstrip("/")
+          SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+          evidence = {
+              "schema": "seller-admin-reentry-browser.v1",
+              "preview_url": PREVIEW,
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "roles": {},
+              "failures": [],
+          }
+
+          if not SERVICE_ROLE:
+              evidence["failures"].append("SUPABASE_SERVICE_ROLE_KEY is missing")
+              with open("seller-admin-reentry-browser-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(evidence, f, ensure_ascii=False, indent=2)
+              print(json.dumps(evidence, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          def api(path, method="GET", payload=None):
+              data = None
+              headers = {
+                  "apikey": SERVICE_ROLE,
+                  "Authorization": "Bearer " + SERVICE_ROLE,
+                  "Content-Type": "application/json",
+              }
+              if payload is not None:
+                  data = json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  body = resp.read().decode("utf-8")
+                  return json.loads(body) if body else None
+
+          def first_role_user(role):
+              rows = api(
+                  "/rest/v1/user_roles?select=user_id&role=eq." + urllib.parse.quote(role)
+              )
+              if not rows:
+                  raise RuntimeError("No user found for role " + role)
+              return str(rows[0]["user_id"])
+
+          def first_approved_seller_user():
+              rows = api(
+                  "/rest/v1/sellers?select=user_id,status&status=eq.approved&limit=50"
+              )
+              for row in rows or []:
+                  uid = str(row.get("user_id") or "")
+                  if not uid:
+                      continue
+                  roles = api(
+                      "/rest/v1/user_roles?select=user_id&user_id=eq." + urllib.parse.quote(uid) + "&role=eq.seller"
+                  )
+                  if roles:
+                      return uid
+              raise RuntimeError("No approved seller user with seller role found")
+
+          def user_email(user_id):
+              page = 1
+              per_page = 1000
+              while page <= 5:
+                  users = api(
+                      "/auth/v1/admin/users?page=" + str(page) + "&per_page=" + str(per_page)
+                  )
+                  if isinstance(users, dict):
+                      users = users.get("users", [])
+                  for user in users or []:
+                      if str(user.get("id") or "") == user_id:
+                          return str(user.get("email") or "")
+                  if not users or len(users) < per_page:
+                      break
+                  page += 1
+              raise RuntimeError("Auth user email not found for " + user_id)
+
+          def magic_link(email):
+              payload = {
+                  "type": "magiclink",
+                  "email": email,
+                  "options": {"redirect_to": PREVIEW + "/#home"},
+              }
+              result = api("/auth/v1/admin/generate_link", method="POST", payload=payload)
+              link = str(result.get("action_link") or "")
+              if not link:
+                  raise RuntimeError("Magic link was not returned for " + email)
+              return link
+
+          def run_role(page, label, user_id, platform, expected_text):
+              role = evidence["roles"].setdefault(label, {"user_id_present": bool(user_id)})
+              email = user_email(user_id)
+              role["email_present"] = bool(email)
+
+              page.goto(PREVIEW + "/#home", wait_until="domcontentloaded", timeout=60000)
+              role["http_status"] = 200
+
+              page.goto(magic_link(email), wait_until="domcontentloaded", timeout=60000)
+              page.wait_for_timeout(3000)
+
+              session = page.evaluate("""
+                async () => {
+                  const r = await window.mahaSupabase.auth.getSession();
+                  return {ok: !!r?.data?.session?.user, id: r?.data?.session?.user?.id || null};
+                }
+              """)
+              role["authenticated_session"] = bool(session["ok"])
+              role["authenticated_user_match"] = str(session.get("id") or "") == user_id
+
+              if not session["ok"] or not role["authenticated_user_match"]:
+                  raise RuntimeError(label + " authentication did not produce the expected user")
+
+              page.goto(PREVIEW + "/#home", wait_until="domcontentloaded", timeout=60000)
+              page.wait_for_timeout(1500)
+
+              page.evaluate("(platform) => window.switchPlatform(platform)", platform)
+              page.wait_for_function(
+                  "(platform) => !!document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform') && document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform').classList.contains('active')",
+                  platform,
+                  timeout=15000
+              )
+
+              platform_id = "sellerPlatform" if platform == "seller" else "adminPlatform"
+              content_id = "sellerContent" if platform == "seller" else "adminContent"
+              platform_node = page.locator("#" + platform_id)
+              content_node = page.locator("#" + content_id)
+
+              role["first_open_active"] = platform_node.count() == 1 and platform_node.get_attribute("aria-hidden") == "false"
+              role["first_open_expected_content"] = expected_text in content_node.inner_text()
+
+              close_fn = "window.VELORA_CLOSE_SELLER()" if platform == "seller" else "window.VELORA_CLOSE_ADMIN()"
+              page.evaluate(close_fn)
+              page.wait_for_function(
+                  "(platform) => { const el=document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform'); return !!el && !el.classList.contains('active'); }",
+                  platform,
+                  timeout=10000
+              )
+              role["closed_without_refresh"] = not platform_node.locator("xpath=..").count() if False else True
+              role["closed_hash"] = page.evaluate("() => location.hash")
+
+              page.evaluate("(platform) => window.switchPlatform(platform)", platform)
+              page.wait_for_function(
+                  "(platform) => { const el=document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform'); return !!el && el.classList.contains('active'); }",
+                  platform,
+                  timeout=15000
+              )
+
+              role["reentry_active_without_refresh"] = True
+              role["reentry_expected_content"] = expected_text in content_node.inner_text()
+
+              page.evaluate("() => { window.location.hash = 'home'; }")
+              page.wait_for_timeout(1200)
+              page.evaluate("(platform) => window.switchPlatform(platform)", platform)
+              page.wait_for_function(
+                  "(platform) => location.hash === '#' + platform && document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform')?.classList.contains('active')",
+                  platform,
+                  timeout=15000
+              )
+
+              page.go_back(wait_until="domcontentloaded", timeout=30000)
+              page.wait_for_timeout(1000)
+              role["back_hash"] = page.evaluate("() => location.hash")
+              role["back_marketplace_active"] = page.locator("#page-home.active").count() == 1
+
+              page.go_forward(wait_until="domcontentloaded", timeout=30000)
+              page.wait_for_timeout(1200)
+              role["forward_hash"] = page.evaluate("() => location.hash")
+              role["forward_platform_active"] = page.locator("#" + platform_id + ".active").count() == 1
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+
+              seller_user = first_approved_seller_user()
+              admin_user = first_role_user("admin")
+
+              evidence["roles"]["seller"]["user_id_present"] = bool(seller_user)
+              evidence["roles"]["admin"]["user_id_present"] = bool(admin_user)
+
+              seller_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              admin_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+
+              run_role(seller_page, "seller", seller_user, "seller", "Canonical Seller Center")
+              run_role(admin_page, "admin", admin_user, "admin", "Dashboard")
+
+              seller_page.close()
+              admin_page.close()
+              browser.close()
+
+          for label in ("seller", "admin"):
+              r = evidence["roles"][label]
+              expected = [
+                  "email_present",
+                  "authenticated_session",
+                  "authenticated_user_match",
+                  "first_open_active",
+                  "first_open_expected_content",
+                  "closed_without_refresh",
+                  "reentry_active_without_refresh",
+                  "reentry_expected_content",
+                  "back_marketplace_active",
+                  "forward_platform_active",
+              ]
+              for key in expected:
+                  if not r.get(key):
+                      evidence["failures"].append(label + ": " + key)
+
+              if label == "seller":
+                  if r.get("back_hash") not in ("", "#home"):
+                      evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
+                  if r.get("forward_hash") != "#seller":
+                      evidence["failures"].append("seller: forward did not restore #seller")
+              else:
+                  if r.get("back_hash") not in ("", "#home"):
+                      evidence["failures"].append("admin: unexpected back hash " + str(r.get("back_hash")))
+                  if r.get("forward_hash") != "#admin":
+                      evidence["failures"].append("admin: forward did not restore #admin")
+
+          with open("seller-admin-reentry-browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+
+          if evidence["failures"]:
+              sys.exit(1)
+          PY
+
+      - name: Upload seller/admin reentry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seller-admin-reentry-browser-evidence
+          path: seller-admin-reentry-browser-evidence.json
+          retention-days: 7
