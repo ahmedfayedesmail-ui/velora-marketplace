@@ -28,4 +28,15 @@ assert.match(admin, /var expectedContent=document\.getElementById\('adminContent
 assert.match(admin, /document\.getElementById\('adminContent'\)===expectedContent/);
 assert.match(admin, /document\.getElementById\('adminContent'\)!==c/);
 
+const browserGate = read('.github/workflows/velora-seller-admin-reentry-browser-gate.yml');
+
+assert.match(browserGate, /seller-admin-reentry-browser\.v2/);
+assert.match(browserGate, /first_open_document_id/);
+assert.match(browserGate, /second_open_document_id/);
+assert.match(browserGate, /closed_without_refresh = bool/);
+assert.match(browserGate, /reentry_active_without_refresh = bool/);
+assert.match(browserGate, /seller-first-open\.png/);
+assert.match(browserGate, /seller-closed\.png/);
+assert.match(browserGate, /seller-second-open\.png/);
+
 console.log('✅ Platform re-entry stale-operation contract passed');
