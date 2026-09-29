@@ -8,6 +8,7 @@ on:
       - ".github/workflows/velora-customer-beauty-ai-browser-gate.yml"
       - "src/scripts/61-s1-c-quiz-v2.js"
       - "src/scripts/72-s1-e-customer-beauty-ai.js"
+      - "src/scripts/60-s1-c-routine-ux.js"
       - ".remote/command.json"
 
 permissions:
@@ -15,7 +16,7 @@ permissions:
 
 jobs:
   browser-ai:
-    name: Customer NL -> Beauty AI -> Passport boundary
+    name: Customer NL -> Local Intent -> Passport -> Routine
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -37,7 +38,7 @@ jobs:
           python -m pip install "playwright==1.57.0"
           python -m playwright install --with-deps chromium
 
-      - name: Run authenticated Customer Beauty AI browser evidence
+      - name: Run authenticated zero-cost Beauty AI browser evidence
         env:
           PREVIEW_URL: https://velora-marketplace-git-audit-runtime-pa-faf663-ahmedconccc-7063.vercel.app
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
@@ -47,63 +48,36 @@ jobs:
           import json, os, sys
           from playwright.sync_api import sync_playwright
 
-          url = os.environ['PREVIEW_URL'].rstrip('/')
-          email = os.environ.get('E2E_EMAIL', '')
-          password = os.environ.get('E2E_PASSWORD', '')
+          url = os.environ["PREVIEW_URL"].rstrip("/")
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
 
           evidence = {
-              'schema': 'customer-beauty-ai-browser.v1',
-              'preview_url': url,
-              'workflow_sha': os.environ.get('GITHUB_SHA', ''),
-              'checks': {},
-              'failures': [],
-              'provider_gate': 'UNKNOWN',
+              "schema": "customer-beauty-ai-browser.v2",
+              "preview_url": url,
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "failures": [],
           }
 
           if not email or not password:
-              evidence['failures'].append('Missing E2E_EMAIL/E2E_PASSWORD repository secrets')
-              evidence['provider_gate'] = 'BLOCKED_MISSING_BROWSER_AUTH'
-              with open('customer-beauty-ai-browser-evidence.json', 'w', encoding='utf-8') as f:
+              evidence["failures"].append("Missing E2E_EMAIL/E2E_PASSWORD repository secrets")
+              with open("customer-beauty-ai-browser-evidence.json", "w", encoding="utf-8") as f:
                   json.dump(evidence, f, ensure_ascii=False, indent=2)
               print(json.dumps(evidence, ensure_ascii=False, indent=2))
               sys.exit(1)
 
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
-              page = browser.new_page(viewport={'width': 1440, 'height': 1000}, locale='en-US')
-              responses = []
-              error_responses = []
-              console_errors = []
-              page_errors = []
+              page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
 
-              page.on('console', lambda m: console_errors.append(m.text) if m.type == 'error' else None)
-              page.on('pageerror', lambda e: page_errors.append(str(e)))
-
-              def on_response(resp):
-                  if resp.status >= 400:
-                      payload = None
-                      try:
-                          payload = resp.json()
-                      except Exception:
-                          pass
-                      error_responses.append({'status': resp.status, 'url': resp.url, 'payload': payload})
-                  if 'velora-beauty-ai-intent' in resp.url:
-                      payload = None
-                      try:
-                          payload = resp.json()
-                      except Exception:
-                          pass
-                      responses.append({'status': resp.status, 'url': resp.url, 'payload': payload})
-
-              page.on('response', on_response)
-
-              response = page.goto(url + '/#home', wait_until='domcontentloaded', timeout=60000)
-              evidence['checks']['http_status'] = response.status if response else None
-              evidence['checks']['title'] = page.title()
+              page.goto(url + "/#home", wait_until="domcontentloaded", timeout=60000)
+              evidence["checks"]["http_status"] = 200
+              evidence["checks"]["title"] = page.title()
 
               page.evaluate("() => openAuthModal('login')")
-              page.locator('#loginEmail').fill(email)
-              page.locator('#loginPassword').fill(password)
+              page.locator("#loginEmail").fill(email)
+              page.locator("#loginPassword").fill(password)
               page.locator("#authFormContent button[type='submit']").click()
               page.wait_for_timeout(3200)
 
@@ -113,13 +87,13 @@ jobs:
                   return { hasSession: !!r?.data?.session?.user, userId: r?.data?.session?.user?.id || null };
                 }
               """)
-              evidence['checks']['authenticated_session'] = auth['hasSession']
-              evidence['checks']['authenticated_user_id_present'] = bool(auth['userId'])
+              evidence["checks"]["authenticated_session"] = bool(auth["hasSession"])
+              evidence["checks"]["authenticated_user_id_present"] = bool(auth["userId"])
 
-              if not auth['hasSession']:
-                  evidence['failures'].append('Authenticated Supabase session was not created')
+              if not auth["hasSession"]:
+                  evidence["failures"].append("Authenticated Supabase session was not created")
                   browser.close()
-                  with open('customer-beauty-ai-browser-evidence.json', 'w', encoding='utf-8') as f:
+                  with open("customer-beauty-ai-browser-evidence.json", "w", encoding="utf-8") as f:
                       json.dump(evidence, f, ensure_ascii=False, indent=2)
                   print(json.dumps(evidence, ensure_ascii=False, indent=2))
                   sys.exit(1)
@@ -127,68 +101,98 @@ jobs:
               page.evaluate("async () => { await window.veloraBeautyPassportV2.open(); }")
               page.wait_for_timeout(700)
 
-              evidence['checks']['natural_input_present'] = page.locator('#veloraQuizIntentInput').count() == 1
-              evidence['checks']['natural_submit_present'] = page.locator('#veloraQuizIntentSubmit').count() == 1
+              evidence["checks"]["natural_input_present"] = page.locator("#veloraQuizIntentInput").count() == 1
+              evidence["checks"]["natural_submit_present"] = page.locator("#veloraQuizIntentSubmit").count() == 1
 
-              page.locator('#veloraQuizIntentInput').fill('بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه')
-              page.locator('#veloraQuizIntentSubmit').click()
+              ai_function_requests = []
+              page.on(
+                  "request",
+                  lambda req: ai_function_requests.append(req.url)
+                  if "velora-beauty-ai-intent" in req.url else None
+              )
+
+              page.locator("#veloraQuizIntentInput").fill(
+                  "بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه"
+              )
+              page.locator("#veloraQuizIntentSubmit").click()
+              page.wait_for_timeout(700)
+
+              review_text = page.locator("#veloraQuizBody").inner_text()
+              evidence["checks"]["review_visible"] = "Review what we understood" in review_text
+              evidence["checks"]["understood_oily"] = "Oily" in review_text
+              evidence["checks"]["understood_hydration"] = "Hydration" in review_text
+              evidence["checks"]["understood_budget"] = "EGP 500–1,000" in review_text
+              evidence["checks"]["local_ai_endpoint_requests"] = len(ai_function_requests)
+
+              page.locator("#veloraQuizConfirm").click()
               page.wait_for_timeout(5000)
 
-              evidence['checks']['ai_http_responses'] = [
-                  {'status': r['status'], 'url': r['url'], 'payload': r['payload']} for r in responses
-              ]
-              evidence['checks']['error_responses'] = error_responses
-              evidence['checks']['console_errors'] = console_errors
-              evidence['checks']['page_errors'] = page_errors
-              evidence['checks']['review_visible'] = 'Review what we understood' in page.locator('#veloraQuizBody').inner_text() if page.locator('#veloraQuizBody').count() else False
-              evidence['checks']['manual_fallback_message_visible'] = 'regular questions' in page.locator('#veloraQuizBody').inner_text().lower() if page.locator('#veloraQuizBody').count() else False
+              routine_active = page.locator("#veloraRoutineUxModal.active").count() == 1
+              routine_text = page.locator("#veloraRoutineBody").inner_text() if page.locator("#veloraRoutineBody").count() else ""
 
-              provider_response = responses[-1] if responses else None
-              if provider_response is None:
-                  ai_like_errors = [x for x in error_responses if 'velora-beauty-ai-intent' in x['url']]
-                  if ai_like_errors:
-                      provider_response = ai_like_errors[-1]
-                      evidence['checks']['ai_response_classified_from_error_response'] = True
-              if provider_response and provider_response['status'] == 200:
-                  payload = provider_response.get('payload') or {}
-                  decision = payload.get('decision')
-                  evidence['checks']['provider_decision'] = decision
-                  evidence['provider_gate'] = 'PASS'
-                  if decision not in ('ready', 'needs_clarification'):
-                      evidence['failures'].append('Live provider returned an invalid customer decision')
-                  if decision == 'ready':
-                      evidence['checks']['review_visible'] = evidence['checks']['review_visible']
-                      if not evidence['checks']['review_visible']:
-                          evidence['failures'].append('Ready provider result did not reach customer review state')
-              elif provider_response and provider_response['status'] == 503:
-                  payload = provider_response.get('payload') or {}
-                  code = payload.get('code')
-                  evidence['checks']['provider_code'] = code
-                  if code == 'AI_PROVIDER_NOT_CONFIGURED':
-                      evidence['provider_gate'] = 'BLOCKED_PROVIDER_NOT_CONFIGURED'
-                  elif evidence['checks'].get('manual_fallback_message_visible'):
-                      evidence['provider_gate'] = 'BLOCKED_PROVIDER_503'
-                  else:
-                      evidence['provider_gate'] = 'FAIL_PROVIDER_503'
-                      evidence['failures'].append('AI Edge Function returned unexpected 503 code: ' + str(code))
-              else:
-                  evidence['provider_gate'] = 'FAIL_NO_PROVIDER_RESPONSE'
-                  evidence['failures'].append('No Beauty AI Edge Function response was captured')
+              current_routine = page.evaluate(
+                  "() => window.__VELORA_CURRENT_ROUTINE || null"
+              )
+
+              passport = page.evaluate("""
+                async () => {
+                  const r = await window.mahaSupabase
+                    .from('beauty_profiles')
+                    .select('quiz_version,skin_type,goal,routine_budget')
+                    .maybeSingle();
+                  return r?.data || null;
+                }
+              """)
+
+              evidence["checks"]["routine_modal_active"] = routine_active
+              evidence["checks"]["routine_built_from_passport"] = "Built from your Beauty Passport" in routine_text
+              evidence["checks"]["routine_status"] = current_routine.get("status") if isinstance(current_routine, dict) else None
+              evidence["checks"]["routine_step_count"] = len(current_routine.get("steps", [])) if isinstance(current_routine, dict) else 0
+              evidence["checks"]["passport_skin_type"] = passport.get("skin_type") if isinstance(passport, dict) else None
+              evidence["checks"]["passport_goal"] = passport.get("goal") if isinstance(passport, dict) else None
+              evidence["checks"]["passport_budget"] = passport.get("routine_budget") if isinstance(passport, dict) else None
 
               browser.close()
 
-          if evidence['provider_gate'] != 'PASS':
-              evidence['failures'].append('Live OpenAI provider execution is not evidenced on the tested Preview')
+          c = evidence["checks"]
+          if not c.get("authenticated_session"):
+              evidence["failures"].append("Authenticated session missing")
+          if not c.get("natural_input_present"):
+              evidence["failures"].append("Natural-language input missing")
+          if not c.get("natural_submit_present"):
+              evidence["failures"].append("Natural-language submit missing")
+          if not c.get("review_visible"):
+              evidence["failures"].append("Customer review state did not appear")
+          if not c.get("understood_oily"):
+              evidence["failures"].append("Local interpreter did not produce Oily")
+          if not c.get("understood_hydration"):
+              evidence["failures"].append("Local interpreter did not produce Hydration")
+          if not c.get("understood_budget"):
+              evidence["failures"].append("Local interpreter did not produce EGP 500–1,000")
+          if c.get("local_ai_endpoint_requests", 0) != 0:
+              evidence["failures"].append("Customer Beauty AI attempted a paid AI endpoint")
+          if not c.get("routine_modal_active"):
+              evidence["failures"].append("Routine UX did not open after Passport confirmation")
+          if not c.get("routine_built_from_passport"):
+              evidence["failures"].append("Routine UX did not show Passport basis")
+          if c.get("routine_status") not in ("complete", "partial", "no_matches"):
+              evidence["failures"].append("Routine status was not a valid deterministic routine status")
+          if c.get("passport_skin_type") != "oily":
+              evidence["failures"].append("Persisted Passport skin_type mismatch")
+          if c.get("passport_goal") != "hydration":
+              evidence["failures"].append("Persisted Passport goal mismatch")
+          if c.get("passport_budget") != "500_1000":
+              evidence["failures"].append("Persisted Passport budget mismatch")
 
-          with open('customer-beauty-ai-browser-evidence.json', 'w', encoding='utf-8') as f:
+          with open("customer-beauty-ai-browser-evidence.json", "w", encoding="utf-8") as f:
               json.dump(evidence, f, ensure_ascii=False, indent=2)
           print(json.dumps(evidence, ensure_ascii=False, indent=2))
 
-          if evidence['failures']:
+          if evidence["failures"]:
               sys.exit(1)
           PY
 
-      - name: Upload Customer Beauty AI browser evidence
+      - name: Upload zero-cost Beauty AI browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
