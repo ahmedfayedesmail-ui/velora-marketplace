@@ -12619,3 +12619,64 @@ MESSAGE 47 DECISION:
 - Browser behavior = OPEN / NOT EVIDENCED.
 - Exact current-HDD to Vercel SHA equality = OPEN by strict policy.
 - Production = FROZEN.
+
+
+### 160.12 MESSAGE 48 — SELLER/ADMIN RE-ENTRY RACE HARDENING + CONTRACT GATE (2026-09-29)
+
+RUNTIME SYMPTOM CARRIED FORWARD:
+- Known open symptom: entering Seller or Admin, leaving it, and then re-entering without a full page refresh could fail or behave inconsistently.
+- Browser proof of the symptom and of the fix is still NOT EVIDENCED because Browser Gate capacity remains blocked.
+
+SOURCE-LEVEL RCA / HYPOTHESIS:
+- The canonical Seller/Admin entry and section loaders perform asynchronous Supabase reads and write into persistent platform DOM nodes.
+- The prior close path could invalidate/hide the platform while an earlier asynchronous open/section operation was still in flight.
+- On re-entry, the platform shell is rebuilt/reused while an older promise could still complete later and write into the newly active shell.
+- This is a source-level stale-operation race hypothesis explaining the observed refresh-dependent re-entry symptom; it is not declared Browser-proven.
+
+IMPLEMENTATION:
+- src/scripts/12-localization.js
+  - Added Seller and Admin platform operation generations.
+  - Canonical Seller/Admin open operations abort logically when a newer operation supersedes them.
+  - Canonical Seller/Admin section renders capture their content node and require the same node to remain active before applying async results.
+  - Stale/error completions do not overwrite a newer platform instance.
+  - Canonical Admin open now explicitly restores hidden/aria-hidden state before activation.
+- src/scripts/63-platform-router.js
+  - Existing closeAllPlatforms() now invalidates pending Seller/Admin operations before executing the original close functions.
+  - No new navigation mechanism, MutationObserver, or arbitrary routing listener was introduced.
+- src/scripts/56-s2d-admin.js
+  - Existing delayed dashboard refresh now captures the expected admin content node.
+  - The dashboard renderer refuses to write if the platform is no longer active or the content node has been replaced.
+  - This closes the identified stale delayed-render race on the Admin path.
+- No Supabase schema/RPC/ACL change.
+- No Production change.
+- No architecture rewrite.
+
+REGRESSION / CI:
+- Added tests/platform-reentry-contract.test.mjs.
+- Added npm script: npm run test:platform-reentry.
+- Added blocking workflow: .github/workflows/velora-platform-reentry-contract.yml.
+- First gate attempt on SHA 2a681ac0bcdac12817b8fa11815b1bafecbd5db8 failed at JavaScript syntax because an existing product-image URL regex in 12-localization.js was double-escaped in the stored source.
+- That source syntax issue was corrected without changing intended behavior.
+- Final branch HEAD: 8155b8e94aca1589ccb1adbc9d0bc3f35a552a6b.
+- Platform Re-entry Contract Gate run = 36566080171.
+- Final gate conclusion = success.
+- Final gate steps all passed:
+  - Checkout
+  - Node version
+  - JavaScript syntax
+  - Platform re-entry contract tests
+  - Static audit
+- The Customer Beauty AI Contract Gate on the same effective branch state also completed successfully at run 36566003535.
+
+EVIDENCE BOUNDARY:
+- Source hardening = CLOSED-DONE at source scope.
+- Contract + syntax + static CI gate = CLOSED-DONE.
+- Browser runtime behavior = OPEN / NOT EVIDENCED.
+- No claim of Seller/Admin Browser PASS is made.
+- Vercel exact current-HEAD Preview parity remains OPEN; the previous READY Preview b9a27b48... predates this runtime hardening.
+- Production remains FROZEN.
+
+MESSAGE 48 DECISION:
+- The carried Seller/Admin re-entry issue now has a concrete source-level stale-operation hardening and a blocking contract gate.
+- It is not eligible for CLOSED-DONE runtime status until Browser Gate exercises open → close → re-entry and navigation traversal without refresh.
+- Continue the remaining non-legal OPEN queue while preserving this Browser gate.
