@@ -11676,3 +11676,99 @@ STATUS:
 - Exact document list for the final legal form = PENDING FORM SELECTION.
 - Final invoice/e-receipt issuer and VAT treatment = BLOCKED ON REAL-WORLD CLASSIFICATION.
 - No Production change.
+
+### 157. MESSAGE 38 — OWNER-CONFIRMED VELORA OPERATING MODEL (2026-09-29)
+
+CLASSIFICATION:
+- OPERATING MODEL FACTS = OWNER-CONFIRMED.
+- TAX / LEGAL CONSEQUENCES = OPEN FOR FORMAL CLASSIFICATION.
+- ENGINEERING CONTRACT = READY TO ALIGN TO THESE FACTS.
+- NO PRODUCTION CHANGE.
+
+#### 157.1 OWNER-CONFIRMED FACTS
+
+OWNER / OPERATOR:
+- Velora's real operator is Ahmed Fayed as a natural person.
+- Velora is not being operated as a seller of its own beauty inventory.
+- The owner does not intend to buy, stock, own, or sell the marketplace products to customers.
+
+MARKETPLACE ROLE:
+- Velora is a multi-vendor marketplace / platform layer.
+- Independent sellers are the actual sellers of the goods to customers.
+- Velora's commercial model is based on marketplace/platform monetization such as commissions, seller subscriptions, seller advertising, and other platform-side services already represented in the product architecture.
+
+CUSTOMER SALE:
+- The underlying sale of goods is intended to be between the seller and the customer.
+- The seller is responsible for the seller-side sale documentation and applicable invoice/receipt obligations for that sale, subject to the final legal/tax classification and contract.
+- Velora must not represent itself as the seller of the goods when that is not the actual operating model.
+
+OPERATING LOCATION:
+- Velora will operate online.
+- No storefront or inventory warehouse owned by Velora is part of the intended operating model.
+- Any official registration/address requirement must use the address basis actually accepted by the authority for an online activity; the platform cannot simply assume that "online only" removes all address/evidence requirements.
+
+#### 157.2 CRITICAL LEGAL CLARIFICATION — "NOT THE SELLER" DOES NOT MEAN "NO OBLIGATIONS"
+
+- Egyptian Consumer Protection Authority materials define the "supplier" broadly and include persons who provide, display, circulate, distribute, or market products to consumers, including through electronic means. Therefore the final contract and consumer-facing UX must not assume that Velora has zero consumer-protection responsibilities merely because it does not own the goods. citeturn803309search0turn803309search4
+- The seller's product sale invoice/receipt responsibility must be matched to the actual contracting structure. CPA materials state that the supplier that contracts with the consumer must provide the invoice and that it should identify the supplier and relevant commercial/tax information. citeturn803309search0turn803309search9
+- Therefore Velora's legal documents and UI should clearly disclose the seller identity, seller relationship, seller responsibilities, returns/refunds, complaint route, and platform role rather than using a blanket "Velora has no responsibility" disclaimer.
+
+#### 157.3 TAX / ACCOUNTING CONSEQUENCE
+
+- Velora's revenue is expected to arise primarily from platform-side revenue streams (for example commission and paid seller services), not from resale of the seller's goods.
+- The exact taxable base, VAT treatment, invoice issuer for Velora's own services, and whether/when e-invoice/e-receipt obligations apply are still external classification questions.
+- ETA currently states that e-commerce activity is handled under the general income-tax/VAT framework and, where eligible, the Law 6/2025 simplified regime; there is no separate standalone e-commerce tax law. citeturn734233search8turn734233search2
+- The simplified regime is for qualifying businesses with annual turnover not exceeding EGP 20 million and the application is electronic through Form 1/10. This is now a concrete candidate for the owner's low-bureaucracy route, but qualification and turnover basis must be confirmed against the actual platform revenue model and tax classification. citeturn734233search2
+
+#### 157.4 ENGINEERING CONTRACT — WHAT VELORA SHOULD ENFORCE
+
+CUSTOMER-FACING:
+- Show the actual seller/store identity for each sellable product/order line.
+- Preserve a clear distinction between "sold by seller" and "platform service by Velora".
+- Surface the seller's return/refund/fulfillment terms where applicable, together with platform-level terms.
+- Keep seller/invoice metadata available to support customer evidence and complaints.
+- Do not generate a fake Velora product invoice as though Velora were the seller.
+
+SELLER-FACING:
+- Require seller onboarding evidence sufficient to identify the real seller.
+- Require seller agreement acceptance before marketplace activation.
+- Require seller agreement to cover seller invoicing, authenticity, product compliance, consumer-rights cooperation, returns/refunds, shipping, complaints, advertising, subscriptions, suspension, and evidence retention.
+- Seller status and product eligibility remain governed by canonical moderation/lifecycle controls.
+
+PLATFORM MONETIZATION:
+- Commission remains a platform revenue event, not a resale margin.
+- Seller subscriptions remain a platform-side paid service.
+- Seller advertising remains a platform-side paid service.
+- Gift cards/promotions and other features remain separately gated until their legal/tax/economic treatment is approved.
+- No engineering change should collapse platform revenue and GMV into one assumed tax base.
+
+PAYMENTS:
+- Velora may continue integrating an appropriate licensed PSP for supported payment flows, subject to the final contracting/payment architecture.
+- If Velora itself receives or settles customer funds, this fact must be included in the final tax/payment/legal characterization even when Velora is not the seller.
+- Engineering must not infer that "seller is seller" automatically means Velora can never touch payment funds; settlement flow must match the actual contract and provider arrangement.
+
+#### 157.5 MINIMUM REAL-WORLD GATE NOW REDUCED
+
+The owner's answers resolve the previously unknown operating-role questions at the product-design level. The remaining external gate is narrower:
+
+1. Confirm the exact legal form / registration route for Ahmed as the operator.
+2. Confirm the accepted online-activity/address basis for the selected registration route.
+3. Confirm the tax registration path and whether the Law 6/2025 simplified system applies to Velora's actual platform revenue model.
+4. Confirm VAT position and invoice/e-receipt responsibility for Velora's own platform services.
+5. Confirm the seller-side contract makes the seller the actual contracting seller for goods and preserves that behavior in checkout, payment, refund, invoice, complaint, and fulfillment flows.
+6. Obtain counsel/accountant sign-off on the classification before Production activation.
+
+#### 157.6 MESSAGE 38 DECISION
+
+STATUS:
+- Owner-confirmed operating model = CLOSED-DONE.
+- Velora as direct goods seller = NOT THE INTENDED MODEL.
+- Independent sellers as goods sellers = CLOSED-DONE at product-model level.
+- Seller-side goods invoice/receipt responsibility = OWNER-INTENDED; FINAL LEGAL/TAX CONFIRMATION OPEN.
+- Velora online-only operation = CLOSED-DONE as business intent.
+- Exact registration form = OPEN.
+- Exact address/evidence route = OPEN / authority workflow.
+- Velora tax/VAT treatment of platform revenue = OPEN / accountant/ETA classification.
+- PSP/funds-flow characterization = OPEN until actual settlement behavior is locked.
+- Full Velora product vision = PRESERVED; no feature reduction.
+- No Production change.
