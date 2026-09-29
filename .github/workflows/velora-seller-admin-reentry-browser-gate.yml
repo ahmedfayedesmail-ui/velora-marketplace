@@ -40,10 +40,28 @@ jobs:
           python -m pip install "playwright==1.57.0"
           python -m playwright install --with-deps chromium
 
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > reentry-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time
+          import urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as response:
+                      if response.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
       - name: Run role-authenticated reentry browser evidence
         id: reentry
         env:
-          PREVIEW_URL: https://velora-marketplace-j6ec87udy-ahmedconccc-7063.vercel.app
+          PREVIEW_URL: http://127.0.0.1:4173
           SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
@@ -63,8 +81,9 @@ jobs:
           SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
           evidence = {
-              "schema": "seller-admin-reentry-browser.v5",
+              "schema": "seller-admin-reentry-browser.v6",
               "preview_url": PREVIEW,
+              "execution_target": "local_exact_source",
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
               "checks": {},
               "roles": {},
@@ -530,4 +549,5 @@ jobs:
             admin-first-open.png
             admin-closed.png
             admin-second-open.png
+            reentry-local-server.log
           retention-days: 7
