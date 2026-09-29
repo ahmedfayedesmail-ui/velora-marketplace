@@ -195,7 +195,7 @@ jobs:
               content_node = page.locator("#" + content_id)
 
               role["first_open_active"] = platform_node.count() == 1 and platform_node.get_attribute("aria-hidden") == "false"
-              role["first_open_expected_content"] = (platform == "seller" and platform_node.locator("#sellerSidebar").count() == 1 and platform_node.locator("#sellerHeaderTitle").inner_text() == "Dashboard") or (platform == "admin" and platform_node.locator("#adminSidebar").count() == 1 and platform_node.locator("#adminHeaderTitle").inner_text() in ("Dashboard", "Owner Dashboard"))
+              role["first_open_expected_content"] = (platform == "seller" and platform_node.locator("#sellerSidebar").count() == 1 and platform_node.locator("#sellerHeaderTitle").inner_text().strip() == "Dashboard" and platform_node.locator("#sellerContent").count() == 1) or (platform == "admin" and platform_node.locator("#adminSidebar").count() == 1 and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard") and platform_node.locator("#adminContent").count() == 1)
 
               close_fn = "window.VELORA_CLOSE_SELLER()" if platform == "seller" else "window.VELORA_CLOSE_ADMIN()"
               page.evaluate(close_fn)
@@ -215,7 +215,7 @@ jobs:
               )
 
               role["reentry_active_without_refresh"] = True
-              role["reentry_expected_content"] = (platform == "seller" and platform_node.locator("#sellerSidebar").count() == 1 and platform_node.locator("#sellerHeaderTitle").inner_text() == "Dashboard") or (platform == "admin" and platform_node.locator("#adminSidebar").count() == 1 and platform_node.locator("#adminHeaderTitle").inner_text() in ("Dashboard", "Owner Dashboard"))
+              role["reentry_expected_content"] = (platform == "seller" and platform_node.locator("#sellerSidebar").count() == 1 and platform_node.locator("#sellerHeaderTitle").inner_text().strip() == "Dashboard" and platform_node.locator("#sellerContent").count() == 1) or (platform == "admin" and platform_node.locator("#adminSidebar").count() == 1 and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard") and platform_node.locator("#adminContent").count() == 1)
 
               page.evaluate("() => { window.location.hash = 'home'; }")
               page.wait_for_timeout(1200)
