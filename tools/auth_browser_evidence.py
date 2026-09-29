@@ -78,8 +78,17 @@ def admin_create_user(email, password):
             },
         },
     )
-    user = payload.get("user") if isinstance(payload, dict) else None
-    uid = user.get("id") if isinstance(user, dict) else None
+    candidates = []
+    if isinstance(payload, dict):
+        candidates.append(payload.get("user"))
+        candidates.append(payload)
+        if isinstance(payload.get("data"), dict):
+            candidates.append(payload.get("data"))
+    uid = None
+    for candidate in candidates:
+        if isinstance(candidate, dict) and candidate.get("id"):
+            uid = candidate["id"]
+            break
     if not uid:
         raise RuntimeError("AUTH_FIXTURE_CREATE_NO_USER_ID")
     return uid
