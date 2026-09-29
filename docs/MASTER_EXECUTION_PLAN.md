@@ -497,8 +497,7 @@ GUARD: launch-control contract + evidence layers
 VALIDATION: all required launch gates and exact artifact/Preview references
 CANONICAL STATE: gate statuses / release readiness
 AUTOMATION: audits collect evidence; release promotion remains governed
-NEXT EVENT: ready-to-promote or remediationHUMAN EXCEPTION: final release/cutover authorization
-### AUTOMATION POLICY FOR MESSAGE 2
+NEXT EVENT: ready-to-promote or remediationHUMAN EXCEPTION: final release/cutover authorization### AUTOMATION POLICY FOR MESSAGE 2
 
 Observed automation already present:
 - payment_attempts automation trigger
@@ -997,8 +996,7 @@ OBSERVED FACT:
 - Order cancellation contains canonical coupon and promotion reversal logic: delete matching redemption, decrement used_count with floor at zero, and audit the release.
 - Transactional probes confirmed Staff-only promotion creation and canonical rejection of free_shipping with PROMOTION_TYPE_NOT_SUPPORTED.- No seller-owned promotion engine exists; current platform promotion scope is global.
 OPEN:
-- free_shipping semantics
-- stacking/combination policy
+- free_shipping semantics- stacking/combination policy
 - targeting beyond global scope
 - seller-funded vs platform-funded economics
 - reversal/refund economics beyond current cancellation path
@@ -1498,7 +1496,6 @@ Non-negotiable future constraints:
 - never create a second unexplained reason-code system
 ### 65. AI Failure Model
 CLASSIFICATION: ROADMAP / NOT IMPLEMENTED
-
 Required future safe handling:
 - AI unavailable -> deterministic fallback
 - invalid structured output -> discard
@@ -1997,8 +1994,7 @@ SMALLEST SAFE CHANGE IMPLEMENTED:
 - openCanonicalOwner() calls the existing canonical Admin shell with requiredRole='owner'.- Existing platform switch behavior now distinguishes admin and owner instead of treating both identically.
 - window.openOwnerPlatform is assigned to the canonical Owner opener before the platform router loads, so 63-platform-router.js captures a real Owner function rather than the legacy no-op fallback.
 - window.closeOwnerPlatform is mapped to the existing canonical Admin close surface.
-- Canonical navigation now labels the Dashboard as Owner Dashboard when the authenticated role set contains owner.
-- Existing Legal UI is exposed as a canonical Legal section and routes to renderAdminLegal(), reusing existing Legal RPCs and controls.
+- Canonical navigation now labels the Dashboard as Owner Dashboard when the authenticated role set contains owner.- Existing Legal UI is exposed as a canonical Legal section and routes to renderAdminLegal(), reusing existing Legal RPCs and controls.
 - No new database table, enum, permission string, scheduler, analytics engine, audit engine, legal engine, or Owner engine was introduced.
 
 IMPLEMENTATION COMMIT:
@@ -2497,8 +2493,7 @@ RULES:
 - Existing commission, payout, payment, ledger and webhook contracts remain authoritative.
 - No new general-purpose ledger engine is justified.
 
-OPEN:
-- full browser/provider settlement proof.
+OPEN:- full browser/provider settlement proof.
 - provider execution evidence for payouts.
 - reconciliation drill across captured payment -> commission -> eligibility -> payout -> external execution -> ledger.
 - refund/cancellation effects across financial objects.
@@ -2997,8 +2992,7 @@ OBSERVED FACT:
 - No DB schema change was required for this gap.
 
 IMPLEMENTED:
-- Commit `b3ad57a60e9b468882e01c60a2f7f263d63653af`: unified `window.VELORA_CLOSE_SELLER` with the router's route-aware `window.closeSellerPlatform` path.
-- Commit `4ae5764175f0182d8cc57b418c8184ccf4fc6a6e`: initialized the router return target from `currentMarketplaceHash()` so direct platform-route loads return to a marketplace route rather than the platform route itself.
+- Commit `b3ad57a60e9b468882e01c60a2f7f263d63653af`: unified `window.VELORA_CLOSE_SELLER` with the router's route-aware `window.closeSellerPlatform` path.- Commit `4ae5764175f0182d8cc57b418c8184ccf4fc6a6e`: initialized the router return target from `currentMarketplaceHash()` so direct platform-route loads return to a marketplace route rather than the platform route itself.
 - No second router, second Seller engine, MutationObserver, arbitrary listener, or schema field was introduced.
 
 VERIFICATION:
@@ -3497,7 +3491,6 @@ Seller opens Payouts -> request canonical payout -> server eligibility -> pendin
 ### Continuation Subscription State Auditability — 2026-09-29
 
 CLASSIFICATION: CLOSED-DONE AT SOURCE/DB CONTRACT / RUNTIME EVIDENCE DEFERRED
-
 OBSERVED FACT:
 - seller_subscriptions has no trigger-based audit history.
 - velora_sync_subscription_state is the canonical state reconciliation function for pending, active, past_due, cancelled, and expired states.
@@ -3997,8 +3990,7 @@ CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW / BROWSER EVIDENCE REMAINS 
 
 OBSERVED FACT:
 - Seller onboarding control plane is implemented in src/scripts/69-s1-d-seller-onboarding.js and delegates mutations to velora_upsert_seller_onboarding_case().
-- The RPC is Staff-only, validates every lifecycle field against the canonical enum/status contract, enforces evidence JSON shape and note/rejection length limits, updates submitted/reviewed/activated/rejected timestamps, and writes seller_onboarding_case_updated audit evidence with before/after lifecycle state.
-- Beta-ready is deterministic and requires application approved, identity verified, catalog approved, SLA accepted, pilot active/passed, authenticity verified/not_required, plus required contact fields in the UI.
+- The RPC is Staff-only, validates every lifecycle field against the canonical enum/status contract, enforces evidence JSON shape and note/rejection length limits, updates submitted/reviewed/activated/rejected timestamps, and writes seller_onboarding_case_updated audit evidence with before/after lifecycle state.- Beta-ready is deterministic and requires application approved, identity verified, catalog approved, SLA accepted, pilot active/passed, authenticity verified/not_required, plus required contact fields in the UI.
 - Transactional Restore-Test verification as Admin showed the RPC returns a governed update result and creates seller_onboarding_case_updated audit evidence; the transaction was rolled back.
 - No direct table-write path is used by the control-plane UI.
 
@@ -4498,7 +4490,6 @@ PAYMOB RESTORE-TEST GATE STATUS:
 - Duplicate/monotonic webhook contract: already CLOSED-DONE and retained.
 - Genuine provider callback retry/replay behavior: NOT INDEPENDENTLY EVIDENCED; correctness does not depend on an undocumented retry assumption because Paymob documents Transaction Inquiry as fallback and Velora's reconciliation cron handles the fallback automatically.
 - Restore-Test Paymob engineering lane: CLOSED-DONE.
-
 PRODUCTION PAYMOB GATE — REMAINS OPEN:
 - Production Supabase was read-only inspected and remained untouched/frozen.
 - Production currently exposes velora-paymob-checkout v6 and velora-paymob-webhook v5, while Restore-Test is on newer hardened checkout/webhook/inquiry/reconciliation versions.
@@ -4997,8 +4988,7 @@ HUMAN EXCEPTION: moderation exception only
 
 #### FEEDBACK CONTRACT DRIFT — OPEN POLICY ITEM
 OBSERVED FACT:
-- The current canonical function velora_submit_beauty_feedback also accepts p_source = product_interaction and permits that source without an order_item_id.
-- The current beauty_feedback RLS INSERT policy also allows source = product_interaction.
+- The current canonical function velora_submit_beauty_feedback also accepts p_source = product_interaction and permits that source without an order_item_id.- The current beauty_feedback RLS INSERT policy also allows source = product_interaction.
 - The customer UI in src/scripts/65-s1-d-beauty-feedback.js currently exposes only the purchase-linked flow.
 INFERRED:
 - The persisted API contract is broader than the Message 5 statement that feedback is strictly purchase-linked.
@@ -5497,8 +5487,7 @@ MISSED CALLBACK FALLBACK:Transaction Inquiry
 -> reconciliation
 -> escalation only when genuinely ambiguous
 
-OBSERVED FACT:
-- The current Restore-Test reconciliation function v6 explicitly performs Paymob Transaction Inquiry and normalization, then applies canonical state through the existing marketplace transaction applicator.
+OBSERVED FACT:- The current Restore-Test reconciliation function v6 explicitly performs Paymob Transaction Inquiry and normalization, then applies canonical state through the existing marketplace transaction applicator.
 - No second payment-state engine is used.
 - Current internal Paymob DB writers/applicators are service_role-only.
 
@@ -5997,8 +5986,7 @@ OBSERVED FACT:
 - `velora_account_action` current public wrapper is not SECURITY DEFINER and immediately checks `velora_is_staff()`; anon execute is false.
 - No broad permission rewrite was introduced.
 
-ACTION FLOW:
-EVENT: privileged operation requested
+ACTION FLOW:EVENT: privileged operation requested
 AUTH/ROLE: target governance role
 GUARD: auth + server role/ownership + relevant state
 VALIDATION: operation-specific parameters
@@ -6497,8 +6485,7 @@ EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> STORE
 
 ### Seller Subscription — STILL OPEN / INTENTIONALLY NOT INVENTED
 The following remain OPEN and must not be silently inferred:
-- cancellation policy;
-- upgrade policy;
+- cancellation policy;- upgrade policy;
 - downgrade policy;
 - replacement/switch policy;
 - proration rules;
@@ -6997,8 +6984,7 @@ CURRENT CONTRACT:
 - The live beauty_profiles table also contains optional fields: concern, texture_preference, effect_preference, avoidance_preferences, shopping_priority.
 - No new column, token, or questionnaire field was added by Message 13.
 
-RESTORE-TEST LIVE BASELINE:
-- beauty_profiles rows = 2.
+RESTORE-TEST LIVE BASELINE:- beauty_profiles rows = 2.
 - concern populated = 0.
 - texture_preference populated = 0.
 - effect_preference populated = 0.
@@ -7345,3 +7331,205 @@ AI unavailable/invalid/timeout/ambiguous/provider uncertainty
 - Shipping visual-vs-canonical discrepancy remains open.
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
+
+## 2026-09-29 — MESSAGE 15/24 EXECUTION / ROUTINE → CART + INVENTORY INVARIANT + LEGACY ORDER ITEM STATUS + CANONICAL CHECKOUT
+CLASSIFICATION:
+- Message 15 executed.
+- Routine → Cart remains canonical through the existing adapter; no Cart rewrite was introduced.
+- Inventory parent-stock invariant is CLOSED-DONE at L1-L4 on Restore-Test.
+- Legacy order_items.status remains intentionally absent; legacy status RPC remains non-client-executable.
+- Checkout remains on the canonical order/payment path; no legacy checkout rewrite was introduced.
+- Current Restore-Test checkout is legally fail-closed because no published required Terms/Privacy documents are present; this is a current environment gate, not a checkout-engine defect.
+
+### 40. ROUTINE → CART
+CANONICAL PATH:
+- Adapter: src/scripts/62-s1-c-routine-cart.js
+- Public API: window.veloraRoutineCart.addAll
+- Canonical server cart: public.carts + public.cart_items
+- Legacy visible compatibility projection: STATE.cart + localStorage + cart sidebar + cart page
+- Adapter bridges canonical server-cart writes to the legacy visible projection.
+- Existing canonical cart RPCs remain authoritative: velora_upsert_cart_item and velora_upsert_cart_item_variant.
+- The adapter re-reads the server cart before Add All, avoids silently duplicating existing lines, and submits only selected routine items through the canonical cart RPCs.
+- Cart RPCs remain the final authority for current product approval, seller state, stock, currency, and variant validity.
+- No Cart rewrite or second cart engine was introduced.
+
+HISTORICAL FIX STATUS:
+- The earlier "Order the whole routine did nothing" issue is already recorded as Browser-verified historical evidence.
+- Current source still exposes the canonical Add All path and synchronized server/local projection.
+- Current complete Browser journey remains NOT EVIDENCED in this environment; historical fix evidence is not treated as a current whole-journey Browser PASS.
+
+### 41. INVENTORY — ITEM 28
+CANONICAL MODEL:
+- public.products.stock is the aggregate marketplace stock when active variants exist.
+- public.product_variants.stock_quantity is variant-level stock.
+- When active variants exist: products.stock = SUM(active product_variants.stock_quantity).
+- No second inventory table/subsystem exists.
+
+IMPLEMENTED FIX:
+- Source migration: supabase/migrations/20260929062000_inventory_variant_parent_stock_invariant.sql.
+- The variant upsert function locks the parent Product row before mutation, updates/creates the Variant, recomputes active-variant stock, updates parent Product stock, and writes an audit record.
+- The variant retire function locks the parent Product row, retires the Variant, recomputes active-variant stock, updates parent Product stock, and writes an audit record.
+- Seller Product writers also preserve the active-variant aggregate: when active variants exist, an incoming p_stock value does not override the aggregate.
+- src/scripts/52-s2a-variants.js no longer performs direct parent Product stock DML.
+- Direct authenticated UPDATE privileges on products and product_variants are absent; client callers must use the governed RPC boundary.
+
+RESTORE-TEST BASELINE:
+- Test Vitamin C Serum: parent stock = 23.
+- Active variants for the baseline product at final verification = 0.
+- Existing historical inactive verification variant remains inactive and does not contribute to stock.
+- Current global invariant scan found active_variant_products = 0 and invariant_mismatches = 0.
+
+TRANSACTIONAL PROOF:
+- Using the approved seller identity for the baseline product:
+  1. Created a temporary active variant with stock 7 -> parent stock 7, active-variant sum 7.
+  2. Updated the same temporary variant to stock 3 -> parent stock 3, active-variant sum 3.
+  3. Seller attempted p_stock = 999 while an active variant sum was 3 -> parent stock remained 3.
+  4. Retired the temporary variant -> parent stock 0, active-variant sum 0.
+  5. Transaction rolled back.
+- Post-rollback verification: parent stock returned to 23; active variants remained 0; temporary Message 15 variants = 0.
+- Direct table UPDATE attempts from the authenticated role failed closed due missing UPDATE privilege.
+- Result: INVENTORY VARIANT/PARENT STOCK INVARIANT = CLOSED-DONE L1-L4.
+
+MIGRATION PROVENANCE NOTE:
+- Before execution, the source migration file 20260929062000 existed but the Restore-Test migration history did not contain that source timestamp; the live functions already matched the intended invariant contract.
+- The exact invariant DDL was applied successfully to Restore-Test through the Supabase migration interface. Supabase recorded it under the generated migration-history version 20260929075649 with name inventory_variant_parent_stock_invariant.
+- This means runtime/database state is aligned, but the recorded migration version differs from the source filename timestamp. No duplicate source migration was created merely to paper over this tooling-induced provenance difference.
+- Production was not touched.
+
+DO-NOT RULES:
+- Do not add order_items.status.
+- Do not create a second inventory subsystem.
+- Do not restore direct client products.update() stock writes.
+- Do not let seller p_stock override an active-variant aggregate.
+
+### 42. LEGACY ORDER ITEM STATUS CONTRACT
+CURRENT STATE:
+- public.order_items.status column does NOT exist.
+- Legacy public.velora_update_order_item_status(p_order_item_id uuid, p_new_status text, p_note text) still exists only as a deprecated compatibility/history function.
+- Current privilege contract: executable by postgres/service_role; NOT executable by anon or authenticated.
+- No missing status column was introduced.
+- No V1/legacy client status path was resurrected.
+- Result: CLOSED-DONE for the stated hardening contract; retirement remains the intended architecture.
+
+### 43. CHECKOUT / PAYMENTS — CANONICAL PATH
+SOURCE CONTRACT:
+- Canonical customer checkout orchestration remains in src/scripts/13-payments.js.
+- src/scripts/57-s2-checkout-e2e.js is a compatibility submit wrapper; it delegates to the existing canonical placeOrder handler and does not implement a second checkout engine.
+- Stable browser guards remain window.__VELORA_CHECKOUT_REFERENCE and window.__VELORA_CHECKOUT_SUBMITTING.
+- Checkout canonical sequence is:
+  validate canonical cart
+  -> authentication/customer data
+  -> operational country/currency gate
+  -> required legal acceptance
+  -> server shipping quote
+  -> velora_create_order_with_commercials
+  -> idempotent checkout_reference handling
+  -> canonical payment-method binding
+  -> provider route when needed
+  -> canonical server/local cart clear.
+
+DATABASE AUTHORITY:
+- velora_create_order_with_commercials() first enforces velora_assert_legal_acceptance(['terms_of_service','privacy_policy']), then calls velora_create_order(), then applies coupon/promotion and gift-card commercial logic through canonical writers.
+- velora_create_order() re-validates the checkout currency, country/currency operational contract, obtains the server shipping quote through velora_quote_cart_shipping(), and rejects a client-provided shipping amount when it differs from the server quote beyond tolerance.
+- velora_create_order() uses checkout_reference + customer identity for idempotency.
+- Order creation re-checks product approval, seller approval, variant availability/stock, base-product stock, seller currency, FX rate, and commission rate before persisting order items/financial records and decrementing canonical inventory.
+- Variant checkout decrements both variant stock and parent product stock consistently with the established aggregate invariant.
+- velora_set_order_payment_method() re-checks customer ownership, pending payment state, operational payment route, and synchronizes payment amount/currency to the final order total.
+
+CURRENT SHIPPING PROOF:
+- Authenticated Restore-Test server quote for Test Vitamin C Serum returned:
+  ok = true
+  carrier_code = velora_manual
+  service_name = Velora Manual E2E
+  source = store_rate
+  total_shipping = 30 EGP
+  estimated_days_min = 2
+  estimated_days_max = 5
+  requires_configuration = false.
+- This is server-derived store-rate data; it is not a fixed browser fallback.
+
+CURRENT LEGAL GATE:
+- Live Restore-Test currently has no published required Terms of Service / Privacy Policy documents.
+- A transactional authenticated checkout attempt therefore failed closed at the canonical legal gate with LEGAL_DOCUMENTS_NOT_PUBLISHED and left no order mutation.
+- The negative path was wrapped in a transaction and rolled back successfully.
+- This confirms fail-closed legal enforcement but means a full current checkout success path cannot be claimed in the present Restore-Test state until the governed legal publication prerequisite is satisfied.
+
+LEGACY SHIPPING DISPLAY:
+- The handoff notes an historical visual formula subtotal >= 500 ? 0 : 30. Current source search did not find that exact expression on the inspected branch, and no source rewrite was justified.
+- The authoritative checkout path nevertheless ignores such a legacy display formula for order creation: the server quote is recalculated and compared in velora_create_order().
+- Do not change any remaining visual shipping calculation blindly without Browser/user-visible evidence.
+
+### MESSAGE 15 ACTION FLOW
+ROUTINE -> CART:
+EVENT: customer requests Add All for a current Routine
+AUTH/ROLE: authenticated customer
+GUARD: current routine selection + authenticated customer + canonical product/variant identity
+VALIDATION: server cart RPC validates product/seller/stock/currency/variant state
+CANONICAL STATE: carts/cart_items
+AUTOMATIC SIDE EFFECT: legacy STATE.cart/localStorage/sidebar/page projection sync
+AUDIT/RETRY/DEDUPE: canonical cart conflict behavior + per-line error/skipped handling
+NEXT EVENT: checkout reads canonicalized cart lines
+HUMAN EXCEPTION: only business/support exception when necessary
+
+INVENTORY:
+EVENT: seller creates/updates/retires variant or seller edits product stock
+AUTH/ROLE: approved seller
+GUARD: ownership/store approval + parent product lock
+VALIDATION: variant fields and stock bounds
+CANONICAL STATE: product_variants + parent products.stock aggregate
+AUTOMATIC SIDE EFFECT: recompute parent aggregate + audit log
+AUDIT/RETRY/DEDUPE: transaction/row locks + governed RPC
+NEXT EVENT: catalog/cart/checkout observe current stock
+HUMAN EXCEPTION: only governance/review for exceptional seller policy cases
+
+CHECKOUT:
+EVENT: customer submits checkout
+AUTH/ROLE: authenticated customer
+GUARD: canonical cart + legal + country/currency + shipping quote + payment route
+VALIDATION: product/seller/variant/stock/FX/commission/commercial constraints
+CANONICAL STATE: orders/order_items/payments/commissions plus inventory mutation
+AUTOMATIC SIDE EFFECT: payment/provider initiation when applicable + canonical cart clear
+AUDIT/RETRY/DEDUPE: checkout_reference idempotency + payment attempt/provider contracts
+NEXT EVENT: order/payment lifecycle
+HUMAN EXCEPTION: provider ambiguity, financial exception, legal publication, or other explicitly governed exception
+
+### MESSAGE 15 EVIDENCE BOUNDARY
+- L1 Source: Routine→Cart adapter, variant inventory migration, variant/Product seller writers, canonical checkout source, legacy checkout wrapper, and current checkout route were inspected.
+- L2 DB: live inventory functions, products/variants baseline, direct-DML grants, legacy order-item status absence/ACL, checkout/shipping function definitions, shipping quote, legal publication state, and invariant scan were verified against Restore-Test project arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL: authenticated seller variant RPC boundary, no direct table UPDATE grants, deprecated legacy order-item status non-client execution, canonical checkout/payment RPC authority, and server shipping validation were verified.
+- L4 Negative / transactional: full variant aggregate lifecycle test passed and rolled back; direct products/variant UPDATE attempts failed closed; checkout legal gate failed closed with no order mutation; server shipping quote returned valid store-rate evidence.
+- L5 CI: NO NEW CI RUN. No customer-facing application runtime source change was introduced by Message 15; the source inventory migration was already present and the checkout/cart source paths were reused.
+- L6 Preview: NO NEW PREVIEW DEPLOYMENT. No customer-facing source change was introduced.
+- L7 Browser: NOT EVIDENCED for the complete current flow. Historical Routine→Cart Browser evidence remains historical; current full Beauty/Checkout Browser gate remains open.
+- L8 Provider: NOT APPLICABLE for the inventory invariant itself; no new provider payment attempt was initiated.
+- L9 Production: UNTOUCHED / FROZEN.
+
+### MESSAGE 15 NON-NEGOTIABLES RECONFIRMED
+- No Cart rewrite.
+- No second inventory subsystem.
+- No order_items.status column.
+- No resurrection of legacy order-item status path.
+- No direct frontend Product stock DML.
+- Server shipping quote is authoritative.
+- Legacy visual shipping logic, if any, must not be changed blindly.
+- Browser PASS is never inferred from source/DB evidence.
+- Production remains untouched.
+
+### CARRY-FORWARD AFTER MESSAGE 15
+- Future Passport Dimensions remain OPEN for product-value, privacy, UX, inferability, and explicit contract decisions.
+- Customer Beauty AI remains OPEN / NOT DONE pending structured intent contract, privacy/safety design, provider/model decision, fallback behavior, observability/audit, cost/latency envelope, implementation, and end-to-end verification.
+- Complete Beauty Browser Gate remains OPEN / NOT EVIDENCED.
+- Current Restore-Test legal publication prerequisite blocks a current successful checkout Browser run; legal docs remain DRAFT / governance-controlled.
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Message 9 notification Browser/provider/Production delivery evidence remains open.
+- Message 10 Passport Browser journey evidence remains open.
+- Message 11 Recommendation Browser evidence remains open; backend/source-level recommendation surface is present.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
+- Inventory migration provenance timestamp mismatch between source filename and Restore-Test migration-history entry is documented; runtime state is aligned and no duplicate source migration was added.
