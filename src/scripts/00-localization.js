@@ -4546,6 +4546,14 @@ function initApp() {
     updateAccountButton();
     if (window.mahaSupabase && window.mahaSupabase.auth) {
         initializeSupabaseAuth();
+        // Supabase may finish restoring a redirect session just after startup.
+        // Re-run the existing initializer once, only when Velora identity is
+        // still absent. This is a bounded startup retry, not an auth listener.
+        setTimeout(() => {
+            if (!STATE.user && window.mahaSupabase && window.mahaSupabase.auth) {
+                initializeSupabaseAuth();
+            }
+        }, 750);
     } else {
         let __authInitTries = 0;
         const __authInitTimer = setInterval(() => {
