@@ -48,14 +48,21 @@ assert.equal(window.veloraBeautyIntentInterpreter, window.veloraBeautyAI);
 assert.doesNotMatch(source, /createElement|appendChild|addEventListener|classList|innerHTML/);
 assert.doesNotMatch(source, /veloraBeautyAiModal|veloraBeautyAiEntry|Describe it your way|Tell us in your own words/);
 
+// vm.runInNewContext creates values with the VM realm's Array/Object prototypes.
+// Normalize the return value through JSON before comparing so the contract test
+// verifies structure/content instead of realm identity.
+function normalize(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 assert.deepEqual(
-  window.veloraBeautyAI.validateCandidate({
+  normalize(window.veloraBeautyAI.validateCandidate({
     decision: "ready",
     skin_type: "oily",
     goal: "hydration",
     routine_budget: "under_500",
     missing_fields: []
-  }),
+  })),
   {
     decision: "ready",
     skin_type: "oily",
@@ -66,13 +73,13 @@ assert.deepEqual(
 );
 
 assert.deepEqual(
-  window.veloraBeautyAI.validateCandidate({
+  normalize(window.veloraBeautyAI.validateCandidate({
     decision: "needs_clarification",
     skin_type: null,
     goal: "hydration",
     routine_budget: "unknown",
     missing_fields: ["skin_type"]
-  }).missing_fields,
+  }).missing_fields),
   ["skin_type"]
 );
 
