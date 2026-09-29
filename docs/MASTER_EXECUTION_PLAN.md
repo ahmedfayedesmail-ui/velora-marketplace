@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: f71349dfa155c9e3cc75fc77b90b1984aff16894
+Current observed branch HEAD: b16df4137c87d97afc6894e1badd7a9b38a136fa
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3071,3 +3071,50 @@ IMPLEMENTED:
 DECISION:
 - The Customer Orders adapter remains the single customer Orders UI authority.
 - Legacy shipping augmentation remains historical source context; it is not reintroduced as a second Orders renderer.
+
+
+### Continuation Seller Post-Approval Re-Review Policy — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW / BROWSER DEFERRED
+
+POLICY:
+- Material Seller profile changes are:
+  store name, store slug, description, logo URL, category, and product type.
+- Phone changes are operational-only and do not trigger re-review.
+- When an approved or rejected Seller makes a material change, the canonical seller writer moves seller status approved/rejected -> pending and synchronizes the owned Store status to pending.
+- Staff remains the only authority for every other Seller status transition.
+- The Seller Dashboard remains accessible while pending so the Seller is not locked out of the control plane during review.
+
+RESEARCH BASIS:
+- Current marketplace compliance tooling documents that changes to business/entity details can require additional verification/review, while ordinary store profile/contact editing can remain available. Shopify also documents re-verification when account details change. citeturn345183search1turn345183search3
+- Velora uses the existing pending status instead of inventing an under_review enum or duplicate lifecycle.
+
+IMPLEMENTED:
+- Migration 20260929050000_seller_profile_rereview_policy.sql plus corrective migration 20260929053000_fix_seller_profile_projection_overwrite.sql.
+- Migration 20260929055000_fix_seller_rereview_notification_trigger.sql corrected the notification trigger from AFTER UPDATE OF status to plain AFTER UPDATE because the BEFORE mutation can change NEW.status without status being in the original UPDATE SET list.
+- The canonical profile RPC synchronizes only explicitly edited Store fields; it does not overwrite a canonical Store slug/name with stale legacy Seller projection values when those fields were not edited.
+- Explicit Store slug conflicts return STORE_SLUG_ALREADY_EXISTS before a partial projection write.
+- Seller re-review notifications use the existing seller status notification engine with seller_re_review_required.
+
+RESTORE-TEST VERIFICATION:
+- Phone-only edit: seller remained approved and store remained approved.
+- Material edit: seller became pending and store became pending.
+- Same transaction recorded seller_profile_re_review_required audit evidence and seller_re_review_required notification.
+- Full action flow: material Seller edit -> pending + notification/audit -> Staff approved -> seller/store approved + seller_approved notification/audit.
+- All probes were transactional and rolled back; no QA state persisted.
+- An initial implementation exposed a real stale-projection slug conflict; it was caught before persistence, corrected, and re-tested successfully.
+
+ACTION FLOW:
+Seller profile edit
+-> auth + ownership
+-> classify material vs operational
+-> material approved/rejected change => seller pending
+-> Store pending sync
+-> existing notification + audit
+-> Staff re-review
+-> approve/reject
+-> existing status notification/audit
+-> marketplace visibility follows Store/Product approval.
+
+CARRY-FORWARD:
+- Browser proof is deferred to the final aggregate Browser Gate.
