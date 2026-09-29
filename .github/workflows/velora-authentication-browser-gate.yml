@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: velora-auth-browser-$${{ github.ref }}
+  group: velora-auth-browser-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 15
     env:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: $${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       APP_URL: http://127.0.0.1:4173/
       AUTH_EVIDENCE_PATH: auth-browser-evidence.json
     steps:
@@ -38,7 +38,7 @@ jobs:
       - name: Validate Restore-Test secret
         run: |
           set -euo pipefail
-          test -n "$${{ github.ref }}" || {
+          test -n "${SUPABASE_SERVICE_ROLE_KEY:-}" || {
             echo "::error::SUPABASE_SERVICE_ROLE_KEY is not configured."
             exit 1
           }
