@@ -13450,3 +13450,110 @@ STATUS:
 - Current RLS/no-policy object-level review = EVIDENCED / NO FIX JUSTIFIED YET.
 - Security remediation = OPEN / PENDING exact function-path review.
 - Production = FROZEN.
+
+
+## MESSAGE 62 — CUSTOMER BEAUTY AI ZERO-COST LOCAL CLOSURE (2026-09-29)
+
+CLASSIFICATION: CUSTOMER BEAUTY AI = CLOSED-DONE FOR THE CANONICAL ZERO-COST CUSTOMER PATH
+
+OBJECTIVE:
+- Remove the mandatory dependency on paid OpenAI API credits for Customer Beauty AI.
+- Preserve the existing natural-language Routine Discovery UX, Beauty Passport V2, deterministic routine engine, and existing commerce boundaries.
+- Do not introduce a customer-facing chatbot, a parallel product recommender, a new AI database, or a new commerce authority.
+
+PAID PROVIDER EVIDENCE / REASON FOR PIVOT:
+- Restore-Test OpenAI provider execution was previously proven to reach the provider, but the provider returned HTTP 429 with code \`credit_balance_exhausted\`.
+- Supabase function logs recorded provider_status=429, provider_error.code=credit_balance_exhausted, and model=\`gpt-5.6-luna\`.
+- The paid-provider path is therefore not a viable required customer dependency under the owner's no-spend constraint.
+- No production provider configuration was changed; Production remains frozen.
+
+IMPLEMENTED ZERO-COST PATH:
+- \`src/scripts/72-s1-e-customer-beauty-ai.js\` is now an internal, provider-free, local semantic intent interpreter.
+- \`interpret(input)\` performs bounded local extraction against the existing finite Beauty Passport V2 taxonomy:
+  - skin_type: oily, dry, combination, normal, sensitive, unknown
+  - goal: brightening, hydration, acne, anti-aging, oil
+  - routine_budget: under_500, 500_1000, 1000_2000, over_2000, unknown
+  - decisions: ready, needs_clarification, unsupported, unsafe
+- The module performs no network call, no Supabase call, no OpenAI call, no DOM/UI creation, no database write, no product selection, and no medical/diagnostic decision.
+- Ambiguous fields resolve to \`needs_clarification\` rather than guessing.
+- Explicit unknown skin/budget remain supported.
+- Prompt injection, commerce-control requests, and unsafe medical/medication requests remain non-actionable.
+
+CONTRACT / TEST COVERAGE:
+- \`tests/customer-beauty-ai-contract.test.mjs\` now verifies:
+  - no \`functions.invoke\` / \`fetch(\` provider call in the client interpreter
+  - no DOM/UI APIs in the interpreter
+  - Egyptian Arabic ready case
+  - English clarification case
+  - explicit Arabic unknown case
+  - oily+dry -> combination
+  - multi-goal clarification
+  - unsupported prompt-injection/commerce request
+  - unsafe medication-dose request
+- Final clean \`npm run test:beauty-ai\` was executed through the bounded Remote Exec workflow and returned SUCCESS.
+- Final \`npm run check\` returned SUCCESS.
+- Final \`python3 tools/static_audit.py\` returned SUCCESS.
+- Diagnostic output was removed from the committed test after the behavior was verified.
+
+BROWSER E2E EVIDENCE:
+- Final zero-cost Customer Beauty AI Browser Gate passed at workflow job \`109531252778\`, commit \`56621c34d80772512f6a1e8e670dabdee4b9dc54\`.
+- Evidence:
+  - HTTP 200
+  - authenticated Supabase session = true
+  - natural-language input present = true
+  - natural-language submit present = true
+  - customer review state visible = true
+  - oily intent understood = true
+  - hydration goal understood = true
+  - EGP 500–1,000 budget understood = true
+  - local AI endpoint requests = 0
+  - routine modal active = true
+  - routine built from Beauty Passport = true
+  - routine status = complete
+  - routine step count = 5
+  - persisted Passport skin_type = oily
+  - persisted Passport goal = hydration
+  - persisted Passport budget = 500_1000
+  - failures = []
+- Browser evidence artifact ID: \`11051225287\`.
+- This proves the canonical customer flow reaches the existing deterministic Routine UX without invoking the paid AI endpoint.
+
+ROUTINE RPC SECURITY REPAIR OBSERVED DURING E2E:
+- Browser E2E initially exposed HTTP 403 on \`public.velora_generate_beauty_routine()\`.
+- Database inspection proved:
+  - authenticated had EXECUTE on the public wrapper
+  - wrapper was SECURITY INVOKER
+  - wrapper called private SECURITY DEFINER \`private.velora_beauty_routine_operation()\`
+  - private function ACL did not provide the required authenticated direct execute path
+- Restore-Test-only remediation applied:
+  - \`alter function public.velora_generate_beauty_routine() security definer;\`
+- Recheck proved the public wrapper is now SECURITY DEFINER, owner postgres, with fixed search_path.
+- The next authenticated Browser Gate passed with a complete deterministic routine.
+- No Production schema or function change was made.
+
+REMOTE EXECUTION:
+- \`.github/workflows/velora-remote-exec.yml\` is now the phone-friendly bounded execution mechanism.
+- It executes only an explicit allowlist of safe diagnostics/tests and stores execution evidence as GitHub Actions artifacts.
+- This replaces the need to depend on the unstable desktop Commander execution channel for normal repository test execution.
+
+AI STATUS AFTER MESSAGE 62:
+- Customer Beauty AI source boundary = CLOSED-DONE.
+- Local zero-cost intent interpreter = CLOSED-DONE.
+- Contract tests = CLOSED-DONE.
+- CI/static checks = CLOSED-DONE.
+- Authenticated customer Browser E2E = PASS.
+- Paid OpenAI provider path = OPTIONAL / NOT REQUIRED FOR CUSTOMER FLOW.
+- Customer path paid AI endpoint calls = 0 in Browser evidence.
+- Customer Beauty AI overall = CLOSED-DONE FOR THE CURRENT FINITE V2 INTENT CONTRACT.
+- Production = FROZEN.
+
+COST/OPERATING NOTE:
+- The canonical customer intent path no longer requires per-request OpenAI API credits.
+- The implementation is deterministic local semantic extraction for the finite current V2 schema, not an unconstrained general-purpose generative model.
+- No external platform can be guaranteed to preserve a free hosting quota forever; this status specifically means Velora's customer AI logic no longer has a paid AI-provider dependency.
+- Existing Restore-Test provider secrets are no longer used by the customer path. They may be removed later from Restore-Test without affecting the local customer flow.
+
+CARRY-FORWARD:
+- Nothing from earlier Master messages is deleted.
+- All non-AI OPEN / BLOCKED / PENDING items remain tracked.
+- No other execution track is entered by this message; the Customer Beauty AI track is now explicitly closed.
