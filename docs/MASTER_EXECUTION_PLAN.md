@@ -3299,3 +3299,35 @@ RESTORE-TEST VERIFICATION:
 - Canonical customer cancellation produced order/payment cancellation, promotion_used_count=0, redemption_count=0, release_audit_count=1, and cancel_audit_count=1.
 - Full transaction rolled back; no persistent Promotion/Order state changed.
 - The resulting promotion cancellation behavior is now aligned with the already-closed coupon cancellation release and Gift Card cancellation refund paths.
+
+
+### Continuation Financial Payment Placeholder Integrity — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT L1-L4
+
+OBSERVED FACT:
+- velora_create_order creates a pending payment ledger row before commercial adjustments.
+- Coupon and platform-promotion application previously changed orders.total without synchronizing that pending payment row.
+- velora_set_order_payment_method already reads the final orders.total, but users can remain on a pending order before choosing a payment method.
+- Full gift-card checkout exits before payment-method selection, making synchronization inside the gift-card writer mandatory.
+
+IMPLEMENTED:
+- 20260929073000_sync_payment_amount_to_final_order_total.sql:
+  velora_set_order_payment_method now synchronizes provider, method, amount, and currency on the pending payment row to the final order total.
+- 20260929075000_resolve_gift_card_payment_placeholder.sql:
+  velora_apply_gift_card_to_order now synchronizes a remaining pending payment placeholder to the post-gift-card total, or cancels the placeholder when the gift card fully covers the order.
+- 20260929078000_sync_payment_placeholder_after_discounts.sql:
+  velora_apply_coupon_to_order and velora_apply_best_promotion_to_order now synchronize the pending payment placeholder to the final discounted total.
+- No second payment engine or new schema was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Payment-method selection on a temporary 92 EGP final order produced a pending Paymob payment row of exactly 92 EGP and mismatch_count=0.
+- Coupon 20% discount on a 190 EGP order produced final total 158 EGP and pending payment amount 158 EGP.
+- Platform promotion 10% discount on a 190 EGP order produced final total 174 EGP and pending payment amount 174 EGP.
+- Full gift-card coverage produced order total 0, payment_status paid, zero pending payment rows, one cancelled placeholder payment, one paid gift-card payment, and gift-card balance reduced to the expected post-redemption balance.
+- Partial gift-card coverage produced order total 140, payment_status pending, a pending payment row of exactly 140 EGP, one paid gift-card payment, and zero gift-card balance in the fixture.
+- All probes were transactional and rolled back.
+
+INFERRED:
+- The canonical checkout representations now converge on the same final commercial amount before external provider initialization.
+- The remaining provider settlement question is about real external movement, not local order/payment amount calculation.
