@@ -5782,3 +5782,413 @@ HUMAN EXCEPTION: release approval, credentials, provider ambiguity, financial re
 - No duplicate payment, webhook, inquiry, or reconciliation engine was added.
 - No undocumented provider retry assumption was introduced.
 - No old Paymob dead end was reopened.
+
+## MESSAGE 8/11 — PAYMENTS INTEGRITY / CANCELLATION / LEGAL / GOVERNANCE / SECURITY / LOCALIZATION / SEASON (2026-09-29)
+
+### 56. PAYMENT PLACEHOLDER INTEGRITY
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+
+OBSERVED FACT:
+The previous financial mismatch class is closed through three canonical Restore-Test migrations:
+- `20260929073000_sync_payment_amount_to_final_order_total.sql`
+- `20260929075000_resolve_gift_card_payment_placeholder.sql`
+- `20260929078000_sync_payment_placeholder_after_discounts.sql`
+
+The current migration ledger records these versions:
+- 20260929025507 `sync_payment_amount_to_final_order_total`
+- 20260929025556 `resolve_gift_card_payment_placeholder`
+- 20260929025659 `sync_payment_placeholder_after_discounts`
+
+The version/file timestamp prefix changed during migration creation, but the canonical migration names and implementations are present in the repository and applied in Restore-Test.
+
+CURRENT CONTRACT:
+- `velora_set_order_payment_method` writes `payments.amount = orders.total` for the selected payment route.
+- Coupon application updates `orders.total` and the pending payment amount together.
+- Platform-promotion application follows the same pending-payment amount synchronization pattern.
+- Full gift-card coverage marks the pre-commercial pending placeholder cancelled because normal payment-method selection is intentionally skipped when no balance remains.
+- Partial gift-card coverage leaves the residual pending payment coherent with the remaining order total.
+- Gift-card reimbursement/cancellation uses the existing gift-card ledger/payment representation rather than a second refund engine.
+
+CURRENT READ-ONLY CHECK:
+- Pending payment rows currently have 0 amount/currency mismatches against their corresponding order totals.
+
+EVIDENCE BOUNDARY:
+- Prior coupon/promotion/full-gift-card/partial-gift-card transactional cases were verified and rolled back.
+- Current DB state contains no leftover coupon/gift-card test redemptions from those probes.
+- This is Restore-Test evidence, not Production evidence.
+
+ACTION FLOW:
+EVENT: commercial adjustment changes order total
+AUTH/ROLE: authenticated customer through canonical commercial RPC
+GUARD: order ownership + pending payment state
+VALIDATION: discount/gift-card/currency/legal rules
+STATE TRANSITION: final order total
+AUTOMATIC SIDE EFFECT: synchronize pending payment representation
+NEXT EVENT: payment method/provider initialization
+AUDIT: commercial/payment audit evidence
+RETRY/DEDUPE: existing order/payment idempotency
+HUMAN EXCEPTION: none in normal flow
+
+### 57. CUSTOMER ORDER CANCELLATION
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+- Browser evidence remains part of the aggregate Browser Gate
+
+OBSERVED FACT:
+- Canonical function: `velora_cancel_order(uuid)`
+- Function is customer-owner scoped.
+- Function execute privileges: anon=false, authenticated=true.
+- Guard requires authenticated caller, matching `orders.customer_id`, `payment_status='pending'`, and order status in `pending|confirmed`.
+- Cancellation performs inventory restoration for parent/variant quantities, reverses pending commissions, sets order/payment state to cancelled, and records audit evidence.
+- Customer Orders UI only renders the Cancel action when client-rendered server state matches:
+  - order status = pending or confirmed
+  - payment status = pending
+- UI calls only the canonical `velora_cancel_order` RPC; no second cancellation engine exists.
+
+ACTION FLOW:
+EVENT: customer selects Cancel
+AUTH/ROLE: authenticated owner of the order
+GUARD: server-owned cancellable status/payment state
+VALIDATION: canonical order ownership/state
+STATE TRANSITION: order/payment -> cancelled
+AUTOMATIC SIDE EFFECTS: inventory release + commission reversal + pending payment cancellation + audit
+NEXT EVENT: updated order list
+RETRY/DEDUPE: canonical server transaction is authoritative
+HUMAN EXCEPTION: only support/operational exception if the canonical state is ambiguous
+
+### 58. COUPON CANCELLATION RELEASE
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+
+OBSERVED FACT:
+- `velora_cancel_order` now consumes the existing coupon redemption ledger as source of truth.
+- Applicable pre-payment cancellation deletes the matching `coupon_redemptions` row, decrements `coupons.used_count` with a zero floor, and records `coupon_released_on_order_cancellation` audit evidence.
+- No second coupon/promotion engine exists.
+
+ACTION FLOW:
+EVENT: applicable order cancellation
+GUARD: existing coupon redemption linked to the order/customer
+STATE TRANSITION: redemption released
+AUTOMATIC SIDE EFFECT: usage counter decremented + audit
+NEXT EVENT: coupon slot becomes available again
+RETRY/DEDUPE: row-based canonical redemption state
+HUMAN EXCEPTION: none
+
+### 59. GIFT CARD CANCELLATION RELEASE
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+
+OBSERVED FACT:
+- `velora_cancel_order` locks the referenced gift card before refunding.
+- A refund transaction uses idempotency key `cancel:<order_id>`.
+- Card balance is restored; status is recalculated for expiry/active state.
+- A `velora_gift_card` refund payment row is recorded with method `gift_card_refund`.
+- Audit evidence records the cancellation refund.
+- The existing ledger/payment path is reused; no second refund engine exists.
+- Current prior partial-gift-card transactional case is designated evidence and was rolled back.
+
+ACTION FLOW:
+EVENT: cancellable order with redeemed gift-card amount
+GUARD: customer-owned pending order + locked gift-card row
+VALIDATION: positive qualifying redeemed amount + refund idempotency
+STATE TRANSITION: gift-card balance restored
+AUTOMATIC SIDE EFFECTS: refund ledger + internal payment representation + order cancellation + inventory/commission recovery
+NEXT EVENT: cancelled order
+RETRY/DEDUPE: `cancel:<order_id>`
+HUMAN EXCEPTION: none in normal flow
+
+### 60. LEGAL
+CLASSIFICATION:
+- IMPLEMENTATION/SECURITY INTEGRITY = CLOSED-DONE L1-L4
+- LEGAL CONTENT READINESS = OPEN / GOVERNANCE DEPENDENCY
+
+OBSERVED FACT:
+- Restore-Test currently has 4 legal-document rows, all retired; published count = 0.
+- Therefore the required customer legal set is effectively unavailable for publication/use in the current Restore-Test state.
+- Checkout intentionally fails closed with `LEGAL_DOCUMENTS_NOT_PUBLISHED`; no fake legal acceptance path was introduced.
+- `velora_publish_legal_document` is Owner-gated and only permits publication of an already approved document.
+- `velora_upsert_legal_document` is Staff-gated for drafting/version updates, while approved/published/retired status changes require Owner authority.
+- Direct table INSERT privileges technically exist for anon/authenticated at the table privilege layer, but `legal_documents` has RLS enabled with no INSERT policy; direct INSERT was tested under both anon and authenticated roles and both were rejected with SQLSTATE 42501: `new row violates row-level security policy for table "legal_documents"`.
+- Therefore Admin/Customer cannot bypass the governed legal writer by direct table insertion.
+- Current legal rows show only retired QA versions with review reference `QA-RESTORE-LEGAL-2026-09-27`; no current published legal document exists.
+
+DECISION:
+- Do not fabricate, temporarily publish, or bypass legal documents.
+- Legal Owner must supply/approve legitimate legal content before publication.
+- No schema change is justified.
+
+ACTION FLOW:
+EVENT: legal document draft/update/publication request
+AUTH/ROLE: Staff for drafting; Owner for approval/publication
+GUARD: role + document state + legal contract
+VALIDATION: required fields + content hash + approval state
+STATE TRANSITION: draft -> in_review -> approved -> published/retired
+AUTOMATIC SIDE EFFECTS: hash/version evidence + audit + old published version retirement on new publication
+NEXT EVENT: legal gate can unlock applicable commerce
+RETRY/DEDUPE: versioned document identity
+HUMAN EXCEPTION: Legal Owner/counsel approval is required by design
+
+### 61. OWNER DASHBOARD / GOVERNANCE
+CLASSIFICATION:
+- SOURCE/RBAC FOUNDATION = CLOSED-DONE
+- FULL OWNER CONTROL PLANE / BROWSER / END-TO-END GOVERNANCE = OPEN
+
+OBSERVED FACT:
+- Canonical Owner entry is `openCanonicalOwner() -> openCanonicalAdmin('owner')`.
+- Entry requires a real authenticated user and canonical role lookup; non-admin/non-owner is rejected.
+- Owner-specific entry additionally requires the `owner` role.
+- Current canonical Owner/Admin shell exposes 13 sections:
+  Dashboard, Sellers, Products, Orders, Users, Audit Logs, Seller Applications, Seller Onboarding, Promotions, Coupons, Gift Cards, Trust & Compliance, Legal.
+- Gift Cards has an explicit Owner-role UI gate.
+- The Owner dashboard currently provides governance/operations visibility and routes to existing protected handlers/RPCs.
+
+OPEN:
+- Full Owner Dashboard coverage remains incomplete.
+- Full privileged action matrix is not yet consolidated into one complete control-plane surface.
+- Full exception tooling, launch/backup visibility, and end-to-end governance Browser proof remain open.
+- No speculative Owner features were invented to close this item.
+
+ACTION FLOW:
+EVENT: Owner enters governance/control plane
+AUTH/ROLE: authenticated Owner
+GUARD: canonical role lookup + operation-specific backend gate
+VALIDATION: section/action contract
+STATE TRANSITION: only through existing canonical governed RPCs
+AUTOMATIC SIDE EFFECTS: audit/notification/reconciliation already provided by canonical paths
+NEXT EVENT: controlled governance result
+RETRY/DEDUPE: existing canonical transaction contracts
+HUMAN EXCEPTION: Owner is the deliberate decision maker for legal, fraud/trust, exceptional refunds, suspension, release/cutover, and ambiguous financial/provider cases
+
+### 62. SECURITY / RBAC
+CLASSIFICATION:
+- TARGETED SECURITY HARDENING = CLOSED-DONE
+- SECURITY ADVISOR HYGIENE ITEMS = OPEN
+
+CURRENT RESTORE-TEST ADVISOR:
+- RLS-enabled/no-policy: 6
+- pg_net in public schema: 1 warning
+- anon SECURITY DEFINER executable: 7
+- authenticated SECURITY DEFINER executable: current Advisor reports 213
+- leaked-password protection: WARN / disabled
+
+CURRENT TARGETED DB MEASUREMENT:
+- Public SECURITY DEFINER functions total = 255.
+- All 255 currently contain explicit SET search_path.
+- Missing explicit search_path = 0.
+- Current 7 anon-executable SECURITY DEFINER functions are intentional public-style reads:
+  - active seller ads
+  - FX
+  - i18n catalog
+  - localized content
+  - marketplace catalog
+  - required legal documents
+  - active promotions
+- The six RLS-enabled/no-policy tables currently have no direct SELECT/DML privileges for anon or authenticated:
+  - private.beauty_catalog_revision
+  - private.beauty_recommendation_rate_events
+  - public.billing_instruments
+  - public.paymob_card_tokenization_sessions
+  - public.regional_pricing
+  - public.seller_subscription_renewal_jobs
+
+DECISION:
+- Do not blanket-revoke SECURITY DEFINER functions.
+- Do not add synthetic RLS policies merely to silence Advisor.
+- Review future SECURITY DEFINER additions under the same explicit search_path + role/ownership guard discipline.
+
+ACTION FLOW:
+EVENT: role-sensitive operation
+AUTH/ROLE: Authenticated/Staff/Owner according to operation
+GUARD: function-body role checks + RLS/grants
+VALIDATION: operation-specific authorization
+STATE: governed table/function state
+AUTOMATIC SIDE EFFECT: audit where canonical writer requires it
+NEXT EVENT: allow or fail closed
+RETRY/DEDUPE: operation-specific canonical contracts
+HUMAN EXCEPTION: security/governance review for exceptional access
+
+### 63. SECURITY NEGATIVE PATH HARDENING
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+
+OBSERVED FACT:
+- Customer/unauthorized attempts against privileged functions remain fail-closed through function-level privileges, role guards, ownership guards, and/or RLS as appropriate.
+- Reviewed governance examples remain:
+  gift-card issuance, seller status mutation, product status mutation, payout execution, platform promotion creation, account action, legal publication.
+- Owner-only gift-card issuance remains Owner-gated.
+- Legal publication remains Owner-gated and also requires an approved document.
+- `velora_account_action` current public wrapper is not SECURITY DEFINER and immediately checks `velora_is_staff()`; anon execute is false.
+- No broad permission rewrite was introduced.
+
+ACTION FLOW:
+EVENT: privileged operation requested
+AUTH/ROLE: target governance role
+GUARD: auth + server role/ownership + relevant state
+VALIDATION: operation-specific parameters
+STATE TRANSITION: only through canonical governed writer
+AUTOMATIC SIDE EFFECT: audit
+NEXT EVENT: allowed operation or explicit denial
+RETRY/DEDUPE: canonical transaction
+HUMAN EXCEPTION: governance decisions only
+
+### 64. AUTHENTICATION
+CLASSIFICATION:
+- OPEN / NOT READY FOR FINAL PRODUCTION READINESS
+
+OBSERVED FACT:
+- Current Restore-Test Security Advisor reports `auth_leaked_password_protection` WARN: Leaked Password Protection Disabled.
+- Supabase's current documentation states leaked-password protection is an Auth setting that rejects known compromised passwords through the Pwned Passwords API. citeturn339114search0turn339114search7
+- Current project-level inspection does not expose the hosted Auth control-plane settings required to complete the remaining readiness work.
+
+OPEN GATES:
+- leaked-password protection review/enablement
+- final email-verification policy
+- session/password settings
+- recovery flow
+- production redirect/origin configuration
+- sensitive-session/security settings
+- final Production Auth Browser/evidence gate
+
+DECISION:
+- Do not declare Production Auth ready from login E2E alone.
+- No application-side workaround should be built for a hosted Auth control-plane setting.
+
+ACTION FLOW:
+EVENT: signup/sign-in/recovery/password change
+AUTH/ROLE: Supabase Auth
+GUARD: hosted Auth policy/settings
+VALIDATION: credentials + verification/recovery/session controls
+STATE TRANSITION: Auth session/account state
+AUTOMATIC SIDE EFFECTS: session/token lifecycle and app bootstrap
+NEXT EVENT: authenticated application flow
+HUMAN EXCEPTION: recovery/support/security exception only
+
+### 65. PG_NET
+CLASSIFICATION:
+- OPEN / INFRASTRUCTURE REVIEW
+
+OBSERVED FACT:
+- Restore-Test currently has pg_net version 0.20.4 installed in schema `public`.
+- The extension is non-relocatable.
+- The live Paymob reconciliation cron depends on `net.http_post` and runs every 5 minutes against the Restore-Test reconciliation Edge Function.
+- Current pg_net dependency is therefore operational, not cosmetic/lint-only.
+
+RESEARCH:
+- Current Supabase documentation says pg_net is asynchronous networking, is currently beta, is non-relocatable, and moving it from `public` requires dropping/recreating the extension in the target schema. Supabase explicitly warns that pending queued requests are deleted when the extension is dropped. citeturn339114search1turn339114search3
+
+DECISION:
+- Do not move pg_net during the current audit merely to clear Advisor.
+- Treat any relocation as a separate infrastructure migration requiring dependency inventory, backup/recovery preparation, queue-state safety, and a controlled verification.
+- No synthetic lint-only change.
+
+ACTION FLOW:
+EVENT: reconciliation cron fires
+AUTH/ROLE: database scheduler/service path
+GUARD: pg_net installed + target function available
+VALIDATION: reconciliation request configuration/secret
+STATE TRANSITION: HTTP request queued/dispatched
+AUTOMATIC SIDE EFFECT: reconciliation Edge Function execution
+NEXT EVENT: provider inquiry -> canonical payment transition
+RETRY/DEDUPE: reconciliation lease/idempotency
+HUMAN EXCEPTION: infrastructure migration/cutover only
+
+### 66. LOCALIZATION
+CLASSIFICATION:
+- SOURCE/CONTRACT = CLOSED-DONE
+- Browser runtime parity = OPEN / NOT EVIDENCED
+
+OBSERVED FACT:
+- `src/index.html` currently loads scripts in intended order:
+  00-localization.js
+  -> 10-localization.js
+  -> 12-localization.js
+  -> 50-localization.js
+  -> 51-localization.js
+  -> 56-s2d-admin.js
+  -> 63-platform-router.js
+- V5 exposes `window.VELORA_V5_SET_LANGUAGE` and remains the active language mutation owner.
+- V5 `setLang()` changes/paints locale synchronously before starting asynchronous persistence/catalog work.
+- `paintLocale()` updates locale state, localStorage, document.lang, direction, translation rendering, and locale events synchronously.
+- `50-localization.js` explicitly treats server locale as persistence context and preserves a newer local locale choice rather than allowing server context to overwrite it.
+- Existing `MutationObserver` and render-capture compatibility logic is pre-existing in the localization system. No second observer was introduced for this work.
+
+DECISION:
+- No additional MutationObserver.
+- No second locale state owner.
+- Browser proof remains required before promoting locale runtime parity to Browser PASS.
+
+REQUIRED BROWSER MATRIX:
+- EN -> AR -> EN -> refresh
+- Seller/Admin/Owner surfaces reflect locale
+- close/reopen preserves locale
+- dynamic HTML renders localized
+- currency/date context remains coherent
+- signed-in/signed-out behavior
+- mobile RTL
+- no stale server overwrite
+
+ACTION FLOW:
+EVENT: user changes locale
+AUTH/ROLE: guest or authenticated customer/seller/admin/owner
+GUARD: valid locale
+VALIDATION: V5 locale catalog
+STATE TRANSITION: client locale state immediately
+AUTOMATIC SIDE EFFECTS: DOM translation + direction + locale events; async server preference persistence
+NEXT EVENT: current surface refresh/navigation
+AUDIT/RETRY: persistence failure does not undo newer local choice
+HUMAN EXCEPTION: none
+
+### 67. SEASON ENGINE
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+- Browser evidence remains aggregate
+
+OBSERVED FACT:
+- Current canonical beauty context is deterministic and anchored to `Africa/Cairo`.
+- `private.beauty_season_for_date(date)` is IMMUTABLE and maps:
+  - Dec/Jan/Feb -> winter
+  - Mar/Apr/May -> spring
+  - Jun/Jul/Aug -> summer
+  - Sep/Oct/Nov -> autumn
+- `private.velora_beauty_context()` uses Africa/Cairo local date, the deterministic season helper, and persists `source='deterministic_calendar'` / `season_basis='meteorological_calendar'`.
+- Current Restore-Test context snapshot for 2026-09-29 is:
+  - month = 9
+  - season = autumn
+  - time zone = Africa/Cairo
+  - season basis = meteorological_calendar
+  - source = deterministic_calendar
+- No AI/weather service is involved in this season classification.
+
+ACTION FLOW:
+EVENT: context requested or date rolls over
+AUTH/ROLE: authenticated customer context
+GUARD: valid authenticated request
+VALIDATION: Africa/Cairo local date + immutable season mapping
+STATE TRANSITION: current beauty context snapshot
+AUTOMATIC SIDE EFFECT: routine/context consumers receive deterministic season
+NEXT EVENT: routine/recommendation recalculation where fingerprint requires it
+RETRY/DEDUPE: deterministic same-date computation converges to same season
+HUMAN EXCEPTION: none
+
+### MESSAGE 8 OPEN / CARRY-FORWARD REGISTER
+1. Legal content publication remains OPEN until legitimate legal documents are reviewed/approved/published by the Owner.
+2. Owner Dashboard full coverage / complete privileged action matrix / exception tooling / launch-backup visibility / Browser governance proof remain OPEN.
+3. Authentication final readiness remains OPEN, with leaked-password protection currently disabled plus final verification/recovery/session/redirect controls.
+4. pg_net relocation remains OPEN infrastructure review; do not move during this audit without dependency/backup/cutover proof.
+5. Localization Browser runtime parity remains OPEN.
+6. Season Browser proof remains aggregate.
+7. Aggregate Browser Gate from Messages 5-6 remains open.
+8. All Message 1-7 open items remain carried forward unchanged.
+9. No Production mutation was performed for Message 8.
+10. No new duplicate engine, schema, observer, payment/cancellation/refund engine, or security rewrite was introduced.
+
+### MESSAGE 8 NEGATIVE / SAFETY BOUNDARY
+- No Production Supabase mutation.
+- No legal document fabrication/publication.
+- No direct legal-table write bypass; authenticated and anonymous direct INSERT probes were rejected by RLS.
+- No blanket SECURITY DEFINER revoke.
+- No synthetic RLS policies created.
+- No pg_net relocation performed.
+- No second localization MutationObserver added.
+- No Browser PASS inferred from source/SQL.
