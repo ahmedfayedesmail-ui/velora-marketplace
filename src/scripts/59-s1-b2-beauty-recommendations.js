@@ -245,6 +245,14 @@
       lastRequestAt = 0;
       setTimeout(function () { void renderCurrentRecommendations(true); }, 0);
     });
+    
+    // Feedback is a learning input for recommendations. Force a fresh server
+    // request after a feedback update; the DB cache key also includes the
+    // approved-feedback revision so a stale 24h result is not reused.
+    window.addEventListener('velora:feedback-updated', function () {
+      lastRequestAt = 0;
+      setTimeout(function () { void renderCurrentRecommendations(true); }, 0);
+    });
 
     window.addEventListener('hashchange', function () {
       setTimeout(function () { void renderCurrentRecommendations(false); }, 0);
