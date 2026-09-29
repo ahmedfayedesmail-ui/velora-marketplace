@@ -13123,3 +13123,47 @@ NEXT TECHNICAL GATE:
 - Keep provider configuration intentionally blocked until a real approved provider credential/model configuration is available.
 - When browser tooling capacity is available, verify the exact customer journey: natural text -> ready confirmation; partial text -> only missing questions; unsafe/unsupported -> manual path; final save -> Passport V2 -> routine -> recommendations.
 - Continue non-AI open technical tracks in parallel; legal registration remains paused pending identity renewal.
+
+
+## MESSAGE 56 — MULTILINGUAL BEAUTY INTENT HARDENING + RESTORE-TEST FUNCTION V2 (2026-09-29)
+
+CLASSIFICATION: IMPLEMENTED / RESTORE-TEST RUNTIME EVIDENCE / BROWSER-PROVIDER GATES OPEN
+
+OBSERVED SOURCE CHANGE:
+- `supabase/functions/velora-beauty-ai-intent/index.ts` was hardened to explicitly support Arabic, Egyptian Arabic, English, and mixed Arabic-English customer text.
+- The prompt now documents semantic interpretation examples for oily/dry skin, brightening/hydration/acne intent, and EGP budget ranges.
+- The prompt explicitly requires closed canonical enum values and forbids guessing when fields are genuinely contradictory.
+- Omitted fields remain missing; `unknown` is not manufactured from omission.
+- No schema, RPC contract, commerce permission, product-selection authority, or customer-visible AI surface was added.
+
+RESTORE-TEST DEPLOYMENT:
+- Function: `velora-beauty-ai-intent`
+- Project: `arlaxqmhtvjwjbjinjfw` (Restore-Test only)
+- Version: 2
+- Status: ACTIVE
+- `verify_jwt=true`
+- Function ID: `5967d3f0-70a9-4a84-b0d2-166ec9fd37bb`
+- Deployed source commit: `af5bb66601ba3900d68457753894fea11de8361b`
+- Deployment bundle SHA-256: `7a801a16a57e010c8de1a833aa3b6bdd36dca75bb0cebe1b5f30652f5caf70b0`
+- Live provider secrets/model remain intentionally absent; the function therefore remains fail-closed with manual fallback.
+
+ACTION FLOW RECONCILIATION:
+Natural-language submit
+-> authenticated Edge Function guard
+-> request-size validation
+-> moderation
+-> strict structured intent extraction
+-> server-side candidate validation
+-> customer review/clarification
+-> canonical Passport V2 save
+-> deterministic routine
+-> deterministic recommendation
+-> existing Routine -> Cart
+No AI step is authorized to bypass the canonical guards or commerce state transitions.
+
+VERIFICATION:
+- Restore-Test deployment/list evidence: ACTIVE Version 2, JWT verification enabled.
+- Browser E2E: OPEN / NOT EVIDENCED.
+- Real OpenAI provider execution: BLOCKED / NOT CONFIGURED.
+- CI on these latest commits: NOT EVIDENCED through the available GitHub workflow-run connector.
+- Production: untouched / FROZEN.
