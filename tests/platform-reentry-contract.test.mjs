@@ -39,4 +39,8 @@ assert.match(browserGate, /seller-first-open\.png/);
 assert.match(browserGate, /seller-closed\.png/);
 assert.match(browserGate, /seller-second-open\.png/);
 
+assert.match(canonical, /const \[products,orders\]=await Promise\.all\(\[sellerProducts\(seller\.id\),sellerOrders\(seller\.id\)\]\);[\s\S]*?if\(operation!==sellerPlatformOperation/);
+assert.match(canonical, /async function renderCanonicalAdminDashboard\(expectedOperation\)/);
+assert.match(canonical, /expectedOperation!==adminPlatformOperation[\s\S]*?document\.getElementById\('adminContent'\)!==c/);
+
 console.log('✅ Platform re-entry stale-operation contract passed');
