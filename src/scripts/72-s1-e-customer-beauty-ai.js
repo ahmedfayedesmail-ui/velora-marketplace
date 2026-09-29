@@ -145,6 +145,14 @@
   }
 
   function detectSkin(text) {
+    if (
+      /(?:دهنية|زيتية)/i.test(text) &&
+      /(?:جافة|ناشفة)/i.test(text) &&
+      /(?:بشر|skin|face|وش|وجه)/i.test(text)
+    ) {
+      return { value: 'combination', conflict: false };
+    }
+
     const hits = [];
     for (const [value, patterns] of Object.entries(SKIN_PATTERNS)) {
       if (hasMatch(text, patterns)) {
