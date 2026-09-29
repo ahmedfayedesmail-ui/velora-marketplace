@@ -63,7 +63,7 @@ jobs:
           SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
           evidence = {
-              "schema": "seller-admin-reentry-browser.v4",
+              "schema": "seller-admin-reentry-browser.v5",
               "preview_url": PREVIEW,
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
               "checks": {},
@@ -202,13 +202,56 @@ jobs:
               canonical_render_selector = (
                   "#sellerContent .seller-welcome"
                   if platform == "seller"
-                  else "#adminContent .velora-op-grid"
+                  else "#adminContent .admin-section-card"
               )
               page.wait_for_function(
-                  "(selector) => !!document.querySelector(selector)",
-                  arg=canonical_render_selector,
+                  """
+                  (platform) => {
+                    const root = document.getElementById(
+                      platform === 'seller' ? 'sellerContent' : 'adminContent'
+                    );
+                    const required = platform === 'seller'
+                      ? root?.querySelector('.seller-welcome')
+                      : root?.querySelector('.admin-section-card h3');
+                    if (!root || !required) return false;
+                    const rootText = String(root.innerText || '');
+                    const rect = required.getBoundingClientRect();
+                    const style = getComputedStyle(required);
+                    const loading = root.querySelector('.velora-op-card');
+                    if (loading && /Loading|loading|⏳/.test(String(loading.innerText || ''))) return false;
+                    return rect.width > 0 && rect.height > 0
+                      && style.visibility !== 'hidden'
+                      && style.display !== 'none'
+                      && rootText.trim().length > 20;
+                  }
+                  """,
+                  arg=platform,
                   timeout=30000
               )
+              page.wait_for_timeout(500)
+
+              def render_marker_snapshot():
+                  return page.evaluate(
+                      """(platform) => {
+                        const root = document.getElementById(
+                          platform === 'seller' ? 'sellerContent' : 'adminContent'
+                        );
+                        const required = platform === 'seller'
+                          ? root?.querySelector('.seller-welcome')
+                          : root?.querySelector('.admin-section-card h3');
+                        const rect = required?.getBoundingClientRect();
+                        return {
+                          selector: platform === 'seller'
+                            ? '#sellerContent .seller-welcome'
+                            : '#adminContent .admin-section-card h3',
+                          text: String(required?.innerText || '').trim(),
+                          rootTextLength: String(root?.innerText || '').trim().length,
+                          visible: !!required && !!rect && rect.width > 0 && rect.height > 0,
+                          loadingText: String(root?.querySelector('.velora-op-card')?.innerText || '').trim()
+                        };
+                      }""",
+                      platform
+                  )
 
               def runtime_snapshot(stage):
                   snapshot = page.evaluate(
@@ -271,6 +314,7 @@ jobs:
               }""")
 
               first_open = runtime_snapshot({"name": "first_open", "platform": platform})
+              first_open["render_marker"] = render_marker_snapshot()
               role["first_open"] = first_open
               role["first_open_hash"] = first_open["hash"]
               role["first_open_document_id"] = first_open["documentId"]
@@ -321,12 +365,33 @@ jobs:
                   timeout=15000
               )
               page.wait_for_function(
-                  "(selector) => !!document.querySelector(selector)",
-                  arg=canonical_render_selector,
+                  """
+                  (platform) => {
+                    const root = document.getElementById(
+                      platform === 'seller' ? 'sellerContent' : 'adminContent'
+                    );
+                    const required = platform === 'seller'
+                      ? root?.querySelector('.seller-welcome')
+                      : root?.querySelector('.admin-section-card h3');
+                    if (!root || !required) return false;
+                    const rect = required.getBoundingClientRect();
+                    const style = getComputedStyle(required);
+                    const loading = root.querySelector('.velora-op-card');
+                    if (loading && /Loading|loading|⏳/.test(String(loading.innerText || ''))) return false;
+                    return rect.width > 0 && rect.height > 0
+                      && style.visibility !== 'hidden'
+                      && style.display !== 'none'
+                      && String(root.innerText || '').trim().length > 20;
+                  }
+                  """,
+                  arg=platform,
                   timeout=30000
               )
+              page.wait_for_timeout(500)
 
               second_open = runtime_snapshot({"name": "second_open", "platform": platform})
+              second_open["render_marker"] = render_marker_snapshot()
+              second_open["render_marker"] = render_marker_snapshot()
               role["second_open"] = second_open
               role["second_open_hash"] = second_open["hash"]
               role["second_open_document_id"] = second_open["documentId"]
