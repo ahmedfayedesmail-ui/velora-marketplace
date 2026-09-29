@@ -11,9 +11,6 @@ function billing(profile:Record<string,unknown>,seller:Record<string,unknown>){
     first_name:first.slice(0,50),last_name:last.slice(0,50),email:(String(profile.email||"").trim()||String(Deno.env.get("VELORA_FALLBACK_SELLER_EMAIL")||"seller@velora.local").trim()),
     phone_number:String(seller.phone||"+200000000000").trim()||"+200000000000"};
 }
-let startedPaymentAttemptId:string|null=null;
-let providerIntentCreated=false;
-
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS") return new Response("ok",{headers:cors});
   if(req.method!=="POST") return json({ok:false,error:"method_not_allowed"},405);
@@ -39,6 +36,9 @@ Deno.serve(async(req:Request)=>{
     };
     const {data:authData,error:authError}=await supabase.auth.getUser();
     if(authError||!authData?.user) return json({ok:false,code:"AUTH_REQUIRED"},401);
+    let startedPaymentAttemptId:string|null=null;
+    let providerIntentCreated=false;
+    let markInitializationFailedFn:((code:string,reason:string)=>Promise<unknown>)|null=null;
     const body=await req.json().catch(()=>({}));
     const packageId=body?.ad_package_id, productId=body?.product_id, countryCode=String(body?.country_code||"EG").toUpperCase();
     const idempotencyKey=String(body?.idempotency_key||"").trim();
@@ -151,12 +151,23 @@ Deno.serve(async(req:Request)=>{
       intention_id:String(intentionId),provider_order_id:String(intentionOrderId),provider_session_attached:Boolean(attach?.ok),
       checkout_url:BASE+"/unifiedcheckout/?publicKey="+encodeURIComponent(publicKey)+"&clientSecret="+encodeURIComponent(clientSecret)});
   }catch(error){
+    const failureMessage=error instanceof Error?error.message:"seller_ad_paymob_checkout_failed";
     if(providerIntentCreated){
-      console.error("seller_ad_provider_intent_unexpected_failure",error instanceof Error?error.message:"unknown_error");
+      console.error("seller_ad_provider_intent_unexpected_failure",failureMessage);
+    }else if(startedPaymentAttemptId&&markInitializationFailedFn){
+      try{
+        await markInitializationFailedFn(
+          error instanceof Error && error.name ? error.name : "SELLER_AD_CHECKOUT_FAILED",
+          failureMessage
+        );
+      }catch(reconcileError){
+        console.error("seller_ad_payment_initialization_reconcile_failed",
+          reconcileError instanceof Error?reconcileError.message:"unknown_error");
+      }
     }
-    return json({ok:false,status:"FAILED",error:error instanceof Error?error.message:"seller_ad_paymob_checkout_failed",
+    return json({ok:false,status:"FAILED",error:failureMessage,
       payment_attempt_id:startedPaymentAttemptId,
-      local_payment_attempt_status:providerIntentCreated?"pending":null,
-      recovery:providerIntentCreated?"retry_seller_ad_checkout_or_reconcile_provider_intention":null},400);
+      local_payment_attempt_status:providerIntentCreated?"pending":(startedPaymentAttemptId?"failed":null),
+      recovery:providerIntentCreated?"retry_seller_ad_checkout_or_reconcile_provider_intention":(startedPaymentAttemptId?"retry_seller_ad_checkout":null)},400);
   }
 });
