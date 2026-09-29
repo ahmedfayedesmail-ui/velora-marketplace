@@ -14091,3 +14091,40 @@ CARRY-FORWARD:
 - Signup confirmation delivery itself remains an external email-provider behavior and is not claimed PASS here.
 - OTP, password-reset edge cases, session expiry/refresh, multi-device sessions, duplicate tabs, and authorization negative paths remain open Master sub-items.
 - Do not build an Auth Harness yet; the existing Browser Gate and existing governed RPCs are currently sufficient for the targeted evidence path.
+
+
+
+## MESSAGE 70 — AUTH BROWSER GATE DIAGNOSTIC ISOLATION (2026-09-29)
+
+CLASSIFICATION: TEST/VERIFICATION HARDENING — PRODUCT SOURCE UNCHANGED
+
+FOLLOW-UP DIAGNOSTICS:
+- Auth Browser Gate run `36619745797` on commit `9152ca5c2ed18b09f194716e5f66f4126cc369d8` failed because `getSession().user.email` was null and the test attempted `.lower()`.
+- This was classified as a test assertion defect.
+- A later run on `f327b54679bc0a108a44718b3f39d3736c9a1e74` added an Auth provider credential preflight, but the preflight intentionally created a real session on the same Playwright page and contaminated the subsequent UI test state.
+- The resulting failure was again classified as Browser test-state contamination, not a proven product runtime defect.
+
+CORRECTION:
+- Commit: `84a0aab57b78d17309a1ae300e9526f605b44d8e`
+- The preflight is now isolated from the UI test:
+  - credential validity is checked first;
+  - only non-secret diagnostic fields are retained;
+  - if credentials are rejected, the gate records that boundary and stops rather than producing misleading UI failures;
+  - if credentials are accepted, the preflight page is closed;
+  - the actual UI login test starts from a fresh browser page/context state.
+- No change was made to `src/scripts/00-localization.js` after the Auth bootstrap source fix.
+- No schema change, Supabase data mutation, Production connection, MutationObserver, or arbitrary global listener was introduced.
+
+CURRENT VERIFICATION:
+- Auth Browser Gate run for `84a0aab57b78d17309a1ae300e9526f605b44d8e`:
+  - Workflow run: `36620374771`
+  - Job: `109583933305`
+  - Status at recording time: IN PROGRESS during Playwright installation/evidence execution.
+- Zero-Cost Health Gate for the same commit has been triggered and is executing.
+- Vercel parity remains an independent platform/deployment boundary and is not used as evidence for Auth runtime behavior.
+
+STATUS:
+- Auth source fix remains APPLIED.
+- Auth contract remains PASS.
+- The current Auth Browser closure remains OPEN until the isolated run completes.
+- Do not move to OTP/password-reset/session-expiry sub-items until this closure reaches a valid evidence state.
