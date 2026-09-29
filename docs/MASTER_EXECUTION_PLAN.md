@@ -12872,3 +12872,58 @@ NEXT ORDERED ACTION:
 1. Keep the AI provider gate ready for intentional Restore-Test secret/model configuration; then run real AI Browser E2E.
 2. Continue non-legal open tracks that do not require the Browser wallet, prioritizing DR/capacity/release-readiness evidence.
 3. Preserve all Browser/Preview/Provider boundaries and do not claim completion without their required evidence.
+
+
+### 160.17 MESSAGE 53 — DR CAPABILITY PREFLIGHT + PUBLIC READ SECURITY-DEFINER INTENT REVIEW (2026-09-29)
+
+DR / BACKUP CAPABILITY PREFLIGHT:
+- Restore-Test and Production projects are both currently ACTIVE_HEALTHY; Production remains FROZEN.
+- No Supabase development branches currently exist for the Production project.
+- Supabase organization branch cost was checked: $0.01344/hour. No paid branch was created because cost confirmation/authorization is required and a branch is not necessary merely to document the current blocker.
+- Current Restore-Test control-plane evidence:
+  - platform_release_blueprints = 1
+  - dr_recovery_runs = 0
+  - dr_recovery_checkpoints = 0
+- The historical Sprint 2 rollback replay remains the only executed rollback rehearsal evidence and is explicitly Restore-Test-only; it does not prove current Production backup/restore capability.
+- The current official Supabase backup documentation confirms that Free-tier projects should regularly export logical backups with the Supabase CLI `db dump` and maintain off-site backups; downloadable daily backups are a paid-plan capability. Storage objects are separate from database backups and require an independent recovery procedure.
+- Current execution environment has neither the Supabase CLI nor `pg_dump`/`psql` installed, and the connected Supabase toolset does not expose a backup-artifact download/export action. Therefore an actual current Production logical backup artifact cannot be generated from the present execution surface without an external credentialed backup path.
+- No Production restore, reset, rollback, destructive operation, or paid branch was performed.
+
+DR DECISION:
+- DR runbook/control artifact = CLOSED-DONE.
+- Actual current Production backup artifact = BLOCKED / NOT EXECUTED from available tooling.
+- Off-site backup retention = NOT EVIDENCED.
+- Non-Production restore rehearsal of a current Production backup = PENDING.
+- Measured RPO/RTO = PENDING.
+- Production rollback rehearsal = PENDING.
+- No fake recovery PASS is claimed.
+
+ANON SECURITY-DEFINER REVIEW:
+- The seven current anon-executable SECURITY DEFINER functions were inspected individually at source/DB definition level:
+  1. `velora_get_active_seller_ads` — public active sponsored-product discovery read.
+  2. `velora_get_fx_rate` — public currency conversion read used by marketplace pricing.
+  3. `velora_get_i18n_catalog` — public localization catalog read.
+  4. `velora_get_localized_content` — public localized product/store/category content read.
+  5. `velora_get_marketplace_catalog` — public marketplace catalog read and display-price calculation.
+  6. `velora_get_required_legal_documents` — public published-document read used by legal gates.
+  7. `velora_list_active_promotions` — public active-promotion discovery read.
+- All seven explicitly set a controlled `search_path=public`.
+- These functions are read-only/STABLE public-read contracts; removing anon EXECUTE without first providing an equivalent RLS-safe read path would break intended customer/storefront behavior.
+- The security advisor warning therefore requires function-by-function contract review, not blanket revoke.
+- No revoke, RLS policy change, SECURITY INVOKER conversion, or schema change was applied.
+
+MESSAGE 53 DECISION:
+- DR/backup preparedness = OPEN / PENDING at actual artifact/rehearsal level; current blocker is tooling/credential/capability, not a proven application defect.
+- Public-read SECURITY DEFINER review = REVIEWED; no justified destructive remediation identified from current evidence.
+- Customer Beauty AI live provider = BLOCKED / NOT CONFIGURED.
+- Browser Gate = OPEN / NOT EVIDENCED.
+- Exact current-HEAD Preview SHA equality = OPEN, while the latest READY runtime-changing Preview remains valid for runtime-source parity because subsequent commits after `2cec5ecc...` changed only docs/tests.
+- Performance optimization = OPEN.
+- Legal registration = PAUSED / CARRY-FORWARD.
+- Production = FROZEN.
+
+NEXT ORDERED ACTION:
+1. Continue the next independent non-legal OPEN track without touching Production.
+2. Preserve the AI provider as an explicit credential gate; do not introduce a mock provider.
+3. When a credentialed backup path is available, generate a real Production logical backup artifact, preserve it off-site, and rehearse restore in non-Production before closing DR.
+4. When Browser capacity becomes available, run the aggregate Browser Gate against the latest runtime-valid Preview.
