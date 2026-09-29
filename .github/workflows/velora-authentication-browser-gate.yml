@@ -93,6 +93,7 @@ jobs:
                 return !!r?.data?.session;
               }""")
               evidence["checks"]["invalid_password_no_session"] = not bool(wrong_session)
+              page.locator("#authModal .modal-close").click()
 
               page.locator("#accountBtn").click()
               page.locator("#loginEmail").fill(email)
@@ -115,6 +116,57 @@ jobs:
               evidence["checks"]["valid_login_session"] = bool(session.get("present"))
               evidence["checks"]["authenticated_user_matches_email"] = session.get("email","").lower() == email.lower()
               evidence["checks"]["account_page_authenticated"] = page.locator("#accountContent").count() == 1 and "Not logged in" not in page.locator("#accountContent").inner_text()
+
+              bootstrap_probe = page.evaluate("""async () => {
+                const sb = window.mahaSupabase;
+                if (!sb?.from || !window.initializeSupabaseAuth) {
+                  return { error: "AUTH_BOOTSTRAP_PROBE_UNAVAILABLE" };
+                }
+
+                const originalFrom = sb.from.bind(sb);
+                sb.from = (table) => {
+                  if (table === "users" || table === "profiles") {
+                    return {
+                      select() { return this; },
+                      eq() { return this; },
+                      maybeSingle: async () => ({ data: null, error: null })
+                    };
+                  }
+                  return originalFrom(table);
+                };
+
+                try {
+                  await window.initializeSupabaseAuth();
+                  const sessionResult = await sb.auth.getSession();
+                  const uid = sessionResult?.data?.session?.user?.id || null;
+
+                  const [u, p] = await Promise.all([
+                    originalFrom("users").select("id").eq("id", uid),
+                    originalFrom("profiles").select("id").eq("id", uid)
+                  ]);
+
+                  return {
+                    session: !!sessionResult?.data?.session,
+                    stateUid: window.STATE?.user?.uid || null,
+                    uid,
+                    users: u.data?.length || 0,
+                    profiles: p.data?.length || 0,
+                    usersError: u.error?.message || null,
+                    profilesError: p.error?.message || null
+                  };
+                } finally {
+                  sb.from = originalFrom;
+                }
+              }""")
+
+              evidence["checks"]["missing_profile_branch_bootstraps_real_rpc"] = (
+                  bool(bootstrap_probe.get("session")) and
+                  bootstrap_probe.get("stateUid") == bootstrap_probe.get("uid") and
+                  bootstrap_probe.get("users") == 1 and
+                  bootstrap_probe.get("profiles") == 1 and
+                  not bootstrap_probe.get("usersError") and
+                  not bootstrap_probe.get("profilesError")
+              )
 
               page.on("dialog", lambda dialog: dialog.accept())
               page.locator("#accountContent button", has_text="Logout").click()
