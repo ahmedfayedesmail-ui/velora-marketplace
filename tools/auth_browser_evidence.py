@@ -395,6 +395,38 @@ def main():
                 page.evaluate("() => !!window.STATE?.user")
             )
 
+            # Passwordless magic-link path is executed through the real generated magic-link action.
+            magic_hash, magic_action_link = admin_generate_link("magiclink", email)
+            evidence["observations"]["magiclink_action_link_generated"] = bool(magic_action_link)
+            evidence["observations"]["magiclink_token_hash_generated"] = bool(magic_hash)
+            if not magic_action_link:
+                raise RuntimeError("AUTH_MAGICLINK_ACTION_LINK_MISSING")
+
+            magic_page = context.new_page()
+            magic_page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + safe_error(exc)))
+            magic_page.on("console", lambda msg: browser_errors.append("console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            magic_page.on("response", lambda response: browser_errors.append(
+                "response:" + str(response.status) + ":" + urllib.parse.urlsplit(response.url).path
+            ) if response.status >= 400 else None)
+            magic_page.goto(magic_action_link, wait_until="networkidle", timeout=60000)
+            wait_for_state(magic_page, uid, timeout=30000)
+            magic_session = session_snapshot(magic_page)
+            evidence["checks"]["magiclink_action_link_establishes_session"] = (
+                magic_session.get("present") and magic_session.get("userId") == uid
+            )
+            evidence["observations"]["magiclink_final_path"] = urllib.parse.urlsplit(magic_page.url).path
+            evidence["observations"]["magiclink_query_keys"] = sorted(
+                urllib.parse.parse_qs(urllib.parse.urlsplit(magic_page.url).query).keys()
+            )
+            evidence["observations"]["magiclink_hash_keys"] = sorted(
+                urllib.parse.parse_qs(urllib.parse.urlsplit(magic_page.url).fragment).keys()
+            )
+            ui_logout(magic_page)
+            evidence["checks"]["magiclink_logout_clears_session"] = not bool(
+                session_snapshot(magic_page).get("present")
+            )
+            magic_page.close()
+
             # Password recovery path is executed through the real generated recovery action link.
             recovery_hash, recovery_action_link = admin_generate_link("recovery", email)
             evidence["observations"]["recovery_action_link_generated"] = bool(recovery_action_link)
