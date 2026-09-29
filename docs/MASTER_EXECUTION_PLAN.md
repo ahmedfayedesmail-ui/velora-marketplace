@@ -56,28 +56,29 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 40f237224f5768ec931c90952eac2b3eaf814490
-Current HEAD commit message: docs: finalize Paymob restore-test closure
+Current observed branch HEAD: b45697e464bd40305c7bfb4ec38394c82f67a0a9
+Current HEAD commit message: docs: reconcile commission foundation state
 
 ### 4.1 Current-state reconciliation — 2026-09-29
 CLASSIFICATION: CLOSED-DONE (metadata reconciliation)
 
 OBSERVED FACT:
-- GitHub branch ref audit/runtime-parity-2026-09-28 currently resolves to 40f237224f5768ec931c90952eac2b3eaf814490.
-- Commit 40f237224f5768ec931c90952eac2b3eaf814490 message: docs: finalize Paymob restore-test closure.
-- The previous 2c9f1ba90fcb9dcbd0a21b4e739285863e9d3c95 value in this section was stale metadata from an earlier execution point, not the current branch HEAD.
-- GitHub combined commit status for 40f237224f5768ec931c90952eac2b3eaf814490 reports Vercel SUCCESS.
-- The exact READY Vercel deployment associated with this current HEAD remains the deployment recorded by the latest handoff: dpl_E5FEuLo9BaFT2pt9EQEMq2ivCGpB.
+- GitHub branch ref audit/runtime-parity-2026-09-28 currently resolves to b45697e464bd40305c7bfb4ec38394c82f67a0a9.
+- Commit b45697e464bd40305c7bfb4ec38394c82f67a0a9 message: docs: reconcile commission foundation state.
+- The previous 40f237224f5768ec931c90952eac2b3eaf814490 value in this section was valid historical metadata at an earlier execution point and is retained as historical context, not current HEAD.
+- GitHub combined commit status for b45697e464bd40305c7bfb4ec38394c82f67a0a9 reports Vercel SUCCESS.
+- Current exact READY Vercel deployment is dpl_4BpFwCyTDum35JaN7ckfqcQ7vWVA.
+- Current Preview hostname is velora-marketplace-5tlljpt1u-ahmedconccc-7063.vercel.app.
 
 EVIDENCE BOUNDARY:
-- This reconciliation proves branch/commit metadata and CI status only.
+- This reconciliation proves branch/commit metadata, Vercel deployment readiness, and CI status only.
 - It does not by itself prove Browser behavior, Provider settlement, or Production readiness.
 - Production remains frozen.
 
 DECISION:
-- 40f237224f5768ec931c90952eac2b3eaf814490 is the authoritative current continuation HEAD for this execution point.
-- Historical SHAs remain historical evidence unless explicitly re-verified.
-- No rollback is justified by the stale 2c9f metadata.
+- b45697e464bd40305c7bfb4ec38394c82f67a0a9 is the authoritative current continuation HEAD for this execution point.
+- 40f237224f5768ec931c90952eac2b3eaf814490 and older SHAs remain historical evidence unless explicitly re-verified.
+- No rollback is justified by stale historical metadata.
 
 
 Historical branch supplied in an earlier handoff:
