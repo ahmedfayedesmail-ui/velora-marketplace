@@ -452,8 +452,31 @@
     installEntryPoint();
   }
 
+  function normalizeAnswers(input) {
+    const source = input && typeof input === 'object' ? input : {};
+    const normalized = {};
+    QUESTIONS.forEach((question) => {
+      const value = source[question.id];
+      const allowed = question.options.some((option) => option.value === value);
+      if (!allowed) {
+        throw new Error('INVALID_' + question.id.toUpperCase());
+      }
+      normalized[question.id] = value;
+    });
+    return normalized;
+  }
+
+  async function saveAnswersAndBuild(input) {
+    if (state.busy) throw new Error('PASSPORT_BUSY');
+    const normalized = normalizeAnswers(input);
+    state.answers = normalized;
+    state.step = QUESTIONS.length - 1;
+    await saveAndBuild();
+  }
+
   window.veloraBeautyPassportV2 = Object.freeze({
     quizVersion: QUIZ_VERSION,
-    open
+    open,
+    saveAnswersAndBuild
   });
 })();
