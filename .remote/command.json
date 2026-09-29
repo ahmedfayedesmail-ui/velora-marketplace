@@ -1,6 +1,6 @@
 {
-  "id": "debug-local-ai-cases-2026-09-29",
+  "id": "local-ai-final-clean-test-2026-09-29",
   "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "diagnose zero-cost Beauty AI test case behavior"
+  "purpose": "final clean zero-cost Beauty AI contract test after diagnostics removed"
 }
