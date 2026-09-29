@@ -78,6 +78,18 @@ assert.ok(
 );
 
 assert.ok(
+  source.includes('authCallbackHint') &&
+  source.includes('__mahaAuthCallbackHydrationRetries < 5') &&
+  source.includes('setTimeout(() => initializeSupabaseAuth(), 300)'),
+  'Auth callback session recovery must have a bounded retry path'
+);
+
+assert.ok(
+  source.includes('(code|access_token|refresh_token|type)'),
+  'Callback hydration retry must only target recognized auth callback URL fields'
+);
+
+assert.ok(
   source.includes(".from('profiles')"),
   'Auth bootstrap must verify the canonical profiles row'
 );
