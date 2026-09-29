@@ -148,7 +148,7 @@ def write_evidence(evidence):
 def wait_for_state(page, uid, timeout=30000):
     try:
         page.wait_for_function(
-            """(uid) => window.STATE?.user?.uid === uid""",
+            """(uid) => STATE?.user?.uid === uid""",
             arg=uid,
             timeout=timeout,
         )
@@ -160,10 +160,10 @@ def wait_for_state(page, uid, timeout=30000):
                     queryKeys: Array.from(new URLSearchParams(location.search).keys()),
                     hashKeys: Array.from(new URLSearchParams(String(location.hash || '').replace(/^#/, '')).keys()),
                     title: document.title || null,
-                    stateUser: window.STATE?.user ? {
-                        uid: window.STATE.user.uid || null,
-                        email: window.STATE.user.email || null,
-                        role: window.STATE.user.role || null
+                    stateUser: STATE?.user ? {
+                        uid: STATE.user.uid || null,
+                        email: STATE.user.email || null,
+                        role: STATE.user.role || null
                     } : null,
                     authListenerRegistered: typeof __mahaAuthListenerRegistered !== 'undefined'
                         ? !!__mahaAuthListenerRegistered
@@ -315,7 +315,7 @@ def main():
                         await window.initializeSupabaseAuth();
                         return {
                             available:true,
-                            stateUserId: window.STATE?.user?.uid || null
+                            stateUserId: STATE?.user?.uid || null
                         };
                     } catch (error) {
                         return {
@@ -380,7 +380,7 @@ def main():
                 str(snap.get("email") or "").lower() == email.lower()
             )
             evidence["checks"]["account_state_authenticated"] = (
-                bool(page.evaluate("() => !!window.STATE?.user?.uid"))
+                bool(page.evaluate("() => !!STATE?.user?.uid"))
             )
 
             # Refresh lifecycle: request a real token refresh and observe the session survives.
@@ -412,7 +412,7 @@ def main():
             logged_out = session_snapshot(page)
             evidence["checks"]["logout_clears_session"] = not bool(logged_out.get("present"))
             evidence["checks"]["logout_clears_app_identity"] = not bool(
-                page.evaluate("() => !!window.STATE?.user")
+                page.evaluate("() => !!STATE?.user")
             )
 
             # Passwordless magic-link path is executed through the real generated magic-link action.
