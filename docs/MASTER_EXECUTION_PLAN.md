@@ -10832,3 +10832,144 @@ Legal launch readiness requires counsel-reviewed and Owner-approved documents pl
 - Egyptian Tax Authority currently publishes e-invoice, e-receipt, and e-commerce tax-platform guidance. citeturn0search1turn0search4turn0search9
 - ETA's current published notices show that e-receipt obligations continue to be rolled out through named mandatory phases; Velora must verify whether its actual legal entity/tax profile is within an applicable obligation. citeturn0search11turn0search13
 - Privacy-specific statutory details are intentionally not asserted beyond the existing legal-pack checklist because the authoritative regulator source was not retrievable in this pass.
+## 2026-09-29 — MESSAGE 32/24 EXECUTION / FRAUD + TRUST + COMPLAINT LEGAL BOUNDARY
+
+CLASSIFICATION:
+- Message 32 closes the skipped ordered Fraud/Trust review before moving onward.
+- Current fraud-risk, account-action, dispute, return, seller, and audit contracts were inspected in Restore-Test.
+- Current Egyptian Consumer Protection Agency online-shopping and complaint guidance was rechecked.
+- No automated fraud decision engine, user suspension bypass, schema mutation, or Production change was introduced.
+
+### 128. CURRENT TRUST / FRAUD ARCHITECTURE — VERIFIED
+
+- `fraud_risk_events` exists and currently has 0 rows.
+- Fraud event recording is Staff-only through `velora_record_fraud_event(...)`.
+- Fraud event review is Staff-only through `velora_review_fraud_event(...)`, records reviewer/time/status/note, and writes audit evidence.
+- `velora_account_action(...)` is Staff-only and delegates to the canonical private account-action implementation.
+- `disputes` exists and currently has 0 rows; its model preserves order/customer/store/opener/reason/description/status/resolution/resolver/timestamps.
+- Returns and dispute flows remain separate from fraud-risk events; do not collapse them into one generic trust engine.
+
+### 129. EGYPT CONSUMER-PROTECTION TRUST REQUIREMENTS
+
+- Current Egyptian Consumer Protection Agency online-shopping guidance tells consumers to know who they are dealing with and verify the seller's physical address and telephone number, and to understand the product, total cost, refund policy, and delivery dates. citeturn564147search4turn564147search5
+- CPA's current complaint process requires seller/vendor information and supporting transaction evidence; its online complaint guidance specifically lists invoice/order/shipping evidence for electronic shopping complaints. citeturn564147search0turn564147search1turn564147search8
+- This supports retaining seller identity, order identity, transaction evidence, complaint reason, and resolution history in Velora's operational records.
+- Velora must not design trust controls that prevent a customer from pursuing statutory complaint channels. CPA itself states that consumers can escalate complaints through its official channels after attempting amicable resolution. citeturn564147search2turn564147search3
+
+### 130. TRUST POLICY — OPEN LEGAL/PRODUCT CONTRACT
+
+Before activating automated fraud/trust enforcement, the approved contract must define:
+- what signals may be collected and for which lawful purposes;
+- retention period for fraud/security evidence;
+- whether and how customers/sellers can challenge an adverse decision;
+- what actions are reversible versus irreversible;
+- when a risk score may only trigger manual review rather than an automatic block;
+- notification requirements and appropriate explanation language;
+- data-sharing with payment providers or other processors;
+- cross-border access/transfer treatment;
+- seller suspension and customer-account restrictions;
+- appeal/evidence review workflow;
+- statutory complaint escalation;
+- legal hold/audit requirements.
+
+IMPORTANT:
+- A risk score is evidence for a decision workflow, not by itself a legal justification for an irreversible customer/seller sanction.
+- Any automated decision that materially affects access, payment, or commerce must be evaluated against the final privacy/consumer-protection/legal structure before activation.
+- No AML/KYC licensing obligation is inferred merely because Velora has fraud controls. Whether any regulated financial-service obligation applies depends on Velora's actual legal/payment role and must be confirmed by counsel.
+
+### 131. TRUST ACTION FLOW
+
+EVENT
+-> suspicious payment/account/order/seller signal
+
+GUARD / AUTHORIZATION
+-> canonical fraud event creation
+-> Staff governance for review
+-> no anonymous security action
+
+VALIDATION
+-> signal provenance
+-> risk score/severity
+-> order/store/user context
+-> evidence quality
+-> policy threshold
+
+STATE TRANSITION
+-> new
+-> reviewed
+-> cleared / dismissed
+-> confirmed
+-> governed account action only where policy permits
+
+AUTOMATIC SIDE EFFECT
+-> audit evidence
+-> notifications where policy requires
+-> downstream payment/order/store controls through existing canonical contracts
+
+NEXT EVENT
+-> release of hold / escalation / account action / dispute handling
+
+RETRY / DEDUPE
+-> event identity/state guard
+-> do not create repeated sanctions for the same unresolved signal
+
+HUMAN EXCEPTION
+-> disputed evidence
+-> legal interpretation
+-> false-positive appeal
+-> provider ambiguity
+-> irreversible account action
+
+### 132. MESSAGE 32 DECISION
+
+STATUS:
+- Fraud-risk event storage = CLOSED-DONE at current source/DB scope.
+- Staff fraud review = CLOSED-DONE at current authorization/audit scope.
+- Account action governance = CLOSED-DONE at current Staff gate scope.
+- Dispute storage = CLOSED-DONE at current schema scope.
+- Fraud/trust final policy = OPEN.
+- Evidence retention/appeal/automated decision policy = OPEN.
+- Privacy/legal mapping for fraud/security processing = OPEN.
+- No duplicate fraud engine created.
+- No automated irreversible trust rule activated.
+- No Production change.
+
+### 133. MESSAGE 32 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Canonical fraud event, account action, dispute, return, seller, and audit contracts inspected.
+
+L2 DATABASE:
+- fraud_risk_events = 0.
+- disputes = 0.
+- Current seller/customer evidence remains in canonical domain tables.
+
+L3 CONTRACT / ACL:
+- Fraud recording/review and account action are Staff-gated.
+
+L4 NEGATIVE:
+- No synthetic fraud/dispute fixture was created solely to claim a trust PASS.
+- No automatic sanctioning rule was added.
+
+L5 CI / L6 PREVIEW / L7 BROWSER:
+- No deployable change; no new CI/Preview/Browser evidence claimed.
+
+L8 PROVIDER:
+- No provider fraud/chargeback action executed.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### CARRY-FORWARD AFTER MESSAGE 32
+
+- COD policy = OPEN.
+- Returns/legal/refund policy = OPEN.
+- Promotions/Gift Card policy = OPEN.
+- Seller Ads accounting/tax/provider settlement = OPEN.
+- Performance optimization queue = OPEN.
+- Backup/restore/rollback/capacity = OPEN.
+- Auth leaked-password protection = OPEN pending plan/configuration.
+- Trust/fraud final policy and privacy mapping = OPEN.
+- Exact current-HEAD Preview and aggregate Browser Gate = OPEN.
+- Production Paymob, legal publication, and tax/invoice classification = OPEN.
+- No previously open dependency was silently removed.
