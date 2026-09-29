@@ -6242,3 +6242,67 @@ No new state machine, payment engine, webhook processor, reconciliation engine, 
 1. FIND-BE-028 legacy recommendation-model coexistence remains OPEN until deliberate architecture governance decides retirement/isolation/convergence.
 2. Existing legacy catalog consumption in compatibility code remains separately tracked; this Message's recommendation-engine remediation did not broaden into an unrequested catalog cutover.
 3. Browser evidence for this exact commit remains NOT EVIDENCED and belongs to the aggregate Browser Gate.
+
+## 2026-09-29 — MESSAGE 3/24 EXECUTION / PLATFORM MODEL RECONCILIATION
+**CLASSIFICATION:** CLOSED-DONE — platform identity and canonical model reconciled; no implementation gap justified a speculative new schema/engine.
+
+### Execution performed
+Message 3 was treated as a platform-coverage execution package. The Customer, Seller, and Owner/Governance chains were reconciled against the Restore-Test database object inventory, public RPC inventory, and current application source.
+
+### Customer model
+- Account/Auth: canonical Supabase Auth + existing customer lifecycle wiring.
+- Beauty Passport: beauty_profiles with velora_save_beauty_passport_v2.
+- Current Context: velora_get_beauty_context; current-date/season logic remains server-authoritative.
+- Routine: beauty_routine_runs + beauty_routine_steps, with velora_generate_beauty_routine / velora_get_current_beauty_routine.
+- Recommendations: beauty_recommendation_runs + beauty_recommendation_items, canonical velora_get_beauty_recommendations; the duplicate legacy Home ranking was removed in Message 2.
+- Product/Catalog: canonical products + product_variants and marketplace catalog paths; server state remains authoritative.
+- Cart: carts + cart_items with existing canonical cart RPCs and Routine→Cart adapter.
+- Checkout: velora_create_order_with_commercials + canonical payment/checkout path in 13-payments.js.
+- Payment: canonical payment_attempts + provider routing/session/webhook/reconciliation boundaries.
+- Orders/Fulfillment: orders, order_items, shipments, plus canonical customer order/return adapter.
+- Feedback: beauty_feedback + existing feedback submission/lifecycle.
+- Replenishment: no standalone replenishment_signals table is required by the current contract; canonical velora_get_replenishment_signals() computes deterministic signals from delivered/completed purchase history and is consumed by the Beauty Journey UI.
+
+### Seller model
+- Seller identity/lifecycle is represented by canonical sellers (not a speculative separate seller_profiles table).
+- Store operations use stores.
+- Onboarding uses seller_onboarding_cases + velora_upsert_seller_onboarding_case.
+- Products/variants use canonical product lifecycle and inventory contracts.
+- Seller order/shipping uses orders, order_items, shipments, store_shipping_zones, store_shipping_rates, shipping_quotes, and shipping_carriers.
+- Seller subscriptions use seller_subscriptions plus existing renewal jobs/state sync.
+- Seller advertising uses canonical seller_ad_campaigns + seller_ad_packages; no guessed seller_advertising_campaigns table was created.
+- Seller economics use commissions, seller_payout_items, and payouts; no duplicate seller_earnings persistence was created.
+- Seller payout actions are velora_request_seller_payout and velora_record_payout_execution.
+
+### Owner / Governance model
+- User/role governance: canonical role checks and velora_account_action.
+- Moderation/suspension: governed seller/product/account status transitions with server-side guards and audit.
+- Returns/refunds: returns, velora_request_return, velora_resolve_return; refund evidence remains an explicit exception boundary.
+- Promotions/coupons: promotions, coupons, redemption data, and governed promotion RPCs.
+- Gift cards: gift_cards, gift_card_transactions, Owner-only velora_issue_gift_card, plus canonical order application.
+- Legal: legal_documents, legal_acceptances, publish/accept/assert RPCs; publication remains a governance gate.
+- Fraud/Trust: fraud_risk_events, disputes, returns, policy_violations and Trust operations UI.
+- Audit/Reconciliation: audit_logs, reconciliation_runs, reconciliation_findings, canonical integrity/reconciliation functions.
+- Launch control: existing launch/DR/integration control planes; no additional launch state machine introduced.
+
+### Important naming reconciliation
+Initial probe names such as seller_profiles, seller_advertising_campaigns, seller_earnings, shipping_zones, shipping_rates, and replenishment_signals do not exist as standalone public tables. These are not gaps because the existing canonical implementation uses sellers, seller_ad_campaigns, commissions + seller_payout_items, store_shipping_zones + store_shipping_rates, and the computed velora_get_replenishment_signals() contract. No speculative tables were added.
+
+### ACL / governance verification
+Key owner/staff/customer operations were inspected in Restore-Test. Staff/Owner guards and audit boundaries are present for governance operations; customer-specific operations use authenticated user ownership guards. Gift-card issuance is explicitly Owner-only. Seller payout request requires authenticated ownership, while payout execution is staff-governed. Legal publication/upsert and seller status/onboarding mutations are governed server-side.
+
+### Action Flow
+The platform chains remain connected through the existing canonical Action Flow:
+EVENT → AUTH/ROLE → GUARD → VALIDATION → CANONICAL STATE TRANSITION → AUTOMATIC SIDE EFFECTS → AUDIT → RETRY/IDEMPOTENCY/DEDUPE → NEXT EVENT → RECOVERY/ESCALATION.
+No new duplicate engine, duplicate persistence model, or new state machine was introduced by this reconciliation.
+
+### Evidence
+- L1 Source: canonical UI adapters and source paths inspected.
+- L2 DB: canonical tables and function inventory verified in Restore-Test arlaxqmhtvjwjbjinjfw.
+- L3 Contract/ACL/RLS: key governance functions checked for role/auth guards and audit boundaries.
+- L7 Browser: no runtime change was made by Message 3; aggregate Browser Gate remains the governing application-level evidence and is not promoted here.
+- L8/L9 Provider/Production: not claimed by this message; Production remains frozen.
+
+### Carry-forward
+No build gap was justified by Message 3 itself. Existing implementation is retained. Any later Message that touches a specific lane must re-verify that lane and execute/fix its own remaining gaps without rebuilding the canonical platform model.
+
