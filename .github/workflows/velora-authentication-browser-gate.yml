@@ -118,6 +118,22 @@ jobs:
                   not auth_preflight.get("errorMessage")
               )
 
+              if not evidence["checks"]["auth_provider_accepts_e2e_credentials"]:
+                  evidence["failures"] = ["auth_provider_accepts_e2e_credentials"]
+                  with open("auth-browser-evidence.json","w",encoding="utf-8") as f:
+                      json.dump(evidence,f,ensure_ascii=False,indent=2)
+                  print(json.dumps(evidence,ensure_ascii=False,indent=2))
+                  browser.close()
+                  raise SystemExit(1)
+
+              # Preflight deliberately uses a separate browser page because it
+              # creates a real session. The UI test starts from a clean context
+              # so its results cannot be contaminated by preflight session state.
+              page.close()
+              page = browser.new_page()
+              page.goto("http://127.0.0.1:4173/", wait_until="networkidle", timeout=60000)
+              evidence["checks"]["clean_ui_context_after_preflight"] = page.locator("#accountBtn").count() == 1
+
               page.locator("#accountBtn").click()
               page.locator("#loginEmail").fill(email)
               page.locator("#loginPassword").fill("definitely-wrong-password")
