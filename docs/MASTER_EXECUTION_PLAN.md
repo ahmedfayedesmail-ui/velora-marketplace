@@ -8108,3 +8108,218 @@ HUMAN EXCEPTION -> only policy/governance exceptions
 - Legacy recommendation DB coexistence FIND-BE-028 remains OPEN.
 - Recommendation low-risk duplicate getRecommendations() declaration remains OPEN as source hygiene.
 - Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
+
+## 2026-09-29 — MESSAGE 20/24 EXECUTION / AUTH + PG_NET + LOCALIZATION + SEASON + CATALOG + SHIPPING + AGGREGATE BROWSER READINESS
+
+CLASSIFICATION:
+- Message 20 executed against Restore-Test on `audit/runtime-parity-2026-09-28`.
+- Production remained untouched and frozen.
+- One real shipping validation-order gap was found and fixed through the existing canonical shipment-status RPC; no new shipping engine was introduced.
+- Authentication configuration, PG_NET migration, complete Localization Browser Gate, complete aggregate Browser Gate, and Product Image/Storage readiness remain OPEN or NOT EVIDENCED where the available control surface cannot establish the required higher-level proof.
+
+### 64. AUTHENTICATION
+- Restore-Test Auth Advisor still reports `auth_leaked_password_protection` as WARN: leaked-password protection is disabled.
+- Login/E2E evidence was not promoted into Production Auth readiness.
+- Remaining readiness scope: leaked-password protection review/enablement, final email verification policy, session/password settings, recovery flow, Production redirects/origins, and sensitive-session controls.
+- The available connected Supabase control surface did not expose an Auth-settings mutation operation, so no unsupported settings change was attempted.
+- STATUS: Production Auth readiness = OPEN.
+
+### 65. PG_NET
+- `pg_net` is installed in `public`.
+- Active cron `velora-paymob-reconciliation` runs every 5 minutes and uses `net.http_post` to call `velora-paymob-reconciliation-restore-test`.
+- This is a live infrastructure dependency, not a lint-only warning.
+- No move/removal was justified without compatibility/dependency proof.
+- STATUS: OPEN infrastructure review.
+
+### 66. LOCALIZATION
+- V5 remains the language mutation authority via `window.VELORA_V5_SET_LANGUAGE`.
+- `paintLocale()` synchronously commits locale state before async persistence.
+- Synchronous paint updates locale state, localStorage, document language/direction, translations, and locale events.
+- Async persistence/catalog refresh happens after the visible state change.
+- The global locale wrapper preserves an existing local `velora_language` selection and explicitly avoids calling the older language mutator during server-context loading.
+- Intended ownership/order remains `00-localization.js -> 10-localization.js -> 12-localization.js -> 50-localization.js -> 51-localization.js -> 56-s2d-admin.js -> 63-platform-router.js`.
+- The pre-existing MutationObserver in `51-localization.js` remains the only observer added for dynamic translation safety; no second observer was introduced.
+- Platform routing already re-syncs Seller/Admin/Owner surfaces after locale changes.
+- Full Browser proof remains NOT EVIDENCED for EN -> AR -> EN -> refresh, all privileged surfaces, close/reopen, dynamic HTML, currency/date context, sign-in/out, mobile RTL, and stale-server-overwrite resistance.
+- STATUS: Source/runtime invariant = CLOSED-DONE at L1; Browser localization gate = OPEN.
+
+### 67. SEASON ENGINE
+- `velora_get_beauty_context()` on 2026-09-29 returned context_date `2026-09-29`, timezone `Africa/Cairo`, month `9`, season `autumn`, source `deterministic_calendar`, and season_basis `meteorological_calendar` for market `EG`.
+- September 2026 therefore resolves deterministically to Autumn.
+- No AI dependency exists for season resolution.
+- STATUS: CLOSED-DONE L1-L2.
+
+### 68. CURRENT QA CATALOG
+Live Restore-Test currently has 5 approved EGP products:
+- Test Vitamin C Serum — 23 — EGP 140
+- QA Seed Cleanser — 13 — EGP 100
+- QA Seed Barrier Moisturizer — 19 — EGP 120
+- QA Seed Anti-Aging Treatment — 14 — EGP 160
+- QA Seed SPF 50 Protect — 19 — EGP 100
+- The handoff snapshot listed Anti-Aging at 18; live DB is authoritative and currently shows 14.
+- QA catalog size must not be interpreted as intended Production catalog size.
+
+### 69. PRODUCT IMAGE / STORAGE
+- `product_images` = 0.
+- Storage buckets = 0.
+- No canonical product-image upload RPC was established.
+- Existing HTTPS image URL contract remains the only supported model.
+- No Base64 storage, arbitrary upload API, random image provider, or second media model was added.
+- STATUS: OPEN / NOT EVIDENCED.
+
+### 70. SELLER SHIPPING
+- `store_shipping_zones` = 1.
+- `store_shipping_rates` = 1.
+- `shipping_carriers` = 1.
+- `shipping_quotes` = 0.
+- Active `velora_manual` rate = 1.
+- Manual fulfillment remains the accepted launch model.
+- No new carrier backend was introduced.
+
+### 71. SHIPPING SECURITY
+FINDING:
+- Existing `velora_update_shipment_status()` checked tracking URL/number only after the same-state no-op return.
+- An invalid URL supplied with an unchanged status therefore did not fail closed, although it was not stored.
+
+FIX:
+- Restore-Test canonical function was updated so URL/number validation occurs before the same-state return.
+- Existing authorization, transition rules, mutation, audit, and state machine were preserved.
+- Applied migration: `20260929084521_harden_shipping_url_validation_order`.
+- Source migration: `supabase/migrations/20260929084521_harden_shipping_url_validation_order.sql`.
+- Source commit: `4eec5dad6c35a131c03fb878b190a04c8eeca1a5`.
+
+NEGATIVE PROOF:
+- Existing active shipment same-state update with `ftp://...` now fails `INVALID_TRACKING_URL`.
+- Same-state update with valid `https://...` returns `unchanged=true`.
+- Delivery proof with `ftp://...` fails `INVALID_PROOF_URL`.
+- Temporary valid shipment creation used for verification was rolled back and left no test shipment/audit.
+- Historical bad tracking URL count = 0.
+- Historical bad proof URL count = 0.
+- STATUS: CLOSED-DONE L1-L4.
+
+### 72. FINANCIAL MODEL
+- Canonical chain remains Order -> Payment -> Commission -> Seller Earnings -> Payout Request -> Provider Execution -> Settlement -> Reconciliation.
+- Eligibility is not payment; captured payment is not external settlement without provider evidence.
+- Existing payment/commission/payout/ledger/webhook/reconciliation components remain canonical.
+- No second ledger or settlement engine introduced.
+- Provider/browser/settlement evidence and mismatch/exception handling remain OPEN.
+
+### 73. AUDITABILITY
+- Existing broad auditability architecture remains CLOSED at current source/DB scope.
+- Durable paths cover seller application/review, product/seller/store lifecycle, seller suspension, orders, payment attempts, Paymob reconciliation/webhooks, shipments/delivery proof, returns, subscription state, seller ads, payouts, Gift Cards, promotions/coupons, legal governance, and workflow events.
+- No generic audit trigger or duplicate audit engine introduced.
+
+### 74. CUSTOMER ORDERS / TRACKING / DELIVERY PROOF
+- `src/scripts/71-customer-orders-returns.js` remains the canonical customer Orders/Returns adapter.
+- It uses canonical orders/order_items/returns/shipments/delivery_proofs.
+- Shipment status/tracking and delivery proof remain surfaced without resurrecting the older augmentation engine.
+- RLS and server contracts remain authoritative.
+- No duplicate Orders renderer introduced.
+
+### 75. FINAL AGGREGATE BROWSER GATE
+- `.github/workflows/velora-final-aggregate-browser-gate.yml` exists and was verified at tested Preview SHA `40f237224f5768ec931c90952eac2b3eaf814490`.
+- Workflow requires exact Preview URL + exact tested Preview SHA.
+- Customer and Seller credentials are separate; the workflow is read-only for commerce mutations.
+- Current cited exact Preview:
+  - Deployment: `dpl_E5FEuLo9BaFT2pt9EQEMq2ivCGpB`
+  - URL: `https://velora-marketplace-9a3va2kpj-ahmedconccc-7063.vercel.app`
+  - State: READY
+  - Deployed SHA: `40f237224f5768ec931c90952eac2b3eaf814490`
+- The aggregate workflow itself was not executed in Message 20 because the connected GitHub tooling does not expose workflow dispatch and the workflow E2E secrets are not available as direct execution inputs.
+- Therefore no Browser PASS is claimed.
+- STATUS: Exact cited Preview = CLOSED-DONE; aggregate Browser Gate = OPEN / NOT EVIDENCED.
+
+### 76. CURRENT BROWSER POLICY
+- Do not run Browser Gate after every tiny fix.
+- Complete source/DB/contract hardening first.
+- Then run one aggregate Browser Gate against exact tested Preview URL + exact tested Preview SHA.
+- Historical browser evidence stays track-specific and is never promoted into platform-wide PASS.
+
+### 77. MESSAGE 20 ACTION FLOW
+AUTH:
+EVENT -> login/recovery/session lifecycle
+AUTH/ROLE -> Supabase Auth
+GUARD -> authentication/session controls
+VALIDATION -> email verification/password/redirect/origin/session policy
+CANONICAL STATE -> Auth session/account
+AUTOMATIC SIDE EFFECT -> existing auth-state synchronization
+AUDIT/RETRY -> explicit provider/session error handling
+NEXT EVENT -> authenticated journey
+HUMAN EXCEPTION -> security/recovery only
+
+LOCALIZATION:
+EVENT -> language selection/context load
+AUTH/ROLE -> public/local UI; authenticated persistence when applicable
+GUARD -> V5 locale authority
+VALIDATION -> supported locale
+CANONICAL STATE -> V5 locale/global context
+AUTOMATIC SIDE EFFECT -> synchronous paint + async persistence/catalog refresh
+AUDIT/RETRY -> existing controlled async path
+NEXT EVENT -> active surface rendered in selected locale
+HUMAN EXCEPTION -> none in normal selection
+
+SHIPPING:
+EVENT -> shipment tracking/proof mutation
+AUTH/ROLE -> authenticated seller or staff
+GUARD -> shipment ownership/state
+VALIDATION -> URL scheme/length + status transition
+CANONICAL STATE -> shipment tracking/status/proof
+AUTOMATIC SIDE EFFECT -> shipment lifecycle + audit
+RETRY/DEDUPE -> same-state no-op only after validation
+NEXT EVENT -> customer tracking/delivery proof
+HUMAN EXCEPTION -> fulfillment exception only
+
+### MESSAGE 20 EVIDENCE BOUNDARY
+- L1 Source: Localization V5/global context/router, shipping migration, Orders adapter, and aggregate Browser workflow inspected.
+- L2 DB: Auth Advisor warning, PG_NET cron dependency, deterministic Cairo season, QA catalog, product-image/storage counts, shipping registry counts, and migration history verified.
+- L3 Contract/ACL: Existing Auth/Locale/Shipping authorities preserved; no new permission model.
+- L4 Negative: same-state invalid tracking URL rejected; invalid proof URL rejected; valid same-state HTTPS accepted as unchanged; transactional shipment fixture rolled back.
+- L5 CI: NO NEW final aggregate Browser workflow run.
+- L6 Preview: exact cited Preview remains READY at SHA `40f237224f5768ec931c90952eac2b3eaf814490`. The new shipping migration is DB/source-only and does not modify the already-built frontend bundle.
+- L7 Browser: final aggregate Browser Gate = NOT EVIDENCED; Paymob-specific historical Browser evidence remains separate.
+- L8 Provider: NO NEW provider test.
+- L9 Production: UNTOUCHED / FROZEN.
+
+### MESSAGE 20 NON-NEGOTIABLES RECONFIRMED
+- No Auth readiness claim from login alone.
+- No PG_NET move without compatibility/dependency proof.
+- No second localization observer/engine.
+- No new product media model without a real upload contract.
+- Manual shipping remains the launch model.
+- No duplicate financial/settlement/audit/order renderer engines.
+- No Browser PASS inferred from Preview/source/DB.
+- No Production changes.
+
+### CARRY-FORWARD AFTER MESSAGE 20
+- Production Auth readiness = OPEN.
+- Leaked-password protection = OPEN.
+- PG_NET infrastructure review = OPEN.
+- Localization Browser proof = OPEN / NOT EVIDENCED.
+- Season engine = CLOSED-DONE.
+- Product Image/Storage = OPEN / NOT EVIDENCED.
+- Seller shipping foundation = CLOSED for current manual launch model.
+- Shipping URL security = CLOSED-DONE L1-L4.
+- Financial provider/browser/settlement proof = OPEN.
+- Auditability = CLOSED at current source/DB scope.
+- Final aggregate Browser Gate = OPEN / NOT EVIDENCED.
+- Exact cited Preview = READY.
+- Complete Beauty Browser Gate = OPEN / NOT EVIDENCED.
+- Future Passport Dimensions remain OPEN.
+- Customer Beauty AI remains OPEN / NOT DONE.
+- Paymob Production remains OPEN.
+- Subscription commercial/runtime/provider/browser items remain OPEN.
+- Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain OPEN.
+- Promotion/coupon policy gaps beyond cancellation release remain OPEN.
+- Gift Card broader expiry/refund/accounting/fraud/issuance-limit items remain OPEN.
+- Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain OPEN.
+- Notification Browser/provider/Production delivery evidence remains OPEN.
+- Passport Browser journey evidence remains OPEN.
+- Recommendation Browser evidence remains OPEN.
+- Seller Dashboard/Admin re-entry Browser issue remains OPEN.
+- Localization FIND-BE-013 remains OPEN until aggregate Browser proof closes it.
+- Product Detail canonical contract audit remains OPEN.
+- Shipping visual-vs-canonical discrepancy remains OPEN.
+- Legacy recommendation DB coexistence FIND-BE-028 remains OPEN.
+- Recommendation low-risk duplicate getRecommendations() declaration remains OPEN as source hygiene.
+- Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
+- Paymob webhook legacy processor retirement and current v30 webhook canonical routing are complete in Restore-Test.
