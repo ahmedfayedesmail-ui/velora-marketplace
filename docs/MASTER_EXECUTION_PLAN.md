@@ -6939,3 +6939,74 @@ CLASSIFICATION: EXECUTED — Canonical Beauty Recommendation V2 backend is CLOSE
 - Legacy recommendation DB coexistence FIND-BE-028 remains open.
 - Recommendation Browser verification remains open; the backend itself is closed at L1-L4.
 - Duplicate getRecommendations() declaration in src/scripts/59-s1-b2-beauty-recommendations.js remains low-risk source hygiene unless later remediation is justified.
+## 2026-09-29 — MESSAGE 12/24 EXECUTION / ROUTINE ENGINE + BEAUTY JOURNEY + FEEDBACK + REPLENISHMENT
+CLASSIFICATION: EXECUTED — Canonical Routine Engine, Beauty Journey/Feedback/Replenishment integration, and the required private Routine-operation ACL hardening are CLOSED-DONE at L1-L4 for the current scope. Browser/runtime visual evidence remains OPEN.
+
+### 29. ROUTINE ENGINE
+- Canonical current routine entry point: velora_get_current_beauty_routine(). It requires an authenticated customer and a complete beauty-quiz.v2 Passport context.
+- Canonical generation path: velora_generate_beauty_routine() -> private.velora_beauty_routine_operation(). The operation is deterministic and currently writes ruleset_version=beauty-rules.v5 while the response/run contract_version remains beauty-routine.v1. This contract_version is not the retired Beauty Passport V1 and must not be confused with it.
+- Routine fingerprint input includes beauty-passport.v2 schema, beauty-context.v2, quiz_version, EG/EGP market context, skin_type, goal, concern, routine_budget, texture_preference, effect_preference, avoidance_preferences, shopping_priority, approved-feedback revision, purchase revision, and current context.
+- velora_get_current_beauty_routine() compares the persisted run fingerprint/catalog revision/ruleset to the current expected values and regenerates when stale; otherwise it serves the latest matching routine.
+- Deterministic current selection uses current catalog state, feedback signal, seasonal/context signal, step match, budget, and avoidance rules. AI does not own the current routine-selection decision.
+- Current-state availability is enforced in the routine engine: approved product, EGP, Beauty category, base stock > 0 or an active stocked variant, step fit, budget fit, non-negative feedback signal, and avoidance constraints.
+
+### ROUTINE PRIVATE OPERATION ACL HARDENING
+- During Message 12 live verification, private.velora_beauty_routine_operation() was found directly executable by authenticated users, which conflicted with the canonical 'private behind public entry point' architecture.
+- Targeted fix applied on Restore-Test: revoke execute from anon and authenticated for private.velora_beauty_routine_operation(). No broader privilege revocation was performed.
+- Source migration added to the continuation branch: supabase/migrations/20260929103200_harden_private_beauty_routine_operation_acl.sql.
+- Post-fix live ACL: private routine operation anon=false, authenticated=false, service_role=false; public velora_generate_beauty_routine() remains authenticated=true/service_role=true and public velora_get_current_beauty_routine() remains authenticated=true/service_role=true.
+- Negative-path proof after the fix: authenticated direct call to private.velora_beauty_routine_operation() returned PostgreSQL permission denied for function, while the canonical public current-routine path continued to return a valid routine in the same authenticated test context.
+
+### 30. ROUTINE QA SNAPSHOT
+- Current Restore-Test observed state is newer than the older handoff snapshot: beauty_routine_runs=522 and beauty_routine_steps=2624 at verification time.
+- Current grouped complete runs: beauty-rules.v2=17, beauty-rules.v4=2, beauty-rules.v5=522. No alternative ruleset/status bucket was observed in the grouped current query.
+- These are Restore-Test / QA/test-driven records only and are not interpreted as production usage, customer adoption, or production traffic.
+- The current authenticated routine probe returned a complete routine with beauty-rules.v5, contract_version=beauty-routine.v1, EG/EGP context, and six routine slots with five selected products plus one optional slot absent/available according to current catalog state. The probe was wrapped in a transaction and rolled back.
+
+### 31. BEAUTY JOURNEY / FEEDBACK / REPLENISHMENT
+- Customer Beauty Journey remains src/scripts/64-s1-d-beauty-journey.js and uses velora_get_current_beauty_routine() plus velora_get_replenishment_signals(); it displays Passport memory, current routine, context/season, ruleset, routine history, and replenishment signals.
+- Beauty Feedback remains src/scripts/65-s1-d-beauty-feedback.js and uses the canonical purchase-linked RPC velora_submit_beauty_feedback(...). Purchase feedback requires authenticated ownership plus a matching delivered/completed order item/product/variant; idempotency is required and duplicate submission is safely reused.
+- Current canonical feedback signal private.velora_beauty_feedback_signal(...) returns exactly -1 / 0 / +1 from the customer's latest approved feedback for the matching product/variant. This signal is reused by both Routine and Recommendation intelligence.
+- Replenishment remains deterministic in velora_get_replenishment_signals(): it uses delivered/completed purchase history, latest purchase per product, and product-subcategory-based intervals rather than a second learning engine. Current Restore-Test authenticated probe returned an empty signal set because there are no current eligible replenishment signals for that user.
+- No standalone replenishment_signals table or second learning engine was introduced.
+- No source rewrite was needed for Journey/Feedback/Replenishment because the canonical surfaces and RPCs already exist.
+
+### MESSAGE 12 ACTION FLOW
+- Passport change / feedback change / relevant purchase or context revision -> canonical server state -> expected fingerprint/revision comparison -> deterministic Routine regeneration when stale -> run/step recording -> current Routine response -> Beauty Journey presentation -> downstream Recommendation/Commerce surfaces consume current canonical state.
+- Feedback event -> authenticated purchase/ownership/eligibility/idempotency guard -> canonical beauty_feedback write -> audit/state transition path already present -> feedback revision changes Recommendation/Routine input freshness.
+- Replenishment read -> authenticated customer guard -> deterministic delivered/completed purchase history calculation -> signal response -> Journey presentation. No human exception path is introduced for normal reads.
+
+### MESSAGE 12 EVIDENCE BOUNDARY
+- L1 Source: Routine UX, Beauty Journey, Beauty Feedback, V2 routine operation, public wrappers, and new ACL migration verified.
+- L2 DB: current function definitions, privileges, routine QA counts, V2 profiles, and current replenishment probe verified against arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL: authenticated public Routine entry points, private-operation denial after hardening, V2 Passport preconditions, and canonical feedback eligibility/idempotency verified.
+- L4 Negative / transactional: authenticated direct private Routine execution was denied after ACL hardening; authenticated current-routine probe returned a complete routine; test mutation was rolled back; current QA counts remained test data.
+- L5 CI: no new CI run was required after documentation/source-migration commit because no application runtime source changed; the ACL migration itself was applied and verified directly on Restore-Test.
+- L6 Preview: no Preview deployment was required; no customer-facing application source was changed.
+- L7 Browser: NOT EVIDENCED for the full Passport -> Routine -> Journey -> Feedback -> Replenishment mobile/browser journey.
+- L8 Provider: not applicable to the deterministic Routine/Feedback/Replenishment core itself.
+- L9 Production: untouched and frozen.
+
+### MESSAGE 12 NON-NEGOTIABLES RECONFIRMED
+- No second Routine engine.
+- No AI ownership of current Routine selection.
+- No Beauty Passport V1 resurrection; beauty-routine.v1 is only the routine response contract name.
+- No speculative schema or second replenishment store.
+- Current product approval/inventory/currency/budget/availability guards remain mandatory.
+- No arbitrary MutationObserver or click-listener workaround introduced.
+- No Production mutation.
+- Browser PASS is not inferred from source/DB evidence.
+
+### CARRY-FORWARD AFTER MESSAGE 12
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Message 8 promotion/coupon policy gaps, Gift Card broader policy/accounting/fraud/issuance-limit items, and Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Message 9 notification Browser/provider/Production delivery evidence remains open.
+- Message 10 Passport Browser journey evidence remains open.
+- Message 11 Recommendation Browser evidence remains open; backend and source-level customer recommendation surface are present.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
