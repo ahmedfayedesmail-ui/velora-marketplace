@@ -63,7 +63,7 @@ jobs:
           SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
           evidence = {
-              "schema": "seller-admin-reentry-browser.v3",
+              "schema": "seller-admin-reentry-browser.v4",
               "preview_url": PREVIEW,
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
               "checks": {},
@@ -198,12 +198,16 @@ jobs:
               platform_node = page.locator("#" + platform_id)
               content_node = page.locator("#" + content_id)
 
-              # Canonical shell becoming active is not sufficient evidence.
-              # Wait until the canonical dashboard has actually rendered content.
+              # Wait for a real canonical dashboard marker, not the loading spinner.
+              canonical_render_selector = (
+                  "#sellerContent .seller-welcome"
+                  if platform == "seller"
+                  else "#adminContent .velora-op-grid"
+              )
               page.wait_for_function(
-                  "(contentId) => { const el=document.getElementById(contentId); return !!el && String(el.innerText || '').trim().length > 0; }",
-                  arg=content_id,
-                  timeout=20000
+                  "(selector) => !!document.querySelector(selector)",
+                  arg=canonical_render_selector,
+                  timeout=30000
               )
 
               def runtime_snapshot(stage):
@@ -317,9 +321,9 @@ jobs:
                   timeout=15000
               )
               page.wait_for_function(
-                  "(contentId) => { const el=document.getElementById(contentId); return !!el && String(el.innerText || '').trim().length > 0; }",
-                  arg=content_id,
-                  timeout=20000
+                  "(selector) => !!document.querySelector(selector)",
+                  arg=canonical_render_selector,
+                  timeout=30000
               )
 
               second_open = runtime_snapshot({"name": "second_open", "platform": platform})
