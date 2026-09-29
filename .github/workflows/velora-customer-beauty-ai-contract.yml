@@ -16,6 +16,8 @@ on:
 permissions:
   contents: read
 
+# Evidence gate for Customer Beauty AI + canonical Product Detail.
+
 concurrency:
   group: velora-customer-beauty-ai-contract
   cancel-in-progress: true
