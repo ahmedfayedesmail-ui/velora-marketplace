@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source = fs.readFileSync('src/scripts/00-localization.js', 'utf8');
+const stage8Source = fs.readFileSync('src/scripts/12-localization.js', 'utf8');
 
 const required = [
   'db.auth.signInWithPassword',
@@ -90,6 +91,23 @@ assert.ok(
   source.indexOf('profile = await loadOrBootstrapAuthProfile(authUser);') !==
     source.lastIndexOf('profile = await loadOrBootstrapAuthProfile(authUser);'),
   'Initial session and auth-state listener must both use the bootstrap path'
+);
+
+assert.ok(
+  stage8Source.includes('db.auth.onAuthStateChange((_event,session)=>'),
+  'Stage 8 role sync must observe the canonical auth lifecycle'
+);
+
+assert.ok(
+  !stage8Source.includes('db.auth.onAuthStateChange(async'),
+  'Stage 8 must not await Supabase work directly inside the auth callback'
+);
+
+const stage8AuthSyncStart = stage8Source.indexOf('db.auth.onAuthStateChange((_event,session)=>');
+const stage8AuthSyncSnippet = stage8Source.slice(stage8AuthSyncStart, stage8AuthSyncStart + 1800);
+assert.ok(
+  stage8AuthSyncSnippet.includes('setTimeout(async()=>'),
+  'Stage 8 auth role sync must defer Supabase queries outside the auth lock'
 );
 
 
