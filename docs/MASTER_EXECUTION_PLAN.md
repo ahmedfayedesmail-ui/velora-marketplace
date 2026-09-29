@@ -175,29 +175,358 @@ For each new work package:
 9. Record evidence and classification.
 10. Carry unresolved items forward explicitly.
 
-## MESSAGE 2/10 — EXECUTION CLOSURE RECORD (2026-09-29)
+## MESSAGE 2/10 — ACTION FLOW REGISTER (2026-09-29)
 
-CLASSIFICATION: ENGINEERING FOUNDATION CLOSED / EXTERNAL EVIDENCE GATES REMAIN SEPARATE
+CLASSIFICATION: CLOSED-DONE FOR MESSAGE 2 ARCHITECTURE / AUTOMATION REGISTER
 
-OBSERVED FACT:
-- Project Identity is represented in the repository and Master execution model.
-- Customer path has canonical Account/Auth, Beauty Passport V2, Beauty Context, deterministic Routine, Recommendation backend + customer presentation, Product/Catalog, canonical Cart bridge, canonical Checkout, Payment/Paymob Restore-Test path, Orders, Manual Fulfillment/Shipping, Feedback, and Replenishment contracts.
-- Seller path has canonical Onboarding, Store/Seller governance, Product create/update/availability, Inventory/variant contract, Orders/Shipping, Subscription purchase/state machine, Advertising purchase/lifecycle, Earnings/Commission, and Payout request/recording contracts.
-- Owner/Governance path has canonical Admin/Owner entry, Users/Sellers/Product/Orders/Payments governance surfaces, Promotions, Gift Cards, Legal control, Trust/Returns, Release/Launch control, and audit/reconciliation control planes.
-- The contract-level audit confirmed the key Customer/Seller/Owner canonical functions exist in Restore-Test; promotion creation uses the actual canonical function velora_create_platform_promotion, not a nonexistent velora_create_promotion name.
-- Current Restore-Test remains ACTIVE_HEALTHY. Production remains FROZEN and was not modified.
-- The current DB snapshot includes live QA/test state across orders, payments, commissions, shipments, beauty profiles/routines, notifications, coupons, legal QA fixtures, and seller/ad foundations; these counts are QA evidence, not production-usage claims.
+The following flows are the canonical operating model for every platform path represented by Message 2. This register is intentionally implementation-reuse-first: it references existing canonical Velora RPCs, triggers, notification lifecycle, payment/webhook reconciliation, and existing UI adapters. No parallel engine, scheduler, or permission system is introduced.
 
-EVIDENCE STATUS:
-- L1/L2/L3 foundation: verified for the mapped canonical paths.
-- L4 negative/transactional evidence: retained from the existing Master evidence where present.
-- L6/L7 for the new recommendation surface: pending exact Preview/Browser evidence.
-- L8 provider settlement: remains a distinct external evidence gate.
-- L9 Production: intentionally not attempted during audit/hardening.
+### CUSTOMER
 
-NON-NEGOTIABLE DECISION:
-- Message 2 does not create any duplicate engine, speculative schema, new permission engine, new scheduler, Cart rewrite, V1 Beauty Passport revival, or Production mutation.
-- Remaining items are not to be reopened as "Message 2 work"; they are carried under their dedicated later Master gates only when reached.
+1. Account
+EVENT: sign-in / sign-out / token refresh
+AUTH/ROLE: authenticated customer session
+GUARD: Supabase Auth + session ownership
+VALIDATION: credential/session validity and current user identity
+CANONICAL STATE: session becomes authenticated/unauthenticated
+AUTOMATION: existing auth lifecycle listeners re-sync canonical customer state, cart, wishlist, and UI
+AUDIT/RETRY: Auth/provider errors remain explicit; no client-side fake session
+NEXT EVENT: authenticated customer can enter Passport/cart/orders/checkout
+HUMAN EXCEPTION: account recovery/security cases only
+
+2. Beauty Passport
+EVENT: customer submits or updates Passport V2
+AUTH/ROLE: authenticated customer
+GUARD: V2 RPC + exact enum/token contract
+VALIDATION: skin_type + goal + routine_budget
+CANONICAL STATE: beauty_profiles V2 state saved
+AUTOMATION: emit velora:passport-v2-updated -> routine/recommendation refresh paths
+AUDIT/RETRY: RPC transaction; validation failure is surfaced without partial state
+NEXT EVENT: deterministic routine/recommendation generation
+HUMAN EXCEPTION: none for normal submission
+
+3. Current Context
+EVENT: routine/context render or context date rollover
+AUTH/ROLE: authenticated customer where personalization is requested
+GUARD: server-authoritative beauty context
+VALIDATION: Africa/Cairo date + deterministic season helper
+CANONICAL STATE: current beauty context returned
+AUTOMATION: routine UX refreshes from server context; no AI/weather dependency
+AUDIT/RETRY: transient read failure -> controlled retry
+NEXT EVENT: routine regeneration when context changes
+HUMAN EXCEPTION: none
+
+4. Routine
+EVENT: Passport/context/catalog/ruleset change or routine request
+AUTH/ROLE: authenticated customer
+GUARD: V2 Passport completeness
+VALIDATION: deterministic rules + eligible catalog state
+CANONICAL STATE: beauty routine run/steps
+AUTOMATION: regeneration driven by canonical fingerprint; no second routine engine
+AUDIT/RETRY: canonical routine run persistence and deterministic recomputation
+NEXT EVENT: recommendations/product selection -> cart
+HUMAN EXCEPTION: none in normal path
+
+5. Recommendations
+EVENT: completed Passport/authenticated Home or refresh event
+AUTH/ROLE: authenticated customer
+GUARD: V2 Passport + rate/cache + eligible catalog
+VALIDATION: EG/EGP, approved stocked Beauty products, budget and feedback rules
+CANONICAL STATE: recommendation run/items, or incomplete/no_matches/rate_limited response
+AUTOMATION: existing RPC -> mounted Home recommendation surface; existing product/cart bridges
+AUDIT/RETRY: 24h cache + 5/10min rate limit; controlled retry for transient failure
+NEXT EVENT: product detail or cart
+HUMAN EXCEPTION: none
+
+6. Product/Catalog
+EVENT: seller creates/updates product or platform/customer requests discovery
+AUTH/ROLE: seller for mutation; customer/public for permitted reads
+GUARD: lifecycle + seller ownership + approval + availability
+VALIDATION: canonical seller/product contracts
+CANONICAL STATE: product lifecycle/availability/inventory
+AUTOMATION: product status notifications; catalog reads use eligible current state
+AUDIT/RETRY: explicit lifecycle audit + transactional RPCs
+NEXT EVENT: product discovery -> cart/order or seller moderation
+HUMAN EXCEPTION: staff/owner moderation only
+
+7. Cart
+EVENT: add/update/remove item or Routine -> Cart
+AUTH/ROLE: authenticated customer for canonical server cart
+GUARD: ownership + product/variant/stock/currency validity
+VALIDATION: quantity/line key + canonical RPC checks
+CANONICAL STATE: canonical carts/cart_items
+AUTOMATION: legacy visible cart remains a compatibility projection; cloud writes are serialized
+AUDIT/RETRY: existing idempotent/server-authoritative RPC behavior; checkout protected from cart-write race
+NEXT EVENT: checkout
+HUMAN EXCEPTION: none
+
+8. Checkout
+EVENT: customer submits checkout
+AUTH/ROLE: authenticated customer
+GUARD: canonical cart + legal documents + country/currency/payment method
+VALIDATION: shipping quote + order total + idempotency reference
+CANONICAL STATE: order/payment attempt
+AUTOMATION: server order creation -> payment/provider path -> cart clear only after canonical success conditions
+AUDIT/RETRY: stable checkout reference + in-flight guard + canonical payment recovery
+NEXT EVENT: provider result/webhook/inquiry -> order fulfillment
+HUMAN EXCEPTION: provider ambiguity only
+
+9. Payment
+EVENT: payment attempt / provider intention / provider result
+AUTH/ROLE: authenticated checkout + provider callback
+GUARD: canonical payment-attempt ownership and provider correlation
+VALIDATION: method/country/currency/order binding
+CANONICAL STATE: monotonic payment attempt/payment/order payment status
+AUTOMATION: webhook OR reconciliation inquiry -> canonical transition -> commission/ledger/audit
+AUDIT/RETRY: idempotency/dedupe + reconciliation scheduler
+NEXT EVENT: paid/failed/refunded -> fulfillment/financial recovery
+HUMAN EXCEPTION: externally ambiguous provider state
+
+10. Order / Fulfillment
+EVENT: order creation and subsequent operational status changes
+AUTH/ROLE: customer for read/cancel within contract; seller/staff for operational actions
+GUARD: canonical order/item/store ownership and state transition rules
+VALIDATION: status transition + inventory/shipping contract
+CANONICAL STATE: orders -> shipments
+AUTOMATION: order lifecycle jobs, status history, notifications, financial synchronization
+AUDIT/RETRY: trigger-based automation + explicit status history
+NEXT EVENT: shipped -> delivered -> feedback/replenishment/return eligibility
+HUMAN EXCEPTION: exceptional operational intervention
+
+11. Feedback
+EVENT: delivered/completed customer submits feedback
+AUTH/ROLE: authenticated owner of qualifying order item
+GUARD: delivered/completed + matching order item/product/variant
+VALIDATION: feedback contract and moderation metadata guard
+CANONICAL STATE: beauty_feedback
+AUTOMATION: feedback lifecycle + reusable -1/0/+1 signal
+AUDIT/RETRY: transactional insert and lifecycle trigger
+NEXT EVENT: routine/recommendation signal revision
+HUMAN EXCEPTION: moderation exception only
+
+12. Replenishment
+EVENT: delivered/completed purchase ages into replenishment window
+AUTH/ROLE: authenticated customer
+GUARD: canonical purchase history and product subcategory interval
+VALIDATION: deterministic replenishment rule
+CANONICAL STATE: replenishment signal
+AUTOMATION: calculation from existing engine, no duplicate scheduler/AI learner
+NEXT EVENT: customer re-purchase decision
+HUMAN EXCEPTION: none
+
+### SELLER
+
+13. Seller Onboarding
+EVENT: seller application/submission
+AUTH/ROLE: authenticated seller applicant; Staff/Owner for governance
+GUARD: canonical onboarding case + staff mutation boundary
+VALIDATION: identity/authenticity/catalog/contact/evidence/review contract
+CANONICAL STATE: onboarding case + seller status projection
+AUTOMATION: audit + seller status notification
+NEXT EVENT: staff review -> approve/reject -> Store availability
+HUMAN EXCEPTION: approval/rejection is deliberate governance
+
+14. Seller Store
+EVENT: approved seller/store creation or governed material profile update
+AUTH/ROLE: seller for permitted profile changes; Staff/Owner for status governance
+GUARD: seller/store ownership + status
+VALIDATION: store contract
+CANONICAL STATE: stores/seller lifecycle
+AUTOMATION: status-triggered notifications and downstream product eligibility
+NEXT EVENT: product creation / seller operations
+HUMAN EXCEPTION: material re-review decisions
+
+15. Seller Product
+EVENT: create/update/availability change
+AUTH/ROLE: authenticated approved seller; Staff/Owner for moderation
+GUARD: canonical seller product RPC and ownership
+VALIDATION: lifecycle, content, stock/availability, seller/store binding
+CANONICAL STATE: products + variants
+AUTOMATION: product status notification, inventory recomputation, availability projection
+NEXT EVENT: approved/active catalog exposure or re-review
+HUMAN EXCEPTION: moderation and policy decisions
+
+16. Seller Orders / Shipping
+EVENT: order becomes seller-operational and shipment status changes
+AUTH/ROLE: seller/staff per canonical order/shipping permissions
+GUARD: seller ownership and status transition
+VALIDATION: item/store/shipping state
+CANONICAL STATE: orders/order-items/shipments
+AUTOMATION: notifications, financial synchronization, lifecycle jobs
+NEXT EVENT: delivered -> seller earnings eligibility
+HUMAN EXCEPTION: operational exception
+
+17. Seller Subscription
+EVENT: purchase / capture / expiry / renewal result
+AUTH/ROLE: approved seller for purchase; service_role for lifecycle workers
+GUARD: active seller/store + country + legal + idempotency
+VALIDATION: regional price + cycle + provider binding
+CANONICAL STATE: pending -> active -> past_due -> expired/cancelled
+AUTOMATION: payment initialization, state sync, renewal job lifecycle, expiry notifications
+AUDIT/RETRY: queued/in_progress/failed renewal jobs with leases and capped attempts
+NEXT EVENT: active entitlement / renewal retry / expiry
+HUMAN EXCEPTION: commercial policy or provider ambiguity
+
+18. Seller Advertising
+EVENT: package purchase / provider result / expiry
+AUTH/ROLE: approved seller for purchase; service_role for lifecycle sync
+GUARD: package/product/store/legal/inventory approval
+VALIDATION: package/country/currency/idempotency
+CANONICAL STATE: pending_payment -> active -> completed/payment_failed/refunded
+AUTOMATION: provider result -> canonical campaign sync -> notification -> lifecycle expiry
+AUDIT/RETRY: purchase idempotency + canonical payment attempt
+NEXT EVENT: sponsored discovery / expiry
+HUMAN EXCEPTION: provider ambiguity, refund/accounting exception
+
+19. Seller Earnings / Commission
+EVENT: order/payment state transition
+AUTH/ROLE: server financial execution
+GUARD: canonical order/payment state
+VALIDATION: resolved commission rate + financial basis currently defined by existing contract
+CANONICAL STATE: commission pending/finalized/reversed + seller earning amount
+AUTOMATION: financial state synchronization and ledger entries
+AUDIT/RETRY: conflict-safe finalization/reversal
+NEXT EVENT: payout eligibility
+HUMAN EXCEPTION: commercial policy/financial exception
+
+20. Seller Payout
+EVENT: seller requests eligible payout
+AUTH/ROLE: authenticated approved seller; Staff/Owner for execution recording
+GUARD: finalized paid delivered orders + 7-day window + no duplicate payout items
+VALIDATION: payout calculation and currency
+CANONICAL STATE: payout pending -> processing -> paid when execution is recorded
+AUTOMATION: eligibility calculation + request + ledger/audit recording
+AUDIT/RETRY: idempotent execution recording; provider ambiguity is not auto-resolved by invented transfer logic
+NEXT EVENT: provider execution -> reconciliation
+HUMAN EXCEPTION: external settlement boundary / ambiguity
+
+### OWNER / GOVERNANCE
+
+21. User / Role Governance
+EVENT: role-sensitive operation
+AUTH/ROLE: Auth + canonical role lookup
+GUARD: server-side role checks
+VALIDATION: operation-specific authorization
+CANONICAL STATE: governed user/role state
+AUTOMATION: normal access control is automatic
+AUDIT/RETRY: privileged writers audit; auth failures fail closed
+NEXT EVENT: approved operation or controlled denial
+HUMAN EXCEPTION: account/security governance only
+
+22. Moderation / Suspension
+EVENT: seller/product/account review signal
+AUTH/ROLE: Staff/Owner
+GUARD: server-side governance RPCs
+VALIDATION: policy and evidence
+CANONICAL STATE: pending/approved/rejected/suspended/etc.
+AUTOMATION: downstream status notifications and eligibility changes
+AUDIT/RETRY: explicit audit; no silent client-side mutation
+NEXT EVENT: resumed/blocked workflow
+HUMAN EXCEPTION: governance decision by definition
+
+23. Refund / Return Exceptions
+EVENT: return request or exceptional refund case
+AUTH/ROLE: customer for request; service/staff/provider for resolution/refund
+GUARD: delivered ownership/store/item/return state
+VALIDATION: allowed status transition + refund contract
+CANONICAL STATE: return requested -> approved/rejected -> in_transit -> received -> refund state
+AUTOMATION: normal state transition/audit/notifications
+AUDIT/RETRY: provider evidence required for external refund; ambiguous provider state escalates
+NEXT EVENT: refunded -> financial reconciliation
+HUMAN EXCEPTION: policy/provider/refund exception
+
+24. Promotions / Coupons
+EVENT: promotion/coupon validation and order application
+AUTH/ROLE: customer for use; Staff/Owner for management
+GUARD: active window, currency, targeting, usage and order eligibility
+VALIDATION: discount rules and idempotent redemption
+CANONICAL STATE: promotion/redemption/order discount state
+AUTOMATION: best-promotion/coupon calculation and redemption bookkeeping
+AUDIT/RETRY: canonical RPC transaction
+NEXT EVENT: payment/refund/cancellation reversal where contract requires
+HUMAN EXCEPTION: policy/economics exception
+
+25. Gift Cards
+EVENT: Owner issuance / customer redemption / order cancellation/refund
+AUTH/ROLE: Owner issuance; authenticated customer redemption
+GUARD: balance, active state, currency/order relationship
+VALIDATION: code, balance, expiry/current contract
+CANONICAL STATE: gift_cards + gift_card_transactions
+AUTOMATION: redemption decrement and cancellation/refund compensation according to existing contract
+AUDIT/RETRY: server transaction/idempotency
+NEXT EVENT: payment/order/financial reconciliation
+HUMAN EXCEPTION: owner issuance and exceptional refund/accounting
+
+26. Legal
+EVENT: document create/approve/publish / checkout legal read
+AUTH/ROLE: Staff/Owner; Owner specifically for publication
+GUARD: version/hash/status/effective-date rules
+VALIDATION: server-computed hash + legal status
+CANONICAL STATE: draft/approved/published/retired
+AUTOMATION: checkout fail-closed when no published applicable legal set
+AUDIT/RETRY: publication audit event; no silent bypass
+NEXT EVENT: checkout eligibility
+HUMAN EXCEPTION: legal publication decision is Owner-governed
+
+27. Notifications / Push
+EVENT: business event creates notification
+AUTH/ROLE: system lifecycle
+GUARD: active push subscription + claim state
+VALIDATION: payload/recipient/subscription
+CANONICAL STATE: notification pending -> claimed/in-flight -> delivered or stale/recoverable
+AUTOMATION: DB trigger -> pg_net -> notification lifecycle cron -> push send -> delivery mark/404-410 cleanup
+AUDIT/RETRY: stale claim recovery and delivery idempotency
+NEXT EVENT: delivered notification or recovered retry
+HUMAN EXCEPTION: provider outage/exception only
+
+28. Audit / Reconciliation
+EVENT: high-impact state change or reconciliation finding
+AUTH/ROLE: system writer; Staff/Owner read/governance
+GUARD: canonical writer contract
+VALIDATION: object/state/reference/evidence
+CANONICAL STATE: audit log / reconciliation finding
+AUTOMATION: triggers/functions and reconciliation workers
+AUDIT/RETRY: conflict-safe and explicit evidence trail
+NEXT EVENT: automatic remediation where deterministic, otherwise exception queue
+HUMAN EXCEPTION: provider ambiguity, financial/legal/security governance
+
+29. Release / Launch Control
+EVENT: release or launch gate evaluation
+AUTH/ROLE: Staff/Owner
+GUARD: launch-control contract + evidence layers
+VALIDATION: all required launch gates and exact artifact/Preview references
+CANONICAL STATE: gate statuses / release readiness
+AUTOMATION: audits collect evidence; release promotion remains governed
+NEXT EVENT: ready-to-promote or remediation
+HUMAN EXCEPTION: final release/cutover authorization
+
+### AUTOMATION POLICY FOR MESSAGE 2
+
+Observed automation already present:
+- payment_attempts automation trigger
+- failed-payment inventory-release trigger
+- order lifecycle job scheduling trigger
+- order financial-state trigger
+- order status-history trigger
+- order notification trigger
+- shipment notification trigger
+- product/seller/profile/store mutation guard triggers
+- product/seller status notification triggers
+- notification push dispatch trigger
+- feedback lifecycle trigger
+- reconciliation automation trigger
+- user welcome notification trigger
+- velora-notification-lifecycle every minute
+- velora-paymob-reconciliation every 5 minutes
+- canonical subscription/ad lifecycle functions already exist
+
+NO NEW SCHEDULERS ARE BEING ADDED TO MESSAGE 2:
+- The current evidence does not justify a duplicate notification, payment, ad, subscription, reconciliation, or audit scheduler.
+- Where a lifecycle currently stops at an external boundary (provider settlement, legal publication, payout transfer, governance), that boundary remains explicitly human/provider-governed rather than being simulated.
+
+MESSAGE 2 ACTION-FLOW EXIT CONDITION:
+Every normal customer/seller/platform event represented by Message 2 has an identified canonical event -> authorization -> guard -> validation -> state transition -> side effects -> audit -> retry/idempotency -> next event path, and human intervention is reserved for explicit exception boundaries.
+
 
 ## 12. Message execution rule
 
