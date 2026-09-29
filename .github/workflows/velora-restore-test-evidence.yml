@@ -1,0 +1,149 @@
+name: Velora Zero-Cost Restore-Test Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: "Read-only Restore-Test evidence probe"
+        required: true
+        type: choice
+        options:
+          - health
+          - counts
+          - public-contracts
+          - security-functions
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: Bounded Restore-Test evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PROBE: ${{ inputs.probe }}
+    steps:
+      - name: Validate secret
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_SERVICE_ROLE_KEY:-}" || {
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY is not configured."
+            exit 1
+          }
+
+      - name: Run bounded read-only probe
+        shell: python
+        run: |
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          base = os.environ["SUPABASE_URL"].rstrip("/")
+          key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          probe = os.environ["PROBE"]
+
+          headers = {
+              "apikey": key,
+              "Authorization": "Bearer " + key,
+              "Accept": "application/json",
+          }
+
+          evidence = {
+              "schema": "velora-restore-test-evidence.v1",
+              "project_ref": "arlaxqmhtvjwjbjinjfw",
+              "probe": probe,
+              "failures": [],
+              "results": {},
+          }
+
+          allowed = {
+              "health": [],
+              "counts": [
+                  ("beauty_profiles", "select", {"select": "id", "limit": "1"}),
+                  ("beauty_routine_runs", "select", {"select": "id", "limit": "1"}),
+                  ("beauty_routine_steps", "select", {"select": "id", "limit": "1"}),
+                  ("beauty_feedback", "select", {"select": "id", "limit": "1"}),
+                  ("beauty_recommendation_runs", "select", {"select": "id", "limit": "1"}),
+                  ("beauty_recommendation_items", "select", {"select": "id", "limit": "1"}),
+              ],
+              "public-contracts": [
+                  ("rpc_probe", "rpc/velora_get_beauty_recommendations", {"method": "POST", "body": {}}),
+              ],
+              "security-functions": [],
+          }
+
+          if probe == "health":
+              url = base + "/rest/v1/"
+              req = urllib.request.Request(url, headers=headers, method="GET")
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as resp:
+                      evidence["results"]["rest_api_http_status"] = resp.status
+              except Exception as exc:
+                  evidence["failures"].append("health_request_failed:" + type(exc).__name__)
+          elif probe == "counts":
+              for name, _, params in allowed["counts"]:
+                  q = urllib.parse.urlencode(params)
+                  url = base + "/rest/v1/" + name + "?" + q
+                  req = urllib.request.Request(url, headers=headers, method="GET")
+                  try:
+                      with urllib.request.urlopen(req, timeout=20) as resp:
+                          rows = json.loads(resp.read().decode("utf-8"))
+                          evidence["results"][name] = {
+                              "http_status": resp.status,
+                              "rows_observed": len(rows) if isinstance(rows, list) else None,
+                          }
+                  except urllib.error.HTTPError as exc:
+                      evidence["results"][name] = {"http_status": exc.code}
+                      evidence["failures"].append(name + ":http_" + str(exc.code))
+                  except Exception as exc:
+                      evidence["failures"].append(name + ":" + type(exc).__name__)
+          elif probe == "public-contracts":
+              item = allowed["public-contracts"][0]
+              url = base + "/rest/v1/rpc/velora_get_beauty_recommendations"
+              req = urllib.request.Request(
+                  url,
+                  headers={**headers, "Content-Type": "application/json"},
+                  data=b"{}",
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      raw = resp.read().decode("utf-8")
+                      evidence["results"]["rpc_probe"] = {
+                          "http_status": resp.status,
+                          "response_shape": type(json.loads(raw)).__name__,
+                      }
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")[:500]
+                  evidence["results"]["rpc_probe"] = {
+                      "http_status": exc.code,
+                      "body_prefix": body,
+                  }
+                  evidence["failures"].append("rpc_probe:http_" + str(exc.code))
+              except Exception as exc:
+                  evidence["failures"].append("rpc_probe:" + type(exc).__name__)
+          elif probe == "security-functions":
+              evidence["results"]["note"] = "No arbitrary SQL is permitted by this tool. Use the dedicated Supabase connector or a future fixed probe for function ACLs."
+          else:
+              evidence["failures"].append("unknown_probe")
+
+          with open("restore-test-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+
+          if evidence["failures"]:
+              raise SystemExit(1)
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-restore-test-evidence
+          path: restore-test-evidence.json
+          retention-days: 3
