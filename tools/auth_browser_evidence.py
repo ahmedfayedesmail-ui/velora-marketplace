@@ -296,13 +296,34 @@ def main():
             if not signup_action_link:
                 raise RuntimeError("AUTH_SIGNUP_ACTION_LINK_MISSING")
 
-            # Open the real generated confirmation action link in a fresh browser page.
-            # This mirrors the user's actual email-click flow rather than injecting
-            # verifyOtp into an already initialized app.
-            page.goto(signup_action_link, wait_until="networkidle", timeout=60000)
+            # A real email click opens a fresh document/client. Do not reuse the
+            # pre-confirmation page because an existing Supabase client has already
+            # completed its initial URL/session processing.
+            confirmation_page = context.new_page()
+            confirmation_page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + safe_error(exc)))
+            confirmation_page.on("console", lambda msg: browser_errors.append("console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            confirmation_page.on("response", lambda response: browser_errors.append(
+                "response:" + str(response.status) + ":" + urllib.parse.urlsplit(response.url).path
+            ) if response.status >= 400 else None)
 
-            wait_for_state(page, uid, timeout=30000)
-            evidence["checks"]["email_confirmation_action_link_verifies"] = True
+            confirmation_page.goto(signup_action_link, wait_until="networkidle", timeout=60000)
+            wait_for_state(confirmation_page, uid, timeout=30000)
+
+            confirmation_snapshot = session_snapshot(confirmation_page)
+            evidence["checks"]["email_confirmation_action_link_verifies"] = (
+                confirmation_snapshot.get("present") and confirmation_snapshot.get("userId") == uid
+            )
+            evidence["observations"]["confirmation_final_path"] = (
+                urllib.parse.urlsplit(confirmation_page.url).path
+            )
+            evidence["observations"]["confirmation_query_keys"] = sorted(
+                urllib.parse.parse_qs(urllib.parse.urlsplit(confirmation_page.url).query).keys()
+            )
+            evidence["observations"]["confirmation_hash_keys"] = sorted(
+                urllib.parse.parse_qs(urllib.parse.urlsplit(confirmation_page.url).fragment).keys()
+            )
+            page.close()
+            page = confirmation_page
 
             rows_users = admin_rows("users", uid, "id,name,email,phone,role")
             rows_profiles = admin_rows("profiles", uid, "id")
