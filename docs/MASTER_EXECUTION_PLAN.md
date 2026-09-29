@@ -12823,3 +12823,52 @@ MESSAGE 51 DECISION:
 - Seller/Admin actual browser re-entry = OPEN / NOT EVIDENCED.
 - Exact current-HEAD Preview parity = OPEN.
 - Continue remaining non-legal OPEN tracks.
+
+
+### 160.16 MESSAGE 52 — AI PROVIDER GATE RECONCILIATION + SECURITY ACL REVIEW (2026-09-29)
+
+CUSTOMER BEAUTY AI PROVIDER GATE:
+- Restore-Test Edge Function `velora-beauty-ai-intent` is ACTIVE, version 1, with JWT verification enabled.
+- The deployed source implements the intended boundary: authenticated user -> moderation -> bounded OpenAI call -> strict structured output -> server validation -> customer confirmation -> existing Passport V2 save path.
+- The function remains fail-closed when `VELORA_BEAUTY_AI_ENABLED`, `OPENAI_API_KEY`, or `VELORA_BEAUTY_AI_MODEL` is missing.
+- Current live provider configuration remains NOT CONFIGURED; no OpenAI secret or production model configuration was present in the Restore-Test execution path.
+- No fake/mock provider was introduced and no claim of live LLM success is made.
+- The only remaining AI completion step is intentional provider configuration in Restore-Test, followed by real authenticated Browser E2E evidence.
+- No Production configuration was touched.
+
+AI EVIDENCE DECISION:
+- AI source + contract + CI = CLOSED-DONE.
+- AI provider/live execution = BLOCKED / NOT CONFIGURED.
+- AI Browser E2E = OPEN / NOT EVIDENCED.
+- Do not promote the feature to fully runtime-PASS until the real provider response and Browser confirmation path are observed.
+
+SECURITY ADVISOR ACL REVIEW:
+- Restore-Test Security Advisor still reports six `rls_enabled_no_policy` findings across:
+  - private.beauty_catalog_revision
+  - private.beauty_recommendation_rate_events
+  - public.billing_instruments
+  - public.paymob_card_tokenization_sessions
+  - public.regional_pricing
+  - public.seller_subscription_renewal_jobs
+- Direct privilege checks for all six objects show:
+  - anon SELECT/INSERT/UPDATE/DELETE = false
+  - authenticated SELECT/INSERT/UPDATE/DELETE = false
+- Therefore the six no-policy findings currently have no direct anon/authenticated table privileges through the checked ACL surface. No speculative policies were added.
+- Security Advisor also continues to report broad SECURITY DEFINER execute warnings and multiple permissive-policy warnings. These require function-by-function and policy-by-policy authorization review; no mass revoke or schema rewrite is justified from lint counts alone.
+- No Production security change was made.
+
+MESSAGE 52 DECISION:
+- Customer Beauty AI engineering boundary = CLOSED-DONE.
+- Customer Beauty AI real provider activation = BLOCKED / NOT CONFIGURED.
+- Security six-table RLS/no-policy ACL review = REVIEWED / NO DIRECT PUBLIC OR AUTHENTICATED TABLE PRIVILEGE OBSERVED; remediation remains OPEN only if an intended access path is later proven.
+- Browser Gate remains OPEN / NOT EVIDENCED.
+- Exact current-HEAD Preview parity remains OPEN.
+- DR backup/restore/rollback execution remains OPEN / PENDING.
+- Performance optimization remains OPEN.
+- Legal registration remains PAUSED / CARRY-FORWARD.
+- Production remains FROZEN.
+
+NEXT ORDERED ACTION:
+1. Keep the AI provider gate ready for intentional Restore-Test secret/model configuration; then run real AI Browser E2E.
+2. Continue non-legal open tracks that do not require the Browser wallet, prioritizing DR/capacity/release-readiness evidence.
+3. Preserve all Browser/Preview/Provider boundaries and do not claim completion without their required evidence.
