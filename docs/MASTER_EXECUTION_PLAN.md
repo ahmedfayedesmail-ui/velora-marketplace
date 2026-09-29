@@ -13951,3 +13951,143 @@ STATUS:
 - Authenticated Product Detail Browser proof = CLOSED-DONE for the verified exact-source local gate run `36614158098`, with all required checks passing and no page errors.
 - Preview-specific evidence remains separately tracked; the exact-source gate intentionally verifies the exact checked-out source rather than claiming a different deployment.
 - Production = FROZEN.
+
+
+
+## MESSAGE 69 — AUTHENTICATION / USER LIFECYCLE: CONFIRMATION-PROFILE HYDRATION GAP (2026-09-29)
+
+CLASSIFICATION: REAL AUTH LIFECYCLE DEFECT IDENTIFIED / SOURCE FIX APPLIED / TARGETED BROWSER RE-VERIFICATION IN PROGRESS
+
+PROBLEM-FIRST FINDING:
+- The existing Velora authentication flow already had password signup, email-confirmation redirect, login, password recovery, Supabase session initialization, and an existing authentication Browser Gate.
+- The concrete failure mode was not "missing Auth tooling".
+- With email confirmation enabled, Supabase can return no session from `signUp()`, and the confirmed user may later establish a session after verification.
+- Velora's pre-fix session hydration path queried `public.users` and treated a missing row as a session/profile failure.
+- The existing login handler called `velora_ensure_own_profile`, but the post-confirmation / initial-session path did not.
+- Restore-Test currently contains one confirmed `auth.users` account with no corresponding `public.profiles` or `public.users` row and no recorded sign-in, matching the identified orphaned-state failure mode.
+
+DATABASE EVIDENCE:
+- Restore-Test project: `arlaxqmhtvjwjbjinjfw`
+- Current counts observed during this review:
+  - auth.users = 6
+  - public.profiles = 10
+  - public.users = 10
+  - public.user_roles = 13
+  - public.sellers = 1
+- One confirmed Auth account has no corresponding public profile/legacy user row and has not signed in yet.
+- No production database was touched.
+
+CANONICAL EXISTING BACKEND CONTRACT:
+- `public.velora_ensure_own_profile(p_name,p_phone)` already existed as a SECURITY DEFINER authenticated-only RPC.
+- It creates/updates:
+  - `public.profiles`
+  - `public.users`
+  - `public.user_roles`
+- No schema change was required or introduced.
+- No production migration was applied.
+
+ROOT CAUSE:
+- `initializeSupabaseAuth()` loaded `public.users` directly and returned to logged-out state when that row was absent.
+- `onAuthStateChange` did the same.
+- Therefore an authenticated Supabase session could exist while Velora application identity remained half-initialized.
+- This is specifically an Event -> Guard/Validation -> State Transition continuity gap:
+  Auth confirmation/session
+  -> session exists
+  -> Velora profile bootstrap was skipped
+  -> application identity was not hydrated.
+
+SMALLEST SAFE FIX:
+- Source: `src/scripts/00-localization.js`
+- New internal helper: `loadOrBootstrapAuthProfile(authUser)`
+- Behavior:
+  1. Validate authenticated user identity.
+  2. Read existing `public.users` and canonical `public.profiles`.
+  3. If either representation is missing, call the existing `velora_ensure_own_profile` RPC.
+  4. Return the canonical `public.users` result for existing UI compatibility.
+  5. Deduplicate concurrent bootstrap calls for the same uid using a short-lived in-memory Promise guard.
+- Both initial session hydration and `onAuthStateChange` now use the same helper.
+- No MutationObserver.
+- No arbitrary listener.
+- No new auth engine.
+- No schema change.
+- No cart/commerce/AI change.
+- No Production connection.
+
+SOURCE FIX:
+- Commit: `702ba2ca7a509cc0471fd9b431a2d3b0ff3f1adb`
+- Message: `fix: bootstrap Velora profile after auth confirmation`
+
+CONTRACT VERIFICATION:
+- `tests/auth-lifecycle-contract.test.mjs` was extended to:
+  - assert the shared bootstrap path is used by initial-session and auth-state hydration;
+  - assert canonical `profiles` participation;
+  - execute the extracted helper in a deterministic VM sandbox;
+  - verify concurrent callers dedupe to one bootstrap RPC.
+- Contract test correction commit:
+  `51064a612dde5d55a030a8bd2d35968ea4e38894`
+- Subsequent Browser Gate test-flow correction commit:
+  `9152ca5c2ed18b09f194716e5f66f4126cc369d8`
+- Zero-Cost Health Gate on commit `51064a...`: PASS.
+- Zero-Cost Health Gate on commit `9152...`: PASS.
+- The first contract failure was a test-harness extraction defect: the extracted helper omitted its module-level state variable. This was corrected without changing product runtime logic.
+
+BROWSER EVIDENCE:
+- Existing Browser Gate was reused rather than creating a new generic harness.
+- First rerun after source fix failed because the test attempted to click `#accountBtn` while the expected authentication error modal remained open after a wrong password.
+- This was classified as a Browser test-flow defect, not an Auth runtime defect.
+- The test was corrected to close the modal after the invalid-password check.
+- The same Browser Gate was strengthened with a targeted missing-profile branch:
+  - keep a real authenticated E2E session;
+  - force the profile reads to return missing inside the browser test;
+  - invoke real `initializeSupabaseAuth()`;
+  - allow the real `velora_ensure_own_profile` RPC to execute;
+  - verify `STATE.user` hydration plus one real row in `public.users` and one in `public.profiles`.
+- Current targeted Browser Gate run:
+  - Workflow run: `36619745797`
+  - Job: `109581799933`
+  - Head commit: `9152ca5c2ed18b09f194716e5f66f4126cc369d8`
+  - At the time of this entry, runtime Browser verification is still in progress.
+- No Browser PASS is claimed until this run completes successfully.
+
+VERCEL BOUNDARY:
+- The Vercel parity check for the same commit is failing with:
+  `Deployment rate limited — retry in 24 hours.`
+- This is a deployment/platform capacity boundary, not evidence of an Auth compile/runtime defect.
+- It does not authorize Production changes and does not invalidate the local exact-source Auth verification.
+
+ROLE/AUTHORIZATION CARRY-FORWARD:
+- Restore-Test also shows that `public.user_roles` supports multiple role memberships while `public.users.role` remains a primary/single role field.
+- Current evidence includes several users with multiple memberships, including customer + privileged memberships, plus one active owner record with no `user_roles` membership.
+- This is a separate authorization/data-consistency problem candidate and is NOT being remediated in Message 69 until the intended role-membership contract is proven.
+- Do not infer that every multi-membership row is a defect.
+
+CURRENT STATUS:
+- Auth root cause identified = CLOSED at source-analysis level.
+- Source fix = APPLIED.
+- Auth contract = PASS.
+- Zero-cost source/contract health = PASS.
+- Targeted Auth Browser verification = OPEN / IN PROGRESS.
+- Vercel parity = BLOCKED by deployment rate limit.
+- No Production changes.
+- Do not move to the next Master problem until the targeted Auth Browser evidence reaches a valid PASS or a clearly documented external evidence boundary.
+
+ACTION FLOW:
+Auth confirmation/session event
+-> authenticated session guard
+-> read canonical + compatibility profile state
+-> bootstrap via existing governed RPC when missing
+-> hydrate `STATE.user`
+-> platform/account access
+-> audit/evidence
+-> concurrent-call dedupe
+-> continue only after Browser verification.
+
+SUPABASE REFERENCE:
+- Supabase documents that with email confirmation enabled, `signUp()` may return a user without an active session until confirmation; the verified session then becomes the authenticated client session. citeturn255559search2turn317963search6
+- Supabase documents that `verifyOtp({ token_hash, type })` can establish a session after token verification, which is compatible with a bounded test fixture for confirmation-session behavior. citeturn317963search8
+- Supabase documents that browser `signOut()` defaults to the global scope, while local/other scopes are available; current Velora intentionally retains the existing default until the multi-device/session problem is separately audited. citeturn276168search0
+
+CARRY-FORWARD:
+- Signup confirmation delivery itself remains an external email-provider behavior and is not claimed PASS here.
+- OTP, password-reset edge cases, session expiry/refresh, multi-device sessions, duplicate tabs, and authorization negative paths remain open Master sub-items.
+- Do not build an Auth Harness yet; the existing Browser Gate and existing governed RPCs are currently sufficient for the targeted evidence path.
