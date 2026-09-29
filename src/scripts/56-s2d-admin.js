@@ -248,11 +248,13 @@
   if(originalOpen){
     window.openAdminPlatform=function(){
       var result=originalOpen.apply(this,arguments);
-      var expectedContent=document.getElementById('adminContent');
-      setTimeout(function(){
-        var platform=document.getElementById('adminPlatform');
-        if(platform?.classList.contains('active') && document.getElementById('adminContent')===expectedContent) renderDashboard();
-      },80);
+      Promise.resolve(result).then(function(){
+        var expectedContent=document.getElementById('adminContent');
+        setTimeout(function(){
+          var platform=document.getElementById('adminPlatform');
+          if(platform?.classList.contains('active') && document.getElementById('adminContent')===expectedContent) renderDashboard();
+        },80);
+      }).catch(function(){});
       return result;
     };
   }
