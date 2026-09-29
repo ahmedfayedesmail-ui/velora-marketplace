@@ -12345,3 +12345,101 @@ NEXT ORDERED ACTION:
 3. Browser-verify the AI surface and negative/fallback paths.
 4. Update this same Master with the runtime evidence.
 5. Continue to the next non-legal OPEN item without losing any carried-forward legal work.
+
+### 160.8 MESSAGE 44 — SELLER SUBSCRIPTION RECONCILIATION + PRODUCT DETAIL CANONICAL CONTRACT EXECUTION (2026-09-29)
+
+SELLER SUBSCRIPTION RECONCILIATION:
+- Restore-Test active subscription plans are present: Basic, Pro, Enterprise plus Free.
+- Egyptian regional pricing rows are present and active:
+  - Basic = EGP 199 monthly / EGP 1,990 yearly.
+  - Pro = EGP 499 monthly / EGP 4,990 yearly.
+  - Enterprise = EGP 1,499 monthly / EGP 14,990 yearly.
+- velora_resolve_subscription_price(Basic, EG, monthly/yearly) resolves from active regional pricing and returns EGP.
+- seller_subscriptions currently has 0 persistent rows in Restore-Test.
+- velora_get_required_legal_documents(locale=en, audience=seller) currently returns zero published seller documents.
+- velora_start_subscription_purchase is therefore correctly blocked by the existing seller legal-acceptance gate before commercial purchase creation.
+- No subscription purchase, payment attempt, or provider mutation was created in this reconciliation.
+- Seller Subscription core state/purchase architecture remains CLOSED-DONE at engineering scope.
+- Seller Subscription commercial/legal/provider/browser completion remains OPEN.
+
+PRODUCT DETAIL CONTRACT AUDIT:
+Observed root cause:
+1. Canonical list RPC velora_get_marketplace_catalog intentionally returns a compact list contract.
+2. Its current return table does not include product beauty metadata:
+   - ingredients
+   - benefits
+   - how_to_use
+   - warnings
+   - skin_types
+   - concerns
+   - seasonal_fit
+3. Current normalizeCanonicalProduct() maps product_description through row.description, so canonical list normalization can leave product description empty.
+4. The existing Product Detail renderer in S2-A operates from MAHA_DATA.PRODUCTS after canonical catalog merge.
+5. Therefore a canonical UUID product could reach Product Detail without its stored beauty metadata even though the underlying products row contains that data.
+
+DATABASE EVIDENCE:
+- Restore-Test currently contains 5 approved products.
+- All 5 approved products have non-empty ingredients, benefits, how_to_use, skin_types, concerns, and seasonal_fit.
+- Warnings are currently null/empty for the 5 QA products.
+- Public products RLS policy approved_products_public_read permits SELECT for anon/authenticated where status='approved'.
+- No RLS policy change was made.
+
+SOURCE FIX — CLOSED-DONE:
+File:
+- src/scripts/52-s2a-variants.js
+
+Implementation:
+- For UUID Product Detail entries, fetch only the existing detail fields from products:
+  id, description, ingredients, benefits, how_to_use, warnings, skin_types, concerns, seasonal_fit.
+- Merge these fields into the already-normalized product object.
+- Persist the enriched object back into the existing MAHA_DATA.PRODUCTS entry so subsequent variant changes do not discard the metadata.
+- Preserve existing normalized price, currency, seller, and inventory fields.
+- Map how_to_use into the existing usage / howToUse compatibility fields.
+- Map skin_types into existing skinTypes.
+- Normalize metadata arrays defensively.
+- Product Detail now renders existing canonical benefits and warnings sections alongside ingredients, Pros, Cons, How to Use, and Best For.
+- No schema change.
+- No catalog RPC return-contract change.
+- No new persistence model.
+- No duplicate Product Detail engine.
+- No MutationObserver / arbitrary routing patch.
+- No Production change.
+
+TEST EVIDENCE:
+- Added tests/product-detail-contract.test.mjs.
+- Package script: npm run test:product-detail.
+- Dedicated CI workflow also invokes this test.
+- Earlier test runs correctly exposed two source/test-contract issues:
+  1. the initial regex assertion was brittle;
+  2. the renderer was missing explicit Benefits/Warnings rendering.
+- Both were corrected.
+- The current corrected Product Detail test has NOT YET obtained a successful CI execution result after the latest renderer correction.
+- Therefore Product Detail test execution status = NOT EVIDENCED, not PASS.
+- JavaScript syntax and Customer Beauty AI contract tests were already evidenced PASS in CI run 36562134498 on SHA 0032d8ee71cc492a23a6b25b8a29383a36be49e4.
+
+CURRENT PREVIEW:
+- Last observed READY Preview still maps to older source SHA 13f2f0b7dee6f914c1953217f6ec6cfeab322337.
+- Current source branch is later and includes the Product Detail fix.
+- Exact current-HEAD Preview parity remains OPEN.
+- No Production deployment attempted.
+
+CURRENT BROWSER:
+- Browser Gate remains OPEN / NOT EVIDENCED.
+- TinyFish wallet remains insufficient for a new Browser run.
+- No Browser PASS inferred from source, CI, DB, or Preview.
+
+MESSAGE 44 DECISION:
+- Seller Subscription foundation = VERIFIED; commercial completion blocked by current legal-document publication gate.
+- Product Detail canonical metadata contract gap = CLOSED-DONE at source/DB scope.
+- Product Detail test execution = NOT EVIDENCED.
+- Global static audit = OPEN / pre-existing i18n gap.
+- Customer Beauty AI source/contract evidence = CLOSED-DONE; provider live configuration remains BLOCKED.
+- Exact current-HEAD Preview = OPEN.
+- Browser = OPEN / NOT EVIDENCED.
+- Production = FROZEN.
+
+NEXT ORDERED TECHNICAL ACTION:
+1. Obtain successful execution evidence for the corrected Product Detail contract test.
+2. Reconcile/obtain exact current-HEAD Preview deployment.
+3. Browser-verify Product Detail canonical metadata + variant persistence path.
+4. Continue to the next independent non-legal OPEN track in Master order.
