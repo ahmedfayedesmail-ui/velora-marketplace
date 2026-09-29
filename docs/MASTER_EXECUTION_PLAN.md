@@ -13904,3 +13904,49 @@ STATUS:
 NEXT RULE:
 - Do not create another generic monitoring/health engine.
 - Reuse this gate and add a new fixed check only when a concrete uncovered verification need is demonstrated.
+
+
+## MESSAGE 68 — PRODUCT DETAIL METADATA RENDER GAP (2026-09-29)
+
+CLASSIFICATION: ROOT CAUSE IDENTIFIED / SOURCE FIX APPLIED / BROWSER RE-VERIFICATION PENDING
+
+OBSERVED BROWSER EVIDENCE:
+- Prior Product Detail Browser Gate run: `36611819187`
+- HTTP 200, authenticated session true, product modal active, product name visible, Add to Cart visible.
+- Canonical detail merge was present in `MAHA_DATA.PRODUCTS`.
+- Canonical metadata was present:
+  - ingredients = [`vitamin_c`]
+  - benefits = [`brightening`, `hydration`, `even_looking_skin`]
+  - how-to-use present
+  - skin types present
+  - concerns present
+  - seasonal_fit present
+- Rendered metadata sections were absent from the visible Product Detail.
+
+ROOT CAUSE:
+- `src/scripts/52-s2a-variants.js` already built the local `details` HTML string from the canonical metadata.
+- The final `content.innerHTML` template did not insert the `details` variable into the rendered Product Detail.
+- Therefore this was a concrete source rendering defect, not missing canonical database metadata.
+
+SMALLEST SAFE FIX:
+- Insert the existing `details` fragment into the existing Product Detail rendering template.
+- No new metadata source.
+- No schema change.
+- No RPC change.
+- No product-selection change.
+- No cart rewrite.
+- No AI authority change.
+
+SOURCE/CI VERIFICATION:
+- Fix commit: `a17ff65c4a145d1469f191877bf82ac56a952bfa`
+- Zero-Cost Health Gate for the fixed commit: run `36613787796` = SUCCESS.
+- Product Detail Browser Gate was repointed to the exact READY Preview deployed from the fix commit:
+  `https://velora-marketplace-gfmw5qztb-ahmedconccc-7063.vercel.app`
+- Current Product Detail Browser Gate run: `36613787928` is executing against that exact Preview.
+
+STATUS:
+- Source root cause = CLOSED-DONE.
+- Source fix = CLOSED-DONE.
+- CI/static health = CLOSED-DONE.
+- Browser proof after fix = OPEN / PENDING run `36613787928`.
+- Production = FROZEN.
