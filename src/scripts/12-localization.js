@@ -539,7 +539,7 @@
   window.VELORA_SET_STOCK=(id,current)=>{const v=prompt('Enter new stock quantity:',String(current));if(v!==null)setStock(id,v)};
   window.VELORA_SET_SELLER_ORDER_STATUS=setSellerOrderStatus;
   window.VELORA_SAVE_SELLER_SETTINGS=saveSellerSettings;
-  window.VELORA_CLOSE_SELLER=()=>{const p=document.getElementById('sellerPlatform');if(p)p.classList.remove('active');document.body.style.overflow=''};
+  window.VELORA_CLOSE_SELLER=()=>{invalidateSellerPlatformOperations();const p=document.getElementById('sellerPlatform');if(p){p.classList.remove('active');p.hidden=true;p.setAttribute('aria-hidden','true')}document.body.style.overflow=''};
   window.VELORA_OPEN_SELLER=openCanonicalSeller;
 
   window.VELORA_CANONICAL_ADMIN_SECTION=canonicalAdminSection;
@@ -547,7 +547,7 @@
   window.VELORA_SET_PRODUCT_STATUS=setProductStatus;
   window.VELORA_REVIEW_APPLICATION=reviewApplication;
   window.VELORA_FILTER_TABLE=filterTable;
-  window.VELORA_CLOSE_ADMIN=()=>{const p=document.getElementById('adminPlatform');if(p)p.classList.remove('active');document.body.style.overflow=''};
+  window.VELORA_CLOSE_ADMIN=()=>{invalidateAdminPlatformOperations();const p=document.getElementById('adminPlatform');if(p){p.classList.remove('active');p.hidden=true;p.setAttribute('aria-hidden','true')}document.body.style.overflow=''};
   window.VELORA_OPEN_ADMIN=openCanonicalAdmin;
   window.VELORA_OPEN_OWNER=openCanonicalOwner;
 
@@ -582,8 +582,10 @@
   };
   window.openSellerPanel=openCanonicalSeller;
   window.openSellerPlatform=openCanonicalSeller;
+  window.closeSellerPlatform=window.VELORA_CLOSE_SELLER;
   window.openAdminPanel=openCanonicalAdmin;
   window.openAdminPlatform=openCanonicalAdmin;
+  window.closeAdminPlatform=window.VELORA_CLOSE_ADMIN;
   window.openOwnerPlatform=openCanonicalOwner;
   window.closeOwnerPlatform=window.VELORA_CLOSE_ADMIN;
 
