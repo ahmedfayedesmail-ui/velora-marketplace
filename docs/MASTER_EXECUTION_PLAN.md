@@ -9895,3 +9895,114 @@ STATUS:
 NEXT ORDERED WORK:
 - Keep Returns policy OPEN until business/legal mapping is approved.
 - Continue to the next OPEN item in Master order; do not invent a refund calculation or product exception merely to close the checklist.
+## 2026-09-29 — MESSAGE 27/24 EXECUTION / PROMOTIONS + GIFT CARDS LEGAL/ECONOMIC RECONCILIATION
+
+CLASSIFICATION:
+- Message 27 continues the ordered OPEN commercial-policy track after the Returns/legal review.
+- Existing promotion, coupon, gift-card, payment, cancellation, and redemption primitives were inspected.
+- Egyptian consumer-protection and current Tax Authority guidance were researched.
+- No promotional or gift-card schema/engine change was justified.
+
+### 104. PROMOTION / COUPON LEGAL FLOOR
+
+- Egypt Consumer Protection Law No. 181/2018 prohibits misleading conduct; the Egyptian Consumer Protection Agency specifically warns against false discount claims and requires truthful advertised pricing.
+- Current 2026 Egyptian seasonal-sale guidance continues to require participating merchants to obtain the applicable approval and display the sale price together with the pre-discount price. This is treated as a campaign/legal-classification requirement, not a blanket assumption that every Velora promotion needs the same permit.
+- The final promotion contract must therefore preserve truthful pricing, eligibility, timing, exclusions, usage limits, and any approval requirements applicable to the campaign type.
+- A promotion must never imply a discount that does not correspond to a genuine price reduction.
+
+### 105. GIFT CARD LEGAL / ECONOMIC BOUNDARY
+
+- Current Restore-Test gift_cards count = 0; no persistent gift-card issuance data exists to prove a live economic model.
+- velora_issue_gift_card is Owner-only, records initial/balance amounts, optional expiry, recipient, issue transaction, and audit evidence.
+- velora_quote_gift_card rejects inactive/expired cards and currency mismatches and returns the applicable balance/amount without mutating the card.
+- Existing cancellation logic can compensate a gift-card redemption on pre-settlement order cancellation using an idempotency key and a gift-card refund transaction.
+- No specific general Egyptian gift-card statute or universal expiry/refund rule was identified in the official-source pass sufficient to justify a hard-coded Velora policy.
+- Therefore gift-card expiry, refundability, transferability, cash-redemption treatment, breakage, promotional issuance, tax recognition, accounting treatment, and consumer-rights interaction remain explicit Legal/Tax/Finance policy items.
+- Expiry must not be used to strip a statutory consumer remedy arising from an underlying purchase or defective-goods claim.
+
+### 106. PROMOTION / GIFT CARD ACTION FLOW
+
+EVENT
+-> promotion campaign created OR gift card issued
+
+GUARD / AUTHORIZATION
+-> Staff creates/activates platform promotion under approved campaign authority
+-> Owner-only gift-card issuance
+-> customer redemption only against an operational eligible order
+
+VALIDATION
+-> truthful price/discount
+-> eligibility
+-> dates
+-> exclusions
+-> usage limits
+-> currency
+-> gift-card balance/expiry
+-> statutory consumer rights
+
+STATE TRANSITION
+-> active promotion/gift card
+-> redemption
+-> order settlement
+-> cancellation/reversal
+
+AUTOMATIC SIDE EFFECT
+-> canonical redemption records
+-> order total recalculation
+-> existing inventory/payment synchronization
+-> audit
+
+NEXT EVENT
+-> payment/fulfillment OR cancellation/refund/reversal
+
+RETRY / DEDUPE
+-> existing checkout reference/payment idempotency
+-> redemption transaction identity
+-> cancellation compensation idempotency
+
+HUMAN EXCEPTION
+-> campaign legal classification
+-> gift-card dispute
+-> refund/accounting exception
+-> fraud/trust exception
+-> tax interpretation
+
+### MESSAGE 27 EVIDENCE BOUNDARY
+
+L1 SOURCE:
+- Existing promotion, coupon, gift-card, cancellation, and checkout paths were inspected.
+- Gift-card issuance is Owner-gated; promotion creation is Staff-gated.
+
+L2 DATABASE:
+- promotions = 0.
+- gift_cards = 0.
+- coupons = 1.
+- No persistent redemption population currently exists for gift cards/promotions in Restore-Test.
+
+L3 CONTRACT / ACL:
+- Existing authorization is preserved; no new policy bypass or issuance path was added.
+
+L4 NEGATIVE / TRANSACTIONAL:
+- No live promotion/gift-card mutation was performed because the legal/economic policy is not final.
+- Historical cross-system QA proof remains preserved and was not re-created without a valid live fixture.
+
+L5 CI / L6 PREVIEW / L7 BROWSER:
+- No new deployable implementation was made; these gates remain unchanged.
+
+L8 PROVIDER:
+- No external gift-card/payment-provider settlement was executed.
+
+L9 PRODUCTION:
+- UNTOUCHED / FROZEN.
+
+### MESSAGE 27 DECISION
+
+STATUS:
+- Promotion transactional composition = CLOSED-DONE from prior proven QA scope.
+- Promotion truthful-pricing / campaign-policy compliance = OPEN until final legal/business mapping.
+- Gift-card issuance/control architecture = CLOSED-DONE at current scope.
+- Gift-card expiry/refund/cash-redemption/tax/accounting policy = OPEN.
+- No new engine or schema justified.
+
+NEXT ORDERED WORK:
+- Continue to the next OPEN financial/commercial workstream in Master order.
