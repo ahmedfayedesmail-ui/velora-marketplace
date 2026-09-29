@@ -6644,3 +6644,83 @@ CLASSIFICATION: EXECUTED — Advertising, Commission, and Payout foundations are
 - Commission cross-financial reconciliation remains open.
 - Payout external settlement/reconciliation/browser/Production remain open.
 
+
+## 2026-09-29 — MESSAGE 8/24 EXECUTION / PROMOTIONS + GIFT CARDS + CUSTOMER RETURNS / REFUNDS
+CLASSIFICATION: EXECUTED — Promotion/Coupon cancellation recovery, Gift Card cancellation compensation, and Customer Return control-plane foundations are CLOSED-DONE at Source / DB / Contract evidence for the current scope. Business-policy, provider-refund, Browser, and Production evidence remain explicitly OPEN / NOT EVIDENCED.
+
+### 17. PROMOTIONS / COUPONS
+- Canonical promotion engine remains authoritative; no replacement promotion/coupon engine was introduced.
+- Restore-Test currently has promotions=0 and promotion_redemptions=0; coupons=1 and coupon_redemptions=0. No historical promotion rows were modified.
+- velora_create_platform_promotion(...) is Staff-only and explicitly rejects any discount type outside percentage / fixed with PROMOTION_TYPE_NOT_SUPPORTED. free_shipping is therefore not a supported creation contract today.
+- The current writer stores stackable=false and scope_type=global for created platform promotions. This is an observed existing contract, not a new stacking or targeting policy introduced by Message 8.
+- velora_apply_best_promotion_to_order(...) remains the canonical promotion application path and updates the pending order/payment amount, creates a redemption, increments used_count, and writes promotion_redeemed audit evidence.
+- velora_apply_coupon_to_order(...) remains the canonical coupon application path and enforces active/time/currency/minimum/usage/first-order rules, calculates only fixed/percentage discounts, creates the redemption, increments usage, and writes audit evidence.
+- velora_cancel_order(uuid) contains the canonical pre-payment cancellation recovery: matching coupon redemption is deleted, coupons.used_count is decremented with floor at zero, matching promotion redemption is deleted, promotions.used_count is decremented with floor at zero, and each release writes audit evidence.
+- Cancellation release is bound to the same customer-owned pending-order transaction; no historical promotion/coupon rows were mutated during this verification.
+- OPEN: free_shipping semantics; stacking semantics as a future business policy; targeting; seller/platform economics; reversal rules beyond currently proven cancellation paths. Do not invent store-funded/platform-funded shipping subsidy semantics or automatic shipping accounting.
+
+### 18. GIFT CARDS
+- Existing Gift Card foundation remains canonical. velora_issue_gift_card(...) requires authenticated Owner, amount > 0, active currency, valid future expiry when supplied, valid unique code, and writes the issue transaction plus audit evidence.
+- velora_apply_gift_card_to_order(...) requires customer ownership of the order, legal acceptance, active/non-expired card, currency match, balance, row locking, order-level redemption idempotency, payment representation, and audit evidence.
+- gift_cards and gift_card_transactions both have RLS enabled.
+- velora_cancel_order(uuid) contains the canonical pre-payment Gift Card compensation path: it locks the card, checks the cancel:<order_id> refund idempotency key, restores the previously applied amount, writes one internal refund transaction for that cancellation key, creates the internal velora_gift_card / gift_card_refund payment representation, restores card lifecycle to active unless already expired, and writes gift_card_refunded_on_order_cancellation audit evidence.
+- Order cancellation audit records whether Gift Card refund, coupon release, and promotion release occurred.
+- Current Restore-Test state: gift_cards=0 and gift_card_transactions=0. No fake Gift Card was issued solely to manufacture settlement evidence.
+- OPEN: broader expiry policy; broader refund policy; accounting policy; fraud/abuse controls; issuance limits; Browser/Production evidence. Owner-only issuance remains Owner-only.
+
+### 19. CUSTOMER RETURNS / REFUNDS
+- Canonical customer return request is velora_request_return(uuid,uuid,jsonb,text,text).
+- Current request contract requires authenticated customer, customer-owned order, order status delivered, payment state paid/refunded, valid Store-owned order items, duplicate-return protection, positive requested quantity within original quantity, delivered-shipment evidence, server-calculated refund amount, and audit evidence.
+- The request RPC creates returns in requested state and return_items with refund calculated from canonical order-item unit price × requested quantity. No 14/30/90-day return window was invented.
+- Canonical Staff resolver is velora_resolve_return(uuid,text,text,text,text,text).
+- The 6-argument resolver is transition-aware:
+  requested -> approved/rejected/cancelled;
+  approved -> in_transit/rejected/cancelled;
+  in_transit -> received/cancelled;
+  received -> refunded/rejected;
+  refunded/rejected/cancelled remain terminal except same-state resolution.
+- Moving to refunded requires prior state received and non-empty refund reference evidence. Provider/method fields may be recorded but are not treated as proof of external settlement.
+- ACL: 6-argument resolver anon=false, authenticated=true, service_role=true. Historical 3-argument resolver anon=false, authenticated=false, service_role=true. The 3-argument resolver remains compatibility history and is not callable by ordinary client roles.
+- Negative-path checks returned AUTH_REQUIRED for velora_request_return and velora_cancel_order, and STAFF_ONLY for the 6-argument return resolver. No persistent state was changed.
+- Current Restore-Test state: returns=0 and return_items=0; no synthetic return/refund fixture was created.
+- Customer Orders UI remains the canonical adapter in src/scripts/71-customer-orders-returns.js. It renders canonical orders, per-store return actions, cancellation, shipment status, carrier/service, ETA, delivery proof, and retries through the canonical adapter/RPCs. No second Orders engine was introduced.
+- OPEN: return window policy; final-sale rules; partial-return discount allocation; shipping refund treatment; tax treatment; restocking rules; damaged-condition handling; restock timing; external provider refund; provider refund reconciliation; Browser evidence; eventual retirement decision for the historical 3-argument resolver.
+
+### MESSAGE 8 EVIDENCE BOUNDARY
+- L1 Source: current promotion/coupon writer/application/cancellation contracts, Gift Card issuance/redemption/cancellation compensation, return request/resolver contracts, and Customer Orders adapter reviewed.
+- L2 DB: Restore-Test object counts, live function definitions, function privileges, and RLS status verified against arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL / RLS: Staff-only promotion creation, Owner-only Gift Card issuance, authenticated customer return request, Staff-only return resolution guard, historical 3-argument resolver client denial, and relevant RLS protections verified.
+- L4 Negative / transactional: unauthenticated request/cancel/resolver gates were exercised and failed closed; no persistent mutation was required because promotion redemption, Gift Card, and return fixtures are empty.
+- L5 CI: no new CI run required because Message 8 produced no application/schema change.
+- L6 Preview: no new deployment required because no application source changed.
+- L7 Browser: NOT EVIDENCED; current Browser automation remains unavailable due insufficient wallet balance and the aggregate Browser Gate is authoritative.
+- L8 Provider: external refund/settlement is NOT EVIDENCED.
+- L9 Production: untouched and frozen.
+
+### MESSAGE 8 NON-NEGOTIABLES RECONFIRMED
+- No second promotion/coupon engine.
+- No second Gift Card engine.
+- No second Orders/Returns engine.
+- No speculative free-shipping economics.
+- No invented return window.
+- No invented refund/tax/shipping/restocking policy.
+- No Production mutation.
+- No Browser PASS inferred from source/SQL.
+- No external provider settlement/refund PASS inferred from Restore-Test.
+- Owner-only Gift Card issuance remains Owner-only.
+- Historical 3-argument return resolver remains compatibility history until an explicit retirement decision.
+
+### CARRY-FORWARD AFTER MESSAGE 8
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Message 7 Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Commission cross-financial reconciliation remains open.
+- Payout external settlement/reconciliation/browser/Production remain open.
+- Seller Dashboard re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Message 8 promotion/coupon free-shipping/stacking/targeting/economics/reversal-policy items remain open.
+- Gift Card broader expiry/refund/accounting/fraud/issuance-limit/browser/Production items remain open.
+- Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+\n
