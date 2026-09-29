@@ -4065,3 +4065,73 @@ DECISION:
 - Do not populate the empty features JSON with guessed entitlements.
 - Do not claim provider payment/settlement PASS or Browser PASS.
 - Carry forward unchanged: provider charge/capture evidence, browser runtime evidence, failure/recovery evidence beyond source/DB, notification delivery/browser evidence, and all commercial policy items.
+
+
+### Band 1 Seller Advertising Source/Runtime Parity Reconciliation — 2026-09-29
+
+CLASSIFICATION: SOURCE/RUNTIME PARITY GAP CLOSED / ADS FOUNDATION CLOSED / PROVIDER SETTLEMENT + ANALYTICS + LEGAL + BROWSER OPEN
+
+OPERATING RULES APPLIED:
+- Master remains the single execution source; no Seller Ads item was dropped or replaced.
+- Research/reuse first: existing Seller Ads tables, RPCs, Paymob Edge Function, notification lifecycle, package contract, RLS/ACL, and historical migration lineage were inspected before changing anything.
+- No duplicate advertising engine, payment engine, reconciliation engine, scheduler, or analytics engine was introduced.
+- Production remained untouched/frozen.
+
+OBSERVED FACT — RESTORE-TEST CANONICAL ADS CONTRACT:
+- Active packages are product_boost_3d = 99 EGP / 3 days / shop_sponsored, featured_product_7d = 199 EGP / 7 days / shop_sponsored, and home_spotlight_7d = 499 EGP / 7 days / home_spotlight.
+- seller_ad_campaigns currently has 0 persistent rows and seller_ad_packages has 3 active rows.
+- Canonical purchase/state path remains velora_start_seller_ad_purchase -> canonical seller-ad payment attempt -> provider boundary -> velora_sync_seller_ad_campaign.
+- State synchronization covers pending payment capture -> active, payment failure -> payment_failed, refund -> refunded, duration expiry -> completed, and product-approval guard at capture.
+- Existing idempotency is preserved through purchase_idempotency_key plus the Seller Command Center's active-browser-intent key lifecycle.
+- Existing velora_get_active_seller_ads remains the public discovery read and now suppresses campaigns with no sellable inventory (base stock or active variant stock).
+- Existing notification lifecycle is the sole scheduler path; Restore-Test cron calls velora_process_notification_lifecycle(*) every minute, and that canonical lifecycle invokes velora_process_seller_ad_lifecycle(*). No second ad scheduler is justified.
+
+ACTUAL GAP FOUND:
+- Restore-Test migration history contained the seven Seller Ads migrations, but the corresponding migration files were missing from the current continuation branch.
+- This was a source/runtime parity/documentation gap, not a request to redesign Seller Ads.
+- Historical branch audit/full-gate-2026-09-25 contained the matching Seller Ads migration lineage. Current Restore-Test DB definitions, package data, ACLs, indexes, and lifecycle behavior were inspected against that lineage before restoration.
+
+IMPLEMENTED — SMALLEST SAFE CHANGE:
+- Restored the seven migration files into the current continuation branch using the version names that actually exist in Restore-Test migration history:
+  20260928065012_seller_advertising_action_flow.sql
+  20260928065548_seller_ad_payment_domain.sql
+  20260928070838_seller_ad_acl_hardening.sql
+  20260928070952_seller_ad_payment_initialization_failure.sql
+  20260928071334_correct_seller_ad_package_copy.sql
+  20260928071911_seller_ad_fk_indexes.sql
+  20260928080559_seller_ad_oos_visibility_guard.sql
+- Commits created sequentially on audit/runtime-parity-2026-09-28: 964b3aa5be7240460969dd8e1998c9b984a41684, c7b9ba9ba648cd943959ac5e6d534fc1b38663fa, 710ad2a9199c5d510118691ba11fc368490ebe9f, f8cc422e73b8cacd0e8c92d7d895668ce6051e36, 87b50827087393a12809aa66e90524d8264ed02e, 49d0d53c5b13d48f670ce02cd17955b84b4f1bbd, and final parity commit 46335600141fccdf1d6a64b2626516ee0a6c1330.
+- No Restore-Test schema/data mutation was executed as part of this parity restoration; the DB remained the authoritative already-applied runtime.
+
+VERIFICATION:
+- Current branch now contains all seven Seller Ads migration files under supabase/migrations.
+- Restore-Test still reports seller_ad_packages=3 and seller_ad_campaigns=0 in the inspected snapshot.
+- Current routine privileges preserve the intended boundary: public discovery for velora_get_active_seller_ads; authenticated seller checkout/session/failure helpers; service_role-only campaign synchronization/lifecycle processing.
+- Current package copy matches the canonical DB wording after the package-copy correction.
+- No Browser PASS, provider capture/settlement PASS, production PASS, reporting/attribution PASS, or market-validation PASS is claimed.
+
+REMAINING OPEN:
+- Provider payment capture/settlement evidence for Seller Ads.
+- Refund/accounting treatment and reconciliation evidence.
+- Reporting/analytics persistence and definitions.
+- Attributed-order methodology and seller-facing reporting surface.
+- Market validation of provisional package prices.
+- Published seller advertising legal documents; current checkout remains fail-closed when legal_ready=false.
+- Aggregate Browser evidence for the Seller Command Center / advertising checkout journey.
+
+ACTION FLOW:
+Seller selects package/product
+-> authenticated approved seller/store/legal guard
+-> canonical purchase RPC + idempotency
+-> pending seller-ad campaign + payment attempt
+-> Paymob provider session/result
+-> canonical payment state
+-> campaign sync to active/payment_failed/refunded/completed
+-> notification + audit
+-> lifecycle scheduler via canonical notification processor
+-> retry/reconcile/escalate only for provider ambiguity.
+
+DECISION:
+- Seller Ads engineering foundation and source/runtime parity are CLOSED for this pass.
+- Do not build CPC auctions, advanced targeting, a second scheduler, a second ad/payment engine, or analytics semantics without an explicit business need and defined contract.
+- Carry forward all provider, accounting, analytics, legal-publication, market-validation, and Browser evidence gaps.
