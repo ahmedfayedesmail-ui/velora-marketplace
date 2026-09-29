@@ -307,6 +307,26 @@ def main():
             ) if response.status >= 400 else None)
 
             confirmation_page.goto(signup_action_link, wait_until="networkidle", timeout=60000)
+
+            explicit_init_result = confirmation_page.evaluate(
+                """async () => {
+                    try {
+                        if (typeof window.initializeSupabaseAuth !== 'function') return {available:false};
+                        await window.initializeSupabaseAuth();
+                        return {
+                            available:true,
+                            stateUserId: window.STATE?.user?.uid || null
+                        };
+                    } catch (error) {
+                        return {
+                            available:true,
+                            errorCode:error?.code || null
+                        };
+                    }
+                }"""
+            )
+            evidence["observations"]["explicit_init_result"] = explicit_init_result
+
             wait_for_state(confirmation_page, uid, timeout=30000)
 
             confirmation_snapshot = session_snapshot(confirmation_page)
