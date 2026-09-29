@@ -59,7 +59,7 @@ assert.ok(
 
 
 const helperStart = source.indexOf('async function loadOrBootstrapAuthProfile');
-const helperEnd = source.indexOf('\\nasync function initializeSupabaseAuth', helperStart);
+const helperEnd = source.indexOf('\nasync function initializeSupabaseAuth', helperStart);
 assert.ok(helperStart >= 0 && helperEnd > helperStart, 'Auth profile bootstrap helper must be extractable');
 
 const helperSandbox = {
@@ -92,7 +92,7 @@ const helperSandbox = {
 
 const helperSourceForTest =
   source.slice(helperStart, helperEnd) +
-  '\\nglobalThis.testLoadOrBootstrapAuthProfile = loadOrBootstrapAuthProfile;';
+  '\nglobalThis.testLoadOrBootstrapAuthProfile = loadOrBootstrapAuthProfile;';
 
 vm.runInNewContext(helperSourceForTest, helperSandbox);
 
