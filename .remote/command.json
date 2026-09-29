@@ -1,6 +1,6 @@
 {
-  "id": "ai-provider-live-e2e-v7-2026-09-29",
+  "id": "local-ai-contract-2026-09-29",
   "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "authenticated live OpenAI E2E after schema fix and Edge Function v7"
+  "purpose": "verify zero-cost local Beauty AI interpreter"
 }
