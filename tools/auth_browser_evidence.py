@@ -146,11 +146,32 @@ def write_evidence(evidence):
 
 
 def wait_for_state(page, uid, timeout=30000):
-    page.wait_for_function(
-        """(uid) => window.STATE?.user?.uid === uid""",
-        arg=uid,
-        timeout=timeout,
-    )
+    try:
+        page.wait_for_function(
+            """(uid) => window.STATE?.user?.uid === uid""",
+            arg=uid,
+            timeout=timeout,
+        )
+    except PlaywrightTimeoutError as exc:
+        diagnostic = page.evaluate(
+            """() => ({
+                stateUser: window.STATE?.user ? {
+                    uid: window.STATE.user.uid || null,
+                    email: window.STATE.user.email || null,
+                    role: window.STATE.user.role || null
+                } : null,
+                authListenerRegistered: typeof __mahaAuthListenerRegistered !== 'undefined'
+                    ? !!__mahaAuthListenerRegistered
+                    : null,
+                session: window.mahaSupabase?.auth?.getSession
+                    ? 'available'
+                    : 'unavailable'
+            })"""
+        )
+        raise RuntimeError(
+            "AUTH_STATE_HYDRATION_TIMEOUT:"
+            + json.dumps(diagnostic, ensure_ascii=True, separators=(",", ":"))
+        ) from exc
 
 
 def session_snapshot(page):
@@ -336,42 +357,28 @@ def main():
                 page.evaluate("() => !!window.STATE?.user")
             )
 
-            # Password recovery path is executed with an admin-generated real recovery token.
-            recovery_hash, _ = admin_generate_link("recovery", email)
-            clean_page(page)
+            # Password recovery path is executed through the real generated recovery action link.
+            recovery_hash, recovery_action_link = admin_generate_link("recovery", email)
+            evidence["observations"]["recovery_action_link_generated"] = bool(recovery_action_link)
+            evidence["observations"]["recovery_token_hash_generated"] = bool(recovery_hash)
+            page = context.new_page()
+            page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + safe_error(exc)))
+            page.on("console", lambda msg: browser_errors.append("console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            if not recovery_action_link:
+                raise RuntimeError("AUTH_RECOVERY_ACTION_LINK_MISSING")
 
-            recovery = page.evaluate(
-                """async ({tokenHash}) => {
-                    const events = [];
-                    const original = window.openAuthModal;
-                    window.__veloraRecoveryObserved = false;
-                    window.openAuthModal = function(mode) {
-                        if (mode === 'recovery') window.__veloraRecoveryObserved = true;
-                        return original.apply(this, arguments);
-                    };
-                    const r = await window.mahaSupabase.auth.verifyOtp({
-                        token_hash: tokenHash,
-                        type: 'recovery'
-                    });
-                    return {
-                        session: !!r?.data?.session,
-                        userId: r?.data?.user?.id || null,
-                        errorCode: r?.error?.code || null
-                    };
-                }""",
-                {"tokenHash": recovery_hash},
-            )
+            page.goto(recovery_action_link, wait_until="networkidle", timeout=60000)
             page.wait_for_function(
                 "() => !!document.querySelector('#recoveryPassword')",
                 timeout=30000,
             )
-            evidence["checks"]["recovery_token_establishes_session"] = (
-                bool(recovery.get("session")) and recovery.get("userId") == uid
+            recovery_session = session_snapshot(page)
+            evidence["checks"]["recovery_action_link_establishes_session"] = (
+                recovery_session.get("present") and recovery_session.get("userId") == uid
             )
             evidence["checks"]["password_recovery_ui_opened"] = bool(
                 page.locator("#recoveryPassword").count() == 1
             )
-            evidence["observations"]["recovery_error_code"] = recovery.get("errorCode")
 
             page.locator("#recoveryPassword").fill(recovery_password)
             page.locator("#recoveryPasswordConfirm").fill(recovery_password)
@@ -411,6 +418,7 @@ def main():
             admin_delete_user(uid)
         evidence["cleanup"]["errors"] = list(cleanup_errors)
 
+    evidence["observations"]["browser_errors"] = list(dict.fromkeys(browser_errors))[:20] if 'browser_errors' in locals() else []
     evidence["failures"] = list(evidence["failures"]) + [
         key for key, value in evidence["checks"].items() if value is not True
     ]
