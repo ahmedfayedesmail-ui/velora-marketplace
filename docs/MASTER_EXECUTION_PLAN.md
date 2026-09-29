@@ -3625,3 +3625,62 @@ EVIDENCE:
 
 NEXT ORDERED WORK:
 - Continue through the next still-open customer-commerce contract from the Master Handoff; retain this COD policy as OPEN until a business decision supplies the missing rule.
+
+
+
+### Continuation Returns / Refund Contract Review — 2026-09-29
+
+CLASSIFICATION: SOURCE/DB CONTRACT CLOSED FOR CURRENT SCOPE / BUSINESS POLICY + PROVIDER REFUND OPEN
+
+OBSERVED FACT:
+- public.velora_request_return is authenticated-customer scoped and requires the order to be delivered and payment_status to be paid/refunded.
+- Return requests are store-scoped, reject duplicate active return requests, validate quantities against the owned order item, require delivered shipment evidence for every returned quantity, calculate the current refund estimate from the returned line-item unit price, create return_items, and audit return_requested.
+- public.velora_resolve_return has a transition-aware 6-argument authenticated-client-disabled/Staff-only resolver. The 3-argument historical signature is also client-disabled.
+- The transition-aware resolver enforces the canonical lifecycle requested -> approved/rejected/cancelled -> in_transit -> received -> refunded/cancelled as applicable, and requires refund_reference evidence when entering refunded.
+- Returns RLS is enabled; customer return request access is limited by the SECURITY DEFINER function contract rather than direct table mutation.
+- Current Restore-Test has 0 persistent returns and return_items, so no live return fixture should be invented merely for counts.
+
+ACTUAL OPEN POLICY GAPS — DO NOT GUESS:
+- Return window and its start point (delivery vs other milestone).
+- Final-sale/non-returnable product or category rules.
+- Partial-return order-level discount allocation.
+- Whether outbound shipping and/or return shipping is refundable and under which reason.
+- Tax treatment.
+- Restocking/handling fee policy and damage/condition outcomes.
+- Whether returned stock is restocked automatically, manually, or conditionally after inspection.
+- External payment-provider refund execution/reconciliation and idempotency at the provider boundary.
+- Customer-facing Browser evidence remains part of the final aggregate gate.
+- Historical 3-argument resolver retirement is compatibility hygiene only; do not delete it without proving internal/service callers absent and deciding the retirement policy.
+
+RESEARCH / PRIOR ART:
+- Shopify exposes configurable return windows (including 14/30/90/custom), return-shipping handling, restocking fees, final-sale exceptions, and notes that rule changes apply to future orders. citeturn791228search1turn791228search2
+- Shopify's return processing separates return fees and allows refund timing/processing after receipt. citeturn791228search5
+- WooCommerce return tooling similarly separates eligibility/timeframes, refund tax/shipping, refund method, and restocking quantities/conditions, demonstrating that these are explicit policy knobs rather than safe universal defaults. citeturn791228search0
+- Amazon's current seller-fulfilled materials also show policy-dependent return/refund windows and a distinct post-receipt refund processing window; these are marketplace rules, not portable Velora defaults. citeturn878294search0turn878294search5
+
+ACTION FLOW — CURRENT RETURN LIFECYCLE:
+Customer delivered-order event
+-> eligible return guard
+-> customer chooses store + quantities + reason
+-> canonical velora_request_return
+-> quantity/delivery/payment/ownership validation
+-> return request + audit
+-> existing Trust/Compliance Staff queue
+-> transition-aware resolver
+-> approved -> in_transit -> received
+-> refund decision + external provider execution/evidence
+-> refunded/closed
+-> downstream inventory/restock/accounting/notification policy as explicitly defined
+-> reconcile provider result or escalate ambiguous provider state.
+No human intervention is needed for the request/validation mechanics; human Staff intervention remains expected for policy-based approval/inspection/refund decisions until automation rules are explicitly defined.
+
+DECISION:
+- Do not add a generic return_days field or hard-code a 14/30-day window from another platform.
+- Do not invent discount/shipping/tax/restocking math.
+- Do not auto-restock returned goods before a policy defines item condition/receipt semantics.
+- Do not add a second refund engine or provider processor; the existing resolver remains the single state-transition boundary.
+- Keep the current source/DB contract as-is and carry the policy/provider gaps forward.
+
+EVIDENCE:
+- L1/L2/L3: source and Restore-Test contract inspected; return request/resolution ACL boundaries verified.
+- L4/L5/L6/L7/L8/L9: no new return automation or provider/browser/Production PASS claimed.
