@@ -8,19 +8,26 @@ on:
     paths:
       - "src/scripts/00-localization.js"
       - "tests/auth-lifecycle-contract.test.mjs"
+      - "tools/auth_browser_evidence.py"
       - ".github/workflows/velora-authentication-browser-gate.yml"
 
 permissions:
   contents: read
 
+concurrency:
+  group: velora-auth-browser-$${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   auth-browser:
-    name: Customer password auth + logout
+    name: Autonomous Restore-Test authentication evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
-      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
-      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: $${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173/
+      AUTH_EVIDENCE_PATH: auth-browser-evidence.json
     steps:
       - name: Checkout exact source
         uses: actions/checkout@v4
@@ -28,11 +35,13 @@ jobs:
           ref: audit/runtime-parity-2026-09-28
           fetch-depth: 1
 
-      - name: Validate E2E credentials
+      - name: Validate Restore-Test secret
         run: |
           set -euo pipefail
-          test -n "${E2E_EMAIL:-}" || { echo "::error::E2E_EMAIL is not configured"; exit 1; }
-          test -n "${E2E_PASSWORD:-}" || { echo "::error::E2E_PASSWORD is not configured"; exit 1; }
+          test -n "$${{ github.ref }}" || {
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY is not configured."
+            exit 1
+          }
 
       - name: Install Playwright
         run: |
@@ -44,211 +53,29 @@ jobs:
         run: |
           nohup python3 -m http.server 4173 -d src > auth-local-server.log 2>&1 &
           python3 - <<'PY'
-          import time, urllib.request
+          import time
+          import urllib.request
           for _ in range(30):
               try:
                   with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
                       if r.status == 200:
-                          print("local source server ready")
+                          print("local exact-source server ready")
                           break
               except Exception:
                   time.sleep(1)
           else:
-              raise SystemExit("LOCAL_SOURCE_SERVER_NOT_READY")
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
           PY
 
-      - name: Run authentication browser evidence
-        shell: python
-        run: |
-          import json
-          import os
-          from playwright.sync_api import sync_playwright
+      - name: Run autonomous authentication evidence
+        run: python3 tools/auth_browser_evidence.py
 
-          email = os.environ["E2E_EMAIL"]
-          password = os.environ["E2E_PASSWORD"]
-          evidence = {
-              "schema": "velora-auth-browser.v1",
-              "execution_mode": "local_exact_source",
-              "target_url": "http://127.0.0.1:4173/",
-              "checks": {},
-              "failures": [],
-          }
-
-          with sync_playwright() as p:
-              browser = p.chromium.launch()
-              page = browser.new_page()
-
-              page.goto("http://127.0.0.1:4173/", wait_until="networkidle", timeout=60000)
-              evidence["checks"]["http_200"] = page.locator("body").count() == 1
-
-              auth_preflight = page.evaluate(
-                  """async ({email, password}) => {
-                    const sb = window.mahaSupabase;
-                    if (!sb?.auth?.signInWithPassword) {
-                      return { available: false, session: false, userId: null, errorCode: "AUTH_API_UNAVAILABLE", errorMessage: "signInWithPassword unavailable" };
-                    }
-
-                    const r = await sb.auth.signInWithPassword({ email, password });
-                    const result = {
-                      available: true,
-                      session: !!r?.data?.session,
-                      userId: r?.data?.user?.id || null,
-                      errorCode: r?.error?.code || null,
-                      errorMessage: r?.error?.message || null
-                    };
-
-                    if (result.session) {
-                      await sb.auth.signOut({ scope: "local" });
-                    }
-
-                    return result;
-                  }""",
-                  {"email": email, "password": password},
-              )
-
-              evidence["auth_preflight"] = {
-                  "available": auth_preflight.get("available"),
-                  "session": auth_preflight.get("session"),
-                  "errorCode": auth_preflight.get("errorCode"),
-                  "errorMessage": auth_preflight.get("errorMessage")
-              }
-              evidence["checks"]["auth_provider_accepts_e2e_credentials"] = (
-                  bool(auth_preflight.get("session")) and
-                  not auth_preflight.get("errorCode") and
-                  not auth_preflight.get("errorMessage")
-              )
-
-              if not evidence["checks"]["auth_provider_accepts_e2e_credentials"]:
-                  evidence["failures"] = ["auth_provider_accepts_e2e_credentials"]
-                  with open("auth-browser-evidence.json","w",encoding="utf-8") as f:
-                      json.dump(evidence,f,ensure_ascii=False,indent=2)
-                  print(json.dumps(evidence,ensure_ascii=False,indent=2))
-                  browser.close()
-                  raise SystemExit(1)
-
-              # Preflight deliberately uses a separate browser page because it
-              # creates a real session. The UI test starts from a clean context
-              # so its results cannot be contaminated by preflight session state.
-              page.close()
-              page = browser.new_page()
-              page.goto("http://127.0.0.1:4173/", wait_until="networkidle", timeout=60000)
-              evidence["checks"]["clean_ui_context_after_preflight"] = page.locator("#accountBtn").count() == 1
-
-              page.locator("#accountBtn").click()
-              page.locator("#loginEmail").fill(email)
-              page.locator("#loginPassword").fill("definitely-wrong-password")
-              page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
-              page.wait_for_timeout(1500)
-
-              wrong_session = page.evaluate("""async () => {
-                const sb = window.mahaSupabase;
-                const r = await sb.auth.getSession();
-                return !!r?.data?.session;
-              }""")
-              evidence["checks"]["invalid_password_no_session"] = not bool(wrong_session)
-              page.locator("#authModal .modal-close").click()
-
-              page.locator("#accountBtn").click()
-              page.locator("#loginEmail").fill(email)
-              page.locator("#loginPassword").fill(password)
-              page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
-
-              page.wait_for_function("""() => !!document.querySelector('#accountContent') &&
-                !document.querySelector('#accountContent .empty-state')""", timeout=30000)
-
-              session = page.evaluate("""async () => {
-                const sb = window.mahaSupabase;
-                const r = await sb.auth.getSession();
-                return {
-                  present: !!r?.data?.session,
-                  userId: r?.data?.session?.user?.id || null,
-                  email: r?.data?.session?.user?.email || null
-                };
-              }""")
-
-              evidence["checks"]["valid_login_session"] = bool(session.get("present"))
-              session_email = str(session.get("email") or "").lower()
-              evidence["checks"]["authenticated_user_matches_email"] = session_email == email.lower()
-              evidence["checks"]["account_page_authenticated"] = page.locator("#accountContent").count() == 1 and "Not logged in" not in page.locator("#accountContent").inner_text()
-
-              bootstrap_probe = page.evaluate("""async () => {
-                const sb = window.mahaSupabase;
-                if (!sb?.from || !window.initializeSupabaseAuth) {
-                  return { error: "AUTH_BOOTSTRAP_PROBE_UNAVAILABLE" };
-                }
-
-                const originalFrom = sb.from.bind(sb);
-                sb.from = (table) => {
-                  if (table === "users" || table === "profiles") {
-                    return {
-                      select() { return this; },
-                      eq() { return this; },
-                      maybeSingle: async () => ({ data: null, error: null })
-                    };
-                  }
-                  return originalFrom(table);
-                };
-
-                try {
-                  await window.initializeSupabaseAuth();
-                  const sessionResult = await sb.auth.getSession();
-                  const uid = sessionResult?.data?.session?.user?.id || null;
-
-                  const [u, p] = await Promise.all([
-                    originalFrom("users").select("id").eq("id", uid),
-                    originalFrom("profiles").select("id").eq("id", uid)
-                  ]);
-
-                  return {
-                    session: !!sessionResult?.data?.session,
-                    stateUid: window.STATE?.user?.uid || null,
-                    uid,
-                    users: u.data?.length || 0,
-                    profiles: p.data?.length || 0,
-                    usersError: u.error?.message || null,
-                    profilesError: p.error?.message || null
-                  };
-                } finally {
-                  sb.from = originalFrom;
-                }
-              }""")
-
-              evidence["checks"]["missing_profile_branch_bootstraps_real_rpc"] = (
-                  bool(bootstrap_probe.get("session")) and
-                  bootstrap_probe.get("stateUid") == bootstrap_probe.get("uid") and
-                  bootstrap_probe.get("users") == 1 and
-                  bootstrap_probe.get("profiles") == 1 and
-                  not bootstrap_probe.get("usersError") and
-                  not bootstrap_probe.get("profilesError")
-              )
-
-              page.on("dialog", lambda dialog: dialog.accept())
-              page.locator("#accountContent button", has_text="Logout").click()
-              page.wait_for_timeout(1200)
-
-              after_logout = page.evaluate("""async () => {
-                const sb = window.mahaSupabase;
-                const r = await sb.auth.getSession();
-                return !!r?.data?.session;
-              }""")
-              evidence["checks"]["logout_clears_session"] = not bool(after_logout)
-              evidence["checks"]["account_returns_to_logged_out_state"] = "Not logged in" in page.locator("#accountContent").inner_text() if page.locator("#accountContent").count() else True
-
-              browser.close()
-
-          evidence["failures"] = [k for k,v in evidence["checks"].items() if v is not True]
-
-          with open("auth-browser-evidence.json","w",encoding="utf-8") as f:
-              json.dump(evidence,f,ensure_ascii=False,indent=2)
-
-          print(json.dumps(evidence,ensure_ascii=False,indent=2))
-          if evidence["failures"]:
-              raise SystemExit(1)
-
-      - name: Upload auth evidence
+      - name: Upload authentication evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: velora-authentication-browser-evidence
-          path: auth-browser-evidence.json
+          path: |
+            auth-browser-evidence.json
+            auth-local-server.log
           retention-days: 3
