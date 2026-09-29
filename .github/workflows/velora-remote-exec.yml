@@ -1,0 +1,107 @@
+name: Velora Remote Exec
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".remote/command.json"
+
+permissions:
+  contents: read
+
+jobs:
+  remote-exec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Execute bounded command
+        env:
+          COMMAND_JSON: .remote/command.json
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { spawnSync } = require('child_process');
+
+          const request = JSON.parse(fs.readFileSync(process.env.COMMAND_JSON, 'utf8'));
+          if (!request || typeof request.command !== 'string') {
+            throw new Error('Invalid remote-exec request: command must be a string.');
+          }
+
+          const exact = new Map([
+            ['git status --short --branch', ['git', ['status', '--short', '--branch']]],
+            ['git diff --check', ['git', ['diff', '--check']]],
+            ['npm run check', ['npm', ['run', 'check']]],
+            ['npm run test:beauty-ai', ['npm', ['run', 'test:beauty-ai']]],
+            ['npm run test:product-detail', ['npm', ['run', 'test:product-detail']]],
+            ['npm run test:platform-reentry', ['npm', ['run', 'test:platform-reentry']]],
+            ['python3 tools/static_audit.py', ['python3', ['tools/static_audit.py']]],
+          ]);
+
+          let argv = exact.get(request.command);
+          if (!argv) {
+            const match = request.command.match(/^node --check ((?:src\/scripts|tests)\/[A-Za-z0-9._/-]+\.m?js)$/);
+            if (match) argv = ['node', ['--check', match[1]]];
+          }
+
+          if (!argv) {
+            throw new Error('Command rejected by Velora Remote Exec allowlist: ' + request.command);
+          }
+
+          const started = new Date().toISOString();
+          const result = spawnSync(argv[0], argv[1], {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            timeout: 120000,
+            maxBuffer: 4 * 1024 * 1024
+          });
+
+          const stdout = result.stdout || '';
+          const stderr = result.stderr || '';
+          const exitCode = typeof result.status === 'number' ? result.status : 124;
+
+          const lines = [
+            'VELORA_REMOTE_EXEC_RESULT',
+            'request_id=' + String(request.id ?? ''),
+            'command=' + request.command,
+            'started_at=' + started,
+            'exit_code=' + exitCode,
+            '',
+            '--- stdout ---',
+            stdout,
+            '--- stderr ---',
+            stderr
+          ];
+          fs.writeFileSync('remote-exec-result.txt', lines.join('\n'));
+
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+              '# Velora Remote Exec',
+              '',
+              'Request: ' + String(request.id ?? ''),
+              'Command: ' + request.command,
+              'Exit code: ' + exitCode,
+              '',
+              'Full output is attached as the remote-exec-result artifact.'
+            ].join('\n') + '\n');
+          }
+
+          if (result.error) throw result.error;
+          if (exitCode !== 0) process.exit(exitCode);
+          NODE
+
+      - name: Upload execution result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-exec-result
+          path: remote-exec-result.txt
+          if-no-files-found: warn
+          retention-days: 3
