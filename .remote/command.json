@@ -1,6 +1,6 @@
 {
-  "id": "local-ai-contract-final-2-2026-09-29",
-  "command": "npm run test:beauty-ai",
+  "id": "zero-cost-ai-check-2026-09-29",
+  "command": "npm run check",
   "requested_by": "owner",
-  "purpose": "final zero-cost local Beauty AI contract verification"
+  "purpose": "final source and build check for zero-cost Beauty AI path"
 }
