@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 8d360000a23310239671d1c3a45e10d57a6fcb02
+Current observed branch HEAD: 0ccbab3cf8b4de2c59dd4ca633c68f39410f71bb
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3279,3 +3279,23 @@ CURRENT DELIVERY:
 - Current branch HEAD is 8d360000a23310239671d1c3a45e10d57a6fcb02.
 - A matching Vercel Preview was created as dpl_Fww4HoXgeneeDP6dPJwh3Cw4T5Rz and was BUILDING at the last check.
 - Browser Gate remains intentionally deferred to the single aggregate pass.
+
+
+### Continuation Promotion Release on Pre-Payment Cancellation — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW
+
+OBSERVED FACT:
+- velora_apply_best_promotion_to_order creates one promotion_redemptions row and increments promotions.used_count when an eligible promotion is applied.
+- Canonical checkout is non-stackable between a supplied coupon and best platform promotion in the MVP path, so one cancellation needs at most one promotion release.
+
+IMPLEMENTED:
+- Migration 20260929071000_release_promotion_on_order_cancellation.sql.
+- velora_cancel_order now removes the matching promotion_redemptions row, decrements promotions.used_count with a floor of zero, and writes promotion_released_on_order_cancellation audit evidence.
+- No new promotion state, schema, or redemption engine was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Temporary Promotion fixture used used_count=1 with one redemption attached to Order #74.
+- Canonical customer cancellation produced order/payment cancellation, promotion_used_count=0, redemption_count=0, release_audit_count=1, and cancel_audit_count=1.
+- Full transaction rolled back; no persistent Promotion/Order state changed.
+- The resulting promotion cancellation behavior is now aligned with the already-closed coupon cancellation release and Gift Card cancellation refund paths.
