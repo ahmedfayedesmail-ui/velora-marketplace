@@ -63,7 +63,15 @@
       goal: null,
       routine_budget: null
     },
-    busy: false
+    busy: false,
+    ai: {
+      mode: 'manual',
+      input: '',
+      candidate: null,
+      missingFields: [],
+      message: '',
+      busy: false
+    }
   };
 
   function getClient() {
