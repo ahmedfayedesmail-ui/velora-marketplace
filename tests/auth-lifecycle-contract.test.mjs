@@ -110,6 +110,16 @@ assert.ok(
   'Stage 8 auth role sync must defer Supabase queries outside the auth lock'
 );
 
+assert.ok(
+  stage8AuthSyncSnippet.includes("typeof STATE !== 'undefined' && STATE?.user"),
+  'Stage 8 auth role sync must update the canonical lexical Velora STATE'
+);
+
+assert.ok(
+  !stage8AuthSyncSnippet.includes('window.STATE?.user'),
+  'Stage 8 must not depend on a non-existent window.STATE property'
+);
+
 
 const helperStart = source.indexOf('async function loadOrBootstrapAuthProfile');
 const helperEnd = source.indexOf('\nasync function initializeSupabaseAuth', helperStart);
