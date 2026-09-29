@@ -35,6 +35,9 @@ const isLocale=code=>localeList().includes(String(code||'').toLowerCase());
 const langName=code=>meta()[code]?.name||meta()[code]?.native||code;
 
 const CORE_AR={
+  'PERSONALIZED FOR YOU':'مخصص ليكي',
+  'Beauty picks built around your Passport':'اختيارات جمال مبنية على Beauty Passport بتاعتك',
+  'Recommendations from your saved skin type, goal and routine budget.':'ترشيحات مبنية على نوع بشرتك وهدفك وميزانية روتينك المحفوظين.',
   'Dashboard':'لوحة التحكم',
   'Protected':'محمي',
   'Protected 🔐':'محمي 🔐',
