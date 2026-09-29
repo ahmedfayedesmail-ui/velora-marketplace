@@ -1,6 +1,6 @@
 {
-  "id": "ai-proof-2026-09-29T19:27:00+03:00",
+  "id": "ai-provider-recheck-2026-09-29",
   "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "remote-exec-proof"
+  "purpose": "trigger authenticated Customer Beauty AI browser gate after provider secret configuration"
 }
