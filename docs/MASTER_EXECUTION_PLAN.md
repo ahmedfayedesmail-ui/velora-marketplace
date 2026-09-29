@@ -3794,3 +3794,74 @@ CARRY-FORWARD:
 - Provider-level push delivery evidence.
 - Production cutover/evidence.
 - Any owner/legal/provider decisions listed elsewhere in the Master remain open and are not affected by this closure.
+
+
+
+### Continuation Paymob Case C / Case D Completion + Reconciliation State-Normalization Hardening — 2026-09-29
+
+CLASSIFICATION: CASE C CLOSED-DONE AT L5-L8 SANDBOX / CASE D ENGINEERING CLOSED AT L1-L8 CONTRACT + FALLBACK PROOF / PRODUCTION PAYMOB CUTOVER REMAINS OPEN
+
+OPERATING RULES:
+- Master Handoff remains the sole execution source of truth; every prior OPEN/BLOCKED/PENDING/NOT EVIDENCED item remains carried forward.
+- Research/reuse first: existing checkout, webhook, inquiry, reconciliation, payment-attempt, audit, and failed-payment recovery contracts were reused. No second payment engine, webhook processor, reconciliation engine, or order-payment state machine was created.
+- Action Flow remains parallel:
+  provider payment event -> authenticated canonical order/payment guard -> provider intention/session -> hosted checkout -> provider callback OR inquiry fallback -> verified provider state normalization -> canonical payment/order transition -> commissions/ledger/audit side effects -> idempotency/dedupe -> retry/reconciliation -> human escalation only for true ambiguity.
+
+CASE C — CURRENT SANDBOX PAYMENT COMPLETION:
+- GitHub Actions Run #53, run id 36518619834, completed successfully against branch audit/runtime-parity-2026-09-28 at SHA 575d30305c776cfe240863b4611dcb897dbcd9e5.
+- Artifact: velora-paymob-sandbox-evidence-36518619834, id 11011772910, digest sha256:52f82893af5d096c3029bc5eeff8db54d91d54053ef50243be9b1ab68197f2dc.
+- Artifact checks all passed: authenticated user, fresh fixture, payment-method binding, order creation, pending order discovery, checkout Edge Function HTTP 200, Paymob intention creation, sandbox payment execution.
+- Playwright evidence: Paymob-hosted checkout loaded; card fields detected; payment click executed; no console/page errors; provider transaction inquiry returned HTTP 200; provider state was pending=false, success=true, MIGS CAPTURED, MIGS result SUCCESS, transaction response APPROVED; one signed processed webhook was observed while the browser session was open.
+- Restore-Test DB after the run: Order #78 is confirmed/paid, payment attempt is captured with provider transaction id 543891883, payment row is paid/provider=paymob, webhook event 543891883 is signature_verified=true and processed, commission is finalized at 12.5%, and the seller ledger contains sale 160 EGP plus commission -20 EGP.
+- This is Restore-Test/Sandbox evidence only; it is not Production settlement evidence.
+
+CASE D — WEBHOOK-MISSED / INQUIRY FALLBACK:
+OBSERVED FACT:
+- A direct transactional replay removed the real processed webhook row for Order #78, reverted the local payment attempt/order/payment representation to pending, and then ran the canonical inquiry-source applicator plus reconciliation result recorder.
+- Result inside rollback: payment_attempt=captured, provider_payment_id=543891883, payment row=paid/paymob, order=confirmed/paid, reconciliation state=completed with last_outcome=captured, last_http_status=200, last_provider_transaction_id=543891883, and webhook remained absent during the simulation.
+- The applicator was called twice with the same transaction id and captured state to verify idempotent convergence; final state remained terminal rather than duplicating a second payment state.
+- The probe used an existing real fixture and rolled back completely; no persistent state was changed.
+- The first two test attempts failed only in the verification harness before persistence (invalid profile UUID / JWT role setup), then the corrected transaction passed.
+
+REAL PROVIDER NORMALIZATION GAP FOUND:
+- Run #53 provider inquiry returned is_captured=false while simultaneously returning pending=false, success=true, data.migs_order.status=CAPTURED, data.migs_result=SUCCESS, and data.txn_response_code=APPROVED.
+- Paymob's current Transaction Inquiry and callback documentation exposes these gateway/MIGS fields and documents Transaction Inquiry as the fallback mechanism when a callback is missed. This provider response shape means is_captured alone is insufficient for the Reconciliation normalizer.
+
+IMPLEMENTED FIX:
+- Existing deployed Reconciliation Function v5 was found to have a narrow normalize() implementation that depended on top-level is_captured/is_capture for captured inference.
+- Exact deployed Inquiry and Reconciliation runtime source/config were brought into the repo for source/runtime parity:
+  supabase/functions/velora-paymob-inquiry-restore-test/index.ts
+  supabase/functions/velora-paymob-inquiry-restore-test/deno.json
+  supabase/functions/velora-paymob-reconciliation-restore-test/index.ts
+  supabase/functions/velora-paymob-reconciliation-restore-test/deno.json
+- Reconciliation normalize() now treats a provider result as captured when:
+  success=true AND pending=false AND (is_captured=true OR is_capture=true OR MIGS status=CAPTURED + MIGS result=SUCCESS + txn_response_code=APPROVED/00).
+- Regression harness covers 8 provider states (captured via MIGS semantics, captured via explicit flag, authorized, pending, failed, refunded, ambiguous) and passes 8/8.
+- Updated Reconciliation Edge Function deployed successfully to Restore-Test as version 6, ACTIVE, verify_jwt=false, import_map=true.
+- Deployed v6 source was re-read after deployment and confirmed to contain the MIGS-aware normalization branch.
+
+PROVIDER / RESEARCH RESULT:
+- Paymob official documentation states Transaction Inquiry APIs can be used as a fallback when a callback is missed and exposes the transaction/MIGS state fields used by the normalization fix. No universal provider retry behavior was found in the current public transaction-callback documentation; correctness therefore does not depend on an undocumented retry assumption.
+
+CURRENT POST-FIX REGRESSION:
+- A new Paymob Sandbox Evidence Run #54 was triggered after Reconciliation v6 deployment.
+- Run id 36519231052, head SHA 108c492e670f900ba3b73017e5b997edd73f5f4f.
+- At the latest inspection it was still IN PROGRESS in the Playwright installation step. No PASS/FAIL is claimed yet.
+
+PRODUCTION READ-ONLY REVIEW — NO MODIFICATION:
+- Production Supabase remains FROZEN and was not changed.
+- Production currently exposes velora-paymob-checkout v6 and velora-paymob-webhook v5, while Restore-Test runs newer hardened versions (checkout v17, webhook v29, inquiry v10, reconciliation v6).
+- Therefore Production Paymob cutover is correctly treated as a separate release gate; the production runtime must not be assumed equivalent to the verified Restore-Test runtime until an explicit controlled cutover/upgrade and Production evidence exists.
+
+CURRENT PAYMOB STATUS:
+- Restore-Test Paymob Checkout + Hosted Sandbox Payment: CLOSED-DONE / PASS at L5-L8.
+- Restore-Test HMAC Webhook Verification + Processing: CLOSED-DONE / PASS for observed sandbox event.
+- Restore-Test Inquiry Fallback Contract: CLOSED-DONE at source/DB/transactional evidence; deployed v6.
+- Genuine external provider callback-retry/replay behavior: NOT INDEPENDENTLY EVIDENCED and not assumed.
+- Production Paymob settlement/cutover/webhook evidence: OPEN / REQUIRED.
+- No per-item Browser Gate is required; final aggregate Browser Gate remains the platform-wide L7 pass.
+
+NEXT:
+- Finish interpreting Run #54 after it completes.
+- If Run #54 passes, perform one final Paymob source/DB/provider/evidence reconciliation and mark the Restore-Test Paymob lane complete, while keeping Production Paymob as the explicit external release gate.
+- Do not move to another Master workstream until the Paymob lane above is fully classified and recorded.
