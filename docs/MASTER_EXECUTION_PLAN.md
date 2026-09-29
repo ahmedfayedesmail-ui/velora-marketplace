@@ -6569,3 +6569,78 @@ Policy decisions remain a human governance gate before implementation.
 ### Carry-forward
 - Seller/Store projection and Product re-review remain canonical and should be preserved.
 - Subscription policy matrix is the next genuine product/business decision boundary; implementation should not proceed past the existing foundation until those policies are explicitly ratified.
+## 2026-09-29 — MESSAGE 7/24 EXECUTION / SELLER ADVERTISING + COMMISSION + PAYOUTS
+CLASSIFICATION: EXECUTED — Advertising, Commission, and Payout foundations are CLOSED-DONE at Source / DB / Contract evidence for the current scope. Provider settlement, external reconciliation, commercial policy, Browser evidence, and Production settlement remain OPEN / NOT EVIDENCED.
+
+### 14. SELLER ADVERTISING
+- Canonical advertising backend remains authoritative; no second advertising engine or alternate payment path was introduced.
+- Restore-Test has 3 active fixed-duration packages: Product Boost — 3 Days = 99 EGP; Featured Product — 7 Days = 199 EGP; Home Spotlight — 7 Days = 499 EGP. Current persistent campaign count is 0.
+- velora_get_seller_ad_checkout_context() requires an authenticated approved Seller and approved Store and returns canonical country/currency/legal/package/product/campaign context. Products exposed for purchase are Seller-owned and approved.
+- velora_start_seller_ad_purchase(...) enforces approved Seller/Store, Egypt-only current Paymob route, country match, published legal acceptance, active EGP package, approved Seller-owned product, scoped idempotency, and rejection of an already active/pending placement for the same Store/Product/Package.
+- Seller Command Center in src/scripts/35-seller.js uses the canonical context, approved products, campaign state, legal gate, explicit legal acceptance, and the existing Paymob Edge Function. It does not calculate payment eligibility or local payment state.
+- Ad purchase idempotency is scoped to the active browser purchase intent using sessionStorage and package+product keying, with a random per-intent identifier. Terminal campaign states clear the stored key so a later purchase starts a fresh intent.
+- Current Restore-Test Edge Function velora-seller-ad-paymob-checkout-restore-test is ACTIVE at version 6. The previously documented v5 error-path hardening is therefore historical; v6 is the current active revision observed during this execution.
+- Error handling preserves the canonical payment state. Initialization failures use velora_mark_seller_ad_payment_initialization_failed; provider correlation uses velora_attach_seller_ad_payment_provider_session; provider-session recovery uses velora_recover_paymob_provider_session when needed. Provider-intent creation is never converted into a local paid state.
+- velora_sync_seller_ad_campaign() is service-role controlled and derives campaign state from the canonical payment attempt/product lifecycle: captured + approved product -> active; failed -> payment_failed; refunded -> refunded; duration expiry -> completed; captured while product is no longer approved -> cancelled.
+- Campaign transitions write audit evidence and use the existing notification path. Campaign activation depends on captured payment state; active campaign is not treated as external provider settlement proof.
+- RLS is enabled on seller_ad_campaigns and seller_ad_packages.
+- Action Flow: package purchase -> authenticated approved Seller/Store guard -> legal/product/package/country/currency validation -> pending_payment campaign + canonical payment attempt -> Paymob intention/session -> provider result/webhook/reconciliation -> canonical campaign sync -> active/completed/failed/refunded/cancelled -> notification + audit -> retry/reconcile -> next lifecycle event.
+- OPEN / NOT EVIDENCED: provider settlement; campaign accounting; reporting; attribution; revenue recognition; refund/reversal economics; market validation; legal publication; Browser runtime evidence.
+
+### 15. COMMISSION
+- Canonical calculation remains velora_get_commission_rate(uuid).
+- Current function EXECUTE is restricted to service_role (anon=false, authenticated=false); no general customer-facing commission lookup exposure remains.
+- Resolution uses an active non-Free subscription commission first, then Seller plan mapping, with the coded 12.5 fallback.
+- Current Restore-Test Seller snapshot: gross finalized 780.00 EGP, commission finalized 97.50 EGP, seller net finalized 682.50 EGP.
+- Direct canonical function evaluation for the current Seller returned 12.5000%.
+- commissions has RLS enabled and authenticated Seller reads are owner-scoped.
+- Commission remains an internal financial calculation and is not payout execution or provider settlement.
+- OPEN: business presentation/policy details and full reconciliation across provider, refund/reversal, and payout cases.
+
+### 16. PAYOUTS
+- Canonical Seller payout UI remains in src/scripts/35-seller.js and uses velora_get_seller_financial_summary() plus velora_request_seller_payout().
+- src/scripts/72-seller-payouts.js is absent from the current continuation branch and src/index.html contains no reference to it. No duplicate payout engine remains.
+- velora_get_seller_financial_summary() derives finalized financial totals and payout eligibility from canonical finalized commissions, paid orders, delivered shipments, a 7-day post-delivery window, and absence of an existing seller_payout_items claim.
+- velora_request_seller_payout(text) requires approved Seller/Store, serializes requests by locking the Seller row, rejects an existing pending/processing payout, recomputes eligibility server-side, requires a positive amount, creates payouts in pending, creates seller_payout_items, and writes seller_payout_requested audit evidence.
+- velora_record_payout_execution(uuid,text,text) requires Staff in the function body, records an external method/reference, transitions only pending/processing to paid, posts the canonical payout ledger entry, writes audit evidence, and is idempotent for a repeated matching reference.
+- Restore-Test current state: payouts=0, seller_payout_items=0, and current Seller payout_eligible_now=0. No synthetic settlement fixture was created.
+- RLS is enabled on payouts and seller_payout_items; Seller reads are owner-scoped.
+- Action Flow: Seller payout request -> authenticated Seller/approved Store guard -> recompute finalized eligibility -> delivery + 7-day guard -> payouts + seller_payout_items -> pending -> Staff external execution -> canonical execution record -> paid + ledger + audit -> external reconciliation.
+- OPEN / NOT EVIDENCED: provider/external settlement; external reconciliation; Browser runtime evidence; Production settlement. No payout settlement is simulated in frontend.
+
+### MESSAGE 7 EVIDENCE BOUNDARY
+- L1 Source: Seller Advertising and Payout use canonical paths; the duplicate payout adapter is absent.
+- L2 DB: advertising packages, campaign counts, commission economics, payout state, function definitions, and RLS were verified in Restore-Test arlaxqmhtvjwjbjinjfw.
+- L3 Contract / ACL / RLS: advertising purchase/session functions, service-role commission lookup, Seller-scoped payout reads/requests, Staff-only payout execution, and table RLS were verified.
+- L4 Negative / transactional: no persistent campaign/payout mutation was justified because current fixtures have zero campaigns/payouts and zero eligible payout balance. No fake financial fixture was invented.
+- L5 CI: no new CI run was required because Message 7 produced no application or migration change.
+- L6 Preview: no new deployment required because no application source changed.
+- L7 Browser: NOT EVIDENCED; aggregate Browser Gate remains authoritative and current browser automation remains unavailable due insufficient wallet balance.
+- L8 Provider: NOT EVIDENCED for advertising settlement or payout settlement.
+- L9 Production: untouched and frozen.
+
+### MESSAGE 7 NON-NEGOTIABLES RECONFIRMED
+- No duplicate advertising, commission, or payout engine.
+- No Cart rewrite.
+- No MutationObserver.
+- No arbitrary click-listener workaround.
+- No speculative schema/field creation.
+- No Production mutation.
+- No Browser PASS inferred from source/SQL.
+- No provider or Production settlement PASS inferred from Restore-Test.
+- Canonical server state remains authoritative.
+- Commission is not payout settlement.
+- Campaign active is not external provider settlement.
+- External payout execution is never simulated in frontend.
+
+### CARRY-FORWARD AFTER MESSAGE 7
+- Message 6 subscription commercial/runtime/provider/browser open items remain open.
+- Seller Dashboard re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open; Message 2 only removed the active frontend duplicate.
+- Advertising accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser/provider items remain open.
+- Commission cross-financial reconciliation remains open.
+- Payout external settlement/reconciliation/browser/Production remain open.
+
