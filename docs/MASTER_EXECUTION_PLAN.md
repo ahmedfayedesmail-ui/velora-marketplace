@@ -7692,5 +7692,204 @@ RETRY -> webhook replay is not assumed; reconciliation is fallback
 - Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
 - Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
 
+## 2026-09-29 — MESSAGE 18/24 EXECUTION / PAYMOB FINAL STATUS + PAYMENT PLACEHOLDER INTEGRITY + CUSTOMER CANCELLATION
+CLASSIFICATION:
+- Message 18 executed.
+- Restore-Test Paymob remains CLOSED-DONE; Production Paymob remains OPEN and untouched.
+- Payment placeholder integrity is CLOSED-DONE L1-L4.
+- Customer order cancellation, coupon-release-on-cancellation, and partial Gift Card cancellation compensation were transactionally verified through canonical paths.
+- No second cancellation/refund/promotion/payment engine was added.
 
-<!-- MESSAGE18_WRITE_PROBE -->
+### 54. PAYMOB RESTORE-TEST FINAL STATUS
+RESTORE-TEST CLOSED-DONE:
+- Checkout / Paymob Intention.
+- Hosted Checkout sandbox execution.
+- Transaction Inquiry.
+- HMAC webhook verification.
+- Webhook processing.
+- Webhook-missed Inquiry recovery.
+- MIGS-aware normalization.
+- Failure-start compensation.
+- Provider-session recovery.
+- Duplicate webhook protection.
+- Monotonic payment state.
+- Reconciliation.
+
+PRODUCTION OPEN:
+- Live Paymob environment.
+- Live credentials.
+- Controlled Production cutover.
+- Production webhook configuration.
+- Production settlement.
+- Production reconciliation.
+- Controlled live smoke.
+- Rollback readiness.
+
+PRODUCTION READ-ONLY BASELINE CHECK:
+- Production Paymob checkout Edge Function is active, version 6.
+- Production Paymob webhook Edge Function is active, version 5.
+- Both are separate from Restore-Test.
+- Production was not modified by Message 18.
+
+DECISION:
+- No additional Paymob engineering rebuild is justified.
+- Next Paymob phase is a controlled Production cutover / live settlement gate with release governance, backup/rollback, credentials, webhook configuration, provider verification, and explicit live smoke/rollback evidence.
+
+### 55. FINAL PAYMOB DECISION
+- Paymob Restore-Test engineering = CLOSED-DONE.
+- Production Paymob = OPEN.
+- No casual Production changes.
+- No sandbox evidence is promoted to Production PASS.
+- No further Paymob rebuild is planned before the controlled Production gate.
+
+### 56. PAYMENT PLACEHOLDER INTEGRITY
+CURRENT LIVE BASELINE:
+- Restore-Test coupon count = 1.
+- Promotion count = 0.
+- Gift Card count = 0.
+- coupon_redemptions = 0.
+- promotion_redemptions = 0.
+- gift_card_transactions = 0.
+- Global pending-order/pending-payment amount mismatch count = 0.
+
+CANONICAL WRITERS VERIFIED:
+- velora_apply_coupon_to_order(...) updates orders.total and synchronizes pending public.payments.amount/currency to the final order total.
+- velora_apply_best_promotion_to_order(...) updates orders.total and synchronizes pending payment amount/currency.
+- velora_apply_gift_card_to_order(...) resolves the payment placeholder:
+  - full Gift Card: order total becomes 0, pending payment placeholder is cancelled, paid Gift Card payment representation is created.
+  - partial Gift Card: remaining order total is calculated and the pending payment placeholder is synchronized to that remaining amount.
+- velora_set_order_payment_method(...) also writes the selected pending payment amount directly from canonical order.total.
+
+TRANSACTIONAL FOUR-CASE PROOF:
+- Temporary legal/policy documents and customer acceptance were created only inside the transaction because the live legal gate is currently unpublished; all were rolled back.
+- Temporary coupon fixture: 20% percentage coupon, minimum order 200, first_order_only=false.
+- Temporary platform promotion: 10% percentage, EGP.
+- Temporary full Gift Card: 500 EGP.
+- Temporary partial Gift Card: 50 EGP.
+- Coupon case on Order #53: subtotal 620 -> discount 124 -> final total 496; pending payment amount matched 496.
+- Coupon cancellation on same order: order cancelled; coupon redemption removed; coupon used_count returned to 0; pending payment row cancelled; canonical cancellation audit path executed.
+- Platform promotion case on Order #68: subtotal 100 + shipping 30, 10% promotion -> final total 120; pending payment amount matched 120.
+- Full Gift Card case on Order #67: 130 -> 0; no pending payment placeholder remained; paid Gift Card payment representation existed.
+- Partial Gift Card case on Order #66: 130 -> 80; pending payment amount matched 80.
+- Partial Gift Card cancellation on Order #66: order cancelled; Gift Card balance restored from 0 to 50; one refund gift-card transaction keyed by cancel:<order_id> was recorded; refunded Gift Card payment representation existed; audit path executed.
+- Entire four-case simulation and cancellations rolled back.
+- Post-rollback: pending-payment mismatch count remained 0; temporary promotion, coupon, and Gift Card fixtures persisted = 0; real WELCOME20 used_count remained 0; redemption test artifacts remained absent.
+- Initial attempts using the existing WELCOME20 coupon were intentionally discarded because its current first_order_only guard correctly rejected the selected customer with COUPON_FIRST_ORDER_ONLY. The real coupon was not altered.
+
+SOURCE/MIGRATION PROVENANCE:
+- Restore-Test migration history contains the three payment placeholder fixes under:
+  - 20260929025507 sync_payment_amount_to_final_order_total
+  - 20260929025556 resolve_gift_card_payment_placeholder
+  - 20260929025659 sync_payment_placeholder_after_discounts
+- The source branch does not expose files under the exact handoff timestamp names 20260929073000 / 75000 / 78000. Live function definitions and Restore-Test migration history are the authoritative evidence currently available.
+- No duplicate migration was created merely to reproduce a timestamp/name mismatch.
+
+RESULT:
+- PAYMENT PLACEHOLDER INTEGRITY = CLOSED-DONE L1-L4.
+
+### 57. CUSTOMER ORDER CANCELLATION
+CANONICAL:
+- velora_cancel_order(uuid) is customer-owner scoped and SECURITY DEFINER.
+- Requires authenticated customer identity and exact order ownership.
+- Cancellable state is limited to pending payment and status pending/confirmed.
+- It restores product inventory and variant inventory for order items.
+- It reverses pending commissions.
+- It cancels the order and payment state.
+- It writes cancellation audit evidence.
+- Customer Orders UI in src/scripts/71-customer-orders-returns.js exposes the Cancel button only when order status is pending or confirmed AND payment_status is pending.
+- The UI delegates cancellation to velora_cancel_order(); it does not implement business logic client-side.
+- No second cancellation engine exists.
+
+TRANSACTIONAL PROOF:
+- Coupon-backed Order #53 cancellation successfully executed through velora_cancel_order() after the canonical coupon apply proof.
+- Partial Gift Card-backed Order #66 cancellation successfully executed through velora_cancel_order() after the canonical Gift Card apply proof.
+- In both cases inventory/payment/commercial compensation completed within the transaction and the full fixture state rolled back.
+
+### 58. COUPON CANCELLATION RELEASE
+- Canonical velora_cancel_order() finds the customer's coupon redemption for the order, removes that redemption, decrements coupons.used_count with greatest(0,...), and records coupon-release audit evidence.
+- The coupon cancellation proof verified redemption removal and used_count returning to the fixture baseline of 0.
+- No second promotion/coupon engine exists.
+
+### 59. GIFT CARD CANCELLATION RELEASE
+- Canonical velora_cancel_order() treats Gift Card compensation as part of the same cancellation transaction.
+- It locks the Gift Card, checks idempotency key cancel:<order_id>, restores the redeemed amount, records a refund transaction, creates a refunded internal Gift Card payment representation, and writes audit evidence.
+- Partial Gift Card cancellation proof verified:
+  balance restored to 50 EGP;
+  refund transaction present with idempotency key cancel:<order_id>;
+  refunded Gift Card payment representation present;
+  order cancellation completed.
+- No second payment/refund engine exists.
+- Full Gift Card is intentionally not cancellable by the current cancellation contract after redemption because the Gift Card writer marks the order payment_status as paid when remaining total reaches zero; Message 18 only requires/verified the partial Gift Card cancellation path.
+
+### MESSAGE 18 ACTION FLOW
+PAYMENT PLACEHOLDER:
+EVENT -> coupon/promotion/gift-card applied
+AUTH/ROLE -> authenticated customer
+GUARD -> owned order + legal gate
+VALIDATION -> canonical discount/gift-card calculation
+CANONICAL STATE -> orders.total / redemption state
+AUTOMATIC SIDE EFFECT -> pending payment synchronization or placeholder cancellation
+AUDIT -> commercial redemption audit
+RETRY/DEDUPE -> existing redemption reuse/idempotency
+NEXT EVENT -> payment-method selection / checkout
+HUMAN EXCEPTION -> legal/business-policy decision only
+
+ORDER CANCELLATION:
+EVENT -> customer requests cancel
+AUTH/ROLE -> authenticated customer
+GUARD -> ownership + pending/confirmed + payment_status pending
+VALIDATION -> order/payment/item/inventory state
+CANONICAL STATE -> order cancelled + payment cancelled
+AUTOMATIC SIDE EFFECT -> inventory restore + variant restore + commission reversal + coupon/promotion release + Gift Card compensation
+AUDIT -> cancellation + compensation evidence
+RETRY/DEDUPE -> canonical Gift Card refund idempotency key + terminal-state guards
+NEXT EVENT -> customer sees cancelled state
+HUMAN EXCEPTION -> exceptional refund/financial governance only
+
+### MESSAGE 18 EVIDENCE BOUNDARY
+- L1 Source: canonical Coupon/Promotion/Gift Card/Cancellation definitions and customer Orders UI cancellation condition were inspected.
+- L2 DB: counts, pending-payment mismatch scan, legal publication state, production Paymob function versions, and Restore-Test baseline were verified.
+- L3 Contract/ACL: canonical writers and cancellation authority are server-side SECURITY DEFINER functions with customer scoping; no direct client business DML was introduced.
+- L4 Negative/transactional: all four payment-placeholder cases plus coupon and partial Gift Card cancellation were executed with temporary legal fixtures and rolled back; the real first-order-only coupon guard was also verified.
+- L5 CI: NO NEW CI RUN; Message 18 did not require customer runtime source changes. Final Paymob CI evidence remains 36519231052.
+- L6 Preview: NO NEW CUSTOMER PREVIEW deployment.
+- L7 Browser: No new Browser PASS claimed for Message 18; cancellation UI is source-verified only.
+- L8 Provider: No new provider call; Production Paymob remains open.
+- L9 Production: READ-ONLY CHECK ONLY; UNTOUCHED / FROZEN.
+
+### MESSAGE 18 NON-NEGOTIABLES RECONFIRMED
+- No Paymob rebuild.
+- No casual Production touch.
+- No second payment/cancellation/refund/promotion engine.
+- Payment placeholder follows canonical final order total.
+- Full Gift Card cancels the stale pending placeholder; partial Gift Card synchronizes the remaining amount.
+- Cancellation remains server-authoritative.
+- Coupon cancellation release uses the existing canonical cancellation path.
+- Gift Card cancellation compensation uses the existing canonical cancellation path.
+- Browser PASS is never inferred from source/DB evidence.
+- Production remains untouched.
+
+### CARRY-FORWARD AFTER MESSAGE 18
+- Paymob Restore-Test = CLOSED-DONE.
+- Paymob Production = OPEN.
+- Payment placeholder integrity = CLOSED-DONE L1-L4.
+- Customer cancellation backend/commercial compensation = CLOSED-DONE L1-L4 for the stated pending-payment scope.
+- Complete Beauty Browser Gate = OPEN / NOT EVIDENCED.
+- Future Passport Dimensions remain OPEN.
+- Customer Beauty AI remains OPEN / NOT DONE.
+- Subscription commercial/runtime/provider/browser open items remain open.
+- Advertising provider/accounting/reporting/attribution/revenue-recognition/refund-reversal/market-validation/legal/publication/browser items remain open.
+- Promotion/coupon policy gaps beyond cancellation release remain open.
+- Gift Card broader expiry/refund/accounting/fraud/issuance-limit policy items remain open.
+- Customer Return refund-policy/provider/browser/legacy-resolver retirement items remain open.
+- Notification Browser/provider/Production delivery evidence remains open.
+- Passport Browser journey evidence remains open.
+- Recommendation Browser evidence remains open.
+- Seller Dashboard/Admin re-entry Browser issue remains open.
+- Localization FIND-BE-013 remains open.
+- Product Detail canonical contract audit remains open.
+- Shipping visual-vs-canonical discrepancy remains open.
+- Legacy recommendation DB coexistence FIND-BE-028 remains open.
+- Recommendation low-risk duplicate getRecommendations() declaration remains open as source hygiene.
+- Inventory migration provenance timestamp mismatch remains documented; runtime state is aligned.
+- Paymob webhook legacy processor retirement and current v30 webhook canonical routing are complete in Restore-Test.
