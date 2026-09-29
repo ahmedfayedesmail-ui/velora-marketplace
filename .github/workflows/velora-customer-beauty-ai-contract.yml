@@ -17,6 +17,7 @@ permissions:
   contents: read
 
 # Evidence gate for Customer Beauty AI + canonical Product Detail.
+# Re-run after each contract/runtime hardening change.
 
 concurrency:
   group: velora-customer-beauty-ai-contract
