@@ -13272,3 +13272,47 @@ MESSAGE 57 DECISION:
 - Clarification back-navigation invariant = CLOSED-DONE at source+contract+CI scope.
 - Customer AI provider and Browser gates remain explicitly open/blocking; no false runtime PASS is claimed.
 - Continue the next independent non-legal technical track while preserving the same Action Flow and evidence hierarchy.
+
+
+## MESSAGE 58 — BEAUTY FEEDBACK INTELLIGENCE REUSE GATE (2026-09-29)
+
+CLASSIFICATION: RESEARCH/REUSE DECISION / NO NEW AI ENGINE REQUIRED
+
+REUSE FINDING:
+- Existing customer feedback source: `public.beauty_feedback`.
+- Existing recommendation intelligence path already exists in the canonical Beauty Recommendation V2 implementation.
+- `private.velora_beauty_recommendation_operation_v2()` reads only `beauty_feedback` rows with `moderation_status='approved'`.
+- It derives a bounded `feedback_score` and uses that score as a deterministic ranking input.
+- The same function includes an approved-feedback revision in its input fingerprint, so approved feedback invalidates the relevant cached recommendation result when the feedback state changes.
+- `public.velora_get_beauty_recommendations()` delegates to this V2 deterministic operation.
+
+CURRENT RESTORE-TEST EVIDENCE:
+- `beauty_feedback` rows: 2.
+- Approved feedback rows: 1.
+- `beauty-recommendation.v2` runs: 0.
+- `beauty-recommendation.v2` recommendation items: 0.
+
+DECISION:
+- Do not build a second AI feedback-learning engine now.
+- Do not add new AI persistence tables.
+- Do not let AI directly alter recommendation rules.
+- Future feedback intelligence may classify richer natural-language feedback only when a concrete product requirement exists; any resulting signal must remain a controlled input to the existing deterministic recommendation contract.
+- Current deterministic feedback signal foundation remains canonical and reusable.
+
+ACTION FLOW:
+Customer feedback event
+-> authenticated/eligibility/idempotency guards
+-> server persistence + moderation state
+-> approved feedback becomes a bounded deterministic signal
+-> recommendation cache/fingerprint reflects approved-feedback revision
+-> canonical deterministic recommendation engine
+-> customer-facing recommendations
+No AI authority is introduced into the commerce or recommendation decision path.
+
+STATUS:
+- Feedback capture foundation = CLOSED-DONE.
+- Deterministic feedback signal integration = CLOSED-DONE at source/DB contract scope.
+- AI feedback classification/learning = FUTURE / NOT REQUIRED NOW.
+- Browser verification of the full recommendation refresh path = OPEN / NOT EVIDENCED.
+- Provider configuration for Customer Beauty AI = BLOCKED / NOT CONFIGURED.
+- Production = FROZEN.
