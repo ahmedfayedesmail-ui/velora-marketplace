@@ -233,7 +233,9 @@ A document may move from Draft to In Review to Approved to Published only after:
 10. The approved version is hashed, versioned and stored in the Velora legal system.
 
 ## Current blocker
-Restore-Test currently has legal_documents = 0. This remains intentionally fail-closed. No draft from this pack should be inserted as Approved or Published until the missing legal-entity fields and counsel review are completed.
+At the 2026-09-26 draft snapshot, the pack recorded legal_documents = 0. That statement is historical and is superseded by the 2026-09-29 Restore-Test verification below.
+
+Restore-Test currently contains 4 QA legal_document rows, all status='retired', with no currently published Terms of Service or Privacy Policy. The legal checkout gate therefore remains fail-closed for production/customer checkout until a counsel-reviewed and owner-approved version is published.
 
 ## Engineering implementation note
 The current Velora legal system already versions documents, computes SHA-256 hashes, restricts owner publishing, stores acceptance version/hash, records legal acceptance in audit logs, and blocks checkout when required published documents are missing or unaccepted.
@@ -256,3 +258,47 @@ Engineering implications to confirm with Egyptian counsel:
 - Confirm the exact tax/invoice, marketplace, payment/merchant-of-record, consumer-protection, seller-contract, returns/refunds, and complaint/dispute positions before publication.
 
 Source: Egyptian Personal Data Protection Center — https://pdpc.gov.eg/
+
+## Current engineering/legal verification — 2026-09-29
+
+This section updates the engineering status of the draft pack only. It is not a legal opinion and does not replace review by qualified Egyptian counsel.
+
+### Consumer protection / remote commerce
+- Egypt Consumer Protection Law No. 181/2018 remains the governing consumer-protection baseline for Velora's Egypt-first remote-sales model, together with its Executive Regulations (Prime Minister Decision No. 822/2019). Law No. 20/2024 amended Article 71 and is part of the current legal baseline.
+- The Egyptian Consumer Protection Agency currently states that consumers generally have a 14-day exchange/return right after receipt, subject to statutory exceptions, and a separate 30-day remedy for defective goods. For defective goods, the Agency states the supplier must replace or refund without additional cost and generally within one week after the consumer approaches the supplier. These rights must not be narrowed by Velora's contract.
+- For remote contracts, Article 40 provides the 14-day withdrawal right and sets refund timing/method rules, while the delivery-delay paragraph assigns the relevant return/delivery costs according to the statutory conditions. The final policy must use the statute and Executive Regulations rather than a simplified blanket statement.
+- Product-specific beauty/cosmetics exceptions must be tied to the statutory exception framework and approved by counsel. Do not publish a blanket all-beauty-products-non-returnable rule.
+- Remote-sale pre-contract information and post-acceptance confirmation/correction requirements must be represented in the final customer terms and checkout flow.
+
+### Invoice / tax / seller role
+- The Egyptian Tax Authority distinguishes B2B electronic invoicing from B2C electronic receipts and publishes current e-invoice/e-receipt obligations and integration guidance. The exact Velora obligation cannot be inferred until the marketplace operator, seller, and merchant-of-record/invoicing roles are confirmed.
+- Seller identity, tax registration, invoice responsibility, tax treatment of marketplace commissions, and refund documentation must be confirmed by Egyptian tax counsel/accounting before legal publication.
+
+### Personal data
+- The draft pack's Personal Data Protection Law No. 151/2020 + Executive Regulations No. 816/2025 track remains a mandatory pre-publication review area.
+- The final pack must identify the actual legal entity, controller/processor/data-user roles per data flow, privacy responsibility/DPO requirements, retention schedule, processor relationships, cross-border transfer/access issues, data-subject rights handling, security/incident procedures, and marketing/tracking legal basis.
+- The current retired QA legal documents are not evidence of production privacy compliance.
+
+### Current Restore-Test legal state
+- legal_documents count = 4.
+- All four current rows are retired QA versions (0.0-QA-2026-09-27), covering Terms of Service and Privacy Policy in Arabic and English.
+- No currently published document exists for the required customer legal types.
+- The checkout legal gate remains intentionally fail-closed.
+- No draft is Approved or Published by this update.
+
+### Publication gate remains mandatory
+1. Egyptian counsel reviews the exact Arabic canonical text and the English counterpart where required.
+2. Real Velora legal entity, registration, tax, and contact information is inserted.
+3. Marketplace/operator/merchant-of-record roles are confirmed.
+4. Tax and invoice model is confirmed.
+5. Consumer-protection remote-sale disclosures, returns/refunds, cancellation, delivery, complaints, and seller responsibilities are mapped to the final legal structure.
+6. Beauty-specific return exceptions are legally mapped.
+7. Privacy controller/processor/DPO and data-transfer/retention requirements are confirmed.
+8. Payment/refund/chargeback mechanics are mapped.
+9. Seller Terms and seller compliance requirements are aligned.
+10. Owner approval moves the reviewed document to Approved, then the canonical publish RPC may move it to Published.
+
+### Engineering rule
+- Engineering may implement a policy only after the legal/business contract is approved.
+- Statutory consumer rights always override narrower product-level or marketplace-convenience rules.
+- If the law or Executive Regulations and a draft clause appear to conflict, stop implementation of that clause and return it to counsel review.
