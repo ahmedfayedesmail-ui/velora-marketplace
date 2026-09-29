@@ -5062,3 +5062,391 @@ HUMAN EXCEPTION: none
 - No frontend payment/provider simulation.
 - No Browser PASS claimed from source/SQL.
 - No recommendation settlement/production claim inferred from Restore-Test.
+
+
+---
+
+## MESSAGE 6/11 EXECUTION RECONCILIATION — 2026-09-29
+
+### Message 5 carry-forward correction before entering Message 6
+OBSERVED FACT:
+- The previous Message 5 reconciliation carried an "exact READY Preview blocked by Vercel build-rate-limit" item.
+- Current branch `audit/runtime-parity-2026-09-28` now has an exact READY Vercel deployment:
+  - deployment: `dpl_F44yjKRHMAYeuEsF316e5JjWjaXR`
+  - Preview URL: `https://velora-marketplace-fbz9bcoax-ahmedconccc-7063.vercel.app`
+  - tested Git SHA: `a1b9a3198017fee4d15f3aba515493ac4cd277d4`
+  - Vercel state: `READY`
+- Therefore the prior Preview-readiness blocker is CLOSED.
+- This does NOT create Browser PASS. Browser evidence remains pending until the authenticated aggregate Browser Gate actually executes and produces evidence.
+
+### 32. FUTURE PASSPORT DIMENSIONS
+CLASSIFICATION:
+- Product decision = OPEN / DEFERRED
+- Current implementation gap = NOT PROVEN
+- No implementation was added.
+
+OBSERVED FACT:
+- `public.beauty_profiles` contains optional columns: `concern`, `texture_preference`, `effect_preference`, `avoidance_preferences`, `shopping_priority`.
+- Current customer Quiz V2 in `src/scripts/61-s1-c-quiz-v2.js` contains exactly three write questions: `skin_type`, `goal`, `routine_budget`.
+- Current V2 save RPC remains `velora_save_beauty_passport_v2(p_skin_type,p_goal,p_routine_budget)`.
+- Restore-Test currently has 2 beauty profiles, with 0 populated values in each optional dimension.
+- Current Beauty Passport ADR explicitly defines the minimum discovery path as three consumer-language questions and allows additional preferences to remain optional.
+- The current routine engine already reads `concern` for concern matching and reads `avoidance_preferences` for ingredient/tag exclusion. The routine input fingerprint also contains texture/effect/shopping-priority fields.
+- Current routine selection logic does not demonstrate decision use for `texture_preference`, `effect_preference`, or `shopping_priority`; those fields currently affect freshness/fingerprint context rather than a separately evidenced selection rule.
+- Current recommendation V2 operation does not use the profile `concern` field directly.
+
+RESEARCH / DECISION OUTCOME:
+- Do NOT expand the questionnaire simply because columns exist.
+- `concern` needs an explicit product decision because the current customer already supplies a primary `goal`, while Routine has a separate optional `concern` signal. Its product meaning, overlap, and customer value must be decided before making it first-class.
+- `avoidance_preferences` has direct routine decision impact but requires an explicit privacy/safety/UX contract before customer collection.
+- `texture_preference`, `effect_preference`, and `shopping_priority` should not be exposed until each has demonstrated selection/recommendation impact sufficient to justify additional friction.
+- No schema migration is justified by the current evidence.
+- No second persistence engine is justified.
+- Required future process remains:
+  Research → signal value → inferability → decision impact → persistence value → privacy/UX review → contract mapping → implementation → verification.
+
+ACTION FLOW:
+EVENT: customer edits Passport / product team proposes a new preference dimension
+AUTH/ROLE: authenticated customer for customer data; Owner/Product policy for deciding new dimensions
+GUARD: do not introduce a field solely because it exists in schema
+VALIDATION: explicit value vocabulary + privacy/UX/business decision
+CANONICAL STATE: `beauty_profiles` only after the dimension has a ratified contract
+AUTOMATION: Routine/Recommendation may consume the field only through an explicit deterministic rule
+AUDIT/RETRY: migration/contract/version change must be verifiable and reversible
+NEXT EVENT: future personalization recalculation
+HUMAN EXCEPTION: product/privacy policy decision only
+
+### 33. CUSTOMER BEAUTY AI — VERY IMPORTANT
+CLASSIFICATION:
+- Customer Beauty AI = OPEN / NOT DONE
+- Existing AI database/governance foundation = CLOSED-DONE as governance tooling
+- No customer LLM runtime was implemented.
+
+OBSERVED FACT:
+- Restore-Test counts:
+  - `ai_decision_runs = 0`
+  - `ai_decision_signals = 0`
+- No current repository implementation was found for an OpenAI/GPT/Anthropic/Gemini/customer-LLM runtime.
+- No customer AI Edge Function was found in the current Restore-Test function inventory.
+- Existing AI tables are governance structures, not customer conversation or recommendation-model execution state.
+
+CONTRACT:
+- Customer Beauty AI must remain a future roadmap item until provider, structured output, safety, data handling, evaluation, observability, cost, fallback, and canonical boundary contracts are explicitly designed.
+
+ACTION FLOW (FUTURE):
+EVENT: customer provides natural-language beauty intent
+AUTH/ROLE: authenticated/eligible customer context
+GUARD: AI feature availability + privacy/data handling policy
+VALIDATION: schema-valid structured candidate only
+CANONICAL STATE: deterministic Recommendation/Routine state remains authoritative
+AUTOMATIC SIDE EFFECTS: explanation/presentation only; no irreversible commerce mutation
+AUDIT/RETRY: request/evaluation telemetry with bounded retry and provider-safe correlation
+NEXT EVENT: canonical recommendation/routine resolution
+RECOVER: deterministic fallback on AI failure
+HUMAN EXCEPTION: policy/safety/provider ambiguity only
+
+### 34. WHAT CURRENT "AI" FUNCTIONS ACTUALLY ARE
+CLASSIFICATION:
+- CLOSED-DONE — governance tooling correctly identified and not mislabeled.
+
+OBSERVED FACT:
+- `velora_generate_ai_signals()` is SECURITY DEFINER and requires `velora_is_staff()`.
+- It generates deterministic rule-assisted signals such as reconciliation backlog, payment failure spikes, and shipment exceptions.
+- `velora_get_ai_decision_center()` is staff-gated and reads governance signal/run state.
+- `velora_update_ai_decision(...)` is staff-gated, enforces explicit state transitions, enforces human approval before execution where required, and writes audit evidence.
+- ACL observation: anon execute is false for these functions; authenticated execute is true at the function-privilege layer but the functions themselves enforce staff access.
+- RLS is enabled on `ai_decision_runs` and `ai_decision_signals` with staff-only policies.
+
+DECISION:
+- These functions are governance/rule-assisted decision tooling.
+- They are NOT a customer Beauty LLM and must not be presented as one.
+
+ACTION FLOW:
+EVENT: platform risk/integrity condition becomes detectable
+AUTH/ROLE: staff-governed control plane
+GUARD: staff access
+VALIDATION: deterministic signal rules
+CANONICAL STATE: ai_decision_runs / ai_decision_signals
+AUTOMATION: signal generation + state visibility
+AUDIT: decision status transitions are audited
+NEXT EVENT: staff review/approval/rejection/expiration
+HUMAN EXCEPTION: expected by design for governed decisions
+
+### 35. FUTURE BEAUTY AI ARCHITECTURE
+CLASSIFICATION:
+- ROADMAP CONTRACT — NOT IMPLEMENTED
+- Architecture decision recorded; no build justified yet.
+
+DECISION:
+Customer input → AI interpretation → structured candidate intent → canonical validation → deterministic Recommendation / Routine → AI explanation → Customer.
+
+NON-AUTHORITATIVE BOUNDARY:
+- AI may interpret natural language and produce a schema-constrained candidate intent.
+- Canonical DB/business rules validate the candidate.
+- Deterministic Recommendation/Routine engines remain the source of truth for products, eligibility, budget, availability, and selection.
+- AI explanation is downstream of canonical evidence.
+
+RESEARCH BASIS:
+- OpenAI documentation supports Structured Outputs / JSON Schema and strict schema adherence for structured responses, and function calling for typed application functions. This matches the planned candidate-intent boundary. citeturn956115search0turn956115search1
+- OpenAI documents that API data is not used to train/improve models by default, while retention/application-state behavior varies by endpoint and configured controls; this makes data-minimization and retention policy an explicit design requirement for Beauty AI. citeturn411966search0
+- NIST's Generative AI Profile identifies confabulation and privacy as material generative-AI risks, reinforcing the requirement that AI explanations never become the source of commerce truth. citeturn411966search32turn411966search6
+
+ACTION FLOW:
+EVENT: customer natural-language intent
+AUTH/ROLE: authenticated customer
+GUARD: feature/provider/data-policy readiness
+VALIDATION: strict structured schema + canonical rule validation
+CANONICAL STATE: existing deterministic Passport/Routine/Recommendation state
+AUTOMATIC SIDE EFFECTS: explanation/rendering only
+AUDIT/RETRY: bounded retries + provider correlation + evaluation telemetry
+NEXT EVENT: customer decision / routine-to-cart
+RECOVER: deterministic path if AI unavailable or invalid
+HUMAN EXCEPTION: safety/policy/provider ambiguity
+
+### 36. BEAUTY AI — MUST NEVER
+CLASSIFICATION:
+- CLOSED as a FUTURE SAFETY/POLICY CONTRACT
+- NOT currently exercised because Customer Beauty AI is not implemented.
+
+NON-NEGOTIABLE FUTURE BOUNDARIES:
+- Never invent products, availability, prices, ingredients, seller state, or evidence.
+- Never make unsupported medical diagnosis/treatment/medical claims.
+- Never bypass product approval, seller approval, stock, budget, or currency constraints.
+- Never mutate orders, payments, commissions, payouts, gift-card balances, seller status, fraud/governance state, or other irreversible canonical state directly.
+- Never autonomously decide refunds.
+- Never replace canonical DB/business rules.
+- Never create a second opaque reason-code system.
+
+ACTION FLOW POSITION:
+AI interpretation must occur before canonical validation.
+AI explanation must occur after canonical deterministic resolution.
+Any attempted irreversible mutation outside those boundaries is rejected.
+
+### 37. BEAUTY AI FAILURE MODEL
+CLASSIFICATION:
+- CLOSED as FUTURE FAILURE CONTRACT
+- NOT IMPLEMENTED / NOT LIVE.
+
+REQUIRED FUTURE BEHAVIOR:
+- AI unavailable → deterministic fallback.
+- Invalid structured output → discard.
+- Canonical constraint violation → canonical rejection.
+- Timeout → bounded safe retry only.
+- Ambiguous interpretation → deterministic/safe path.
+- Provider/model uncertainty → no durable commerce mutation.
+
+RECOVERY PRINCIPLE:
+No AI error may turn into an implicit success, fabricated commerce state, or durable unverified recommendation.
+
+### 38. BEAUTY AI EXPLAINABILITY
+CLASSIFICATION:
+- CLOSED as FUTURE EXPLAINABILITY CONTRACT
+- Current Recommendation/Routine remain deterministic/rule-based.
+
+OBSERVED FACT:
+- Existing platform reason vocabulary includes `goal_match`, `concern_match`, `texture_match`, `effect_match`, `preference_match`, `availability_match`, `skin_type_match`, `step_match`, `budget_fit`, `feedback_positive`, and `seasonal_fit` at the architecture/contract level.
+- Current persisted Routine QA rows presently observed reason codes are: `availability_match`, `budget_fit`, `goal_match`, `seasonal_fit`, `skin_type_match`, `step_match`.
+- Therefore future AI launch must include an explicit versioned reason-code reconciliation instead of assuming every historical vocabulary entry is currently persisted by every surface.
+
+DECISION:
+- AI explains canonical evidence; it does not invent evidence.
+- UI should distinguish deterministic, rule-based, AI-assisted, and AI-driven behavior.
+- Current Routine and Recommendation are deterministic/rule-based, NOT AI-driven.
+
+ACTION FLOW:
+EVENT: canonical recommendation/routine result exists
+GUARD: only evidence actually present in canonical result
+VALIDATION: allowed reason vocabulary
+STATE: no new AI commerce state required merely to explain
+SIDE EFFECT: generated explanation text
+AUDIT: explanation can be traced back to canonical reasons/evidence
+NEXT EVENT: customer action
+HUMAN EXCEPTION: content/safety review only when future policy requires it
+
+### 39. BEAUTY BROWSER GATE
+CLASSIFICATION:
+- Source contract = CLOSED-DONE
+- Exact Preview readiness = CLOSED-DONE
+- Browser evidence = OPEN / NOT EVIDENCED.
+
+OBSERVED FACT:
+- Aggregate workflow: `.github/workflows/velora-final-aggregate-browser-gate.yml`.
+- Workflow requires exact READY Preview URL + exact tested Preview SHA.
+- Customer credentials required: `E2E_EMAIL/E2E_PASSWORD`.
+- Seller credentials required: `SELLER_E2E_EMAIL/SELLER_E2E_PASSWORD`.
+- Customer checks include auth/session/state, Orders route/host/render/canonical adapter, and session continuity into checkout navigation.
+- Seller checks include auth/state, `#seller` route, seller shell/dashboard, canonical close alias, re-entry, Back/Forward without refresh, and alias continuity.
+- Current exact READY Preview exists at `https://velora-marketplace-fbz9bcoax-ahmedconccc-7063.vercel.app` for SHA `a1b9a3198017fee4d15f3aba515493ac4cd277d4`.
+- No Browser PASS is claimed from source, SQL, or Preview readiness.
+
+REQUIRED EVENTUAL BEAUTY BROWSER PATH:
+guest → auth → incomplete Passport → questions → complete Passport → edit → preserve other answers → save → Routine → reasons → Arabic ↔ English → Account → Beauty Journey → refresh persistence → mobile quiz → mobile results → mobile routine → Product cards → Add All → purchase-linked feedback.
+
+ACTION FLOW:
+EVENT: Browser Gate execution against exact READY Preview
+AUTH/ROLE: E2E customer + seller accounts
+GUARD: exact SHA/URL + credentials
+VALIDATION: Playwright assertions + console/page-error capture
+EVIDENCE: artifact JSON from aggregate workflow
+NEXT EVENT: final release/evidence reconciliation
+HUMAN EXCEPTION: only credential/config/provider issues
+
+### 40. ROUTINE → CART
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+- Browser aggregate = pending.
+
+OBSERVED FACT:
+- Canonical adapter: `src/scripts/62-s1-c-routine-cart.js`.
+- Public API: `window.veloraRoutineCart.addAll`.
+- Reads canonical server cart from `carts/cart_items` before mutation.
+- Uses existing canonical RPCs: `velora_upsert_cart_item_variant` / `velora_upsert_cart_item`.
+- Existing lines are not silently duplicated by Add All.
+- Canonical cart RPCs remain final authority for approval, seller state, stock, and variant validity.
+- Legacy `STATE.cart` / localStorage / cart UI are synchronized only as visible compatibility state.
+- No second cart engine is introduced.
+
+ACTION FLOW:
+EVENT: customer chooses Add All from current Routine
+AUTH/ROLE: authenticated customer
+GUARD: selected routine step + valid canonical product
+VALIDATION: current server cart + authoritative cart RPC
+CANONICAL STATE: `carts/cart_items`
+AUTOMATIC SIDE EFFECT: synchronize legacy visible cart representation
+AUDIT/RETRY/DEDUPE: per-item idempotent behavior via existing cart contracts; unavailable items skipped; failures surfaced
+NEXT EVENT: checkout
+RECOVER: customer retry only for failed/unavailable lines
+HUMAN EXCEPTION: none in normal operation
+
+### 41. INVENTORY — ITEM 28
+CLASSIFICATION:
+- CLOSED-DONE L1-L4
+- Migration-ledger parity note = OPEN evidence hygiene item only; live invariant behavior is present.
+- No second inventory subsystem.
+
+OBSERVED FACT:
+- Inventory model remains `products.stock` plus `product_variants.stock_quantity`.
+- When active variants exist, parent Product stock must equal SUM(active variant stock_quantity).
+- Live `velora_upsert_product_variant` locks the parent product, writes the variant, recomputes active-variant stock total, updates parent stock, and audits.
+- Live `velora_retire_product_variant` locks the parent product, retires the variant, recomputes active-variant stock total, updates parent stock, and audits.
+- Direct authenticated/anon UPDATE privilege on `products` is false.
+- Direct authenticated/anon UPDATE privilege on `product_variants` is false.
+- Prior transactional probe proved:
+  - baseline parent stock 23 / active variants 0
+  - create temp variant stock 7 → parent 7
+  - update to 3 → parent 3
+  - seller attempt to force parent stock to 999 → parent remained 3
+  - retire variant → parent 0
+  - full rollback restored parent 23 and zero temporary variants.
+- Source migration file exists: `supabase/migrations/20260929062000_inventory_variant_parent_stock_invariant.sql`.
+- The current migration ledger does NOT show version `20260929062000` as applied, while the live function definitions already contain the intended invariant behavior.
+
+DECISION:
+- Do not rewrite or rebuild Inventory.
+- Treat migration-ledger parity as documentation/operations evidence to reconcile later if needed.
+- Do not create `order_items.status`.
+
+ACTION FLOW:
+EVENT: seller creates/updates/retires a Variant
+AUTH/ROLE: approved seller
+GUARD: product ownership + approved seller/store
+VALIDATION: variant fields + stock bounds
+CANONICAL STATE: product_variants + parent products.stock invariant
+AUTOMATIC SIDE EFFECT: aggregate parent stock update + audit
+NEXT EVENT: cart/checkout sees current availability
+RECOVER: transaction rollback on failure
+HUMAN EXCEPTION: catalog governance only
+
+### 42. LEGACY ORDER ITEM STATUS CONTRACT
+CLASSIFICATION:
+- CLOSED-DONE.
+
+OBSERVED FACT:
+- `public.order_items.status` does not exist.
+- Legacy function `velora_update_order_item_status(p_order_item_id uuid,p_new_status text,p_note text)` still exists for compatibility history.
+- Function execution is denied to anon and authenticated.
+- Migration `20260928202512_deprecate_legacy_order_item_status_rpc` exists in the current migration history.
+- No current path should rely on the missing column.
+
+DECISION:
+- Do not create the missing column.
+- Do not revive the legacy function as an operational order-state engine.
+- Current canonical order/shipment status paths remain authoritative.
+
+ACTION FLOW:
+EVENT: fulfillment/order state changes
+AUTH/ROLE: existing canonical governed transition
+GUARD: current canonical status contract
+VALIDATION: current legal transition
+CANONICAL STATE: current order/shipment structures
+AUTOMATIC SIDE EFFECTS: existing notifications/audit/inventory/payment flows
+NEXT EVENT: next canonical state
+HUMAN EXCEPTION: governed support/fulfillment exception only
+
+### 43. CHECKOUT / PAYMENTS — CANONICAL PATH
+CLASSIFICATION:
+- Canonical checkout source/authority = CLOSED-DONE
+- Preview readiness = CLOSED-DONE
+- Browser E2E = OPEN / NOT EVIDENCED
+- Provider settlement / Production = separate gates; no unsupported claim.
+
+OBSERVED FACT:
+- Canonical path: `src/scripts/13-payments.js`.
+- Compatibility layer: `src/scripts/57-s2-checkout-e2e.js`; it delegates submit handling to canonical `window.placeOrder` and contains no duplicate checkout business logic.
+- Current canonical flow:
+  1. duplicate-submit guard
+  2. canonical cart UUID mapping
+  3. checkout currency gate
+  4. customer shipping-information validation
+  5. legal document/acceptance validation
+  6. server shipping quote via `velora_quote_cart_shipping`
+  7. order creation via `velora_create_order_with_commercials`
+  8. coupon / promotion / gift-card application through canonical server contracts
+  9. payment-method binding via `velora_set_order_payment_method`
+  10. COD terminal handling or provider payment initialization
+  11. canonical cart cleanup / local visible-cart synchronization
+- Stable checkout reference is stored in `window.__VELORA_CHECKOUT_REFERENCE` and server-side order idempotency is backed by unique `orders.checkout_reference` indexes.
+- The current live `velora_create_order_with_commercials` and `velora_create_order` return the existing order for a repeated checkout reference for the same customer.
+- Current Paymob checkout source sends a provider idempotency/special reference and creates payment attempts through `velora_create_payment_attempt`.
+- Current Paymob error paths compensate local payment initialization failures or route to explicit recovery/reconciliation paths.
+
+CORRECTION TO OLDER HANDOFF:
+- The previously noted hardcoded checkout shipping formula `subtotal >= 500 ? 0 : 30` is NOT present in the current `src/scripts/00-localization.js`.
+- Current legacy cart/checkout summary reads `window.VELORA_SHIPPING_QUOTE` via `getVeloraShippingPreview()`.
+- Canonical order creation still re-queries `velora_quote_cart_shipping` and rejects a shipping mismatch.
+- Therefore there is no present evidence-based need to change shipping display logic during this audit.
+
+IDEMPOTENCY REVIEW:
+- `orders.checkout_reference` has a unique partial index and a customer+reference unique partial index.
+- Payment provider initialization uses an idempotency key supplied from the canonical checkout path.
+- No new payment engine or schema change is justified from the current evidence.
+
+ACTION FLOW:
+EVENT: customer submits checkout
+AUTH/ROLE: authenticated customer
+GUARD: duplicate submit + canonical cart + currency + legal + shipping configuration
+VALIDATION: server order creation + server shipping quote + operational payment route
+CANONICAL STATE TRANSITION: pending order + inventory reservation/decrement + commissions + pending payment
+AUTOMATIC SIDE EFFECTS: coupon/promotion/gift-card handling, payment method binding, provider session start, cart synchronization
+AUDIT/RETRY/DEDUPE: checkout reference, payment-attempt idempotency, provider-session recovery, payment initialization compensation
+NEXT EVENT: provider callback/webhook/reconciliation → payment/order final state
+RECOVER: retry/recover provider initialization or reconcile ambiguous provider outcomes; no client-side success fabrication
+HUMAN EXCEPTION: provider ambiguity, financial reconciliation, exceptional refund/governance only
+
+### MESSAGE 6 OPEN / CARRY-FORWARD REGISTER
+1. Future Passport dimensions: explicit Product/Privacy/UX decision for whether any optional dimension becomes customer-facing; no build before that decision.
+2. Customer Beauty AI: full future provider + structured-output + privacy/data-retention + safety/evaluation/observability contract; no live customer LLM runtime.
+3. Beauty AI reason-code contract: versioned reconciliation before any AI explanation launch.
+4. Aggregate Browser Gate: execute against exact READY Preview when required evidence credentials/configuration are available.
+5. Message 5 Feedback contract: `product_interaction` remains an OPEN policy decision.
+6. Provider/Production gates: remain separate from source/DB/Preview evidence.
+7. Inventory migration-ledger parity for `20260929062000`: live invariant is present, but exact migration-table application is not currently evidenced.
+
+### MESSAGE 6 NEGATIVE / SAFETY BOUNDARY
+- No customer Beauty AI was fabricated or mislabeled as live.
+- No Passport questionnaire expansion was made from unused columns.
+- No duplicate Cart, Checkout, Payment, Inventory, AI, or Reason Engine was created.
+- No `order_items.status` column was added.
+- No Production Supabase mutation was performed.
+- No Browser PASS was claimed from source, SQL, or Preview readiness.
+- No Paymob settlement or Production payment success was inferred from Restore-Test.
