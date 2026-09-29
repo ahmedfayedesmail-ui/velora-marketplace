@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: fb911ad467b3323dda93bed42b536d9f473ea3eb
+Current observed branch HEAD: 1421dc2d3d006d03693cd5cc4428326744cf4e5c
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3378,3 +3378,23 @@ RESTORE-TEST VERIFICATION:
   release_audit_count=1,
   cancel_audit_count=1.
 - Entire transaction rolled back; no persistent promotion/order state changed.
+
+
+### Continuation Seller Ads Idempotency Lifecycle — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB UI CONTRACT
+
+OBSERVED FACT:
+- The canonical Seller Ads purchase RPC reuses an existing campaign when purchase_idempotency_key matches.
+- A permanently stable key for a package/product pair would incorrectly bind later purchases to an old terminal campaign.
+
+IMPLEMENTED:
+- src/scripts/35-seller.js now stores the idempotency key for the active browser purchase intent only.
+- Existing keys are reused across retries while the matching campaign remains pending/provider-initializing.
+- When campaign context reports active, completed, payment_failed, refunded, or cancelled, the browser-side key is removed so a later purchase can create a new purchase intent.
+- No backend idempotency contract was changed and no new state machine was introduced.
+
+VERIFICATION:
+- src/scripts/35-seller.js parser check passed after the change.
+- Existing backend lifecycle remains authoritative for duplicate active/pending placement prevention.
+- Provider payment and browser behavior remain separate evidence layers.
