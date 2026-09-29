@@ -155,7 +155,7 @@
     if (explicitlyUnknown(text, [
       /skin\s*type/i,
       /نوع\s*بشرتي/i,
-      /بشرتي/i
+      /نوع\s*البشرة/i
     ]) && !hits.length) {
       return { value: 'unknown', conflict: false };
     }
