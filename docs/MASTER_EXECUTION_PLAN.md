@@ -12680,3 +12680,45 @@ MESSAGE 48 DECISION:
 - The carried Seller/Admin re-entry issue now has a concrete source-level stale-operation hardening and a blocking contract gate.
 - It is not eligible for CLOSED-DONE runtime status until Browser Gate exercises open → close → re-entry and navigation traversal without refresh.
 - Continue the remaining non-legal OPEN queue while preserving this Browser gate.
+
+
+### 160.13 MESSAGE 49 — RE-ENTRY PATCH FINAL CONTRACT RE-RUN + PREVIEW BOUNDARY (2026-09-29)
+
+FINAL SOURCE HARDENING:
+- Follow-up review found one preservation edge case in src/scripts/56-s2d-admin.js: the delayed Admin dashboard refresh wrapper is async, so capturing #adminContent immediately after calling the opener could capture null and unintentionally suppress the existing delayed refresh.
+- The wrapper was corrected to resolve the existing open operation first, then capture the expected admin content node, and only refresh when the same active node remains.
+- No navigation mechanism was replaced.
+- No MutationObserver was added.
+- No arbitrary click listener was added.
+- No Supabase schema/RPC/ACL change was made.
+- Production remains untouched and FROZEN.
+
+FINAL CI EVIDENCE:
+- Final branch HEAD = f00b01a23418d383da5523a33b88f5f73bed9756.
+- Velora Platform Re-entry Contract Gate run = 36566306732.
+- Final conclusion = success.
+- Final gate passed:
+  - JavaScript syntax for 12-localization.js, 56-s2d-admin.js, 63-platform-router.js
+  - platform re-entry contract test
+  - global static audit
+- Earlier pre-fix gate success at 8155b8e94aca1589ccb1adbc9d0bc3f35a552a6b remains valid for the prior patch state; the f00b01a... run is the authoritative latest gate after the follow-up correction.
+
+PREVIEW:
+- Vercel has a READY Preview at dpl_Dx1LXkp1oYWoeLFcxWDwKqTUD2DL.
+- Preview source SHA = fd608586738ffd883cdc19a28b67cf6bd94425b3.
+- The deployment contains the earlier re-entry hardening but predates the latest source-only Admin wrapper correction and final branch HEAD.
+- Therefore this Preview is NOT an acceptable target for final Browser verification.
+- No newer Preview for f00b01a... was observed in the latest deployment query.
+- Vercel exact current-HEAD Preview parity remains OPEN.
+
+BROWSER BOUNDARY:
+- Seller/Admin runtime behavior is still OPEN / NOT EVIDENCED.
+- The contract gate proves source invariants only; it does not prove actual browser re-entry.
+- Browser Gate still requires open → close → re-enter without refresh, plus Back/Forward traversal, against the exact current runtime Preview.
+- No Browser PASS is claimed.
+
+MESSAGE 49 DECISION:
+- Seller/Admin re-entry stale-operation hardening = CLOSED-DONE at source + contract/CI scope.
+- Seller/Admin re-entry runtime = OPEN / NOT EVIDENCED pending Browser Gate.
+- Exact current-HEAD Preview = OPEN.
+- Continue remaining non-legal OPEN tracks without reopening the legal track.
