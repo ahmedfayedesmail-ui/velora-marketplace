@@ -12546,3 +12546,54 @@ NEXT ORDERED ACTION:
 3. Browser-verify Customer Beauty AI, Product Detail, and notification/device behavior on that exact Preview.
 4. Keep live Beauty AI provider activation gated until intentionally configured.
 5. Continue the next independent non-legal OPEN item while preserving legal carry-forward.
+---
+
+### 160.10 MESSAGE 46 — VERCEL PREVIEW RUNTIME PARITY EVIDENCE (2026-09-29)
+
+VERCEL PREVIEW:
+- A new READY Preview deployment is now observed:
+  - deployment = dpl_Z7L5AJHrqqs8dJiNbKTVMtiMHvgq
+  - URL = velora-marketplace-9gzd1q20y-ahmedconccc-7063.vercel.app
+  - source SHA = b9a27b48c1d933587a14c50d335cae61180ee702
+  - target = preview
+- The Preview page fetch succeeded with HTTP-level content retrieval and rendered the Velora storefront shell successfully.
+- The Preview contains the corrected public Arabic storefront strings and the customer beauty journey shell.
+
+RUNTIME PARITY RECONCILIATION:
+- Current Master HEAD is 1c8400e8f0c7efb2d1611009f243543311e10682.
+- GitHub comparison between Preview SHA b9a27b48c1d933587a14c50d335cae61180ee702 and current HEAD shows exactly three later commits affecting:
+  - .github/workflows/velora-customer-beauty-ai-contract.yml
+  - docs/MASTER_EXECUTION_PLAN.md
+  - supabase/functions/velora-send-push-test/index.ts
+- No src/ web application runtime file changed after b9a27b48c1d933587a14c50d335cae61180ee702.
+- Therefore the Preview SHA contains the current Vercel-served web runtime changes for:
+  - Customer Beauty AI
+  - Product Detail canonical metadata hydration
+  - Arabic storefront i18n repair
+- The later push-test source file is a Supabase Edge Function source-of-truth reconciliation and is not part of the Vercel-served web bundle.
+- Strict repository-HEAD-to-Vercel-SHA equality remains technically OPEN by SHA policy, but runtime-changing web parity is now EVIDENCED at the latest READY Preview.
+
+BROWSER GATE:
+- Browser interaction/behavior remains OPEN / NOT EVIDENCED.
+- No claim is made that the AI, Product Detail interaction, or Push device receipt passed end-to-end browser verification.
+- The current TinyFish wallet remains insufficient for a new metered browser automation run.
+
+CURRENT RELEASE EVIDENCE:
+- CI source/contract gate = CLOSED-DONE.
+- Preview runtime-changing web parity = EVIDENCED at b9a27b48c1d933587a14c50d335cae61180ee702.
+- Exact current Git HEAD parity = OPEN by strict SHA rule.
+- Browser Gate = OPEN.
+- Provider live Beauty AI config = BLOCKED / NOT CONFIGURED.
+- Production = FROZEN.
+
+MESSAGE 46 DECISION:
+- The Vercel platform capacity blocker has materially eased enough to produce a READY Preview for the latest runtime-changing source.
+- The old Preview is no longer the only available evidence for the current customer runtime; b9a27b48... is the relevant READY Preview for the AI/Product Detail/i18n runtime changes.
+- No Production promotion was attempted.
+
+NEXT ORDERED ACTION:
+1. Run Browser Gate against the READY Preview when Browser tooling capacity is available.
+2. Exercise Customer Beauty AI happy path and fallback, Product Detail canonical metadata + variant persistence, and notification opt-in/device receipt.
+3. Record Browser evidence in the same Master.
+4. Keep strict HEAD parity and provider activation gates explicit.
+5. Continue the remaining non-legal OPEN queue.
