@@ -1,6 +1,6 @@
 {
-  "id": "ai-provider-diagnostic-2026-09-29",
+  "id": "ai-provider-live-e2e-v7-2026-09-29",
   "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "recheck provider after Restore-Test Edge Function v6 deployment"
+  "purpose": "authenticated live OpenAI E2E after schema fix and Edge Function v7"
 }
