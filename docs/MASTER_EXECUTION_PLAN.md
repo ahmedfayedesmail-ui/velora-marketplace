@@ -11899,3 +11899,22 @@ Production commercial activation requires separate human gates for:
 - PSP = PENDING legal/tax identity.
 - Legal publication = OPEN.
 - Production = FROZEN.
+
+### 159. MESSAGE 40 — CHAT TRANSFER / CONTINUITY MARKER (2026-09-29)
+
+CLASSIFICATION:
+- TRANSFER MARKER = CLOSED-DONE.
+- CURRENT MASTER / BRANCH STATE IS THE AUTHORITATIVE CONTINUATION POINT FOR THE NEXT CHAT.
+
+CURRENT BRANCH:
+- audit/runtime-parity-2026-09-28
+
+CURRENT MASTER HEAD:
+- d61e10d728bc1bbc46453e0eced55884a4e66f32
+- Message: Begin digital-first registration execution sequence
+
+CONTINUATION RULE:
+- The next chat must read this Master as the one source of truth and continue from Message 39 / Step 1 registration preparation.
+- Do not restart the project, re-audit closed work without a reason, create a parallel plan, or change the operating model already confirmed by the owner.
+- First active task in the new chat: resolve the exact official activity classification + legal-form path + online address/document requirements using current official Egyptian sources, then proceed one gate at a time.
+- Production remains frozen.
