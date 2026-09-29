@@ -210,9 +210,10 @@ def clean_page(page):
     page.wait_for_timeout(500)
 
 
-def open_account(page):
+def open_login_modal(page):
     page.locator("#accountBtn").click()
-    page.locator("#accountContent").wait_for(timeout=10000)
+    page.locator("#authModal.active").wait_for(timeout=10000)
+    page.locator("#loginEmail").wait_for(timeout=10000)
 
 
 def ui_logout(page):
@@ -361,7 +362,7 @@ def main():
             # Wrong-password negative path from the actual UI.
             ui_logout(page)
             clean_page(page)
-            open_account(page)
+            open_login_modal(page)
             page.locator("#loginEmail").fill(email)
             page.locator("#loginPassword").fill("definitely-wrong-password")
             page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
@@ -374,7 +375,7 @@ def main():
             # Real successful UI login.
             clean_page(page)
             page._velora_uid = uid
-            open_account(page)
+            open_login_modal(page)
             page.locator("#loginEmail").fill(email)
             page.locator("#loginPassword").fill(password)
             page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
@@ -488,7 +489,7 @@ def main():
             # Login with the new password proves the password update took effect.
             clean_page(page)
             page._velora_uid = uid
-            open_account(page)
+            open_login_modal(page)
             page.locator("#loginEmail").fill(email)
             page.locator("#loginPassword").fill(recovery_password)
             page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
