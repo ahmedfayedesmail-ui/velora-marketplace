@@ -1,6 +1,6 @@
 {
-  "id": "ai-provider-recheck-2026-09-29",
+  "id": "ai-provider-diagnostic-2026-09-29",
   "command": "npm run test:beauty-ai",
   "requested_by": "owner",
-  "purpose": "trigger authenticated Customer Beauty AI browser gate after provider secret configuration"
+  "purpose": "recheck provider after Restore-Test Edge Function v6 deployment"
 }
