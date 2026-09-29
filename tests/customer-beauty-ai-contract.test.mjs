@@ -4,6 +4,21 @@ import vm from "node:vm";
 
 const source = fs.readFileSync(new URL("../src/scripts/72-s1-e-customer-beauty-ai.js", import.meta.url), "utf8");
 
+const quizSource = fs.readFileSync(new URL("../src/scripts/61-s1-c-quiz-v2.js", import.meta.url), "utf8");
+
+assert.match(quizSource, /veloraQuizIntentInput/);
+assert.match(quizSource, /veloraQuizIntentSubmit/);
+assert.match(quizSource, /veloraBeautyAI\.interpret/);
+assert.match(quizSource, /decision === 'ready'/);
+assert.match(quizSource, /decision === 'needs_clarification'/);
+assert.match(quizSource, /state\.ai\.mode === 'clarify'/);
+assert.match(quizSource, /velora_save_beauty_passport_v2/);
+assert.match(quizSource, /Confirm & build routine/);
+assert.match(quizSource, /تأكيد وبناء الروتين/);
+assert.match(quizSource, /fallback/i);
+assert.doesNotMatch(quizSource, /Ask AI|AI Assistant|Chat with AI|AI Badge|Describe it your way/);
+
+
 const window = {};
 const document = {
   getElementById() { return null; },
