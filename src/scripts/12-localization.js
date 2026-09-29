@@ -590,16 +590,20 @@
   window.closeOwnerPlatform=window.VELORA_CLOSE_ADMIN;
 
   /* Keep the account UI aware of canonical seller roles on login/refresh. */
-  db.auth.onAuthStateChange(async (_event,session)=>{
+  db.auth.onAuthStateChange((_event,session)=>{
     if(!session?.user)return;
-    try{
-      const roles=await canonicalRoles(session.user.id);
-      if(window.STATE?.user){
-        STATE.user.roles=roles;STATE.user.role=roles.includes('owner')?'owner':roles.includes('admin')?'admin':roles.includes('seller')?'seller':'customer';STATE.user.isSeller=roles.includes('seller');
-        try{saveToStorage('maha_user',STATE.user)}catch(_){ }
-      }
-      if(typeof updatePlatformSwitcher==='function')updatePlatformSwitcher();
-    }catch(e){console.warn('Stage 8 auth sync',e)}
+    // Supabase auth callbacks must not await Supabase work directly while the
+    // auth lock is held. Defer the existing role-sync side effect.
+    setTimeout(async()=>{
+      try{
+        const roles=await canonicalRoles(session.user.id);
+        if(window.STATE?.user){
+          STATE.user.roles=roles;STATE.user.role=roles.includes('owner')?'owner':roles.includes('admin')?'admin':roles.includes('seller')?'seller':'customer';STATE.user.isSeller=roles.includes('seller');
+          try{saveToStorage('maha_user',STATE.user)}catch(_){ }
+        }
+        if(typeof updatePlatformSwitcher==='function')updatePlatformSwitcher();
+      }catch(e){console.warn('Stage 8 auth sync',e)}
+    },0);
   });
 
   console.log('✅ Velora Stage 8 canonical Seller/Admin controller loaded');
