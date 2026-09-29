@@ -219,7 +219,8 @@ def ui_logout(page):
     page.once("dialog", lambda dialog: dialog.accept())
     logout = page.locator("#accountContent button", has_text="Logout")
     if logout.count() == 0 or not logout.first.is_visible():
-        open_account(page)
+        page.evaluate("() => navigateTo('account')")
+        page.locator("#page-account.active").wait_for(timeout=10000)
         logout = page.locator("#accountContent button", has_text="Logout")
     logout.click()
     page.wait_for_timeout(900)
