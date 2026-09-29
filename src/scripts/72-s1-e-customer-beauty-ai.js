@@ -231,8 +231,8 @@
 
   function looksLikeBeautyIntent(text) {
     return hasMatch(text, [
-      /skin|face|beauty|routine|skincare|serum|moistur/i,
-      /بشر|بشرة|وش|وجه|روتين|سكين كير|العنايه|العناية|مرطب|سيروم/i
+      /skin|face|beauty|routine|skincare|serum|moistur|hydration|brightening|acne|blemish|glow/i,
+      /بشر|بشرة|وش|وجه|روتين|سكين كير|العنايه|العناية|مرطب|سيروم|ترطيب|تفتيح|اشراقة|نضارة|حبوب|بثور|تجاعيد|ميزاني/i
     ]);
   }
 
