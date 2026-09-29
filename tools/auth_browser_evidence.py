@@ -154,19 +154,33 @@ def wait_for_state(page, uid, timeout=30000):
         )
     except PlaywrightTimeoutError as exc:
         diagnostic = page.evaluate(
-            """() => ({
-                stateUser: window.STATE?.user ? {
-                    uid: window.STATE.user.uid || null,
-                    email: window.STATE.user.email || null,
-                    role: window.STATE.user.role || null
-                } : null,
-                authListenerRegistered: typeof __mahaAuthListenerRegistered !== 'undefined'
-                    ? !!__mahaAuthListenerRegistered
-                    : null,
-                session: window.mahaSupabase?.auth?.getSession
-                    ? 'available'
-                    : 'unavailable'
-            })"""
+            """async () => {
+                const snapshot = {
+                    url: String(location.origin + location.pathname),
+                    queryKeys: Array.from(new URLSearchParams(location.search).keys()),
+                    hashKeys: Array.from(new URLSearchParams(String(location.hash || '').replace(/^#/, '')).keys()),
+                    title: document.title || null,
+                    stateUser: window.STATE?.user ? {
+                        uid: window.STATE.user.uid || null,
+                        email: window.STATE.user.email || null,
+                        role: window.STATE.user.role || null
+                    } : null,
+                    authListenerRegistered: typeof __mahaAuthListenerRegistered !== 'undefined'
+                        ? !!__mahaAuthListenerRegistered
+                        : null
+                };
+                try {
+                    const result = await window.mahaSupabase?.auth?.getSession?.();
+                    snapshot.session = result?.data?.session ? {
+                        present: true,
+                        userId: result.data.session.user?.id || null,
+                        email: result.data.session.user?.email || null
+                    } : {present:false,userId:null,email:null};
+                } catch (error) {
+                    snapshot.session = {present:false,userId:null,email:null,errorCode:error?.code || null};
+                }
+                return snapshot;
+            }"""
         )
         raise RuntimeError(
             "AUTH_STATE_HYDRATION_TIMEOUT:"
@@ -253,6 +267,9 @@ def main():
             page = context.new_page()
             page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + safe_error(exc)))
             page.on("console", lambda msg: browser_errors.append("console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            page.on("response", lambda response: browser_errors.append(
+                "response:" + str(response.status) + ":" + urllib.parse.urlsplit(response.url).path
+            ) if response.status >= 400 else None)
 
             page.goto(APP_URL, wait_until="networkidle", timeout=60000)
             evidence["checks"]["http_200"] = page.locator("body").count() == 1
@@ -364,6 +381,9 @@ def main():
             page = context.new_page()
             page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + safe_error(exc)))
             page.on("console", lambda msg: browser_errors.append("console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            page.on("response", lambda response: browser_errors.append(
+                "response:" + str(response.status) + ":" + urllib.parse.urlsplit(response.url).path
+            ) if response.status >= 400 else None)
             if not recovery_action_link:
                 raise RuntimeError("AUTH_RECOVERY_ACTION_LINK_MISSING")
 
