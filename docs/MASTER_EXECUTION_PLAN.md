@@ -12722,3 +12722,57 @@ MESSAGE 49 DECISION:
 - Seller/Admin re-entry runtime = OPEN / NOT EVIDENCED pending Browser Gate.
 - Exact current-HEAD Preview = OPEN.
 - Continue remaining non-legal OPEN tracks without reopening the legal track.
+
+### 160.14 MESSAGE 50 — PERFORMANCE WORKLOAD RECONCILIATION + DR RUNBOOK PREPARATION (2026-09-29)
+
+PERFORMANCE WORKLOAD RECONCILIATION:
+- Restore-Test Performance Advisor was re-read against the current workload instead of treating linter counts as automatic migration requirements.
+- Current Advisor headline findings include:
+  - 93 unindexed foreign-key findings (INFO)
+  - 45 multiple-permissive-policy findings (WARN)
+  - unused-index findings
+- These are broad schema/linter observations, not proof that every finding is a production hotspot.
+- pg_stat_statements current workload still shows:
+  - velora_get_current_beauty_routine: ~41.763 ms mean, 1,678 calls, ~70.1 s cumulative
+  - velora_process_notification_lifecycle: ~6.685 ms mean, 6,906 calls, ~46.2 s cumulative
+  - velora_get_replenishment_signals: ~6.525 ms mean, 1,678 calls
+  - velora_get_admin_dashboard: ~39.184 ms mean, 36 calls
+- The routine function source was inspected. The relevant lookup paths are already supported by existing indexes:
+  - beauty_profiles primary key on user_id
+  - beauty_feedback(user_id, created_at DESC)
+  - orders(customer_id)
+  - beauty_routine_runs(user_id, created_at DESC)
+  - beauty_routine_steps(routine_run_id)
+  - beauty_routine_steps(routine_run_id, step_order) unique
+- Targeted EXPLAIN checks previously executed for the routine's user/feedback/order/run/step lookup shapes were sub-ms to low-ms on the current QA data.
+- Therefore no targeted index or RLS-policy migration is justified by current evidence.
+- Performance optimization remains OPEN as a workload/capacity track. No speculative schema change was applied.
+
+DR / BACKUP / ROLLBACK PREPARATION:
+- Added docs/PRODUCTION_DR_BACKUP_ROLLBACK_RUNBOOK.md.
+- This is a control artifact, not execution proof.
+- It defines the required evidence sequence: backup inventory -> off-site retention -> non-Production restore rehearsal -> application reconciliation -> measured RPO/RTO -> Vercel rollback rehearsal -> post-rollback reconciliation -> plan/capacity decision.
+- It explicitly preserves the Production FROZEN boundary and prohibits using existing DR tables as fake recovery proof.
+- Existing docs/SPRINT_2_ROLLBACK_REPLAY_EVIDENCE_2026-09-19.md remains the historical Restore-Test rollback replay evidence.
+- Current Restore-Test platform_release_blueprints contains one candidate blueprint (velora-platform v1.0.0); dr_recovery_runs and dr_recovery_checkpoints remain empty.
+- No Production backup, restore, destructive reset, or rollback was performed.
+- Current official platform evidence confirms:
+  - Supabase Free-plan projects should use regular CLI logical exports plus off-site backups; automated daily downloadable database backups are a paid-plan capability.
+  - Free-plan projects may be paused after low activity over a 7-day period.
+- These are platform capabilities, not proof that Velora Production currently has a backup artifact or a tested restore.
+
+CURRENT BLOCKERS / BOUNDARIES:
+- Browser wallet remains -0.072 USD; no metered Browser Gate can be started at the current balance.
+- Latest observed Vercel Preview remains READY at dpl_Dx1LXkp1oYWoeLFcxWDwKqTUD2DL, source SHA fd608586738ffd883cdc19a28b67cf6bd94425b3, and therefore predates the final branch state.
+- Current branch final source/doc tip after this preparation = ca8dd0a23d35c54db105b4b474a68a6e1d68b577.
+- A valid deployment for the current branch HEAD has not been observed; no Browser target is claimed.
+
+MESSAGE 50 DECISION:
+- Performance: OPEN / no justified migration.
+- DR/backup/rollback: OPEN / PENDING; runbook preparation CLOSED-DONE, actual backup/restore/rehearsal still pending.
+- Seller/Admin re-entry: source + contract/CI CLOSED-DONE; Browser runtime OPEN.
+- Exact current-HEAD Preview parity: OPEN.
+- Browser Gate: OPEN / NOT EVIDENCED.
+- Live Beauty AI provider: BLOCKED / NOT CONFIGURED.
+- Legal registration: PAUSED / CARRY-FORWARD.
+- Production: FROZEN.
