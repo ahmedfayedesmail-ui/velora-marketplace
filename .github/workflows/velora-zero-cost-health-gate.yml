@@ -1,0 +1,76 @@
+name: Velora Zero-Cost Health Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-zero-cost-health-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  health:
+    name: Source + Contract Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Repository whitespace check
+        run: git diff --check
+
+      - name: JavaScript syntax gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find src/scripts tests -type f -name '*.js' -print | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No JavaScript files found."
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            node --check "$f"
+          done
+
+      - name: Beauty AI contract
+        run: npm run test:beauty-ai
+
+      - name: Product Detail contract
+        run: npm run test:product-detail
+
+      - name: Platform re-entry contract
+        run: npm run test:platform-reentry
+
+      - name: Static application check
+        run: npm run check
+
+      - name: Full static audit
+        run: python3 tools/static_audit.py
+
+      - name: Publish health summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Velora Zero-Cost Health Gate"
+            echo
+            echo "- Branch: audit/runtime-parity-2026-09-28"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- No Production connection was opened."
+            echo "- No database mutation was requested by this workflow."
+          } >> "$GITHUB_STEP_SUMMARY"
