@@ -56,8 +56,29 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 2c9f1ba90fcb9dcbd0a21b4e739285863e9d3c95
-Current HEAD commit message: fix: harden Beauty Passport V2 value contract
+Current observed branch HEAD: 40f237224f5768ec931c90952eac2b3eaf814490
+Current HEAD commit message: docs: finalize Paymob restore-test closure
+
+### 4.1 Current-state reconciliation — 2026-09-29
+CLASSIFICATION: CLOSED-DONE (metadata reconciliation)
+
+OBSERVED FACT:
+- GitHub branch ref audit/runtime-parity-2026-09-28 currently resolves to 40f237224f5768ec931c90952eac2b3eaf814490.
+- Commit 40f237224f5768ec931c90952eac2b3eaf814490 message: docs: finalize Paymob restore-test closure.
+- The previous 2c9f1ba90fcb9dcbd0a21b4e739285863e9d3c95 value in this section was stale metadata from an earlier execution point, not the current branch HEAD.
+- GitHub combined commit status for 40f237224f5768ec931c90952eac2b3eaf814490 reports Vercel SUCCESS.
+- The exact READY Vercel deployment associated with this current HEAD remains the deployment recorded by the latest handoff: dpl_E5FEuLo9BaFT2pt9EQEMq2ivCGpB.
+
+EVIDENCE BOUNDARY:
+- This reconciliation proves branch/commit metadata and CI status only.
+- It does not by itself prove Browser behavior, Provider settlement, or Production readiness.
+- Production remains frozen.
+
+DECISION:
+- 40f237224f5768ec931c90952eac2b3eaf814490 is the authoritative current continuation HEAD for this execution point.
+- Historical SHAs remain historical evidence unless explicitly re-verified.
+- No rollback is justified by the stale 2c9f metadata.
+
 
 Historical branch supplied in an earlier handoff:
 audit/full-gate-2026-09-25
