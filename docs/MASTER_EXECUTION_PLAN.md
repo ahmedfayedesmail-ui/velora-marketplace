@@ -3565,3 +3565,63 @@ CARRY-FORWARD FROM MASTER — NOTHING DROPPED:
 - Supabase leaked-password protection platform configuration.
 - pg_net live dependency review.
 - Final aggregate Browser Gate, Preview parity, provider evidence, and Production gates.
+
+
+
+### Continuation Pending COD Abandonment / Reservation Policy Review — 2026-09-29
+
+CLASSIFICATION: OPEN POLICY-BLOCKED / NO SAFE IMPLEMENTATION JUSTIFIED YET
+
+OBSERVED FACT:
+- Canonical checkout creates the order first in pending, decrements inventory atomically, then records the selected payment method.
+- Cash on Delivery is currently an operational manual tender route for EG/EGP; it has no external provider expiry event and no payment_attempt lifecycle comparable to Paymob.
+- src/scripts/13-payments.js routes cash_on_delivery through velora_set_order_payment_method and then immediately clears the cart/navigates to Orders; it does not create a provider payment session for COD.
+- Current Restore-Test has 9 pending/pending or otherwise not-settled order fixtures in the inspected window, but no current order was identified with the canonical cash_on_delivery method. The pending fixtures include Paymob card, test-mode payment, and older QA/provenance records; they must not be bulk-cancelled as if they were COD.
+- public.orders has no expires_at field and the platform has no generic pending-order lifecycle table/scheduler. The existing Paymob reconciliation cron is provider-specific and is already the automation boundary for Paymob expiration.
+- No arbitrary 15-minute/30-minute/60-minute generic COD TTL is currently specified by the Velora contract.
+
+RESEARCH / PRIOR ART:
+- WooCommerce documents a configurable Hold Stock duration for unpaid orders; when the limit is reached, eligible pending-payment orders are canceled and held stock is released. citeturn373467search6turn373467search3
+- WooCommerce also documents a distinct COD reservation option for pickup-stock workflows, where COD stock can remain reserved until completion and is released on cancellation/failure. citeturn337095search4
+- Medusa treats reservations as a distinct inventory concept: order placement creates a reservation, fulfillment consumes/removes it, and cancellation releases it; custom reservations can also have their own business-specific lifecycle. citeturn373467search0turn373467search5
+- Shopify documents that pending/unpaid payment behavior is tied to payment-provider state rather than a universal generic cancellation rule, and its cancellation tooling is explicitly state/permission controlled. citeturn337095search1turn337095search9
+
+INFERENCE:
+- Industry prior art supports separating provider-derived payment expiry from a business-defined COD reservation/abandonment policy.
+- Therefore Velora should not invent a generic TTL or a second reservation engine before the business decides what a COD reservation means operationally.
+- The existing inventory decrement/release model can remain the single stock mechanism; a future reservation policy can be implemented as an explicit state/timing rule around the existing canonical order/cancellation path rather than creating a parallel inventory subsystem.
+
+ACTION FLOW — CURRENT COD PATH:
+Customer selects COD
+-> authenticated payment-method validation
+-> canonical order creation + inventory decrement
+-> canonical payment row set to cash_on_delivery / pending
+-> cart cleared
+-> Seller receives/works the pending order through the existing Seller order workflow
+-> Seller confirms -> processing -> shipment -> delivery
+-> cash collection remains a manual/offline tender event
+-> cancellation/failure before fulfillment -> existing canonical cancellation/release path
+-> audit/notification through existing infrastructure.
+Normal COD fulfillment therefore does not require customer intervention after checkout; seller/operations action is an unavoidable business step unless an explicit auto-confirm policy is later approved.
+
+OPEN POLICY DECISIONS REQUIRED BEFORE AUTOMATION:
+- How long may an unconfirmed COD order hold scarce inventory?
+- Is COD inventory held until Seller confirmation, until a business SLA, or released by an explicit cancellation event?
+- Should a Seller confirmation SLA trigger warning notifications, auto-cancellation, or escalation?
+- Does the policy differ by product scarcity, seller, order value, region, or fulfillment type?
+- What customer/seller notification sequence must precede automatic release?
+- What audit/reconciliation event marks an automated COD expiration if such automation is approved?
+
+DECISION:
+- Do not create a generic expires_at field, generic pending-order scheduler, reservation table, or COD auto-cancellation worker in this step.
+- Keep Paymob expiration automation separate and provider-derived.
+- Keep COD abandonment/reservation explicitly OPEN until the owner/business policy is defined.
+- Do not mutate or clean current QA pending orders merely because they are old.
+
+EVIDENCE:
+- L1/L2/L3: current source + Restore-Test contract inspected.
+- Research evidence: official WooCommerce/Medusa/Shopify documentation supports configurable/provider-specific lifecycle patterns, not a universal COD TTL. citeturn373467search6turn337095search4turn373467search0turn337095search9
+- L4/L5/L6/L7: no automation is claimed; no Browser/Preview evidence is implied.
+
+NEXT ORDERED WORK:
+- Continue through the next still-open customer-commerce contract from the Master Handoff; retain this COD policy as OPEN until a business decision supplies the missing rule.
