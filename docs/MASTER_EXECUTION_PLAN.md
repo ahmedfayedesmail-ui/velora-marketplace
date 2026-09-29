@@ -13032,3 +13032,94 @@ NEXT ORDERED ACTION:
 1. Browser-verify the invisible AI runtime when Browser capacity is available.
 2. Configure Restore-Test AI provider intentionally, then execute real authenticated provider E2E.
 3. Continue remaining non-legal, non-browser-blocked Master tracks.
+
+
+## MESSAGE 55 — CUSTOMER NATURAL-LANGUAGE ROUTINE DISCOVERY INTEGRATION (2026-09-29)
+
+CLASSIFICATION: IMPLEMENTED AT SOURCE / VERIFICATION GATES OPEN
+
+OWNER-LOCKED PRODUCT BOUNDARY:
+- Customer does NOT see an AI feature.
+- No AI button, chatbot, AI badge, AI assistant label, AI modal, or customer-facing AI explanation was introduced.
+- The customer-facing surface is an ordinary Velora Routine Discovery input inside the existing Beauty Passport V2 flow.
+- The AI remains an invisible internal interpreter only.
+
+IMPLEMENTED SOURCE CONTRACT:
+- Canonical customer surface remains `src/scripts/61-s1-c-quiz-v2.js`.
+- Existing canonical internal interpreter remains `src/scripts/72-s1-e-customer-beauty-ai.js`.
+- Natural-language input uses a bounded 800-character textarea and sends only the customer-entered text to the existing internal interpreter.
+- The interpreter call remains `window.veloraBeautyAI.interpret(text)`.
+- No product selection, cart, payment, order, seller, inventory, pricing, gift-card, promotion, commission, payout, or governance authority is exposed to the AI layer.
+
+NATURAL-LANGUAGE FLOW:
+Customer text
+-> internal Beauty Intent Interpreter
+-> strict candidate validation
+-> one of ready / needs_clarification / unsupported / unsafe
+-> customer confirmation or clarification only
+-> existing `velora_save_beauty_passport_v2`
+-> existing deterministic routine
+-> existing deterministic recommendations
+-> existing Routine -> Cart path
+
+READY PATH:
+- Structured fields are limited to `skin_type`, `goal`, `routine_budget`.
+- When all three are safely resolved, the customer sees a normal review screen and must confirm before save.
+- The review screen contains no AI terminology.
+
+CLARIFICATION PATH:
+- Known fields are applied only in transient client state.
+- Only fields returned in `missing_fields` are shown through the existing three-question UX.
+- The flow does not create a conversational chatbot loop.
+- After the final missing answer, the same canonical Passport V2 save path is used.
+
+UNSUPPORTED / UNSAFE / PROVIDER FAILURE:
+- No candidate fields from unsupported or unsafe requests are persisted.
+- Provider/service failure returns the customer to the existing manual three-question path.
+- No medical diagnosis, prescribing, dosage, treatment decision, or medical-product authority is introduced.
+
+ACTION FLOW ALIGNMENT:
+Natural-language submit event
+-> authenticated/customer-flow guard
+-> internal interpreter availability guard
+-> server moderation + strict structured output
+-> client contract validation
+-> state transition to ready / clarification / manual fallback
+-> customer confirmation where required
+-> canonical Passport V2 save
+-> deterministic routine generation
+-> deterministic recommendation
+-> existing cart flow
+-> existing audit / retry / fallback mechanisms
+Human intervention remains unnecessary for the normal path and is reserved for genuine policy/provider exceptions.
+
+PRIVACY / DATA MINIMIZATION:
+- The new surface submits only the text entered by the customer to the existing authenticated Edge Function.
+- No name, email, phone, address, payment, order, seller, catalog, stock, or other commerce payload is added to the AI request.
+- The AI module still does not write database state.
+
+TEST CONTRACT UPDATED:
+- `tests/customer-beauty-ai-contract.test.mjs` now covers the connection between the invisible interpreter and the customer Routine Discovery source contract.
+- Static assertions cover the natural input surface, interpreter integration, ready/clarification branches, canonical Passport save, confirmation copy, and absence of visible AI-product terminology in the customer surface.
+
+COMMITS:
+- `ce15ceed1ac9fb513205649783b644f370c8a8cc` — Connect natural language to canonical Beauty Passport flow
+- `61f9fef2218ca96cd43a94e2657a5ae646385b60` — Initialize natural language flow state safely
+- `452bcf07c5cbde25f4bf1a2e0a67e047f76b71ca` — Cover natural language Beauty AI flow contract
+- `67f39b3accae0a7b26c9ba9b5b36c8a81e83938d` — Correct Beauty AI flow contract assertion
+
+VERIFICATION STATUS:
+- Source implementation: CLOSED-DONE for the planned Natural Language -> Clarification -> Passport integration scope.
+- Existing invisible AI interpreter contract: CLOSED-DONE.
+- Live OpenAI provider configuration in Restore-Test: BLOCKED / NOT CONFIGURED.
+- Browser Gate: OPEN / NOT EVIDENCED. The available browser automation capacity remains unavailable.
+- CI after the latest push: NOT EVIDENCED by the available GitHub workflow-run connector (it only exposes PR-triggered runs for this repository).
+- Local execution attempt: NOT COMPLETED because the verification container has no network access to clone the public repository.
+- Vercel status after the latest source push: deployment attempts currently report the known `upgradeToPro=build-rate-limit` failure; this is a Vercel capacity signal, not evidence of an application compile defect.
+
+NEXT TECHNICAL GATE:
+- Do not rework the AI module.
+- Do not add a second AI engine.
+- Keep provider configuration intentionally blocked until a real approved provider credential/model configuration is available.
+- When browser tooling capacity is available, verify the exact customer journey: natural text -> ready confirmation; partial text -> only missing questions; unsafe/unsupported -> manual path; final save -> Passport V2 -> routine -> recommendations.
+- Continue non-AI open technical tracks in parallel; legal registration remains paused pending identity renewal.
