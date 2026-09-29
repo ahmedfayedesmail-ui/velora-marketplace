@@ -81,6 +81,43 @@ jobs:
               page.goto("http://127.0.0.1:4173/", wait_until="networkidle", timeout=60000)
               evidence["checks"]["http_200"] = page.locator("body").count() == 1
 
+              auth_preflight = page.evaluate(
+                  """async ({email, password}) => {
+                    const sb = window.mahaSupabase;
+                    if (!sb?.auth?.signInWithPassword) {
+                      return { available: false, session: false, userId: null, errorCode: "AUTH_API_UNAVAILABLE", errorMessage: "signInWithPassword unavailable" };
+                    }
+
+                    const r = await sb.auth.signInWithPassword({ email, password });
+                    const result = {
+                      available: true,
+                      session: !!r?.data?.session,
+                      userId: r?.data?.user?.id || null,
+                      errorCode: r?.error?.code || null,
+                      errorMessage: r?.error?.message || null
+                    };
+
+                    if (result.session) {
+                      await sb.auth.signOut({ scope: "local" });
+                    }
+
+                    return result;
+                  }""",
+                  {"email": email, "password": password},
+              )
+
+              evidence["auth_preflight"] = {
+                  "available": auth_preflight.get("available"),
+                  "session": auth_preflight.get("session"),
+                  "errorCode": auth_preflight.get("errorCode"),
+                  "errorMessage": auth_preflight.get("errorMessage")
+              }
+              evidence["checks"]["auth_provider_accepts_e2e_credentials"] = (
+                  bool(auth_preflight.get("session")) and
+                  not auth_preflight.get("errorCode") and
+                  not auth_preflight.get("errorMessage")
+              )
+
               page.locator("#accountBtn").click()
               page.locator("#loginEmail").fill(email)
               page.locator("#loginPassword").fill("definitely-wrong-password")
