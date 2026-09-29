@@ -41,7 +41,7 @@ jobs:
 
       - name: Run role-authenticated reentry browser evidence
         env:
-          PREVIEW_URL: https://velora-marketplace-adz3ejivw-ahmedconccc-7063.vercel.app
+          PREVIEW_URL: https://velora-marketplace-j6ec87udy-ahmedconccc-7063.vercel.app
           SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
