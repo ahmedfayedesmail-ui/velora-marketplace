@@ -33,39 +33,39 @@
 
   const SKIN_PATTERNS = {
     oily: [
-      /\\boily\\b/i, /oily skin/i, /greasy/i, /shine|shiny|excess oil/i,
+      /\boily\b/i, /oily skin/i, /greasy/i, /shine|shiny|excess oil/i,
       /بشرة\s*(?:عاملة\s*)?(?:دهنية|زيتية)/i, /بشرتي\s*(?:بتفرز|فيها)\s*(?:زيت|دهون)\s*كتير/i,
       /لمعان\s*(?:كتير|زيادة|زائد)/i, /زيوت\s*(?:كتير|زيادة|زائدة)/i
     ],
     dry: [
-      /\\bdry\\b/i, /dry skin/i, /flaky|flaking/i,
+      /\bdry\b/i, /dry skin/i, /flaky|flaking/i,
       /بشرة\s*(?:عاملة\s*)?(?:جافة|ناشفة)/i, /بشرتي\s*(?:بتنشف|بتشد|ناشفة|جافة)/i,
       /بتقشر/i, /تقشر\s*(?:البشرة|الوش|الوجه)/i
     ],
     combination: [
-      /\\bcombination\\b/i, /combination skin/i,
+      /\bcombination\b/i, /combination skin/i,
       /بشرة\s*(?:مختلطة)/i, /مختلطة/i,
       /مناطق\s*(?:دهنية|زيتية).*?(?:جافة|ناشفة)/i, /(?:جافة|ناشفة).*?مناطق\s*(?:دهنية|زيتية)/i
     ],
     normal: [
-      /\\bnormal\\b/i, /normal skin/i, /بشرة\s*(?:عادية|طبيعية)/i, /بشرتي\s*عادية/i
+      /\bnormal\b/i, /normal skin/i, /بشرة\s*(?:عادية|طبيعية)/i, /بشرتي\s*عادية/i
     ],
     sensitive: [
-      /\\bsensitive\\b/i, /sensitive skin/i, /بشرة\s*حساسة/i, /بشرتي\s*حساسة/i
+      /\bsensitive\b/i, /sensitive skin/i, /بشرة\s*حساسة/i, /بشرتي\s*حساسة/i
     ]
   };
 
   const GOAL_PATTERNS = {
     brightening: [
-      /\\bbrightening\\b/i, /even[- ]looking skin/i, /glow/i,
+      /\bbrightening\b/i, /even[- ]looking skin/i, /glow/i,
       /تفتيح/i, /إشراقة|اشراقة|نضارة|منورة|مشرقة/i, /توحيد\s*(?:مظهر|لون)/i
     ],
     hydration: [
-      /\\bhydration\\b/i, /hydrate|hydrating/i,
+      /\bhydration\b/i, /hydrate|hydrating/i,
       /ترطيب/i, /مرطب|مرطبة/i, /بشرة\s*عطشانة/i
     ],
     acne: [
-      /\\bacne\\b/i, /blemish|breakout/i,
+      /\bacne\b/i, /blemish|breakout/i,
       /حبوب/i, /حبة|حبوب|بثور/i, /بشرة\s*معرضة\s*للحبوب/i
     ],
     'anti-aging': [
@@ -116,7 +116,6 @@
       .replace(/ى/g, 'ي')
       .replace(/ؤ/g, 'و')
       .replace(/ئ/g, 'ي')
-      .replace(/ة/g, 'ه')
       .replace(/٠/g, '0')
       .replace(/١/g, '1')
       .replace(/٢/g, '2')
@@ -142,8 +141,8 @@
   }
 
   function negated(text, value) {
-    const escaped = value.source.replace(/^\\b/, '').replace(/\\b$/, '');
-    const rx = new RegExp('(?:not|never|مش|مش\s+هي|ليست|مش\s+بشرتي)\\s+(?:very\\s+|كتير\\s+|جدًا\\s+|جدا\\s+)?' + escaped, 'i');
+    const escaped = value.source.replace(/^\\b/, '').replace(/\b$/, '');
+    const rx = new RegExp('(?:not|never|مش|مش\s+هي|ليست|مش\s+بشرتي)\s+(?:very\s+|كتير\s+|جدًا\s+|جدا\s+)?' + escaped, 'i');
     return rx.test(text);
   }
 
@@ -191,7 +190,7 @@
 
   function extractNumbers(text) {
     const nums = [];
-    const numeric = /(?:^|[^0-9])(\\d{2,6})(?:[.,]\\d{1,2})?(?=$|[^0-9])/g;
+    const numeric = /(?:^|[^0-9])(\d{2,6})(?:[.,]\\d{1,2})?(?=$|[^0-9])/g;
     let match;
     while ((match = numeric.exec(text))) nums.push(Number(match[1]));
     for (const [pattern, value] of NUMBER_WORDS) {
