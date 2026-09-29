@@ -41,6 +41,9 @@ jobs:
       - name: Customer Beauty AI contract tests
         run: npm run test:beauty-ai
 
+      - name: Product Detail canonical contract tests
+        run: npm run test:product-detail
+
       - name: Static audit (pre-existing global baseline)
         continue-on-error: true
         run: python3 tools/static_audit.py
