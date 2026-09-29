@@ -4019,3 +4019,25 @@ DECISION:
 - The newly identified source/runtime parity gap is CLOSED by restoring the missing migration file to the repository.
 - Do not add transition tables, duplicate status engines, or speculative seller lifecycle states.
 - Carry forward, unchanged: post-approval product re-review policy, pending-order/COD reservation policy, Seller Dashboard re-entry Browser evidence, subscription commercial policy/runtime/provider gaps, Seller Ads provider/analytics gaps, payout settlement/reconciliation, and all other Master OPEN/BLOCKED/PENDING items.
+
+
+### Band 1 Product Re-review Policy Reconciliation — 2026-09-29
+
+CLASSIFICATION: TECHNICAL CONTRACT OBSERVED / BUSINESS POLICY APPROVAL NOT EVIDENCED
+
+OBSERVED FACT:
+- Current Restore-Test canonical seller product update RPCs already implement a concrete rule:
+  - material content changes move approved/rejected products to pending and emit seller_product_re_review_required;
+  - price and stock changes preserve the product lifecycle status;
+  - active variant stock remains authoritative for parent stock.
+- The full update path treats name, category, brand, subcategory, original price, description, image, emoji, and tags as material; the compact update path covers the subset it accepts.
+- The current contract is source/DB verified and is not being rebuilt.
+
+RESEARCH:
+- Current Shopify documentation shows product editing can take effect immediately in a standard merchant storefront, while marketplace/channel eligibility and content moderation remain separate concerns; marketplace requirements are channel-specific rather than a universal edit-to-pending rule. citeturn1search0turn1search1turn1search7
+- This supports treating Velora's re-review behavior as a deliberate marketplace policy rather than assuming a universal industry default.
+
+DECISION:
+- Do not change the existing technical contract merely because the Master previously labeled the policy OPEN.
+- Keep the business-policy item OPEN until the owner explicitly confirms that the current split (content changes require review; price/stock preserve lifecycle) is the intended commercial/governance policy.
+- No new schema, review engine, or Browser test is justified at this point.
