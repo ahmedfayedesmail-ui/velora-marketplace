@@ -11183,3 +11183,10 @@ STATUS:
 - Seller Subscription commercial policy/runtime/provider/browser/legal completion = OPEN.
 - No tax rate, MoR role, invoice issuer, or VAT treatment was guessed.
 - No code/schema/Production mutation was made.
+## 2026-09-29 — PREVIEW PARITY CORRECTION
+
+- The READY Vercel deployment `dpl_3Aw3ysoQKfQzmuHd7d4A8GYcN43b` matches source SHA `f643764...`.
+- The branch subsequently advanced to `f113847...` via 2 documentation-only commits; GitHub compare shows the only changed file is `docs/MASTER_EXECUTION_PLAN.md`.
+- Therefore the runtime/source content used by the Preview remains unchanged by those two commits, but the strict SHA-level label 'exact current HEAD' is no longer literal.
+- Status is corrected to: Preview runtime parity = VERIFIED for the last runtime-changing source SHA `f643764...`; strict current-HEAD SHA parity = OPEN until a deployment for `f113847...` (or a later source-changing HEAD) is READY.
+- Browser Gate remains OPEN / NOT EVIDENCED because TinyFish could not start the attempted browser run due to insufficient wallet balance.
