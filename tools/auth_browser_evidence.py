@@ -107,7 +107,11 @@ def admin_generate_link(kind, email):
     _, payload = request_json(
         "POST",
         "/auth/v1/admin/generate_link",
-        {"type": kind, "email": email},
+        {
+            "type": kind,
+            "email": email,
+            "redirect_to": APP_URL,
+        },
     )
     if not isinstance(payload, dict):
         raise RuntimeError(f"AUTH_{kind.upper()}_LINK_NO_RESPONSE")
@@ -121,7 +125,7 @@ def admin_generate_link(kind, email):
 
     if not token_hash:
         raise RuntimeError(f"AUTH_{kind.upper()}_LINK_NO_TOKEN_HASH")
-    return token_hash, bool(action_link)
+    return token_hash, action_link
 
 
 def admin_rows(table, uid, select):
@@ -216,15 +220,18 @@ def main():
             and len(admin_rows("profiles", uid, "id")) == 0
         )
 
-        signup_hash, signup_has_action_link = admin_generate_link("signup", email)
-        evidence["observations"]["signup_action_link_generated"] = signup_has_action_link
+        signup_hash, signup_action_link = admin_generate_link("signup", email)
+        evidence["observations"]["signup_action_link_generated"] = bool(signup_action_link)
+        evidence["observations"]["signup_token_hash_generated"] = bool(signup_hash)
 
         recovery_hash = None
+        browser_errors = []
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             context = browser.new_context()
             page = context.new_page()
-            page._velora_uid = uid
+            page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + safe_error(exc)))
+            page.on("console", lambda msg: browser_errors.append("console:" + safe_error(msg.text)) if msg.type == "error" else None)
 
             page.goto(APP_URL, wait_until="networkidle", timeout=60000)
             evidence["checks"]["http_200"] = page.locator("body").count() == 1
@@ -248,27 +255,16 @@ def main():
             evidence["checks"]["unconfirmed_password_login_blocked"] = not bool(before_confirmation.get("session"))
             evidence["observations"]["unconfirmed_login_error_code"] = before_confirmation.get("errorCode")
 
-            # Real token-hash verification in the browser creates the confirmed session.
-            confirmation = page.evaluate(
-                """async ({tokenHash}) => {
-                    const sb = window.mahaSupabase;
-                    const r = await sb.auth.verifyOtp({token_hash: tokenHash, type: 'email'});
-                    const s = await sb.auth.getSession();
-                    return {
-                        session: !!r?.data?.session || !!s?.data?.session,
-                        userId: r?.data?.user?.id || s?.data?.session?.user?.id || null,
-                        errorCode: r?.error?.code || null
-                    };
-                }""",
-                {"tokenHash": signup_hash},
-            )
-            evidence["checks"]["email_confirmation_token_verifies"] = (
-                bool(confirmation.get("session")) and confirmation.get("userId") == uid
-            )
-            evidence["observations"]["confirmation_error_code"] = confirmation.get("errorCode")
+            if not signup_action_link:
+                raise RuntimeError("AUTH_SIGNUP_ACTION_LINK_MISSING")
+
+            # Open the real generated confirmation action link in a fresh browser page.
+            # This mirrors the user's actual email-click flow rather than injecting
+            # verifyOtp into an already initialized app.
+            page.goto(signup_action_link, wait_until="networkidle", timeout=60000)
 
             wait_for_state(page, uid, timeout=30000)
-            evidence["checks"]["post_confirmation_state_hydrated"] = True
+            evidence["checks"]["email_confirmation_action_link_verifies"] = True
 
             rows_users = admin_rows("users", uid, "id,name,email,phone,role")
             rows_profiles = admin_rows("profiles", uid, "id")
