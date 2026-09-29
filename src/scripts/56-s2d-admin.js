@@ -230,38 +230,23 @@
     return renderDashboard();
   }
 
-  // A locale switch may occur while Admin is closed. When it is already
-  // open, re-render the authoritative dashboard immediately; when closed,
-  // the normal opener remains ready for the next route activation.
-  window.addEventListener('velora:languagechange', function(){
-    setTimeout(function(){
-      var p=document.getElementById('adminPlatform');
-      if(p && p.classList.contains('active')){
-        try{renderDashboard();}catch(_){}
-      }
-    },0);
-  });
+  // Platform routing owns canonical Admin re-entry; avoid a second renderer on locale changes.
 
   window.VELORA_RENDER_ADMIN_DASHBOARD=renderDashboard;
   window.showAdminSection=show;
 
   if(originalOpen){
+    // Canonical open owns the dashboard render lifecycle. A second async renderer
+    // creates stale loading/content races on re-entry.
     window.openAdminPlatform=function(){
-      var result=originalOpen.apply(this,arguments);
-      Promise.resolve(result).then(function(){
-        var expectedContent=document.getElementById('adminContent');
-        setTimeout(function(){
-          var platform=document.getElementById('adminPlatform');
-          if(platform?.classList.contains('active') && document.getElementById('adminContent')===expectedContent) renderDashboard();
-        },80);
-      }).catch(function(){});
-      return result;
+      return originalOpen.apply(this,arguments);
     };
   }
 
   var prevCanonical=window.VELORA_CANONICAL_ADMIN_SECTION;
   window.VELORA_CANONICAL_ADMIN_SECTION=async function(section,btn){
     if(section==='dashboard'){
+      if(prevCanonical) return prevCanonical.apply(this,arguments);
       setActiveDashboardNav(btn||null);
       return renderDashboard();
     }
