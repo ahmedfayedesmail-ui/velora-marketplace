@@ -40,6 +40,8 @@
     }
 
     function closeAllPlatforms() {
+        try { if (typeof window.VELORA_INVALIDATE_SELLER_PLATFORM === 'function') window.VELORA_INVALIDATE_SELLER_PLATFORM(); } catch (e) {}
+        try { if (typeof window.VELORA_INVALIDATE_ADMIN_PLATFORM === 'function') window.VELORA_INVALIDATE_ADMIN_PLATFORM(); } catch (e) {}
         try { if (typeof originalCloseSeller === 'function') originalCloseSeller(); } catch (e) {}
         try { if (typeof originalCloseAdmin === 'function') originalCloseAdmin(); } catch (e) {}
         try { if (typeof originalCloseOwner === 'function') originalCloseOwner(); } catch (e) {}
