@@ -9717,3 +9717,181 @@ STATUS:
 NEXT ORDERED WORK:
 - Keep COD policy OPEN until governed approval.
 - Continue to the next OPEN item in the Master order rather than inventing COD implementation details.
+
+## 2026-09-29 — MESSAGE 26/24 EXECUTION / RETURNS POLICY + EGYPT LEGAL COMPLIANCE GATE
+
+CLASSIFICATION:
+- Message 26 continues the ordered OPEN workstream after Message 25.
+- The Returns engine was inspected at current source/DB level.
+- Egyptian consumer-protection and tax/invoicing sources were researched.
+- The legal draft pack and current legal_documents state were reconciled.
+- No return/refund schema or engine change was made.
+- The current result is a policy/legal gap with a clearly defined statutory floor.
+
+### 100. CURRENT RETURNS ENGINE — VERIFIED
+
+SOURCE / DB CONTRACT:
+- velora_request_return(uuid,uuid,jsonb,text,text) requires authenticated customer ownership, order status=delivered, payment_status in paid/refunded, valid store membership, valid quantities, delivered shipment evidence, no active duplicate return for the item, and writes returns + return_items + audit evidence.
+- Refund amount is currently calculated from order_item.unit_price × requested quantity.
+- velora_resolve_return has a newer Staff-only transition graph supporting requested -> approved/rejected/cancelled -> in_transit -> received -> refunded, with refund only after received.
+- Transition to refunded requires refund evidence/reference and records provider/method/reference/processed timestamp.
+- No automatic restock or provider refund was invented.
+- Current Restore-Test returns row count = 0.
+
+LEGAL-IMPLEMENTATION GAP:
+- The current engine contains an eligibility gate of order status=delivered but does not yet encode the statutory/contractual return window.
+- The current refund calculation does not yet explicitly allocate order-level coupon/promotion/gift-card discounts, shipping, taxes, or other order-level components to a returned item.
+- The current engine therefore cannot yet be treated as the final legal/economic refund policy even though the state/authorization contract is operationally guarded.
+
+### 101. EGYPT LEGAL FLOOR — VERIFIED
+
+CONSUMER PROTECTION:
+- Egypt Consumer Protection Law No. 181/2018 and Executive Regulations Decision No. 822/2019 are the baseline consumer-protection framework used by the legal draft.
+- Law No. 20/2024 amended Article 71 and is part of the current statutory baseline.
+- The Egyptian Consumer Protection Agency currently states that consumers generally have 14 days from receipt to exchange/return without stating a reason, subject to statutory exceptions.
+- The Agency separately states that defective goods have a 30-day remedy from receipt, with replacement or refund without additional cost; the Agency states the supplier generally has one week after the consumer approaches it in those cases.
+- For remote contracts, Article 40 states the 14-day withdrawal right and refund mechanics, including refund by the same payment method unless another method is agreed; the statute also contains a delivery-delay remedy and cost-allocation rules.
+- Remote-sale requirements also include clear pre-contract information and confirmation/correction mechanics.
+- Statutory rights may not be narrowed by Velora customer terms.
+- A product-specific beauty return exclusion must be grounded in the statutory exceptions and counsel-approved classification; there must be no blanket all-cosmetics-are-non-returnable rule.
+
+PRIMARY SOURCES / RESEARCH:
+- Egyptian Consumer Protection Agency FAQ and current consumer guidance.
+- Law No. 181/2018: Arabic statutory text is the controlling version; WIPO Lex indexes the law and its Executive Regulations, while Egyptian public legal repositories provide the published text.
+- Law No. 20/2024 was published in the Official Gazette on 2024-04-05 and entered into force on 2024-04-06; its amendment concerns Article 71.
+- Egyptian Tax Authority current guidance distinguishes B2B electronic invoicing and B2C electronic receipts and publishes current e-invoice/e-receipt obligation and integration guidance.
+- Exact Velora tax/invoicing responsibility remains unclassified until marketplace operator, seller, and merchant-of-record/invoicing roles are legally confirmed.
+
+### 102. LEGAL COMPLIANCE MATRIX — RETURNS / CHECKOUT
+
+A. STATUTORY 14-DAY REMOTE WITHDRAWAL:
+- Policy must provide the statutory right subject to recognized exceptions.
+- Eligibility clock must be based on receipt/delivery evidence, not arbitrary return-request creation date.
+- The system needs a deterministic eligibility calculation once policy/legal mapping is approved.
+
+B. DEFECTIVE / NON-CONFORMING GOODS:
+- Must remain a separate legal remedy from voluntary/withdrawal returns.
+- The statutory 30-day window must not be accidentally swallowed by a shorter platform return policy.
+- No return fee should be charged in a statutory defective-goods case where the law requires no additional cost.
+- Resolution must retain defect evidence, dates, seller, decision, remedy, and refund evidence.
+
+C. BEAUTY / COSMETICS:
+- Do not classify all beauty goods as non-returnable.
+- Map sealed/opened/used/consumable categories against statutory exceptions and applicable product rules.
+- Counsel must approve the exact category matrix before publication.
+
+D. REFUND AMOUNT:
+- Current engine uses item unit price × quantity.
+- Final contract must define treatment of order-level coupon/promotion discounts, gift-card redemption, shipping, tax, free-shipping promotions, partial returns, multi-store/multi-item orders, price adjustments, and seller-funded versus platform-funded discounts.
+- Refund calculation must never exceed the amount legally/contractually refundable and must not remove a statutory entitlement by accounting convenience.
+
+E. REFUND METHOD / TIMING:
+- For remote-sale withdrawal, contract and implementation must preserve the legal payment-method and refund-timing rules.
+- For defective-goods cases, refund/service timing must meet the applicable statutory requirement.
+- COD refunds need a separately approved operational method because cash collection is an offline event and the original payment instrument may not support an electronic reversal.
+
+F. SHIPPING / RETURN COST:
+- Legal policy must distinguish ordinary remote-withdrawal return cost allocation from defective-goods/no-cost remedies and delivery-delay cases.
+- Velora may voluntarily provide better terms than the statutory baseline, but the published rule must be explicit and financially modeled.
+
+G. COMPLAINT / ESCALATION:
+- Customer support must preserve complaint evidence and not contractually block statutory recourse to the Consumer Protection Agency or other competent authorities.
+- System should preserve request, eligibility decision, evidence, resolution, and escalation status.
+
+H. DIGITAL CONTRACT / CHECKOUT DISCLOSURE:
+- Final Terms must disclose seller identity/contact, material product information, price/charges, delivery information, warranty/after-sales where applicable, return/cancellation rules, payment method, and material promotion restrictions.
+- Final order confirmation must preserve the material transaction information presented at formation.
+- Arabic canonical legal text must be approved for the Egypt-first launch.
+
+### 103. CURRENT LEGAL DOCUMENT STATE — CORRECTED
+
+Restore-Test database currently contains:
+- legal_documents count = 4.
+- all 4 rows are QA versions 0.0-QA-2026-09-27.
+- 2 Terms of Service rows: Arabic + English, both retired.
+- 2 Privacy Policy rows: Arabic + English, both retired.
+- no currently published Terms of Service.
+- no currently published Privacy Policy.
+
+CHECKOUT GATE:
+- velora_assert_legal_acceptance requires currently published/effective legal documents for the requested types and matching user acceptance.
+- Therefore checkout remains intentionally fail-closed when required legal documents are not published/accepted.
+- The historical draft-pack statement that legal_documents=0 has been marked as historical and corrected in the legal draft pack; it must not be reused as current-state evidence.
+
+PUBLICATION BLOCKERS:
+- Real legal entity/registration/tax/contact fields.
+- Marketplace/operator/merchant-of-record model.
+- Tax/invoice model.
+- Counsel-approved Arabic canonical Terms.
+- Counsel-approved Privacy Policy.
+- Returns/refunds legal mapping.
+- Beauty exception matrix.
+- Seller agreement.
+- Data-processing/PDPL compliance mapping.
+- Payment/refund/chargeback treatment.
+- Owner approval and canonical publishing.
+
+### MESSAGE 26 ACTION FLOW — RETURNS
+
+EVENT
+-> delivered order + customer return request
+
+GUARD / AUTHORIZATION
+-> authenticated order owner
+-> canonical return request entry point
+-> statutory/contractual eligibility policy
+
+VALIDATION
+-> receipt date + return window
+-> statutory exception classification
+-> defect/non-conformity classification
+-> delivered item evidence
+-> quantity/item/store ownership
+-> refund allocation inputs
+
+STATE TRANSITION
+-> requested
+-> approved/rejected
+-> in_transit
+-> received
+-> refunded/closed
+
+AUTOMATIC SIDE EFFECT
+-> audit
+-> customer/seller notifications
+-> refund record/evidence
+-> financial reconciliation
+-> restock only under the approved policy and canonical inventory contract
+
+NEXT EVENT
+-> provider refund / COD operational refund / reconciliation
+-> closure
+
+RETRY / DEDUPE
+-> duplicate-return guard
+-> monotonic return transition
+-> idempotent refund evidence
+
+HUMAN EXCEPTION
+-> disputed condition
+-> legal exception
+-> provider ambiguity
+-> accounting exception
+-> policy override
+-> statutory complaint escalation
+
+### MESSAGE 26 DECISION
+
+STATUS:
+- Returns state/authorization engine = CLOSED-DONE at current defined source/DB scope.
+- Returns final policy = OPEN.
+- Legal compliance floor = ESTABLISHED.
+- Final refund allocation/economics = OPEN.
+- Beauty-specific exception matrix = OPEN.
+- COD refund operational method = OPEN.
+- Final Arabic/legal documents = OPEN / COUNSEL + OWNER GATED.
+- No code/schema/Production change was justified in Message 26.
+
+NEXT ORDERED WORK:
+- Keep Returns policy OPEN until business/legal mapping is approved.
+- Continue to the next OPEN item in Master order; do not invent a refund calculation or product exception merely to close the checklist.
