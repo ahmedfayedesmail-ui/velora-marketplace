@@ -11778,143 +11778,100 @@ STATUS:
 CLASSIFICATION:
 - REGISTRATION PREPARATION = ACTIVE EXECUTION.
 - OWNER OPERATING FACTS = CLOSED-DONE.
-- EXACT ACTIVITY / LEGAL-FORM SELECTION = OPEN, BEING RESOLVED BEFORE SUBMISSION.
-- DIGITAL-FIRST ROUTE = VERIFIED.
-- NO PRODUCTION CHANGE.
 
-#### 158.1 VERIFIED GOVERNMENT SERVICE SEQUENCE
-
-- GAFI provides electronic incorporation for relevant legal forms including sole proprietorships, with online application, document upload, payment, electronic signing where applicable, online tracking, and final-document delivery through the stated channels. citeturn381155search6
-- ITDA confirms commercial-registry services are available through Egypt Digital and that individual-establishment registration is subject to the official service conditions. citeturn381155search9turn381155search0
-- ITDA's current procedural guide for an ordinary individual establishment lists a chamber-issued practice certificate, valid national ID, tax card/document, and power-of-attorney evidence when applicable. Therefore the exact activity must be settled before we treat the commercial-register step as ready for submission. citeturn689431view2
-- ETA maintains electronic taxpayer registration/services and explicitly addresses e-commerce activities under the income-tax, VAT, and Law 6/2025 frameworks. citeturn381155search4turn381155search5
-
-#### 158.2 STEP 1 — REGISTRATION PROFILE (DO NOT SUBMIT YET)
-
-OWNER:
-- Natural person: Ahmed Fayed.
-
-BRAND:
-- Velora.
-
-OPERATING MODEL:
-- Online-only marketplace/platform.
-- Velora does not buy, own, stock, or resell the marketplace goods.
-- Independent sellers are the sellers of the goods.
-- Seller-side sale documentation/invoice responsibility is intended to remain with the actual seller, subject to final legal/tax contract confirmation.
-- Velora earns platform-side revenue such as commissions and paid seller services.
-
-PROPOSED ACTIVITY DESCRIPTION FOR REVIEW:
-- Primary concept: "تشغيل وإدارة منصة إلكترونية للتجارة والتسويق الرقمي وعرض منتجات البائعين المستقلين وربطهم بالعملاء وتقديم خدمات المنصة".
-- English working description: "Operation and management of an electronic marketplace/platform for digital commerce and marketing, listing independent sellers' products and connecting sellers with customers, with platform services provided to sellers."
-
-IMPORTANT:
-- This is a WORKING DESCRIPTION, not an approved legal activity classification.
-- Before any government submission, the official portal/activity catalogue must be checked and the exact accepted activity name/code selected.
-- Do NOT select a generic "sale of cosmetics" activity because Velora is not the seller of the goods.
-- Do NOT select "commercial agent/commission agent" merely because Velora earns commission; that classification can carry different legal/registration implications. The actual role must match the contracts and operational behavior.
-
-#### 158.3 STEP 1 OUTPUTS
-
-Before moving to Step 2, we need:
-1. Exact official activity name/code from the selected registration portal.
-2. Exact legal-form path used for Ahmed's online platform activity.
-3. Exact address basis accepted for the online-only activity.
-4. Exact list of documents requested by that chosen workflow.
-5. Exact fees shown by the official portal before payment.
-6. Whether the selected activity requires a separate chamber/practice certificate and which chamber issues it.
-7. Tax-registration order relative to the commercial-register application for the chosen path.
-
-#### 158.4 NO-PAPERWORK RULE
-
-- Do not print anything just because an old procedural guide lists a paper copy.
-- Use the current official portal workflow as the primary operational source for what can be uploaded/e-signed electronically.
-- Where an authority explicitly requires an original, physical appearance, identity verification, or a regulated certificate, that becomes a real-world gate and is recorded rather than bypassed.
-
-#### 158.5 STEP 2 — DIGITAL ACCOUNT SETUP
-
-After Step 1 activity/form resolution:
-- Prepare/use Egypt Digital account for ITDA services where applicable.
-- Prepare/use GAFI e-services account if the selected form routes through GAFI.
-- Prepare/use ETA taxpayer-portal account.
-- Never share passwords, OTPs, national-ID numbers, or payment credentials in chat.
-- The assistant prepares the sequence and field values; the owner performs official identity authentication and legally binding submission.
-
-#### 158.6 STEP 3 — TAX ONBOARDING / SIMPLIFIED-REGIME ELIGIBILITY
-
-- Complete the appropriate ETA taxpayer registration path for the selected operator/activity.
-- Determine VAT position from the actual taxable activity and current rules; do not assume a threshold alone decides the case.
-- Check eligibility for the Law 6/2025 simplified system. ETA states the current qualifying turnover ceiling is EGP 20 million and that the simplified request is electronic. citeturn381155search2
-- Confirm how Velora's platform commission and seller-paid services are treated for turnover/tax purposes before implementation.
-
-#### 158.7 STEP 4 — COMMERCIAL REGISTRY / CHAMBER
-
-- Apply through the current digital route where the selected establishment path permits it.
-- Provide the exact chamber/practice certificate required by the selected activity, if applicable.
-- Retain the digital commercial-register evidence as canonical legal-identity evidence.
-- ITDA confirms online commercial-registry services and individual-establishment registration subject to the service conditions. citeturn381155search9turn381155search10
-
-#### 158.8 STEP 5 — PSP / BANKING / SETTLEMENT ROLE
-
-- Only after the operator/tax/activity identity is established, select the PSP/acquirer and complete KYC/KYB using the real merchant identity.
-- Preserve the distinction between the seller's goods sale and Velora's platform services.
-- Lock the actual funds flow before activating production payments.
-
-#### 158.9 STEP 6 — LEGAL + SELLER CONTRACT ACTIVATION
-
-- Finalize Terms, Privacy, Returns/COD, Seller Agreement, Subscription Terms, Advertising Terms, Gift Card/Promotion Terms after the actual legal/tax/payment model is known.
-- Seller agreement must make the seller's role operationally real: seller identity, product compliance, consumer-facing sale documentation, returns/refunds, fulfillment, complaints, and evidence.
-
-#### 158.10 STEP 7 — ENGINEERING CONTRACT ALIGNMENT
-
-After classification is approved:
-- Configure invoice/e-receipt responsibility without inventing tax data.
-- Configure platform-revenue/commission accounting fields.
-- Validate seller/customer disclosures.
-- Run negative-path and Browser Gate verification.
-- Deploy only to Restore-Test/Preview during audit; Production remains frozen.
-
-#### 158.11 STEP 8 — PRODUCTION HUMAN GATES
-
-Production commercial activation requires separate human gates for:
-- legal publication;
-- tax/accounting sign-off;
-- PSP merchant approval;
-- applicable product/regulatory evidence;
-- backup/rollback and infrastructure readiness;
-- Browser/Provider evidence;
-- owner release approval.
-
-#### 158.12 MESSAGE 39 DECISION
-
-- Owner operating model = CLOSED-DONE.
-- Digital-first government-service availability = VERIFIED.
-- Step 1 registration profile = STARTED / NOT SUBMITTED.
-- Exact government activity classification = OPEN.
-- Exact legal form = OPEN pending activity/path confirmation.
-- Exact online address/evidence requirements = OPEN pending chosen workflow.
-- Tax registration = PENDING Step 1 classification.
-- Simplified-tax eligibility = CANDIDATE / NOT YET CLASSIFIED.
-- Commercial registry = PENDING prerequisite resolution.
-- PSP = PENDING legal/tax identity.
-- Legal publication = OPEN.
-- Production = FROZEN.
-
-### 159. MESSAGE 40 — CHAT TRANSFER / CONTINUITY MARKER (2026-09-29)
+### 159. MESSAGE 40 — TEMPORARY LEGAL REGISTRATION PAUSE / RESUME AFTER ID RENEWAL (2026-09-29)
 
 CLASSIFICATION:
-- TRANSFER MARKER = CLOSED-DONE.
-- CURRENT MASTER / BRANCH STATE IS THE AUTHORITATIVE CONTINUATION POINT FOR THE NEXT CHAT.
+- LEGAL ENGINEERING COVERAGE = PRESERVED.
+- EXTERNAL REGISTRATION / IDENTITY-DEPENDENT ACTIONS = TEMPORARILY DEFERRED.
+- ACTIVE DEVELOPMENT LANE = CONTINUE NON-LEGAL OPEN ITEMS.
+- NO LEGAL WORKSTREAM IS DELETED OR CLOSED BY THIS PAUSE.
+- NO PRODUCTION CHANGE.
 
-CURRENT BRANCH:
-- audit/runtime-parity-2026-09-28
+#### 159.1 OWNER-REQUESTED TEMPORARY PAUSE
 
-CURRENT MASTER HEAD:
-- d61e10d728bc1bbc46453e0eced55884a4e66f32
-- Message: Begin digital-first registration execution sequence
+Owner confirmed that the current national ID is not ready for the identity-dependent registration process and will be renewed tomorrow. The physical renewal may take approximately a week. During this waiting period, the project should NOT stall.
 
-CONTINUATION RULE:
-- The next chat must read this Master as the one source of truth and continue from Message 39 / Step 1 registration preparation.
-- Do not restart the project, re-audit closed work without a reason, create a parallel plan, or change the operating model already confirmed by the owner.
-- First active task in the new chat: resolve the exact official activity classification + legal-form path + online address/document requirements using current official Egyptian sources, then proceed one gate at a time.
-- Production remains frozen.
+Therefore:
+- Pause only actions that require the renewed identity/card, official identity verification, binding government submission, payment-provider KYC/KYB, or final external legal/tax classification.
+- Continue engineering, research, implementation, QA, source/DB/ACL/negative-path verification, and documentation for every unrelated OPEN track.
+- Preserve the full legal registration plan and all evidence gathered so far.
+- Resume the legal registration lane when the renewed identity is available.
+
+#### 159.2 LEGAL WORKSTREAM PARKING LIST — CARRY FORWARD, DO NOT REDO
+
+PARKED, NOT CLOSED:
+- exact legal-form selection for Ahmed as natural person;
+- exact official activity classification/code for an online marketplace/platform;
+- exact online address/evidence route;
+- exact required document list and fees for the selected workflow;
+- tax registration path;
+- Law 6/2025 simplified-tax eligibility and application;
+- VAT classification;
+- invoice/e-receipt responsibility for Velora's own platform services;
+- PSP/acquirer merchant onboarding and funds-flow characterization;
+- final seller-of-record/MoR contractual confirmation;
+- counsel/accountant sign-off;
+- final legal publication;
+- applicable EDA/product regulatory evidence;
+- privacy/data-governance final classification and any registrations/permissions;
+- final Returns/COD/Promotion/Gift Card/Subscription/Fraud/Complaint policies;
+- Production commercial activation.
+
+#### 159.3 ACTIVE WORK DURING THE WAIT
+
+Priority is now to resume the Master in its next substantive OPEN implementation lane rather than waiting for paperwork.
+
+Potential active tracks, to be selected by Master order after reconciliation:
+- Customer Beauty AI implementation, if the observed gap and contract boundary justify it;
+- Beauty Passport future dimensions research/controlled implementation only where evidence justifies it;
+- Browser-parity gates when the browser tooling/wallet is available;
+- Customer-facing recommendation UX / current runtime parity gaps;
+- Seller subscription runtime/provider/browser work where the required provider contract exists;
+- Ads provider/settlement/reporting gaps where evidence exists;
+- Product detail canonical beauty-metadata contract audit;
+- financial reconciliation / payout provider evidence;
+- notifications browser delivery;
+- performance optimization queue based on measured bottlenecks;
+- production backup/restore/rollback/capacity readiness;
+- security/auth configuration items that do not require Production activation.
+
+RULE:
+- Do not choose a track merely because it is interesting; select the next OPEN item from the Master, reconcile its current source/DB state first, then execute the smallest justified change.
+
+#### 159.4 AI EXECUTION GUARDRAIL DURING PAUSE
+
+Customer Beauty AI remains NOT IMPLEMENTED.
+
+If AI becomes the selected next lane:
+- Research existing Velora contracts and current OpenAI/API guidance first.
+- Keep the canonical deterministic recommendation/routine engines authoritative.
+- AI may interpret customer intent into strict structured candidate data and/or explain already-established deterministic evidence.
+- AI may NOT own catalog truth, inventory, pricing, seller governance, refunds, payments, commissions, payouts, gift-card balances, order mutations, or irreversible governance.
+- AI output must be validated against canonical contracts before affecting any durable state.
+- AI failure must fall back safely to the current deterministic path.
+- Do not add an OpenAI/LLM dependency merely to say "AI exists"; implement only after a real observed product gap and contract are established.
+
+#### 159.5 NEXT-CHAT EXECUTION RULE
+
+The next ChatGPT session must treat this Master as the single source of truth and start with:
+1. Verify branch HEAD and current Master state.
+2. Confirm Message 40 legal pause is a temporary scheduling decision, not a deletion of the legal track.
+3. Reconcile all carried OPEN/BLOCKED/PENDING/NOT EVIDENCED items.
+4. Select the next ordered non-legal OPEN implementation track.
+5. Research/reuse first.
+6. Execute source/DB/ACL/negative-path work as justified.
+7. Deploy Preview only when code changed.
+8. Browser Gate only when tooling is available.
+9. Update this same Master with exact evidence and classification.
+10. When renewed ID is available, resume the parked legal registration lane from Step 1; do not restart research.
+
+#### 159.6 MESSAGE 40 DECISION
+
+STATUS:
+- Legal engineering coverage = PRESERVED.
+- Legal registration / identity-dependent execution = TEMPORARILY DEFERRED.
+- Next active lane = NON-LEGAL OPEN ITEM selected from Master order.
+- Customer Beauty AI = OPEN / NOT IMPLEMENTED; eligible for execution only after contract/research gate.
+- No legal item is lost.
+- No Production change.
