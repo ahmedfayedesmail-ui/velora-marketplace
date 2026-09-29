@@ -11875,3 +11875,88 @@ STATUS:
 - Customer Beauty AI = OPEN / NOT IMPLEMENTED; eligible for execution only after contract/research gate.
 - No legal item is lost.
 - No Production change.
+
+### 160. MESSAGE 41 — LEGAL TRACK PAUSED / TECHNICAL EXECUTION PRIORITY (2026-09-29)
+
+CLASSIFICATION:
+- LEGAL EXTERNAL-REGISTRATION WORKSTREAM = PAUSED / CARRY-FORWARD.
+- TECHNICAL PRODUCT EXECUTION = ACTIVE.
+- PAUSE REASON = OWNER'S NATIONAL-ID RENEWAL / IDENTITY DOCUMENT UPDATE IS PENDING AND IS EXPECTED TO TAKE APPROXIMATELY ONE WEEK; DO NOT REQUIRE REGISTRATION SUBMISSION DURING THIS WINDOW.
+- THIS PAUSE DOES NOT DELETE, CLOSE, OR WEAKEN ANY LEGAL GATES.
+- NO PRODUCTION CHANGE.
+
+#### 160.1 LEGAL WORKSTREAM THAT IS PAUSED
+
+Keep all of the following tracked exactly as OPEN/PENDING/BLOCKED; do not mark them done and do not discard them:
+- exact legal-form selection;
+- exact official activity classification/code;
+- accepted online-only address/evidence route;
+- taxpayer registration;
+- Law 6/2025 simplified-tax eligibility/classification;
+- VAT classification;
+- invoice/e-receipt responsibility for Velora's own platform services;
+- PSP/settlement legal characterization;
+- final legal publication;
+- seller agreement / returns / COD / promotion / gift-card / subscription policy sign-off;
+- privacy/data-governance classification;
+- EDA/product-regulatory evidence for applicable cosmetics;
+- counsel/accountant sign-off;
+- Production legal activation.
+
+Nothing in this pause authorizes Production transactions or publication of unapproved legal documents.
+
+#### 160.2 TECHNICAL WORK IS NOT PAUSED
+
+During the ID-renewal window, continue the remaining technical/product work that does not depend on the owner's real-world registration credentials.
+
+Priority candidate:
+1. CUSTOMER BEAUTY AI — move from roadmap-only status into explicit implementation preparation.
+2. Continue other open technical/runtime contracts and evidence gaps in Master order where they are independent of legal registration.
+3. Continue source/DB/ACL/negative-path work and controlled Restore-Test execution.
+4. Continue preserving Browser/Preview evidence requirements; do not claim Browser PASS without Browser evidence.
+5. Keep Production frozen.
+
+#### 160.3 CUSTOMER BEAUTY AI — NEXT TECHNICAL PACKAGE
+
+CURRENT STATE:
+- Customer Beauty AI = OPEN / NOT DONE.
+- No customer-facing LLM runtime exists in current audited source.
+- Existing AI-named database/governance functions are governance tooling, not a customer Beauty LLM.
+- Current Routine and Recommendation engines remain deterministic and authoritative.
+
+NEXT PACKAGE SHALL NOT:
+- replace the existing Routine/Recommendation engine;
+- create an AI-owned catalog, inventory, price, payment, order, refund, commission, payout, gift-card, seller-governance, or irreversible-state engine;
+- bypass existing Auth/RLS/approval/stock/budget/currency/business-rule boundaries;
+- invent product facts, prices, ingredients, availability, medical claims, or canonical reason codes;
+- introduce a model/provider merely for appearance without a real product need.
+
+NEXT PACKAGE SHOULD:
+- lock the Customer Beauty AI product contract;
+- define structured candidate-intent schema;
+- define privacy/data-minimization boundary;
+- define safety/medical-claim boundary;
+- define provider abstraction and credential boundary;
+- define fallback to deterministic Routine/Recommendation;
+- define observability, audit, request identity, bounded retry, timeout, cost/latency budget;
+- define canonical reason-code/evidence reuse for any AI explanation;
+- inspect current UI entry point and determine the smallest surface needed (no assumption that a chat UI is required);
+- implement only after the above contract shows a real gap and the smallest justified change.
+
+#### 160.4 NEXT-CHAT EXECUTION INSTRUCTION
+
+When the next chat starts:
+- Treat Message 41 as the active execution priority.
+- Do NOT continue the legal-registration submission flow until the owner confirms the new ID is ready, unless only research/preparation is needed and no owner credentials are required.
+- Start with Customer Beauty AI contract/source audit, not with a rewrite and not with a generic AI chatbot.
+- Then take the next non-legal OPEN item from the Master in ordered evidence-first fashion.
+- Every completed item must update the same Master; no parallel source of truth.
+
+#### 160.5 MESSAGE 41 DECISION
+
+- Legal registration execution = PAUSED / CARRY-FORWARD.
+- Legal evidence and blockers = PRESERVED.
+- Technical execution = ACTIVE.
+- Customer Beauty AI = FIRST CANDIDATE NEXT WORK PACKAGE.
+- Full Velora vision = PRESERVED.
+- Production = FROZEN.
