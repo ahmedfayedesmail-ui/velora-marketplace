@@ -184,7 +184,7 @@ jobs:
               page.evaluate("(platform) => window.switchPlatform(platform)", platform)
               page.wait_for_function(
                   "(platform) => !!document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform') && document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform').classList.contains('active')",
-                  platform,
+                  arg=platform,
                   timeout=15000
               )
 
@@ -200,7 +200,7 @@ jobs:
               page.evaluate(close_fn)
               page.wait_for_function(
                   "(platform) => { const el=document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform'); return !!el && !el.classList.contains('active'); }",
-                  platform,
+                  arg=platform,
                   timeout=10000
               )
               role["closed_without_refresh"] = not platform_node.locator("xpath=..").count() if False else True
@@ -209,7 +209,7 @@ jobs:
               page.evaluate("(platform) => window.switchPlatform(platform)", platform)
               page.wait_for_function(
                   "(platform) => { const el=document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform'); return !!el && el.classList.contains('active'); }",
-                  platform,
+                  arg=platform,
                   timeout=15000
               )
 
@@ -221,7 +221,7 @@ jobs:
               page.evaluate("(platform) => window.switchPlatform(platform)", platform)
               page.wait_for_function(
                   "(platform) => location.hash === '#' + platform && document.getElementById(platform === 'seller' ? 'sellerPlatform' : 'adminPlatform')?.classList.contains('active')",
-                  platform,
+                  arg=platform,
                   timeout=15000
               )
 
