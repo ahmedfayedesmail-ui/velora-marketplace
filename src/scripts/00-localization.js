@@ -3467,7 +3467,7 @@ function openAuthModal(mode = 'login') {
     const content = document.getElementById('authFormContent');
     if (!modal || !content) return;
 
-    title.textContent = mode === 'login' ? 'Login' : 'Create Account';
+    title.textContent = mode === 'login' ? 'Login' : (mode === 'register' ? 'Create Account' : (mode === 'forgot' ? 'Reset Password' : 'Choose a New Password'));
 
     if (mode === 'login') {
         content.innerHTML = `
@@ -3481,11 +3481,41 @@ function openAuthModal(mode = 'login') {
                     <input type="password" class="form-input" id="loginPassword" required placeholder="••••••••">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Login</button>
-                <div style="text-align: center; margin-top: 1rem;">
+                <div style="text-align: center; margin-top: 1rem; display:grid; gap:.55rem;">
+                    <a href="#" onclick="openAuthModal('forgot'); return false;" style="color: var(--primary);">
+                        Forgot your password?
+                    </a>
                     <a href="#" onclick="openAuthModal('register'); return false;" style="color: var(--primary);">
                         Don't have an account? Create one
                     </a>
                 </div>
+            </form>
+        `;
+    } else if (mode === 'forgot') {
+        content.innerHTML = `
+            <form class="auth-form" onsubmit="handlePasswordResetRequest(event)">
+                <div class="form-group">
+                    <label>\${veloraCheckoutText('Email')}</label>
+                    <input type="email" class="form-input" id="resetEmail" required autocomplete="email" placeholder="example@email.com">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Send Reset Email</button>
+                <div style="text-align:center;margin-top:1rem;">
+                    <a href="#" onclick="openAuthModal('login'); return false;" style="color:var(--primary);">Back to Login</a>
+                </div>
+            </form>
+        `;
+    } else if (mode === 'recovery') {
+        content.innerHTML = `
+            <form class="auth-form" onsubmit="handlePasswordUpdate(event)">
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" class="form-input" id="recoveryPassword" required minlength="6" autocomplete="new-password" placeholder="At least 6 characters">
+                </div>
+                <div class="form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" class="form-input" id="recoveryPasswordConfirm" required minlength="6" autocomplete="new-password" placeholder="Repeat your password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Update Password</button>
             </form>
         `;
     } else {
@@ -3552,6 +3582,55 @@ async function handleLogin(event) {
     } catch (error) {
         console.error('Velora canonical login:', error);
         showToast('❌ ' + String(error?.message || 'Could not sign in'), 'error');
+    }
+}
+
+async function handlePasswordResetRequest(event) {
+    event.preventDefault();
+    const email = document.getElementById('resetEmail')?.value?.trim().toLowerCase();
+    if (!email) return;
+    try {
+        const db = window.mahaSupabase;
+        if (!db?.auth?.resetPasswordForEmail) throw new Error('AUTH_RECOVERY_UNAVAILABLE');
+        const redirectTo = String(window.location?.origin || '') + String(window.location?.pathname || '');
+        const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+        closeModal('authModal');
+        showToast('📧 If an account exists for that email, a reset message has been sent.', 'success');
+    } catch (error) {
+        console.error('Velora password reset request:', error);
+        showToast('❌ Could not start password recovery. Please try again.', 'error');
+    }
+}
+
+async function handlePasswordUpdate(event) {
+    event.preventDefault();
+    const password = document.getElementById('recoveryPassword')?.value || '';
+    const confirmPassword = document.getElementById('recoveryPasswordConfirm')?.value || '';
+    if (password.length < 6) {
+        showToast('❌ Password must be at least 6 characters', 'error');
+        return;
+    }
+    if (password !== confirmPassword) {
+        showToast('❌ Passwords do not match', 'error');
+        return;
+    }
+    try {
+        const db = window.mahaSupabase;
+        if (!db?.auth?.updateUser) throw new Error('AUTH_RECOVERY_UNAVAILABLE');
+        const { error } = await db.auth.updateUser({ password });
+        if (error) throw error;
+        closeModal('authModal');
+        showToast('✅ Password updated successfully. Please sign in again.', 'success');
+        await db.auth.signOut();
+        STATE.user = null;
+        try { localStorage.removeItem(KEYS.USER); } catch (_) {}
+        updateAccountButton();
+        if (typeof updatePlatformSwitcher === 'function') updatePlatformSwitcher();
+        setTimeout(() => navigateTo('home'), 250);
+    } catch (error) {
+        console.error('Velora password update:', error);
+        showToast('❌ Could not update your password. The reset link may have expired.', 'error');
     }
 }
 
@@ -4111,6 +4190,8 @@ async function initializeSupabaseAuth() {
     }
 
     try {
+        const recoveryHint = /(?:^|&)type=recovery(?:&|$)/.test(String(window.location?.hash || ''));
+        registerAuthListenerOnce();
         const { data, error } = await window.mahaSupabase.auth.getSession();
 
         if (error) {
@@ -4198,7 +4279,7 @@ async function initializeSupabaseAuth() {
             updatePlatformSwitcher();
         }
 
-        registerAuthListenerOnce();
+        if (recoveryHint) setTimeout(() => openAuthModal('recovery'), 0);
 
     } catch (e) {
         console.error('❌ initializeSupabaseAuth failed:', e);
@@ -4217,6 +4298,11 @@ function registerAuthListenerOnce() {
     window.mahaSupabase.auth.onAuthStateChange((event, session) => {
         setTimeout(async () => {
             try {
+                if (event === 'PASSWORD_RECOVERY') {
+                    openAuthModal('recovery');
+                    return;
+                }
+
                 if (event === 'SIGNED_OUT') {
                     STATE.user = null;
                     try { localStorage.removeItem(KEYS.USER); } catch (e) {}
