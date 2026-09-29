@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 73854fb2cece0912fc50b34b1a28c61667b84466
+Current observed branch HEAD: 8b656d9f2bcb3ce8cd18014aa7354c5afa485b3e
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3172,3 +3172,42 @@ CARRY-FORWARD:
 - Full external provider settlement for the 92 EGP remainder remains unproven.
 - Coupon free_shipping contract mismatch remains a separate policy/control-surface item.
 - Production settlement and final Browser Gate remain open.
+
+
+### Continuation Coupon Release on Pre-Payment Order Cancellation — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB/ACTION-FLOW
+
+OBSERVED FACT:
+- velora_apply_coupon_to_order consumes a coupon usage slot by creating coupon_redemptions and incrementing coupons.used_count.
+- velora_cancel_order previously cancelled the order and reversed inventory/commission but did not release a coupon redemption for a cancelled pre-payment order.
+- This could incorrectly consume first-order/customer usage capacity after a cancellation.
+
+IMPLEMENTED:
+- Migration 20260929065000_release_coupon_on_order_cancellation.sql, final corrective commit 617cf2194dc616dbea87f25d0d71483b289537f9.
+- The existing cancellation flow now removes the matching coupon_redemptions row, decrements coupons.used_count with a floor of zero, and records coupon_released_on_order_cancellation in the existing audit trail.
+- No coupon status schema or second promotion engine was introduced.
+
+RESTORE-TEST VERIFICATION:
+- Temporary coupon fixture was created with used_count=1 plus a redemption attached to Order #74.
+- Canonical customer cancellation produced order/payment cancellation, coupon_used_count=0, redemption_count=0, and coupon release audit count=1.
+- The complete transaction was rolled back.
+- An initial verification failure referenced a stale v_coupon record in the return JSON; this was corrected before the successful migration application/test.
+
+POLICY NOTE:
+- Releasing usage on cancelled pre-payment orders matches established commerce behavior where an abandoned/cancelled order should not consume a limited redemption slot. citeturn181647search9turn181647search13
+
+### Continuation Promotion free_shipping Contract Classification — 2026-09-29
+
+CLASSIFICATION: HISTORICAL CONTRACT DATA GAP / WRITER SAFEGUARD CLOSED / FULL FEATURE SUPPORT OPEN
+
+OBSERVED FACT:
+- The current platform promotion writer accepts only percentage and fixed discounts and explicitly raises PROMOTION_TYPE_NOT_SUPPORTED for free_shipping.
+- The current best-promotion engine also ignores any other discount type.
+- Therefore no new free_shipping promotion can be created through the canonical Staff writer.
+- Historical Restore-Test schema/data may still contain a free_shipping-compatible value from earlier work, so the historical contract mismatch remains documented rather than silently deleted or reinterpreted.
+
+DECISION:
+- Do not invent a free-shipping discount semantics, shipping subsidy accounting model, or promotion stacking rule.
+- If business decides free_shipping is required, define whether it means store-rate waiver, platform subsidy, store-funded discount, or some combination before implementation.
+- Until then, percentage/fixed remain the only supported canonical promotion types.
