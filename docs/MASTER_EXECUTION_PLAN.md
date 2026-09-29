@@ -6463,3 +6463,109 @@ EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> STORE
 ### Carry-forward
 - Seller Browser behavior remains an aggregate-gate item.
 - Any future Seller change must preserve the canonical status/re-review/onboarding paths and must re-verify exact current HEAD before implementation.
+
+
+## 2026-09-29 — MESSAGE 6/24 EXECUTION / SELLER PROJECTION + PRODUCT RE-REVIEW + SUBSCRIPTIONS
+**CLASSIFICATION:** EXECUTED — Seller/Store projection, suspension synchronization, and Product re-review are CLOSED-DONE at Source/DB/Contract/Transactional evidence. Seller Subscription **foundation is CLOSED-DONE; policy/runtime/provider/browser items remain OPEN by design**.
+
+### Seller Profile / Store Projection
+- The live canonical Seller profile writer is `velora_update_seller_profile(...)`.
+- It locks the Seller and owned Store rows and updates the Seller profile fields plus explicitly supplied Store projection fields within the same database transaction.
+- The current live policy deliberately preserves Store `country_code`, `currency_code`, `language_code`, and status unless the canonical lifecycle logic requires a governed status transition.
+- Unique Store slug conflicts are rejected with `STORE_SLUG_ALREADY_EXISTS`; the conflict occurs inside the governed transaction and does not leave a persisted partial Seller/Store drift.
+- The later corrective profile policy remains in force: only explicitly edited Store fields are synchronized from Seller state, preventing stale legacy projection values from overwriting canonical Store data.
+- Restore-Test transactional verification was executed and rolled back:
+  - Seller editable profile fields and Store projection converged;
+  - material Seller edit moved Seller + Store to `pending` under the existing re-review policy;
+  - EG / EGP / en Store configuration was preserved;
+  - duplicate Store slug was rejected and the attempted conflicting update did not persist.
+- No new projection table, synchronization worker, or duplicate profile engine was introduced.
+
+### Seller Suspension / Store / Marketplace Visibility
+- `velora_set_seller_status(uuid,text,text)` is Staff-only.
+- Canonical status mapping synchronizes Seller and owned Store: `approved`, `pending`, `rejected`, `suspended` through the existing status contract.
+- Restore-Test transactional verification: Staff suspension changed Seller + Store to `suspended`; Staff restore changed both back to `approved`. The entire probe was rolled back.
+- Existing marketplace visibility continues to require approved Store and approved Product paths; no alternate suspension/visibility engine was introduced.
+- Browser evidence remains part of the aggregate Browser Gate.
+
+### Seller Product Re-Review
+- Canonical short product mutation: `velora_seller_update_product`.
+- Canonical full product mutation: `velora_seller_update_product_full`.
+- Price/stock are treated as operational offer changes and preserve the current Product lifecycle.
+- Material content changes include the currently implemented fields in the full writer: name, category, brand, subcategory, original price, description, image, emoji, and tags.
+- Translation is independently governed by `velora_upsert_product_translation`; a changed translation on an approved/rejected product moves the Product to `pending` for re-review.
+- Product re-review notification uses the existing `private.velora_notify_product_status()` path and emits `product_re_review_required`; Staff approval emits `product_approved`.
+- Restore-Test transactional verification was executed and rolled back:
+  - price-only update -> Product remained `approved`;
+  - material name edit -> Product became `pending` and `product_re_review_required` count increased;
+  - Staff approval -> Product became `approved` and `product_approved` count increased;
+  - Arabic translation change -> Product became `pending` with `review_required=true`.
+- An initial test assertion incorrectly checked only the latest notification row; this was corrected to compare notification counts, after which the approval notification path passed. This is recorded as harness correction, not a Product notification defect.
+- No second moderation/review engine was introduced.
+- The conservative material-change policy remains unchanged; future field broadening requires explicit contract decision.
+
+### Seller Subscriptions — Foundation
+- Restore-Test currently has **0 rows** in `seller_subscriptions` and **4 active plans**: Free, Basic, Pro, Enterprise.
+- The direct Staff subscription write policy was removed by the existing `20260926214000_close_direct_subscription_writes.sql` contract; current lifecycle mutation is intended to flow through canonical purchase/payment/renewal/sync functions.
+- Current canonical functions include:
+  - `velora_start_subscription_purchase`
+  - `velora_create_subscription_payment_attempt_internal`
+  - `velora_mark_subscription_payment_initialization_failed`
+  - `velora_record_renewal_result`
+  - `velora_sync_subscription_state`
+  - `velora_resolve_subscription_price`
+- `velora_sync_subscription_state` is service-role executable only at the function-privilege layer, while seller-facing purchase entry is authenticated and server-governed.
+- Existing sync logic supports the current coded state transitions:
+  `pending` + captured payment -> `active`; pending expiry without capture -> `cancelled`; active expiry without capture/renewal -> `past_due`; past_due captured -> `active`; past_due grace expiry -> `expired`.
+- Meaningful subscription state changes generate `seller_subscription_state_changed`; no-op sync does not generate that transition audit.
+- Existing renewal/notification job side effects remain attached to the canonical sync function.
+- Seller subscription UI currently disables plan changes for active paid subscriptions and explicitly states that upgrade/change flow requires a governed replacement policy.
+
+### Seller Subscription — STILL OPEN / INTENTIONALLY NOT INVENTED
+The following remain OPEN and must not be silently inferred:
+- cancellation policy;
+- upgrade policy;
+- downgrade policy;
+- replacement/switch policy;
+- proration rules;
+- refund policy;
+- entitlement matrix;
+- runtime entitlement enforcement coverage;
+- provider payment verification;
+- provider settlement evidence;
+- Browser evidence.
+No new subscription policy, status enum, entitlement rule, refund rule, or provider contract was created by Message 6.
+
+### Evidence / Release Boundary
+- L1 Source: current projection, seller status, Product re-review/translation, and subscription control-plane source reviewed.
+- L2 DB: Seller/Store/Product/Translation/Subscription/Plan objects and live function inventory verified in Restore-Test `arlaxqmhtvjwjbjinjfw`.
+- L3 Contract / ACL / RLS: Staff-only Seller/Product status paths, seller-owned profile updates, translation ownership, closed direct subscription writes, and service-role subscription synchronization verified.
+- L4 Negative / Transactional: projection conflict, suspension sync, price-only lifecycle preservation, material Product re-review, Product approval notification, and translation re-review all exercised in rollback-safe tests.
+- L5 CI: no new CI requirement introduced by this Message.
+- L6 Preview: exact-commit Preview remains separate from the current branch-head evidence gate.
+- L7 Browser: NOT CLAIMED; Seller re-entry and Product UI flows remain in the aggregate Browser Gate.
+- L8 Provider: Subscription payment/settlement not claimed.
+- L9 Production: untouched/frozen.
+
+### Action Flow
+Seller/Product lifecycle continues through:
+EVENT -> AUTH/ROLE -> GUARD -> VALIDATION -> CANONICAL STATE TRANSITION -> AUTOMATIC STORE/NOTIFICATION/AUDIT SIDE EFFECTS -> RETRY/IDEMPOTENCY/DEDUPE -> NEXT REVIEW/PAYMENT EVENT -> RECOVERY/ESCALATION only for governed exceptions.
+
+Subscription lifecycle continues through:
+EVENT -> AUTH/ROLE -> legal/business guard -> price/entitlement validation -> canonical subscription/payment state -> automatic renewal/expiry/notification effects -> audit -> retry/idempotency -> next lifecycle event.
+Policy decisions remain a human governance gate before implementation.
+
+### Non-Negotiables — Re-confirmed
+- No Cart rewrite.
+- No new MutationObserver.
+- No arbitrary click-listener workaround.
+- No speculative schema or subscription-policy invention.
+- No Production mutation.
+- No V1 Beauty Passport resurrection.
+- No duplicate Product moderation or subscription state engine.
+- No Browser PASS inferred from SQL/source.
+- No Provider/Production PASS inferred from Restore-Test.
+
+### Carry-forward
+- Seller/Store projection and Product re-review remain canonical and should be preserved.
+- Subscription policy matrix is the next genuine product/business decision boundary; implementation should not proceed past the existing foundation until those policies are explicitly ratified.
