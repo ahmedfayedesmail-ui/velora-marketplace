@@ -1,0 +1,46 @@
+name: Velora Platform Re-entry Contract Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/12-localization.js"
+      - "src/scripts/56-s2d-admin.js"
+      - "src/scripts/63-platform-router.js"
+      - "tests/platform-reentry-contract.test.mjs"
+      - "package.json"
+      - ".github/workflows/velora-platform-reentry-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-platform-reentry-contract
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Platform Re-entry Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Node version
+        run: node --version
+
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/scripts/12-localization.js
+          node --check src/scripts/56-s2d-admin.js
+          node --check src/scripts/63-platform-router.js
+
+      - name: Platform re-entry contract tests
+        run: npm run test:platform-reentry
+
+      - name: Static audit
+        run: python3 tools/static_audit.py
