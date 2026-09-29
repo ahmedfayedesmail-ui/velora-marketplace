@@ -10705,3 +10705,130 @@ L9 PRODUCTION:
 - Leaked-password protection remains OPEN pending plan/configuration.
 - Exact current-HEAD Preview and aggregate Browser Gate remain OPEN.
 - Production Paymob and legal publication remain OPEN.
+## 2026-09-29 — MESSAGE 31/24 EXECUTION / LEGAL LAUNCH GATE RECONCILIATION
+
+CLASSIFICATION:
+- Message 31 is a cross-cutting legal gate, not a new feature build.
+- Current legal documents, checkout legal gate, Returns policy, promotions/gift cards, seller Ads, tax/invoicing dependencies, and privacy obligations were reconciled against current Egypt-facing official sources.
+- No legal document was published and no Production/legal-state mutation was performed.
+
+### 122. LEGAL LAUNCH GATE — REQUIRED DOMAINS
+
+1. CONSUMER PROTECTION / REMOTE COMMERCE
+- CPA current guidance confirms a general 14-day exchange/return right from receipt, subject to exceptions, and a separate 30-day defective-goods remedy.
+- Velora Terms must not contract below statutory rights.
+- Beauty/cosmetics exceptions must be mapped to the actual statutory exceptions; no blanket all-beauty non-returnable rule.
+- Delivery, cancellation, return costs, defective goods, complaints, and seller responsibilities must be explicit.
+
+2. DIGITAL CONTRACT / CHECKOUT
+- Customer must receive material pre-contract information and transaction terms appropriate to the remote sale.
+- Checkout must remain fail-closed until the required Terms/Privacy documents are actually published and accepted.
+- Legal acceptance must remain auditable by document/version/hash/context.
+
+3. TAX / INVOICING / E-RECEIPT
+- Egyptian Tax Authority currently maintains dedicated e-invoice and e-receipt systems and publishes taxpayer integration/obligation guidance.
+- ETA also maintains a dedicated e-commerce tax platform for non-resident electronic-commerce platforms.
+- Exact Velora obligations cannot be finalized until the legal entity, tax registration status, seller-vs-platform supply role, and merchant-of-record/invoice responsibility are confirmed by tax counsel/accounting.
+- Seller commissions, advertising revenue, refunds, gift cards, and payment-provider fees must be mapped to the final tax/accounting model.
+
+4. PERSONAL DATA / PRIVACY
+- The legal pack already tracks Egypt Personal Data Protection Law No. 151/2020 and Executive Regulations as a mandatory pre-publication area.
+- Final Privacy Policy must identify the actual legal entity and the applicable controller/processor/data-user roles for each material data flow.
+- Required retention, data-subject rights, processor relationships, cross-border access/transfers, security/incident handling, marketing/tracking legal basis, and any DPO/notification/licensing obligations must be counsel-confirmed before publication.
+- Because the public official PDPA source could not be independently retrieved in this pass, these privacy-specific requirements remain a legal-review checklist, not a claim that each requirement has already been verified against the regulator's current text.
+
+5. SELLER / MARKETPLACE LEGAL MODEL
+- Seller Terms must establish seller identity/compliance obligations, product legality/authenticity, consumer-rights cooperation, tax/invoice responsibility, returns/refunds, advertising conduct, suspension/termination, payout conditions, and dispute/escalation rules.
+- Marketplace/operator and merchant-of-record roles must be explicit before final Terms and tax integration are approved.
+
+6. PAYMENTS / REFUNDS / CHARGEBACKS
+- Paymob sandbox proof does not establish Production legal/provider readiness.
+- Final customer and seller terms must explain payment methods, refund routes, chargebacks/disputes, COD refund handling, and provider-related exceptions without contracting away statutory rights.
+
+7. PROMOTIONS / ADVERTISING
+- Discount claims must be truthful and supported by the applicable price history/approval requirements.
+- Seller advertising terms must disclose package price, duration, placement, tax treatment, refund/credit rules, and reporting basis.
+- Advertising accounting/tax recognition remains OPEN until legal entity and tax model are confirmed.
+
+8. GIFT CARDS
+- Issuance is Owner-controlled and current persistent gift-card population is zero.
+- Expiry, refundability, cash redemption, transferability, breakage, promotional issuance, tax recognition, and underlying-purchase consumer rights remain explicit Legal/Tax/Finance decisions.
+
+### 123. CURRENT LEGAL DOCUMENT STATE — RELEASE BLOCK
+
+- Restore-Test legal_documents = 4.
+- All 4 are QA versions 0.0-QA-2026-09-27 and retired.
+- 2 Terms of Service: Arabic + English, retired.
+- 2 Privacy Policy: Arabic + English, retired.
+- No currently published customer Terms of Service.
+- No currently published customer Privacy Policy.
+- Checkout therefore remains intentionally fail-closed.
+
+### 124. LEGAL PUBLICATION CONTROL — ACTION FLOW
+
+EVENT
+-> counsel/business completes final legal package
+
+GUARD / AUTHORIZATION
+-> actual legal entity identified
+-> tax/MoR role identified
+-> counsel review complete
+-> Owner approval
+
+VALIDATION
+-> Arabic canonical text
+-> English counterpart
+-> consumer-protection mapping
+-> returns/refunds mapping
+-> privacy/PDPL mapping
+-> tax/invoice mapping
+-> seller obligations
+-> payment/chargeback mapping
+-> promotion/advertising mapping
+
+STATE TRANSITION
+-> draft -> approved -> published
+
+AUTOMATIC SIDE EFFECT
+-> legal version/hash/audit
+-> checkout acceptance gate uses the published version
+
+NEXT EVENT
+-> customer checkout / seller operation under published contract
+
+RETRY / DEDUPE
+-> document version/hash and acceptance identity
+
+HUMAN EXCEPTION
+-> counsel disagreement
+-> regulatory interpretation
+-> tax classification
+-> privacy classification
+-> owner/legal governance decision
+
+### 125. MESSAGE 31 DECISION
+
+STATUS:
+- Legal architecture = CLOSED-DONE at current engineering scope.
+- Legal publication = OPEN / COUNSEL + OWNER GATED.
+- Consumer-protection baseline = VERIFIED against current CPA guidance.
+- Tax/e-invoice/e-receipt obligation mapping = OPEN pending legal entity/MoR/tax classification.
+- Privacy/PDPL final compliance = OPEN pending authoritative legal review and entity/data-flow mapping.
+- Returns/refunds policy = OPEN.
+- Promotions/advertising legal economics = OPEN.
+- Gift-card policy = OPEN.
+- No legal document was published.
+- No Production change.
+- No code/schema change justified.
+
+### 126. RELEASE SAFETY RULE
+
+Velora must NOT be represented as legally launch-ready merely because legal tables, RPCs, Terms drafts, or checkout gates exist.
+Legal launch readiness requires counsel-reviewed and Owner-approved documents plus the corresponding operational contracts, tax/invoice model, privacy mapping, consumer-protection implementation, and evidence that the published terms are actually enforced at checkout.
+
+### 127. SOURCE BOUNDARY
+
+- Egyptian Consumer Protection Agency current FAQ/guidance supports the 14-day general return right and 30-day defective-goods remedy. citeturn0search7turn0search14
+- Egyptian Tax Authority currently publishes e-invoice, e-receipt, and e-commerce tax-platform guidance. citeturn0search1turn0search4turn0search9
+- ETA's current published notices show that e-receipt obligations continue to be rolled out through named mandatory phases; Velora must verify whether its actual legal entity/tax profile is within an applicable obligation. citeturn0search11turn0search13
+- Privacy-specific statutory details are intentionally not asserted beyond the existing legal-pack checklist because the authoritative regulator source was not retrievable in this pass.
