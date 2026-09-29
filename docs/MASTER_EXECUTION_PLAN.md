@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 574020f9e55eb35b150bc7649d5565103ebea0ac
+Current observed branch HEAD: 8d360000a23310239671d1c3a45e10d57a6fcb02
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3252,3 +3252,30 @@ DECISION:
 - Do not start per-item Browser Gates.
 - Keep the prepared final aggregate Browser Gate as the single L7 verification pass after the remaining source/DB work is frozen.
 - Exact Preview URL + SHA are now available for that final gate.
+
+
+### Continuation Seller Advertising Control Surface — 2026-09-29
+
+CLASSIFICATION: CLOSED-DONE AT SOURCE/DB UI CONTRACT / LEGAL + PROVIDER SETTLEMENT + BROWSER EVIDENCE OPEN
+
+OBSERVED FACT:
+- Seller ad checkout context is canonical and currently returns three active fixed packages (99/199/499 EGP), five approved products, no active campaigns, and legal_ready=false in Restore-Test.
+- The existing seller Command Center in src/scripts/35-seller.js already owns subscription and payout controls.
+- No duplicate Seller Ads engine existed; the missing piece was a user-facing control surface over the existing ad checkout contract.
+
+IMPLEMENTED:
+- src/scripts/35-seller.js now includes Seller Advertising inside the existing Seller Command Center.
+- It reads velora_get_seller_ad_checkout_context, lists canonical packages/products/campaigns, and blocks checkout until required seller legal documents are published.
+- When legal is ready and the Seller explicitly accepts the displayed terms, the UI records legal acceptance through velora_accept_legal_document with explicit_checkbox and delegates checkout to the existing velora-seller-ad-paymob-checkout-restore-test Edge Function.
+- The frontend never computes ad eligibility, campaign price, payment amount, or activation state.
+- Existing server-side idempotency, Paymob Egypt-only routing, provider correlation, recovery, campaign sync, and audit remain authoritative.
+- Source parser check for src/scripts/35-seller.js passed after the change.
+
+EDGE FUNCTION HARDENING:
+- velora-seller-ad-paymob-checkout-restore-test was corrected in commit 03117a9f9861e8fae889cfc2d97c208e46a0c962 so exception-path recovery no longer references try-block variables outside scope.
+- Restore-Test deployment v5 is ACTIVE with verify_jwt=true.
+
+CURRENT DELIVERY:
+- Current branch HEAD is 8d360000a23310239671d1c3a45e10d57a6fcb02.
+- A matching Vercel Preview was created as dpl_Fww4HoXgeneeDP6dPJwh3Cw4T5Rz and was BUILDING at the last check.
+- Browser Gate remains intentionally deferred to the single aggregate pass.
