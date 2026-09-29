@@ -217,7 +217,11 @@ def open_account(page):
 
 def ui_logout(page):
     page.once("dialog", lambda dialog: dialog.accept())
-    page.locator("#accountContent button", has_text="Logout").click()
+    logout = page.locator("#accountContent button", has_text="Logout")
+    if logout.count() == 0 or not logout.first.is_visible():
+        open_account(page)
+        logout = page.locator("#accountContent button", has_text="Logout")
+    logout.click()
     page.wait_for_timeout(900)
 
 
