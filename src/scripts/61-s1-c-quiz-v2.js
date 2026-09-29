@@ -383,6 +383,11 @@
         + '</div></div>'
       : '';
 
+    const previousClarificationStep = state.ai.mode === 'clarify'
+      ? nextMissingStep(state.step, -1)
+      : state.step - 1;
+    const canGoBack = previousClarificationStep >= 0;
+
     body.innerHTML = naturalSurface
       + clarificationBanner
       + '<h3 class="velora-quiz-question">'+escapeHtml(t(q.ar, q.en))+'</h3>'
@@ -390,7 +395,7 @@
       + '<div class="velora-quiz-options">'+options+'</div>'
       + (errorMessage ? '<div class="velora-quiz-error" role="alert">'+escapeHtml(errorMessage)+'</div>' : '')
       + '<div class="velora-quiz-footer">'
-      + '<button type="button" class="btn btn-outline" id="veloraQuizBack" '+(state.step===0?'disabled':'')+'>'+escapeHtml(t('رجوع','Back'))+'</button>'
+      + '<button type="button" class="btn btn-outline" id="veloraQuizBack" '+(!canGoBack?'disabled':'')+'>'+escapeHtml(t('رجوع','Back'))+'</button>'
       + '<button type="button" class="btn btn-primary" id="veloraQuizNext" '+(selectedValue()?'':'disabled')+'>'+escapeHtml(state.ai.mode === 'clarify'
         ? (nextMissingStep(state.step, 1) === -1 ? t('احفظي واعملي روتينك','Save & build routine') : t('التالي','Next'))
         : (state.step===QUESTIONS.length-1 ? t('احفظي واعملي روتينك','Save & build routine') : t('التالي','Next')))+'</button>'
