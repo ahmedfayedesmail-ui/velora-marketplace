@@ -12274,3 +12274,74 @@ Next action after current Master update:
 4. Browser-verify the Customer Beauty AI flow
 5. only then classify runtime behavior
 6. move to the next non-legal OPEN item while preserving all legal carry-forward items.
+
+### 160.7 MESSAGE 43 — CUSTOMER BEAUTY AI CI EVIDENCE / PREVIEW STATUS RECONCILIATION (2026-09-29)
+
+CI EVIDENCE:
+- Dedicated workflow:
+  .github/workflows/velora-customer-beauty-ai-contract.yml
+- Latest successful run:
+  run_id = 36562134498
+  head_sha = 0032d8ee71cc492a23a6b25b8a29383a36be49e4
+  conclusion = success
+- JavaScript syntax checks = PASS.
+- Customer Beauty AI contract tests = PASS.
+- The first CI attempt exposed a cross-realm assertion-test defect; the test was corrected without changing product/runtime behavior.
+- The corrected CI run then passed the contract suite.
+
+GLOBAL STATIC AUDIT:
+- The AI CI workflow includes the repository static audit as a non-blocking baseline check.
+- The actual static-audit command still returns:
+  I18N_MISSING_AR_KEYS
+- The missing keys were proven to predate Customer Beauty AI by comparing the same check inputs against the Message 41 baseline.
+- Current affected legacy/static HTML keys:
+  - PERSONALIZED FOR YOU
+  - Beauty picks built around your Passport
+  - Recommendations from your saved skin type, goal and routine budget.
+- This is NOT classified as a Customer Beauty AI implementation failure.
+- Global static audit remains OPEN / NOT PASS and must remain tracked for later remediation.
+
+PROVIDER/API RESEARCH:
+- Official current OpenAI Structured Outputs documentation confirms the Responses API supports:
+  text: { format: { type: "json_schema", strict: true, schema: ... } }.
+- Official moderation documentation confirms the moderation endpoint can use:
+  omni-moderation-latest.
+- Therefore the provider request shape used by the implementation is aligned with the current documented API shape.
+- This research does NOT activate the live provider.
+
+CURRENT PROVIDER STATE:
+- Restore-Test Edge Function remains ACTIVE with verify_jwt=true.
+- Live provider configuration remains BLOCKED / NOT CONFIGURED.
+- No provider secret was added to browser source.
+- No live LLM success is claimed.
+
+VERCEL PREVIEW:
+- Latest observed Preview deployment remains:
+  commit 13f2f0b7dee6f914c1953217f6ec6cfeab322337
+  deployment URL = velora-marketplace-2ihx5rra5-ahmedconccc-7063.vercel.app
+  state = READY
+- Current branch HEAD is later:
+  0032d8ee71cc492a23a6b25b8a29383a36be49e4
+- Therefore exact current-HEAD Preview parity remains OPEN.
+- No Production deployment was attempted.
+- Existing Vercel build/deployment capacity limitations remain separate from source correctness.
+
+BROWSER:
+- Current Customer Beauty AI Browser Gate remains OPEN / NOT EVIDENCED.
+- Do not use an older Preview as browser evidence for the current HEAD.
+- TinyFish wallet remains insufficient for a new browser run; this is tooling capacity, not an application failure.
+
+MESSAGE 43 DECISION:
+- Customer Beauty AI CI contract gate = CLOSED-DONE for source/contract evidence.
+- Provider live configuration = BLOCKED.
+- Global static audit = OPEN / legacy pre-existing gap.
+- Exact current-HEAD Preview = OPEN.
+- Browser = OPEN / NOT EVIDENCED.
+- Production = FROZEN.
+
+NEXT ORDERED ACTION:
+1. Obtain intentional Restore-Test provider configuration when available.
+2. Create exact current-HEAD Preview evidence once Vercel deployment capacity is available.
+3. Browser-verify the AI surface and negative/fallback paths.
+4. Update this same Master with the runtime evidence.
+5. Continue to the next non-legal OPEN item without losing any carried-forward legal work.
