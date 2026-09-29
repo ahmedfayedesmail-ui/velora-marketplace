@@ -120,6 +120,8 @@
   async function renderDashboard(){
     var c=document.getElementById('adminContent');
     if(!c) return;
+    var platform=document.getElementById('adminPlatform');
+    if(!platform) return;
 
     renderLoading();
     try{
@@ -128,6 +130,7 @@
       var d=r.data||{}, u=d.users||{}, s=d.sellers||{}, p=d.products||{}, o=d.orders||{},
           pay=d.payments||{}, po=d.payouts||{}, rev=d.reviews||{},
           sec=d.security||{}, attention=d.attention||{};
+      if(document.getElementById('adminContent')!==c || !platform.classList.contains('active')) return;
       var values=d.order_value_by_currency||{};
       var recent=Array.isArray(d.recent_orders)?d.recent_orders:[];
       var audit=Array.isArray(d.recent_audit_logs)?d.recent_audit_logs:[];
@@ -214,8 +217,10 @@
       var refresh=document.getElementById('v56Refresh');
       if(refresh) refresh.onclick=function(){renderDashboard();};
     }catch(err){
-      console.warn('Velora S2-D admin dashboard:',err);
-      renderError(String(err&&err.message||'Admin dashboard unavailable.'));
+      if(document.getElementById('adminContent')===c && platform.classList.contains('active')){
+        console.warn('Velora S2-D admin dashboard:',err);
+        renderError(String(err&&err.message||'Admin dashboard unavailable.'));
+      }
     }
   }
 
@@ -243,8 +248,10 @@
   if(originalOpen){
     window.openAdminPlatform=function(){
       var result=originalOpen.apply(this,arguments);
+      var expectedContent=document.getElementById('adminContent');
       setTimeout(function(){
-        if(document.getElementById('adminPlatform')?.classList.contains('active')) renderDashboard();
+        var platform=document.getElementById('adminPlatform');
+        if(platform?.classList.contains('active') && document.getElementById('adminContent')===expectedContent) renderDashboard();
       },80);
       return result;
     };
