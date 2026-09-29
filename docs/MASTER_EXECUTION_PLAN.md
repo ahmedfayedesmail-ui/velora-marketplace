@@ -56,7 +56,7 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current observed branch HEAD: 34f20b1d67ac9080ebdd15ca81314548086c091a
+Current observed branch HEAD: 2c9f1ba90fcb9dcbd0a21b4e739285863e9d3c95
 Current HEAD commit message: fix: harden Beauty Passport V2 value contract
 
 Historical branch supplied in an earlier handoff:
@@ -3449,3 +3449,28 @@ OBSERVED FACT:
 DECISION:
 - Seller commerce settings auditability is closed at source/DB contract level.
 - Browser/provider evidence remains part of the aggregate/final readiness gates and is not implied by this source/DB verification.
+
+
+### Continuation Current HEAD / Source Sanity Reconciliation — 2026-09-29
+
+CLASSIFICATION: SOURCE SANITY PASS / FINAL BROWSER + PROVIDER + PRODUCTION GATES REMAIN SEPARATE
+
+OBSERVED FACT:
+- Current continuation branch HEAD has been refreshed after subsequent commits and is now 2c9f1ba90fcb9dcbd0a21b4e739285863e9d3c95.
+- Syntax checks pass for the critical active surfaces:
+  - src/scripts/63-platform-router.js
+  - src/scripts/69-s1-d-seller-onboarding.js
+  - src/scripts/71-customer-orders-returns.js
+  - src/scripts/35-seller.js
+- The current Restore-Test DB confirms the latest canonical implementations for Seller onboarding, shipping settings, Seller ads, subscription state reconciliation, customer cancellation/gift-card compensation, and canonical Customer Orders tracking/proof.
+- No Browser PASS, provider settlement PASS, or Production PASS is inferred from these checks.
+
+CARRY-FORWARD:
+- Browser: one final aggregate gate remains to be run against an exact READY Preview of the final tested SHA.
+- Provider/financial: production Paymob settlement, webhook verification at production boundary, payout settlement/reconciliation, and subscription/ad provider evidence remain open where previously classified.
+- Legal: publishable legal content is still required before any checkout/advertising/subscription production flow can be considered launch-ready.
+- Production infrastructure/backup/rollback remain pending.
+- COD generic pending-order abandonment/reservation policy remains intentionally open; no arbitrary TTL is being invented.
+- Seller subscription replacement/upgrade/downgrade/proration/refund policy remains open.
+- Promotion free_shipping/stacking/targeting/reversal economics remain open.
+- Gift-card broader refund/expiry policy remains open beyond the already-closed pending-order cancellation compensation.
