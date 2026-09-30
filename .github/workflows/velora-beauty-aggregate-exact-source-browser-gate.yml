@@ -208,11 +208,15 @@ jobs:
                           jt=page.locator("#veloraBeautyJourney").inner_text()
                           et=page.locator("#veloraBeautyExperience").inner_text()
                           evidence["checks"]["journey_present"]=True
+                          evidence["checks"]["journey_text_snapshot"]=jt[:4000]
+                          evidence["checks"]["journey_loading_present"]="Loading your beauty journey" in jt
                           evidence["checks"]["journey_passport_text"]="Passport" in jt
                           evidence["checks"]["journey_routine_text"]="Latest Routine" in jt
                           evidence["checks"]["journey_rpc_requests"]=len(journey_rpc)
                           evidence["checks"]["replenishment_rpc_requests"]=len(replenishment_rpc)
                           evidence["checks"]["feedback_surface_visible"]=page.locator("#veloraBeautyExperience").is_visible()
+                          evidence["checks"]["feedback_text_snapshot"]=et[:4000]
+                          evidence["checks"]["feedback_loading_present"]="Loading products" in et
                           evidence["checks"]["feedback_state_rendered"]=("Share experience" in et or "Your purchased products will appear here." in et or "Saved" in et)
 
                           page.screenshot(path="beauty-aggregate-exact-source.png",full_page=True)
