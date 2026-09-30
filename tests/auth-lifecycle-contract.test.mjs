@@ -186,3 +186,12 @@ assert.ok(
   authEvidenceRunner.includes('tampered_recovery_token_does_not_create_session'),
   'Auth browser evidence must exercise a tampered recovery token as a fail-closed negative path'
 );
+
+assert.ok(
+  authEvidenceRunner.includes('customer_admin_access_denied'),
+  'Auth browser evidence must exercise customer-to-admin authorization denial'
+);
+assert.ok(
+  authEvidenceRunner.includes('window.VELORA_OPEN_ADMIN'),
+  'Customer admin authorization evidence must use the canonical public Admin opener'
+);
