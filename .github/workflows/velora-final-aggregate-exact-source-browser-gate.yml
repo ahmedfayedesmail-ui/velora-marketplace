@@ -102,6 +102,9 @@ jobs:
               seller=b.new_page(viewport={"width":1440,"height":1000},locale="en-US")
               owner=b.new_page(viewport={"width":1440,"height":1000},locale="en-US")
               for p in (customer,seller,owner):observe(p)
+              recommendation_requests=[]
+              ai_requests=[]
+              customer.on("request",lambda req: recommendation_requests.append(req.url) if "velora_get_beauty_recommendations" in req.url else (ai_requests.append(req.url) if "velora-beauty-ai-intent" in req.url else None))
 
               # Customer: use existing E2E credentials; no fixture mutation.
               out["roles"]["customer"]={}
@@ -109,6 +112,13 @@ jobs:
               customer.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000); out["roles"]["customer"]["http_200"]=True
               customer.evaluate("() => openAuthModal('login')"); customer.locator("#loginEmail").fill(os.environ["CUSTOMER_EMAIL"]); customer.locator("#loginPassword").fill(os.environ["CUSTOMER_PASSWORD"]); customer.locator("#authFormContent button[type='submit']").click(); customer.wait_for_timeout(2500)
               out["roles"]["customer"]["authenticated_session"]=bool(session(customer)["present"])
+              customer.wait_for_function("() => { const s=document.getElementById('veloraBeautyRecommendationsSection'); return !!s && !s.hidden; }",timeout=15000)
+              rec=customer.evaluate("""async()=>{const r=await window.veloraBeautyRecommendations.get();return r||null}""")
+              out["roles"]["customer"]["recommendation_section_visible"]=customer.locator("#veloraBeautyRecommendationsSection").count()==1
+              out["roles"]["customer"]["recommendation_rpc_requests"]=len(recommendation_requests)
+              out["roles"]["customer"]["recommendation_ai_endpoint_requests"]=len(ai_requests)
+              out["roles"]["customer"]["recommendation_status"]=rec.get("status") if isinstance(rec,dict) else None
+              out["roles"]["customer"]["recommendation_count"]=len(rec.get("recommendations",[])) if isinstance(rec,dict) and isinstance(rec.get("recommendations"),list) else 0
               customer.evaluate("() => navigateTo('orders')"); customer.wait_for_timeout(1500)
               out["roles"]["customer"]["orders_route"]=customer.evaluate("()=>location.hash.replace(/^#/,'')")=="orders"
               out["roles"]["customer"]["orders_host_present"]=customer.locator("#ordersContent").count()==1
@@ -137,7 +147,9 @@ jobs:
               for p in (customer,seller,owner):p.close()
               b.close()
 
-          check("customer",["http_200","authenticated_session","orders_route","orders_host_present","session_survived_checkout_navigation"])
+          check("customer",["http_200","authenticated_session","recommendation_section_visible","recommendation_rpc_requests","recommendation_status","orders_route","orders_host_present","session_survived_checkout_navigation"])
+          if out["roles"]["customer"].get("recommendation_ai_endpoint_requests",0)!=0: out["failures"].append("customer: recommendation invoked Beauty AI endpoint")
+          if out["roles"]["customer"].get("recommendation_status") in ("success","ready") and out["roles"]["customer"].get("recommendation_count",0)<1: out["failures"].append("customer: ready recommendation response had no recommendations")
           check("seller",["authenticated_session","first_open","closed_without_refresh","reentry_active_without_refresh","reentry_content"])
           check("owner",["authenticated_session","authenticated_user_match","governance_present","closed_without_refresh","reentry_active_without_refresh","reentry_governance_present"])
           out["browser_errors"]=list(dict.fromkeys(out["browser_errors"]))[:50]
