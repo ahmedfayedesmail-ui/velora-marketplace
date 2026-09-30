@@ -83,6 +83,26 @@ jobs:
                   a=ctx.new_page(); b=ctx.new_page()
                   for p in (a,b): p.goto(APP,wait_until="networkidle",timeout=60000)
                   login(a)
+                  authz = a.evaluate("""
+                  async () => {
+                    const admin = typeof window.VELORA_OPEN_ADMIN === 'function'
+                      ? await window.VELORA_OPEN_ADMIN()
+                      : null;
+                    const adminActive = !!document.getElementById('adminPlatform')?.classList.contains('active');
+                    const seller = typeof window.VELORA_OPEN_SELLER === 'function'
+                      ? await window.VELORA_OPEN_SELLER()
+                      : null;
+                    const sellerActive = !!document.getElementById('sellerPlatform')?.classList.contains('active');
+                    return {admin, adminActive, seller, sellerActive};
+                  }
+                  """)
+                  evidence["observations"]["customer_platform_authorization"] = authz
+                  evidence["checks"]["customer_admin_platform_denied"] = (
+                      authz.get("admin") is False and not authz.get("adminActive")
+                  )
+                  evidence["checks"]["customer_seller_platform_denied"] = (
+                      not authz.get("sellerActive")
+                  )
                   b.reload(wait_until="networkidle")
                   evidence["checks"]["duplicate_tab_refresh_preserves_session"]=bool(snap(b)["present"])
                   a.once("dialog", lambda dialog: dialog.accept())
