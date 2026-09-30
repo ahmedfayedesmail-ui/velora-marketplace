@@ -42,6 +42,12 @@ assert.match(browserGate, /seller-second-open\.png/);
 
 assert.match(canonical, /const \[products,orders\]=await Promise\.all\(\[sellerProducts\(seller\.id\),sellerOrders\(seller\.id\)\]\);[\s\S]*?if\(operation!==sellerPlatformOperation/);
 assert.match(canonical, /async function renderCanonicalAdminDashboard\(expectedOperation\)/);
+assert.match(canonical, /async function renderCanonicalOwnerGovernance\(expectedOperation\)/);
+assert.match(canonical, /db\.rpc\('velora_get_launch_control_plane'\)/);
+assert.match(canonical, /db\.rpc\('velora_get_launch_readiness'\)/);
+assert.match(canonical, /db\.rpc\('velora_get_reconciliation_dashboard'\)/);
+assert.match(canonical, /data-owner-governance="launch-control"/);
+assert.match(canonical, /expectedOperation!==adminPlatformOperation[\\s\\S]*?renderCanonicalOwnerGovernance\(expectedOperation\)/);
 assert.match(canonical, /expectedOperation!==adminPlatformOperation[\s\S]*?document\.getElementById\('adminContent'\)!==c/);
 
 console.log('✅ Platform re-entry stale-operation contract passed');
