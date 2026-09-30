@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf witness /tmp/witness.tar.gz
-          curl -fsSL https://codeload.github.com/ahmedfayedesmail-ui/witness-engine/tar.gz/refs/heads/main -o /tmp/witness.tar.gz
+          curl -fsSL https://github.com/ahmedfayedesmail-ui/witness-engine/archive/refs/heads/main.tar.gz -o /tmp/witness.tar.gz
           tar -xzf /tmp/witness.tar.gz -C /tmp
           mv /tmp/witness-engine-main witness
           test -f witness/bin/witness.js
