@@ -118,7 +118,7 @@ jobs:
               evidence["failures"].append("SELLER_EMAIL_NOT_FOUND")
 
           before_subs = count("/rest/v1/seller_subscriptions?select=id&limit=1000")
-          before_attempts = count("/rest/v1/payment_attempts?select=id&purpose=eq.seller_subscription&limit=1000")
+          before_attempts = count("/rest/v1/payment_attempts?select=id&purpose=eq.subscription&limit=1000")
           evidence["checks"]["before_seller_subscriptions"] = before_subs
           evidence["checks"]["before_subscription_payment_attempts"] = before_attempts
 
@@ -209,7 +209,7 @@ jobs:
                           evidence["checks"]["legal_acceptance_requests"]=len(acceptance_requests)
 
                           after_subs=count("/rest/v1/seller_subscriptions?select=id&limit=1000")
-                          after_attempts=count("/rest/v1/payment_attempts?select=id&purpose=eq.seller_subscription&limit=1000")
+                          after_attempts=count("/rest/v1/payment_attempts?select=id&purpose=eq.subscription&limit=1000")
                           evidence["checks"]["after_seller_subscriptions"]=after_subs
                           evidence["checks"]["after_subscription_payment_attempts"]=after_attempts
                           evidence["checks"]["subscription_rows_unchanged"]=after_subs==before_subs
