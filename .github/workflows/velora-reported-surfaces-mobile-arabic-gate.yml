@@ -21,8 +21,29 @@ jobs:
     env:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      APP_URL: https://velora-marketplace-git-audit-runtime-pa-faf663-ahmedconccc-7063.vercel.app
+      APP_URL: http://127.0.0.1:4173
     steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > reported-surface-local.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2)
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
       - name: Setup Playwright
         run: |
           python -m pip install --upgrade pip
@@ -38,7 +59,7 @@ jobs:
           BASE=os.environ['SUPABASE_URL'].rstrip('/')
           KEY=os.environ['SUPABASE_SERVICE_ROLE_KEY']
           APP=os.environ['APP_URL'].rstrip('/')
-          out={'schema':'velora-reported-mobile-arabic.v1','app_url':APP,'checks':{},'failures':[],'browser_errors':[]}
+          out={'schema':'velora-reported-mobile-arabic.v1','execution_target':'local_exact_source','app_url':APP,'checks':{},'failures':[],'browser_errors':[]}
 
           def api(path, method='GET', payload=None):
               data=json.dumps(payload).encode() if payload is not None else None
@@ -125,4 +146,5 @@ jobs:
           path: |
             velora-reported-mobile-arabic-evidence.json
             reported-admin-mobile-ar.png
+            reported-surface-local.log
           retention-days: 7
