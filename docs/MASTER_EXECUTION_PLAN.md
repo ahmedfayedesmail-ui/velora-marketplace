@@ -14860,3 +14860,133 @@ STATUS:
 
 NEXT:
 - Continue the next independent non-legal OPEN item; do not reopen these four objects without new evidence.
+
+
+## MESSAGE 81 — NOTIFICATION / WEB PUSH EXACT-SOURCE BROWSER CLOSURE + DELIVERY LEDGER REPAIR (2026-09-30)
+
+CLASSIFICATION:
+- NOTIFICATION UI LIFECYCLE = CLOSED-DONE AT SOURCE/CONTRACT SCOPE
+- WEB PUSH REGISTRATION + PROVIDER HANDOFF = CLOSED-DONE AT EXACT-SOURCE BROWSER SCOPE
+- PUSH DELIVERY LEDGER = CLOSED-DONE AFTER CANONICAL CLAIM/MARK REPAIR
+- PHYSICAL OS/DEVICE TOAST RECEIPT = NOT INDEPENDENTLY CAPTURED BY CI; DO NOT INFER IT FROM SERVER DELIVERY LEDGER
+
+ROOT-CAUSE / SOURCE REPAIR:
+- src/scripts/68-s1-d-mobile-push.js previously used a MutationObserver to re-inject its push control into the authoritative notification dropdown.
+- That violated the project lifecycle/non-observer rule and created an unnecessary DOM-observation path.
+- The canonical notification owner src/scripts/55-s2e-notifications.js now exposes an explicit VELORA_PUSH_UI_SYNC lifecycle hook and calls it from renderBell() after its authoritative DOM transition.
+- The push module now exposes window.VELORA_PUSH_UI_SYNC = syncPushUi and performs one deterministic DOM-ready sync; no MutationObserver was retained or introduced.
+- Existing per-control onclick ownership remains local to the push button; no new arbitrary global routing listener was added.
+
+CONTRACT / CI:
+- Added tests/notification-push-contract.test.mjs.
+- Added npm run test:notification-push.
+- Blocking Source + Contract Health remained green after the change.
+- The contract locks notification lifecycle-hook ownership, absence of MutationObserver, service-worker registration, push subscription RPCs, and the existing push service-worker/send-function contracts.
+
+BROWSER GATE INFRASTRUCTURE:
+- Added .github/workflows/velora-notification-push-browser-gate.yml.
+- The gate runs on GitHub Actions against the exact checked-out source using an exact-source local HTTP server.
+- Because Chromium regular new_context() is an incognito-style context and Chrome does not support the Push API there, the gate was corrected to use a persistent Chromium profile under Xvfb.
+- This environment correction produced real Push API support without weakening the application contract or faking notification behavior.
+
+INITIAL TEST-HARNESS FINDINGS:
+1. Headless/incognito attempt:
+   - Notification.permission = denied.
+   - Push registration could not start.
+   - The resulting Edge Function 409 was a downstream no-subscription result, not an application push failure.
+2. Headed-but-incognito attempt:
+   - permission became granted;
+   - Service Worker registered;
+   - Chrome explicitly reported that Push API is unsupported in incognito;
+   - no subscription was created.
+3. Persistent headed Chromium under Xvfb:
+   - permission granted;
+   - Service Worker registered;
+   - real PushSubscription created;
+   - server persistence confirmed;
+   - provider handoff succeeded.
+
+DELIVERY LEDGER RCA / REPAIR:
+- The deployed test-only velora-send-push-test function inserted the notifications row and sent Web Push, but it did not create/claim the matching notification_push_deliveries row before calling velora_mark_push_delivery.
+- velora_mark_push_delivery is an update-only canonical function over an existing delivery row, so the earlier test sender could return sent=1 while leaving no delivered ledger row.
+- The test sender was repaired to follow the canonical dispatcher sequence: velora_claim_push_delivery -> webpush.sendNotification -> velora_mark_push_delivery, with velora_unmark_push_delivery on failed provider sends.
+- The repaired function was deployed to Restore-Test only as velora-send-push-test ACTIVE v12 with verify_jwt=true.
+- velora-dispatch-notification remains the canonical internal production-shaped dispatcher; no change was made to its architecture or security boundary.
+
+FINAL BROWSER EVIDENCE:
+- Workflow: .github/workflows/velora-notification-push-browser-gate.yml
+- Run: 36673866675
+- Job: 109754486333
+- Head/source commit: 01772ae666c41beb38e510d2c77535874a44d5c2
+- Conclusion: SUCCESS
+- Artifact: 11079032749
+- Artifact schema: velora-notification-push-browser.v1
+- Execution target: local_exact_source
+- passed = true
+- failures = []
+- browser_errors = []
+
+PROVEN CHECKS:
+- authenticated session = TRUE
+- notification dropdown visible = TRUE
+- push enable control visible = TRUE
+- notification permission granted = TRUE
+- veloraEnableMobilePush() returned true = TRUE
+- Service Worker registered = TRUE
+- real PushSubscription present = TRUE
+- subscription persisted server-side and active = TRUE
+- velora-send-push-test request succeeded = TRUE
+- provider handoff sent = 1 = TRUE
+- push_test notification persisted = TRUE
+- matching notification_push_deliveries.delivered_at present = TRUE
+- browser cleanup attempted = TRUE
+- subscription removed from browser after cleanup = TRUE
+- browser errors = 0
+
+RESTORE-TEST POST-RUN DB RECHECK:
+- push_subscription_rows = 5
+- active_push_subscriptions = 1
+- push_test_notifications = 2
+- delivered_push_rows = 7
+- claimed-but-not-delivered rows = 0
+- Latest successful automated push test has a populated delivered_at and matching delivery row.
+- One older push_test notification created by the failed pre-fix test remains without a delivery row; it is historical evidence of the previously identified test-sender defect and was not destructively deleted.
+
+EVIDENCE BOUNDARY:
+- Exact-source Browser proof now closes browser permission, Service Worker registration, real subscription creation, authenticated persistence, real external Push API handoff, notification persistence, and delivery-ledger completion.
+- This is not a proof that an operating-system notification toast was visually observed on a physical phone; CI cannot truthfully claim that without a device-level capture surface.
+- No Provider/Production release was performed.
+- Production remains FROZEN.
+- Vercel status for the tested commits continues to report the known deployment-capacity/rate-limit boundary; this local exact-source Browser Gate intentionally does not convert into a Preview claim.
+
+ACTION FLOW:
+Customer opens notification controls
+-> authenticated customer guard
+-> explicit notification lifecycle hook
+-> push opt-in action
+-> Notification permission validation
+-> Service Worker registration
+-> PushSubscription creation
+-> authenticated velora_register_push_subscription
+-> state persisted in browser + server
+-> authenticated test notification event
+-> delivery claim
+-> external Push API handoff
+-> delivery mark
+-> notification persistence / ledger evidence
+-> browser cleanup through existing unregister path
+-> audit artifact
+
+STATUS:
+- Notification lifecycle / no-observer correction = CLOSED-DONE.
+- Web Push Browser registration + provider handoff = CLOSED-DONE for exact-source CI browser scope.
+- Push delivery ledger contract = CLOSED-DONE.
+- Physical device/OS toast receipt = separate external validation boundary.
+- Production push delivery = FROZEN / unreleased.
+- Performance optimization queue remains OPEN.
+- Owner full control-plane completeness remains OPEN.
+- Exact current-HEAD Vercel SHA parity remains OPEN where strict deployment parity is required and Vercel capacity permits.
+- Legal registration remains PAUSED / CARRY-FORWARD.
+
+NEXT:
+- Preserve the closed notification/push path and continue the next independent non-legal OPEN Master item; do not reopen this work without a regression.
