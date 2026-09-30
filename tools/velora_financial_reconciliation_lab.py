@@ -134,13 +134,13 @@ def source_ownership() -> dict[str, Any]:
             "src/scripts/13-payments.js",
             [r"__VELORA_CHECKOUT_REFERENCE", r"__VELORA_CHECKOUT_SUBMITTING"],
         ),
-        "seller_commercials": source_check(
+        "seller_commercial_ui": source_check(
             "src/scripts/35-seller.js",
-            [r"velora_start_subscription_purchase", r"velora_start_seller_ad_purchase"],
+            [r"v39LoadSubscription", r"v39LoadAds", r"velora-subscription-paymob-checkout-restore-test"],
         ),
-        "payout": source_check(
+        "seller_payout_ui": source_check(
             "src/scripts/35-seller.js",
-            [r"velora_request_seller_payout", r"velora_record_payout_execution"],
+            [r"velora_request_seller_payout", r"v39LoadPayouts"],
         ),
         "returns": source_check(
             "src/scripts/71-customer-orders-returns.js",
