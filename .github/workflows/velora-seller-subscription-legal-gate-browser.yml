@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: velora-seller-subscription-legal-gate
+  group: velora-seller-subscription-canonical-legal-gate
   cancel-in-progress: true
 
 jobs:
