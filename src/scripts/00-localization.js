@@ -8969,7 +8969,21 @@ async function loadAdminPromotionsFromDb(){
             form.reset();
             form.elements.currency.value='EGP';form.elements.priority.value='100';
             await loadAdminPromotionsFromDb();
-          }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+          }catch(err){
+            const raw=String(err?.message||err||'');
+            const messages={
+              INVALID_GIFT_CARD_CODE:'Gift card code must be between 8 and 80 characters.',
+              GIFT_CARD_CODE_EXISTS:'That gift card code already exists.',
+              INVALID_GIFT_CARD_AMOUNT:'Gift card amount must be greater than zero.',
+              INVALID_GIFT_CARD_CURRENCY:'The selected gift card currency is not active.',
+              INVALID_GIFT_CARD_EXPIRY:'Gift card expiry must be in the future.',
+              OWNER_ONLY:'Only the Owner can issue gift cards.'
+            };
+            if(status){
+              status.textContent='❌ '+(messages[raw]||raw);
+              try{window.VELORA_I18N_RENDER?.(status);}catch(_){}
+            }
+          }
         });
       }
       if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
@@ -8985,7 +8999,7 @@ function renderAdminGiftCards(){
       '<form id="'+id+'Form" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
         '<input name="amount" class="form-input" type="number" min="1" step="0.01" placeholder="Amount" required>'+
         '<input name="currency" class="form-input" value="EGP" placeholder="Currency">'+
-        '<input name="code" class="form-input" placeholder="Optional code">'+
+        '<input name="code" class="form-input" minlength="8" maxlength="80" autocomplete="off" placeholder="Optional code (8–80 characters)">'+
         '<input name="expires_at" class="form-input" type="datetime-local">'+
         '<button class="btn btn-primary" type="submit" data-velora-i18n="Issue gift card">Issue gift card</button>'+
       '</form>'+
