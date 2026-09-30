@@ -1,6 +1,6 @@
 {
-  "id": "owner-subscription-control-contract-2026-09-30",
+  "id": "owner-seller-ad-control-contract-2026-09-30",
   "command": "npm run test:platform-reentry",
   "requested_by": "owner",
-  "purpose": "verify canonical payout, subscription, FinOps and platform re-entry source contracts after owner control-plane work"
+  "purpose": "verify seller advertising owner control-plane source contract after canonical DB/UI/workflow changes"
 }
