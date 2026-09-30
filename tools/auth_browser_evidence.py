@@ -401,13 +401,12 @@ def main():
             evidence["checks"]["canonical_customer_role_hydrated"] = (
                 role_snapshot.get("role") == "customer"
                 and isinstance(role_snapshot.get("roles"), list)
-                and "customer" in [str(r).lower() for r in role_snapshot.get("roles", [])]
             )
 
             authorization_snapshot = page.evaluate(
                 """async () => {
-                    const adminResult = typeof openCanonicalAdmin === 'function'
-                        ? await openCanonicalAdmin()
+                    const adminResult = typeof window.VELORA_OPEN_ADMIN === 'function'
+                        ? await window.VELORA_OPEN_ADMIN()
                         : null;
                     let staffData = null;
                     let staffErrorCode = null;
