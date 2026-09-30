@@ -63,22 +63,16 @@ async function renderVerifiedPaymentReturn(){
 
     let terminal=null;
     for(let attempt=1;attempt<=12;attempt++){
-      const [orderResult,attemptResult]=await Promise.all([
-        db.from('orders').select('id,order_number,payment_status,status').eq('id',orderId).eq('customer_id',userData.user.id).maybeSingle(),
-        db.from('payment_attempts').select('id,order_id,status').eq('order_id',orderId).order('created_at',{ascending:false}).limit(1).maybeSingle()
-      ]);
+      const orderResult=await db.from('orders').select('id,order_number,payment_status,status').eq('id',orderId).eq('customer_id',userData.user.id).maybeSingle();
       if(orderResult.error)throw orderResult.error;
-      if(attemptResult.error)throw attemptResult.error;
       const order=orderResult.data;
-      const paymentAttempt=attemptResult.data;
       const paid=String(order?.payment_status||'').toLowerCase()==='paid';
       const confirmed=String(order?.status||'').toLowerCase()==='confirmed';
-      const captured=String(paymentAttempt?.status||'').toLowerCase()==='captured' && String(paymentAttempt?.order_id||'')===orderId;
-      if(paid&&confirmed&&captured){
+      if(paid&&confirmed){
         terminal={order,paymentAttempt};
         break;
       }
-      if(String(order?.payment_status||'').toLowerCase()==='failed' || String(paymentAttempt?.status||'').toLowerCase()==='failed')break;
+      if(String(order?.payment_status||'').toLowerCase()==='failed')break;
       if(attempt<12)await new Promise(resolve=>setTimeout(resolve,1500));
     }
 
