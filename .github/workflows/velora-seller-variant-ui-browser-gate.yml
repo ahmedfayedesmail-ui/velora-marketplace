@@ -1,0 +1,127 @@
+name: Velora Seller Variant UI Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/12-localization.js"
+      - "src/scripts/52-s2a-variants.js"
+      - ".github/workflows/velora-seller-variant-ui-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seller-variant-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SELLER_EMAIL: ${{ secrets.SELLER_E2E_EMAIL }}
+      APP_URL: http://127.0.0.1:4173
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Assert no MutationObserver in S2-A integration
+        run: |
+          if grep -n "MutationObserver" src/scripts/52-s2a-variants.js; then
+            echo "MutationObserver must not be used by the Variant integration"
+            exit 1
+          fi
+      - name: Setup Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > seller-variant-ui-local.log 2>&1 &
+          python3 - <<'PY'
+          import time,urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:4173/',timeout=2) as r:
+                      if r.status==200: break
+              except Exception: time.sleep(1)
+          else: raise SystemExit('LOCAL_SERVER_NOT_READY')
+          PY
+      - name: Run canonical Seller Variant UI evidence
+        run: |
+          python3 - <<'PY'
+          import json,os,sys,urllib.parse,urllib.request
+          from playwright.sync_api import sync_playwright
+          BASE=os.environ['SUPABASE_URL'].rstrip('/')
+          KEY=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          APP=os.environ['APP_URL'].rstrip('/')
+          email=os.environ['SELLER_EMAIL']
+          out={'schema':'velora-seller-variant-ui.v1','execution_target':'local_exact_source','checks':{},'failures':[],'browser_errors':[]}
+          def api(path,method='GET',payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              h={'apikey':KEY,'Authorization':'Bearer '+KEY,'Accept':'application/json'}
+              if payload is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(BASE+path,data=data,headers=h,method=method)
+              with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read().decode() or 'null')
+          users=api('/auth/v1/admin/users?page=1&per_page=1000').get('users',[])
+          auth={str(u.get('id')):u for u in users if u.get('id')}
+          seller_rows=api('/rest/v1/sellers?select=id,user_id,status&status=eq.approved&limit=50')
+          seller=next((x for x in seller_rows if str(x.get('user_id')) in auth and str(auth[str(x.get('user_id'))].get('email','')).lower()==email.lower()),None)
+          if not seller:raise RuntimeError('approved seller fixture missing')
+          seller_id=str(seller['id'])
+          products=api('/rest/v1/products?select=id,name,status,seller_id&seller_id=eq.'+urllib.parse.quote(seller_id,safe='')+'&status=eq.approved&limit=10')
+          if not products:raise RuntimeError('approved seller product fixture missing')
+          product_id=str(products[0]['id'])
+          link=api('/auth/v1/admin/generate_link','POST',{'type':'magiclink','email':email,'options':{'redirect_to':APP+'/#home'}})
+          token=str(link.get('hashed_token') or '')
+          if not token:raise RuntimeError('seller magiclink unavailable')
+          with sync_playwright() as pw:
+              b=pw.chromium.launch(headless=True)
+              p=b.new_page(viewport={'width':390,'height':844},locale='en-US')
+              p.on('pageerror',lambda e:out['browser_errors'].append('pageerror:'+str(e)))
+              p.on('console',lambda m:out['browser_errors'].append('console:'+m.text) if m.type=='error' else None)
+              p.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              ok=p.evaluate("""async t=>{const r=await window.mahaSupabase.auth.verifyOtp({token_hash:t,type:'magiclink'});return !!r?.data?.session?.user}""",token)
+              out['checks']['authenticated']=bool(ok)
+              p.wait_for_timeout(900)
+              p.evaluate("()=>window.switchPlatform('seller')")
+              p.wait_for_selector('#sellerContent',state='visible',timeout=30000)
+              p.evaluate("()=>window.VELORA_CANONICAL_SELLER_SECTION('products')")
+              p.wait_for_timeout(1200)
+              p.evaluate('(id)=>window.VELORA_EDIT_PRODUCT(id)',product_id)
+              p.wait_for_selector('#veloraCanonicalProductModal',state='visible',timeout=30000)
+              p.wait_for_timeout(1200)
+              out['checks']['variant_editor_present']=p.locator('#s2aCanonicalVariantEditor').count()==1
+              out['checks']['variant_add_button_present']=p.locator('#s2aCanonicalAddVariant').count()==1
+              p.locator('#s2aCanonicalAddVariant').click()
+              p.wait_for_timeout(200)
+              out['checks']['variant_row_add_works']=p.locator('#s2aCanonicalVariantRows .velora-seller-variant-row').count()==1
+              out['checks']['variant_name_field']=p.locator('#s2aCanonicalVariantRows .s2aVariantName').count()==1
+              out['checks']['variant_sku_field']=p.locator('#s2aCanonicalVariantRows .s2aVariantSku').count()==1
+              out['checks']['variant_stock_field']=p.locator('#s2aCanonicalVariantRows .s2aVariantStock').count()==1
+              out['checks']['variant_attributes_field']=p.locator('#s2aCanonicalVariantRows .s2aVariantAttrs').count()==1
+              out['checks']['variant_retire_button']=p.locator('#s2aCanonicalVariantRows .s2aRemoveVariant').count()==1
+              p.screenshot(path='seller-variant-ui-mobile.png',full_page=True)
+              p.close();b.close()
+          for k,v in out['checks'].items():
+              if not v:out['failures'].append(k)
+          out['browser_errors']=list(dict.fromkeys(out['browser_errors']))[:50]
+          out['passed']=not out['failures'] and not out['browser_errors']
+          with open('seller-variant-ui-evidence.json','w',encoding='utf-8') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          sys.exit(0 if out['passed'] else 1)
+          PY
+      - name: Upload Seller Variant evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-seller-variant-ui-evidence
+          path: |
+            seller-variant-ui-evidence.json
+            seller-variant-ui-mobile.png
+            seller-variant-ui-local.log
+          retention-days: 7
