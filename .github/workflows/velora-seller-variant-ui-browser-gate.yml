@@ -20,7 +20,7 @@ jobs:
     env:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SELLER_EMAIL: ${{ secrets.SELLER_E2E_EMAIL }}
+      SELLER_EMAIL: ""
       APP_URL: http://127.0.0.1:4173
     steps:
       - name: Checkout exact source
@@ -70,8 +70,16 @@ jobs:
           users=api('/auth/v1/admin/users?page=1&per_page=1000').get('users',[])
           auth={str(u.get('id')):u for u in users if u.get('id')}
           seller_rows=api('/rest/v1/sellers?select=id,user_id,status&status=eq.approved&limit=50')
-          seller=next((x for x in seller_rows if str(x.get('user_id')) in auth and str(auth[str(x.get('user_id'))].get('email','')).lower()==email.lower()),None)
-          if not seller:raise RuntimeError('approved seller fixture missing')
+          seller=None
+          for x in seller_rows or []:
+              uid=str(x.get('user_id') or '')
+              if uid not in auth: continue
+              rr=api('/rest/v1/user_roles?select=user_id&user_id=eq.'+urllib.parse.quote(uid,safe='')+'&role=eq.seller')
+              if rr:
+                  seller=x
+                  email=str(auth[uid].get('email') or '')
+                  break
+          if not seller or not email:raise RuntimeError('approved seller fixture missing')
           seller_id=str(seller['id'])
           products=api('/rest/v1/products?select=id,name,status,seller_id&seller_id=eq.'+urllib.parse.quote(seller_id,safe='')+'&status=eq.approved&limit=10')
           if not products:raise RuntimeError('approved seller product fixture missing')
