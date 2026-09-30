@@ -509,6 +509,8 @@ jobs:
               if label == "owner":
                   if r.get("second_open", {}).get("render_marker", {}).get("ownerGovernancePresent") is not True:
                       evidence["failures"].append("owner: governance control plane not present")
+                  if r.get("second_open", {}).get("render_marker", {}).get("ownerReleaseControlPresent") is not True:
+                      evidence["failures"].append("owner: release control not present")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
