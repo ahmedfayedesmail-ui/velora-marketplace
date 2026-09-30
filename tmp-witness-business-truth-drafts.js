@@ -316,3 +316,4 @@ export async function promoteBusinessTruthDrafts(inputFile, outputFile, options 
   await fs.writeFile(path.resolve(outputFile), JSON.stringify(promoted, null, 2), { mode: 0o600 });
   return promoted;
 }
+
