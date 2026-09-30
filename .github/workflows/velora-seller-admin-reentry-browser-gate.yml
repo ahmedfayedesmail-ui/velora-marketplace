@@ -455,6 +455,18 @@ jobs:
                       "text_length": len(release_root.inner_text()) if release_root.count() else 0,
                   }
                   page.screenshot(path="owner-release-control.png", full_page=True)
+                  page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('payoutControl')""")
+                  page.wait_for_function(
+                      "() => !!document.querySelector('#adminContent [data-payout-control=" + '"' + "true" + '"' + "]')",
+                      timeout=15000,
+                  )
+                  payout_root = page.locator('#adminContent [data-payout-control="true"]')
+                  role["payout_control"] = {
+                      "present": payout_root.count() == 1,
+                      "visible": payout_root.first.is_visible() if payout_root.count() else False,
+                      "text_length": len(payout_root.inner_text()) if payout_root.count() else 0,
+                  }
+                  page.screenshot(path="owner-payout-control.png", full_page=True)
                   page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('dashboard')""")
                   page.wait_for_function(
                       "() => !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance=" + '"' + "launch-control" + '"' + "]') && !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-release-control=" + '"' + "true" + '"' + "]')",
@@ -539,6 +551,10 @@ jobs:
                       evidence["failures"].append("owner: release control route not visible")
                   if r.get("release_control", {}).get("create_candidate_control_present") is not True:
                       evidence["failures"].append("owner: release create control not present")
+                  if r.get("payout_control", {}).get("present") is not True:
+                      evidence["failures"].append("owner: payout control route not present")
+                  if r.get("payout_control", {}).get("visible") is not True:
+                      evidence["failures"].append("owner: payout control route not visible")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
@@ -596,5 +612,6 @@ jobs:
             owner-closed.png
             owner-second-open.png
             owner-release-control.png
+            owner-payout-control.png
             reentry-local-server.log
           retention-days: 7
