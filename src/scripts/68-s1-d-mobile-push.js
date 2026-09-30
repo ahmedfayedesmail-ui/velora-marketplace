@@ -178,18 +178,6 @@
 
   // Test-push UI is intentionally omitted from the customer-facing notification menu.
 
-  function addButton() {
-    var header = document.querySelector('#notifDropdown .notif-header');
-    if (!header || document.getElementById(ROOT_ID)) return;
-    var button = document.createElement('button');
-    button.id = ROOT_ID;
-    button.type = 'button';
-    button.textContent = 'Enable on this phone';
-    // renderButtonState owns the single click handler so MutationObserver
-    // re-renders cannot leave a second enable/disable handler attached.
-    header.appendChild(button);
-  }
-
   async function renderButtonState() {
     var button = document.getElementById(ROOT_ID);
     if (!button) return;
@@ -216,22 +204,28 @@
     } catch (_) {}
   }
 
-  function observeBell() {
-    if (typeof MutationObserver !== 'function' || !document.body) return;
-    var observer = new MutationObserver(function () {
-      addButton();
-      renderButtonState();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    addButton();
+  function syncPushUi() {
+    var header = document.querySelector('#notifDropdown .notif-header');
+    if (!header) return;
+
+    var button = document.getElementById(ROOT_ID);
+    if (!button) {
+      button = document.createElement('button');
+      button.id = ROOT_ID;
+      button.type = 'button';
+      button.textContent = 'Enable on this phone';
+      header.appendChild(button);
+    }
+
     renderButtonState();
   }
 
+  window.VELORA_PUSH_UI_SYNC = syncPushUi;
   window.veloraEnableMobilePush = enablePush;
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', observeBell, { once: true });
+    document.addEventListener('DOMContentLoaded', syncPushUi, { once: true });
   } else {
-    observeBell();
+    syncPushUi();
   }
 })();
