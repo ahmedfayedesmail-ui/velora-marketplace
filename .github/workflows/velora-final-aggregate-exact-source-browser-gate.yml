@@ -1,0 +1,153 @@
+name: Velora Final Aggregate Exact-Source Browser Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/**"
+      - "tests/**"
+      - ".github/workflows/velora-final-aggregate-exact-source-browser-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-final-aggregate-exact-source-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aggregate:
+    name: Exact-source authenticated aggregate Browser Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173
+      CUSTOMER_EMAIL: ${{ secrets.E2E_EMAIL }}
+      CUSTOMER_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      SELLER_EMAIL: ${{ secrets.SELLER_E2E_EMAIL }}
+      SELLER_PASSWORD: ${{ secrets.SELLER_E2E_PASSWORD }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Setup Python + Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > final-aggregate-exact-source.log 2>&1 &
+          python3 - <<'PY'
+          import time,urllib.request
+          for _ in range(30):
+              try:
+                  urllib.request.urlopen("http://127.0.0.1:4173/",timeout=2); break
+              except Exception: time.sleep(1)
+          else: raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+      - name: Run exact-source aggregate evidence
+        run: |
+          python3 - <<'PY'
+          import json,os,sys,urllib.parse,urllib.request
+          from playwright.sync_api import sync_playwright
+          BASE=os.environ["SUPABASE_URL"].rstrip("/")
+          KEY=os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          APP=os.environ["APP_URL"].rstrip("/")
+          out={"schema":"velora-final-aggregate-exact-source.v1","execution_target":"local_exact_source","workflow_sha":os.environ.get("GITHUB_SHA",""),"checks":{},"roles":{},"failures":[],"browser_errors":[]}
+          def api(path,method="GET",payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              h={"apikey":KEY,"Authorization":"Bearer "+KEY,"Accept":"application/json"}
+              if payload is not None:h["Content-Type"]="application/json"
+              with urllib.request.urlopen(urllib.request.Request(BASE+path,data=data,headers=h,method=method),timeout=30) as r:return json.loads(r.read().decode() or "null")
+          users=api("/auth/v1/admin/users?page=1&per_page=1000"); users=users.get("users",[]) if isinstance(users,dict) else users
+          auth={str(u.get("id")):u for u in users if u.get("id")}
+          def first_role(role):
+              rows=api("/rest/v1/user_roles?select=user_id&role=eq."+urllib.parse.quote(role))
+              for x in rows or []:
+                  if str(x.get("user_id")) in auth:return str(x["user_id"])
+              raise RuntimeError("missing role "+role)
+          def magic(email):
+              r=api("/auth/v1/admin/generate_link","POST",{"type":"magiclink","email":email,"options":{"redirect_to":APP+"/#home"}})
+              return str(r.get("hashed_token") or "")
+          def session(p):
+              return p.evaluate("""async()=>{const r=await window.mahaSupabase.auth.getSession();const s=r?.data?.session;return {present:!!s,id:s?.user?.id||null}}""")
+          def login(p,email):
+              p.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+              token=magic(email)
+              r=p.evaluate("""async t=>{const x=await window.mahaSupabase.auth.verifyOtp({token_hash:t,type:"magiclink"});return !!x?.data?.session?.user}""",token)
+              if not r:raise RuntimeError("auth failed")
+              p.wait_for_timeout(1000)
+          def observe(p):
+              p.on("pageerror",lambda e:out["browser_errors"].append("pageerror:"+str(e)))
+              p.on("console",lambda m:out["browser_errors"].append("console:"+m.text) if m.type=="error" else None)
+          def check(label,keys):
+              for k in keys:
+                  if out["roles"].get(label,{}).get(k) is not True:out["failures"].append(label+": "+k)
+          with sync_playwright() as pw:
+              b=pw.chromium.launch(headless=True)
+              customer=b.new_page(viewport={"width":1440,"height":1000},locale="en-US")
+              seller=b.new_page(viewport={"width":1440,"height":1000},locale="en-US")
+              owner=b.new_page(viewport={"width":1440,"height":1000},locale="en-US")
+              for p in (customer,seller,owner):observe(p)
+
+              # Customer: use existing E2E credentials; no fixture mutation.
+              out["roles"]["customer"]={}
+              if not os.environ.get("CUSTOMER_EMAIL") or not os.environ.get("CUSTOMER_PASSWORD"):raise RuntimeError("customer E2E secrets missing")
+              customer.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000); out["roles"]["customer"]["http_200"]=True
+              customer.evaluate("() => openAuthModal('login')"); customer.locator("#loginEmail").fill(os.environ["CUSTOMER_EMAIL"]); customer.locator("#loginPassword").fill(os.environ["CUSTOMER_PASSWORD"]); customer.locator("#authFormContent button[type='submit']").click(); customer.wait_for_timeout(2500)
+              out["roles"]["customer"]["authenticated_session"]=bool(session(customer)["present"])
+              customer.evaluate("() => navigateTo('orders')"); customer.wait_for_timeout(1500)
+              out["roles"]["customer"]["orders_route"]=customer.evaluate("()=>location.hash.replace(/^#/,'')")=="orders"
+              out["roles"]["customer"]["orders_host_present"]=customer.locator("#ordersContent").count()==1
+              customer.evaluate("() => navigateTo('checkout')"); customer.wait_for_timeout(1200)
+              out["roles"]["customer"]["session_survived_checkout_navigation"]=bool(session(customer)["present"])
+
+              # Seller: existing credentials; open -> close -> re-entry.
+              out["roles"]["seller"]={}
+              if not os.environ.get("SELLER_EMAIL") or not os.environ.get("SELLER_PASSWORD"):raise RuntimeError("seller E2E secrets missing")
+              seller.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000); seller.evaluate("() => openAuthModal('login')"); seller.locator("#loginEmail").fill(os.environ["SELLER_EMAIL"]); seller.locator("#loginPassword").fill(os.environ["SELLER_PASSWORD"]); seller.locator("#authFormContent button[type='submit']").click(); seller.wait_for_timeout(2500)
+              out["roles"]["seller"]["authenticated_session"]=bool(session(seller)["present"])
+              seller.evaluate("()=>window.switchPlatform('seller')"); seller.wait_for_selector("#sellerContent .seller-welcome",state="visible",timeout=30000); out["roles"]["seller"]["first_open"]=True
+              seller.evaluate("()=>window.VELORA_CLOSE_SELLER()"); seller.wait_for_function("()=>!document.getElementById('sellerPlatform')?.classList.contains('active')",timeout=10000); out["roles"]["seller"]["closed_without_refresh"]=True
+              seller.evaluate("()=>window.switchPlatform('seller')"); seller.wait_for_selector("#sellerContent .seller-welcome",state="visible",timeout=30000); out["roles"]["seller"]["reentry_active_without_refresh"]=seller.locator("#sellerPlatform.active").count()==1; out["roles"]["seller"]["reentry_content"]=True
+
+              # Owner: discover existing Owner fixture, authenticate by generated magic link.
+              owner_uid=first_role("owner"); owner_email=str(auth[owner_uid].get("email") or "")
+              out["roles"]["owner"]={}
+              login(owner,owner_email); out["roles"]["owner"]["authenticated_session"]=bool(session(owner)["present"]); out["roles"]["owner"]["authenticated_user_match"]=session(owner)["id"]==owner_uid
+              owner.evaluate("()=>window.switchPlatform('admin')"); owner.wait_for_selector("#adminContent .admin-section-card h3",state="visible",timeout=30000); owner.wait_for_selector("#ownerGovernanceContent [data-owner-governance='launch-control']",state="visible",timeout=30000); out["roles"]["owner"]["governance_present"]=True
+              owner.evaluate("()=>window.VELORA_CLOSE_ADMIN()"); owner.wait_for_function("()=>!document.getElementById('adminPlatform')?.classList.contains('active')",timeout=10000); out["roles"]["owner"]["closed_without_refresh"]=True
+              owner.evaluate("()=>window.switchPlatform('admin')"); owner.wait_for_selector("#ownerGovernanceContent [data-owner-governance='launch-control']",state="visible",timeout=30000); out["roles"]["owner"]["reentry_active_without_refresh"]=owner.locator("#adminPlatform.active").count()==1; out["roles"]["owner"]["reentry_governance_present"]=True
+
+              customer.screenshot(path="aggregate-customer.png",full_page=True); seller.screenshot(path="aggregate-seller.png",full_page=True); owner.screenshot(path="aggregate-owner.png",full_page=True)
+              for p in (customer,seller,owner):p.close()
+              b.close()
+
+          check("customer",["http_200","authenticated_session","orders_route","orders_host_present","session_survived_checkout_navigation"])
+          check("seller",["authenticated_session","first_open","closed_without_refresh","reentry_active_without_refresh","reentry_content"])
+          check("owner",["authenticated_session","authenticated_user_match","governance_present","closed_without_refresh","reentry_active_without_refresh","reentry_governance_present"])
+          out["browser_errors"]=list(dict.fromkeys(out["browser_errors"]))[:50]
+          out["passed"]=not out["failures"] and not out["browser_errors"]
+          with open("velora-final-aggregate-exact-source-evidence.json","w") as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          sys.exit(0 if out["passed"] else 1)
+          PY
+      - name: Upload exact-source aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-final-aggregate-exact-source-browser-evidence
+          path: |
+            velora-final-aggregate-exact-source-evidence.json
+            aggregate-customer.png
+            aggregate-seller.png
+            aggregate-owner.png
+            final-aggregate-exact-source.log
+          retention-days: 7
