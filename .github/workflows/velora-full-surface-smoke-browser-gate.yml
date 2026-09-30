@@ -125,7 +125,8 @@ jobs:
 
               cm=b.new_page(viewport={'width':390,'height':844},locale='en-US')
               observe(cm,'customer-mobile')
-              cm.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              login(cm,os.environ['CUSTOMER_EMAIL'])
+              if not sess(cm): raise RuntimeError('customer mobile authentication failed')
               for route in ['home','shop','shops','deals','favorites','orders','checkout','account']:
                   cm.evaluate('(r)=>navigateTo(r)',route)
                   smoke(cm,'customer-mobile/'+route)
