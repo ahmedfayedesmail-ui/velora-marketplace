@@ -28,7 +28,7 @@ jobs:
           rm -rf /tmp/witnesspkg
           npm install --prefix /tmp/witnesspkg --no-save @witness-engine/cli@0.9.1
           node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js doctor
-          cp tmp-witness-business-truth-drafts.js /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
+          cp velora/tmp-witness-business-truth-drafts.js /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
           node --check /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
           test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js
 
