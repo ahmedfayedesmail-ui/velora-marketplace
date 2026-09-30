@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - witness/pilot-velora-2026-09-30
+  pull_request:
+    branches:
+      - audit/runtime-parity-2026-09-28
 
 permissions:
   contents: read
