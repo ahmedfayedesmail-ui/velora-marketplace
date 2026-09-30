@@ -62,3 +62,16 @@ assert.doesNotMatch(releaseDomain, /window\.VELORA_OPEN_ADMIN\s*=/);
 assert.match(canonical, /releaseControl:'Release Control'/);
 assert.match(canonical, /section==='releaseControl'[\s\S]*?window\.VELORA_RENDER_RELEASES/);
 console.log('✅ Owner release control consolidation contract passed');
+
+const payoutMigration = read('supabase/migrations/20260930073000_owner_payout_control_plane_read.sql');
+assert.match(payoutMigration, /create or replace function public\.velora_get_payout_control_plane/);
+assert.match(payoutMigration, /not public\.velora_is_staff\(\)/);
+assert.match(payoutMigration, /paid_missing_ledger_count/);
+assert.match(payoutMigration, /revoke all on function public\.velora_get_payout_control_plane\(\)/);
+assert.match(payoutMigration, /grant execute on function public\.velora_get_payout_control_plane\(\) to authenticated/);
+assert.match(canonical, /async function renderCanonicalPayoutControl\(expectedOperation\)/);
+assert.match(canonical, /data-payout-control="true"/);
+assert.match(canonical, /velora_get_payout_control_plane/);
+assert.match(canonical, /velora_record_payout_execution/);
+assert.match(canonical, /Record execution/);
+console.log('✅ Payout control-plane source contract passed');
