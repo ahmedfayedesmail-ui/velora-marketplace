@@ -56,9 +56,9 @@ Users -> Sellers -> Product moderation -> Orders -> Payments -> Refund exception
 
 Repository: ahmedfayedesmail-ui/velora-marketplace
 Current audited continuation branch: audit/runtime-parity-2026-09-28
-Current application commit before this documentation reconciliation: bf18c647718db250bfd2faf7aaffabcec818aafd
-Current application commit message: feat: surface canonical beauty recommendations
-The branch also contains the subsequent documentation reconciliation commit for this Message 2 closure; therefore the READY Preview below is intentionally recorded against its exact deployed application commit, not assumed to equal the final documentation-only HEAD.
+Current verified branch HEAD: 7b38ab7acf8031e58d33df64fa0d7a64db3162dc
+Current HEAD message: ci: accept successful vercel deployment parity
+Runtime/application source is unchanged by the latest CI-only reconciliation commits; the exact deployed Preview is tied to the current branch HEAD.
 
 ### 4.1 Current-state reconciliation — 2026-09-29
 CLASSIFICATION: CLOSED-DONE (metadata + application-baseline reconciliation)
@@ -66,9 +66,10 @@ CLASSIFICATION: CLOSED-DONE (metadata + application-baseline reconciliation)
 OBSERVED FACT:
 - The current application change for Message 2 is commit bf18c647718db250bfd2faf7aaffabcec818aafd (feat: surface canonical beauty recommendations).
 - Immediately before this documentation reconciliation, the branch contained that application commit and the earlier metadata reconciliation at b45697e464bd40305c7bfb4ec38394c82f67a0a9.
-- The exact READY Vercel deployment currently available is dpl_4BpFwCyTDum35JaN7ckfqcQ7vWVA at https://velora-marketplace-5tlljpt1u-ahmedconccc-7063.vercel.app/ and it is deployed from b45697e464bd40305c7bfb4ec38394c82f67a0a9.
-- A subsequent code deployment for bf18c647718db250bfd2faf7aaffabcec818aafd is not currently available because the Vercel deployment check is rate-limited for 24 hours.
-- This does NOT invalidate the source-level change; it means L6/L7 evidence for the new recommendation surface remains pending until an exact Preview is available.
+- The current READY Vercel deployment is dpl_5wG1PnUsswgXCTcgnvkF6nbx2uLU at https://velora-marketplace-git-audit-runtime-pa-faf663-ahmedconccc-7063.vercel.app/ and it is deployed from the exact current branch HEAD 7b38ab7acf8031e58d33df64fa0d7a64db3162dc.
+- Vercel deployment state was verified as READY and direct HTTP fetch of the Preview returned 200 OK.
+- Exact-source authenticated aggregate Browser Gate run 36705561351 / job 109854859222 passed with customer, seller, and owner evidence and zero browser errors.
+- This closes the current exact-source aggregate Browser evidence for the covered scope; it does not constitute Production/provider/legal readiness.
 - No Production change was made.
 
 EVIDENCE BOUNDARY:
