@@ -142,10 +142,14 @@ jobs:
               p.wait_for_timeout(800)
               out['checks']['subscription_arabic_title']='التحكم في الاشتراكات' in p.locator('#adminContent').inner_text()
               overflow(p,'arabic')
+              p.evaluate("()=>window.VELORA_V5_SET_LANGUAGE('en')")
+              p.wait_for_timeout(500)
+              p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('subscriptionControl')")
+              p.wait_for_timeout(700)
+              out['checks']['money_locale_deterministic']=p.evaluate("""()=>{const s=window.VELORA_GLOBAL_LOCALE_STATE||{};const locale=String(s.date_locale||'');const sample=new Intl.NumberFormat(locale||'en-EG',{style:'currency',currency:'USD'}).format(9.99);return /^en-[A-Z]{2}$/.test(locale)&&sample.includes('9.99')}""")
               p.screenshot(path='reported-admin-mobile-ar.png',full_page=True)
               p.close(); b.close()
 
-          out['checks']['money_locale_deterministic']=p.evaluate("""()=>{const s=window.VELORA_GLOBAL_LOCALE_STATE||{};const locale=String(s.date_locale||'');const sample=new Intl.NumberFormat(locale||'en-EG',{style:'currency',currency:'USD'}).format(9.99);return /^en-[A-Z]{2}$/.test(locale)&&sample.includes('9.99')}""") if 'p' in locals() else False
           out['browser_errors']=list(dict.fromkeys(out['browser_errors']))[:50]
           required=(
               'owner_authenticated','gift_surface_loaded','gift_code_minlength','gift_code_maxlength',
