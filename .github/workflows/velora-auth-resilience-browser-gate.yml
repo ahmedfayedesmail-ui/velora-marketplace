@@ -105,6 +105,8 @@ jobs:
                   )
                   b.reload(wait_until="networkidle")
                   evidence["checks"]["duplicate_tab_refresh_preserves_session"]=bool(snap(b)["present"])
+                  await_cleanup = a.evaluate("""async()=>{try{await window.mahaSupabase.auth.signOut();return true}catch(_){return false}}""")
+                  evidence["checks"]["customer_auth_cleanup_available"] = await_cleanup is True
                   a.once("dialog", lambda dialog: dialog.accept())
                   a.locator("#accountContent button",has_text="Logout").click(); time.sleep(1)
                   rb=b.evaluate("""async()=>{const r=await window.mahaSupabase.auth.refreshSession();return {present:!!r?.data?.session,error:r?.error?.code||null}}""")
