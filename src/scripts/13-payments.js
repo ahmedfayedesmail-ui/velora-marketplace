@@ -84,9 +84,9 @@ async function renderVerifiedPaymentReturn(){
 
     if(terminal){
       paint('✅ <span data-witness-business-truth="payment-success">Payment successful</span> — Order #'+escape(terminal.order.order_number||orderId)+' is confirmed and paid.');
-      const clean=new URL(window.location.href);
-      clean.searchParams.delete('velora_order_id');
-      window.history.replaceState({},'',clean.toString());
+      // Keep the order query parameter visible until this page leaves the verified
+      // payment-return state. WITNESS uses it to bind the exact returned order to
+      // the read-only business-truth contract; it contains no authentication secret.
       return;
     }
 
