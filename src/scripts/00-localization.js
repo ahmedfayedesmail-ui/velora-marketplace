@@ -8996,7 +8996,7 @@ function renderAdminGiftCards(){
     return '<div class="admin-section-card" id="'+id+'">'+
       '<h3 data-velora-i18n="Gift Cards">🎁 Gift Cards</h3>'+
       '<p class="velora-op-muted" data-velora-i18n="Gift cards are stored-value tender and redeemed server-side with concurrency protection.">Gift cards are stored-value tender and redeemed server-side with concurrency protection.</p>'+
-      '<form id="'+id+'Form" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
+      '<form id="'+id+'Form" class="velora-gift-card-form">'+
         '<input name="amount" class="form-input" type="number" min="1" step="0.01" placeholder="Amount" required>'+
         '<input name="currency" class="form-input" value="EGP" placeholder="Currency">'+
         '<input name="code" class="form-input" minlength="8" maxlength="80" autocomplete="off" placeholder="Optional code (8–80 characters)">'+
