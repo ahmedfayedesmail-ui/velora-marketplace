@@ -221,7 +221,7 @@ jobs:
         run: |
           set +e
           node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan \
-            --url "$APP_URL#${{ matrix.start_hash }} \
+            --url "$APP_URL#${{ matrix.start_hash }}" \
             --grant ./witness-grant.json \
             --repo . \
             --mode focus \
