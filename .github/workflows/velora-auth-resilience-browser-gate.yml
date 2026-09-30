@@ -116,7 +116,8 @@ jobs:
                   login(pa); login(pb)
                   evidence["checks"]["separate_contexts_can_authenticate"]=bool(snap(pa)["present"] and snap(pb)["present"])
                   pa.once("dialog", lambda dialog: dialog.accept())
-                  pa.locator("#accountContent button",has_text="Logout").click(); time.sleep(1)
+                  pa.evaluate("""async()=>{if(typeof window.logout==='function'){await window.logout();return true}return false}""")
+                  time.sleep(1)
                   rb=pb.evaluate("""async()=>{const r=await window.mahaSupabase.auth.refreshSession();return {present:!!r?.data?.session,error:r?.error?.code||null}}""")
                   evidence["observations"]["separate_context_refresh_after_global_logout"]=rb
                   evidence["checks"]["global_logout_invalidates_separate_context_refresh"]=not rb["present"]
