@@ -9,7 +9,8 @@
     "test:beauty-ai": "node tests/customer-beauty-ai-contract.test.mjs",
     "test:product-detail": "node tests/product-detail-contract.test.mjs",
     "test:platform-reentry": "node tests/platform-reentry-contract.test.mjs",
-    "test:auth-lifecycle": "node tests/auth-lifecycle-contract.test.mjs"
+    "test:auth-lifecycle": "node tests/auth-lifecycle-contract.test.mjs",
+    "test:notification-push": "node tests/notification-push-contract.test.mjs"
   },
   "dependencies": {
     "web-push": "^3.6.7"
