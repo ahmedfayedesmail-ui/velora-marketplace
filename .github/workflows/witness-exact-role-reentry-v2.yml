@@ -1,0 +1,245 @@
+name: WITNESS Exact Role Reentry Gate
+
+on:
+  push:
+    branches:
+      - witness/focused-reentry-0-9-1-2026-09-30
+
+permissions:
+  contents: read
+
+jobs:
+  role-reentry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install Playwright
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "playwright==1.57.0"
+          python3 -m playwright install --with-deps chromium
+
+      - name: Start exact-source server
+        run: |
+          set -euo pipefail
+          nohup python3 -m http.server 4173 -d src > /tmp/velora-reentry.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  if urllib.request.urlopen("http://127.0.0.1:4173/",timeout=2).status == 200:
+                      break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_SERVER_NOT_READY")
+          PY
+
+      - name: Execute exact seller/admin re-entry + Arabic evidence
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          BASE=os.environ["SUPABASE_URL"].rstrip("/")
+          KEY=os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          APP=os.environ["APP_URL"].rstrip("/")
+          HDR={"apikey":KEY,"Authorization":"Bearer "+KEY,"Content-Type":"application/json","Accept":"application/json"}
+
+          def api(path, method="GET", payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              req=urllib.request.Request(BASE+path,data=data,headers=HDR,method=method)
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  raw=r.read().decode()
+                  return json.loads(raw) if raw else None
+
+          users=api("/auth/v1/admin/users?page=1&per_page=1000")
+          users=users.get("users",[]) if isinstance(users,dict) else (users or [])
+          auth={str(u.get("id")):u for u in users if u.get("id")}
+
+          def role_user(role):
+              rows=api("/rest/v1/user_roles?select=user_id&role=eq."+urllib.parse.quote(role))
+              for row in rows or []:
+                  uid=str(row.get("user_id") or "")
+                  if uid in auth:
+                      return uid
+              raise RuntimeError("NO_AUTH_USER_FOR_ROLE:"+role)
+
+          def seller_user():
+              rows=api("/rest/v1/sellers?select=user_id,status&status=eq.approved&limit=50")
+              for row in rows or []:
+                  uid=str(row.get("user_id") or "")
+                  if uid not in auth:
+                      continue
+                  roles=api("/rest/v1/user_roles?select=user_id&user_id=eq."+urllib.parse.quote(uid)+"&role=eq.seller")
+                  if roles:
+                      return uid
+              raise RuntimeError("NO_APPROVED_SELLER_AUTH_USER")
+
+          def email(uid):
+              value=str(auth[uid].get("email") or "")
+              if not value:
+                  raise RuntimeError("NO_EMAIL_FOR_USER")
+              return value
+
+          def magic_hash(mail):
+              r=api("/auth/v1/admin/generate_link","POST",{
+                  "type":"magiclink",
+                  "email":mail,
+                  "options":{"redirect_to":APP+"/#home"}
+              })
+              token=str(r.get("hashed_token") or "")
+              if not token:
+                  raise RuntimeError("NO_MAGIC_HASH")
+              return token
+
+          def auth_page(page,uid):
+              page.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+              token=magic_hash(email(uid))
+              result=page.evaluate("""async token=>{
+                const r=await window.mahaSupabase.auth.verifyOtp({token_hash:token,type:"magiclink"});
+                return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null,error:r?.error?.message||null};
+              }""",token)
+              if not result.get("ok") or str(result.get("id") or "")!=uid:
+                  raise RuntimeError("AUTH_VERIFY_FAILED")
+              page.wait_for_timeout(1800)
+
+          def open_role(page,platform):
+              page.evaluate("(p)=>window.switchPlatform(p)",platform)
+              page.wait_for_function("""p=>{
+                const id=p==="seller"?"sellerPlatform":"adminPlatform";
+                return !!document.getElementById(id)?.classList.contains("active");
+              }""",platform,timeout=15000)
+              selector="#sellerContent .seller-welcome" if platform=="seller" else "#adminContent .admin-section-card h3"
+              page.wait_for_selector(selector,timeout=30000)
+
+          def snap(page,platform,label):
+              return page.evaluate("""(p,label)=>{
+                const id=p==="seller"?"sellerPlatform":"adminPlatform";
+                const root=document.getElementById(id);
+                const content=document.getElementById(p==="seller"?"sellerContent":"adminContent");
+                const marker=p==="seller"
+                  ? root?.querySelector(".seller-welcome")
+                  : root?.querySelector(".admin-section-card h3");
+                const rect=marker?.getBoundingClientRect();
+                return {
+                  label:label,
+                  hash:location.hash,
+                  url:location.href,
+                  active:!!root?.classList.contains("active"),
+                  ariaHidden:root?.getAttribute("aria-hidden")||null,
+                  contentLength:String(content?.innerText||"").trim().length,
+                  marker:String(marker?.innerText||"").trim(),
+                  markerVisible:!!marker&&!!rect&&rect.width>0&&rect.height>0,
+                  lang:document.documentElement.lang||null,
+                  dir:document.documentElement.dir||null,
+                  stateUser:window.STATE?.user?{
+                    uid:window.STATE.user.uid||null,
+                    role:window.STATE.user.role||null,
+                    roles:window.STATE.user.roles||null
+                  }:null
+                };
+              }""",platform,label)
+
+          evidence={"schema":"witness-exact-role-reentry.v2","roles":{},"failures":[]}
+
+          with sync_playwright() as pw:
+              browser=pw.chromium.launch()
+              seller_uid=seller_user()
+              admin_uid=role_user("admin")
+
+              for role,uid,platform,arabic in (
+                  ("seller",seller_uid,"seller",False),
+                  ("admin",admin_uid,"admin",True)
+              ):
+                  page=browser.new_page(viewport={"width":1440,"height":1000},locale=("ar-EG" if arabic else "en-EG"))
+                  item={"user_id_present":bool(uid),"email_present":bool(email(uid))}
+                  try:
+                      auth_page(page,uid)
+                      item["session"]=page.evaluate("""async()=>{
+                        const r=await window.mahaSupabase.auth.getSession();
+                        return {present:!!r?.data?.session?.user,userId:r?.data?.session?.user?.id||null};
+                      }""")
+                      open_role(page,platform)
+                      item["first_open"]=snap(page,platform,"first_open")
+                      page.screenshot(path=role+"-first-open.png",full_page=True)
+
+                      if platform=="seller":
+                          page.evaluate("()=>window.VELORA_CLOSE_SELLER()")
+                      else:
+                          page.evaluate("()=>window.VELORA_CLOSE_ADMIN()")
+                      page.wait_for_function("""p=>{
+                        const id=p==="seller"?"sellerPlatform":"adminPlatform";
+                        return !!document.getElementById(id)&&!document.getElementById(id).classList.contains("active");
+                      }""",platform,timeout=15000)
+                      item["closed"]=snap(page,platform,"closed")
+
+                      open_role(page,platform)
+                      item["second_open"]=snap(page,platform,"second_open")
+                      item["reentry_active_without_refresh"]=bool(
+                          item["second_open"]["active"]
+                          and item["second_open"]["markerVisible"]
+                          and item["second_open"]["stateUser"]
+                          and item["second_open"]["stateUser"]["uid"]==uid
+                      )
+
+                      if arabic:
+                          item["arabic_set"]=page.evaluate("""async()=>{
+                            try{
+                              if(typeof window.VELORA_V5_SET_LANGUAGE!=="function") return {ok:false,reason:"UNAVAILABLE"};
+                              return {ok:!!(await window.VELORA_V5_SET_LANGUAGE("ar"))};
+                            }catch(e){return {ok:false,reason:String(e?.message||e)}}
+                          }""")
+                          page.wait_for_timeout(1800)
+                          item["arabic_snapshot"]=snap(page,platform,"arabic_after_reentry")
+                          page.screenshot(path=role+"-arabic.png",full_page=True)
+                  except Exception as exc:
+                      item["error"]=type(exc).__name__+":"+str(exc)
+                  evidence["roles"][role]=item
+                  page.close()
+
+              browser.close()
+
+          for role in ("seller","admin"):
+              item=evidence["roles"].get(role,{})
+              if item.get("reentry_active_without_refresh") is not True:
+                  evidence["failures"].append(role+":reentry_failed_or_unproven")
+          ar=evidence["roles"].get("admin",{}).get("arabic_set",{})
+          ars=evidence["roles"].get("admin",{}).get("arabic_snapshot",{})
+          if ar.get("ok") is not True:
+              evidence["failures"].append("admin:arabic_set_failed")
+          if ars.get("lang") not in ("ar","ar-EG"):
+              evidence["failures"].append("admin:arabic_lang_mismatch")
+
+          Path("witness-exact-role-reentry-evidence.json").write_text(json.dumps(evidence,ensure_ascii=False,indent=2))
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          raise SystemExit(1 if evidence["failures"] else 0)
+          PY
+
+      - name: Upload exact role evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: witness-exact-role-reentry-v2
+          path: |
+            witness-exact-role-reentry-evidence.json
+            seller-first-open.png
+            seller-arabic.png
+            admin-first-open.png
+            admin-arabic.png
+            /tmp/velora-reentry.log
+          retention-days: 7
