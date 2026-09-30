@@ -1,0 +1,145 @@
+name: Velora Checkout COD Submit Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/13-payments.js"
+      - "src/scripts/57-s2-checkout-e2e.js"
+      - "src/scripts/00-localization.js"
+      - ".github/workflows/velora-checkout-cod-submit-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checkout-submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      APP_URL: http://127.0.0.1:4173
+      PRODUCT_ID: 21d977a0-111b-4bb4-9736-0f2994294d48
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Setup Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > checkout-submit-local.log 2>&1 &
+          python3 - <<'PY'
+          import time,urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:4173/',timeout=2) as r:
+                      if r.status==200: break
+              except Exception: time.sleep(1)
+          else: raise SystemExit('LOCAL_SERVER_NOT_READY')
+          PY
+      - name: Run checkout COD submit evidence
+        run: |
+          python3 - <<'PY'
+          import json,os,sys,urllib.parse,urllib.request,time
+          from playwright.sync_api import sync_playwright
+          BASE=os.environ['SUPABASE_URL'].rstrip('/')
+          KEY=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          APP=os.environ['APP_URL'].rstrip('/')
+          email=os.environ['E2E_EMAIL']
+          product=os.environ['PRODUCT_ID']
+          out={'schema':'velora-checkout-cod-submit.v1','execution_target':'local_exact_source','checks':{},'failures':[],'browser_errors':[]}
+          def api(path,method='GET',payload=None,query=None):
+              url=BASE+path
+              if query:url+='?'+query
+              data=json.dumps(payload).encode() if payload is not None else None
+              h={'apikey':KEY,'Authorization':'Bearer '+KEY,'Accept':'application/json'}
+              if payload is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=data,headers=h,method=method)
+              with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read().decode() or 'null')
+          users=api('/auth/v1/admin/users?page=1&per_page=1000').get('users',[])
+          target=next((u for u in users if str(u.get('email','')).lower()==email.lower()),None)
+          if not target:raise RuntimeError('customer fixture missing')
+          uid=str(target['id'])
+          link=api('/auth/v1/admin/generate_link','POST',{'type':'magiclink','email':email,'options':{'redirect_to':APP+'/#home'}})
+          token=str(link.get('hashed_token') or '')
+          if not token:raise RuntimeError('magiclink unavailable')
+          with sync_playwright() as pw:
+              b=pw.chromium.launch(headless=True)
+              p=b.new_page(viewport={'width':390,'height':844},locale='en-US')
+              p.on('pageerror',lambda e:out['browser_errors'].append('pageerror:'+str(e)))
+              p.on('console',lambda m:out['browser_errors'].append('console:'+m.text) if m.type=='error' else None)
+              p.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              auth=p.evaluate("""async t=>{const r=await window.mahaSupabase.auth.verifyOtp({token_hash:t,type:'magiclink'});return !!r?.data?.session?.user}""",token)
+              out['checks']['authenticated']=bool(auth)
+              p.wait_for_timeout(900)
+              p.evaluate('(id)=>navigateTo(\'shop\')',product)
+              p.wait_for_timeout(1400)
+              p.evaluate('(id)=>window.addToCart(id,1)',product)
+              p.wait_for_timeout(2600)
+              p.evaluate("()=>navigateTo('checkout')")
+              p.wait_for_timeout(6000)
+              out['checks']['checkout_has_product']='Test Vitamin C Serum' in p.locator('#page-checkout').inner_text()
+              p.locator('#custName').fill('Velora E2E Customer')
+              p.locator('#custPhone').fill('01000000000')
+              p.locator('#custEmail').fill(email)
+              p.locator('#custCity').fill('Tanta')
+              p.locator('#custAddress').fill('E2E Checkout Address')
+              cod=p.locator('.payment-method[data-payment-code="cash_on_delivery"]')
+              if cod.count()==0:
+                  cod=p.locator('.payment-method').filter(has_text='Cash on Delivery')
+              if cod.count()==0: raise RuntimeError('COD payment option unavailable')
+              cod.first.click()
+              p.wait_for_timeout(700)
+              before=p.evaluate("()=>({count:(STATE.cart||[]).reduce((n,x)=>n+Number(x.quantity||0),0),reference:window.__VELORA_CHECKOUT_REFERENCE||null})")
+              out['checks']['cart_before_submit_count']=int(before['count'])
+              submit=p.locator('#page-checkout form.checkout-form button[type="submit"]')
+              submit.click()
+              p.wait_for_timeout(4500)
+              out['checks']['after_submit_hash']=p.evaluate('()=>location.hash')
+              out['checks']['after_submit_cart_count']=p.evaluate("()=>({count:(STATE.cart||[]).reduce((n,x)=>n+Number(x.quantity||0),0),submitting:window.__VELORA_CHECKOUT_SUBMITTING})")['count']
+              out['checks']['order_route_reached']=p.evaluate("()=>location.hash.includes('orders')")
+              orders=api('/rest/v1/orders?select=id,order_number,total,currency,status,payment_status,customer_id,checkout_reference&customer_id=eq.'+urllib.parse.quote(uid,safe='')+'&order=created_at.desc&limit=5')
+              out['checks']['recent_customer_orders']=len(orders or [])
+              if orders:
+                  o=orders[0]
+                  out['checks']['latest_order_currency']=str(o.get('currency') or '').upper()=='EGP'
+                  out['checks']['latest_order_payment_status']=str(o.get('payment_status') or '').lower() in ('pending','unpaid')
+                  out['checks']['latest_order_customer_match']=str(o.get('customer_id') or '')==uid
+                  out['checks']['latest_order_number_present']=bool(o.get('order_number'))
+                  out['checks']['latest_order_reference_present']=bool(o.get('checkout_reference'))
+              p.screenshot(path='checkout-cod-submit.png',full_page=True)
+              p.close();b.close()
+          if not out['checks'].get('authenticated'):out['failures'].append('authentication')
+          if not out['checks'].get('checkout_has_product'):out['failures'].append('checkout missing product')
+          if out['checks'].get('cart_before_submit_count',0)<1:out['failures'].append('cart empty before submit')
+          if not out['checks'].get('order_route_reached'):out['failures'].append('did not reach orders after submit')
+          if out['checks'].get('after_submit_cart_count',1)!=0:out['failures'].append('local cart was not cleared after success')
+          for k in ['latest_order_currency','latest_order_payment_status','latest_order_customer_match','latest_order_number_present','latest_order_reference_present']:
+              if not out['checks'].get(k):out['failures'].append(k)
+          out['browser_errors']=list(dict.fromkeys(out['browser_errors']))[:50]
+          out['passed']=not out['failures'] and not out['browser_errors']
+          with open('checkout-cod-submit-evidence.json','w',encoding='utf-8') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          sys.exit(0 if out['passed'] else 1)
+          PY
+      - name: Upload checkout evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-checkout-cod-submit-evidence
+          path: |
+            checkout-cod-submit-evidence.json
+            checkout-submit.png
+            checkout-submit-local.log
+          retention-days: 7
