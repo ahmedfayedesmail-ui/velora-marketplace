@@ -155,7 +155,7 @@ jobs:
                 };
               }""",{"p":platform,"label":label})
 
-          evidence={"schema":"witness-exact-role-reentry.v2","roles":{},"failures":[]}
+          evidence={"schema":"witness-exact-role-reentry.v3","roles":{},"failures":[]}
 
           with sync_playwright() as pw:
               browser=pw.chromium.launch()
@@ -190,11 +190,15 @@ jobs:
 
                       open_role(page,platform)
                       item["second_open"]=snap(page,platform,"second_open")
+                      item["session_after_second_open"]=page.evaluate("""async()=>{
+                        const r=await window.mahaSupabase.auth.getSession();
+                        return {present:!!r?.data?.session?.user,userId:r?.data?.session?.user?.id||null};
+                      }""")
                       item["reentry_active_without_refresh"]=bool(
                           item["second_open"]["active"]
                           and item["second_open"]["markerVisible"]
-                          and item["second_open"]["stateUser"]
-                          and item["second_open"]["stateUser"]["uid"]==uid
+                          and item["session_after_second_open"].get("present") is True
+                          and item["session_after_second_open"].get("userId")==uid
                       )
 
                       if arabic:
@@ -234,7 +238,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: witness-exact-role-reentry-v2
+          name: witness-exact-role-reentry-v3
           path: |
             witness-exact-role-reentry-evidence.json
             seller-first-open.png
