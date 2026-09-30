@@ -1,0 +1,6 @@
+{
+  "mode": "restore_test_read_only_cod_contract",
+  "writes_allowed": false,
+  "production_allowed": false,
+  "real_money_allowed": false
+}
