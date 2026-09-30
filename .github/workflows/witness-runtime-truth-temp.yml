@@ -16,6 +16,7 @@ jobs:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       APP_URL: http://127.0.0.1:4173
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout Velora exact source
         uses: actions/checkout@v4
