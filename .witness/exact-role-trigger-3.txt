@@ -1,0 +1,1 @@
+Temporary trigger for exact role re-entry evidence after Playwright evaluate fix.
