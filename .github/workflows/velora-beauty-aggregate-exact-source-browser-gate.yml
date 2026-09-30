@@ -139,10 +139,16 @@ jobs:
                             return {lang:document.documentElement.lang,dir:document.documentElement.dir};
                           }""")
                           evidence["checks"]["passport_ar_locale"]=ar["lang"]=="ar" and ar["dir"]=="rtl"
-                          # setLang() is synchronous but active-surface refresh is queued;
-                          # allow the existing runtime lifecycle to settle before inspecting the open editor.
-                          page.wait_for_timeout(800)
+                          # The locale contract changes synchronously, while the existing
+                          # translation/active-surface lifecycle may settle asynchronously.
+                          # Wait for the actual Arabic Passport content instead of guessing
+                          # a fixed delay.
+                          page.wait_for_function("""()=>{
+                            const text=document.querySelector("#veloraQuizV2Modal")?.innerText||"";
+                            return text.includes("روتينك") || text.includes("ميزانيتك");
+                          }""",timeout=10000)
                           passport_ar_text=page.locator("#veloraQuizV2Modal").inner_text()
+                          evidence["checks"]["passport_ar_text_snapshot"]=passport_ar_text[:4000]
                           evidence["checks"]["passport_ar_text_present"]="روتينك" in passport_ar_text or "ميزانيتك" in passport_ar_text
 
                           back=page.evaluate("""async()=>{
