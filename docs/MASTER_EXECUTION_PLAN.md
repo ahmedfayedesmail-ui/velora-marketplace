@@ -16339,3 +16339,19 @@ STATUS:
 - Seller/Admin/Owner stale-operation exact-source re-entry = CLOSED-DONE.
 - Re-entry architecture remains unchanged and canonical.
 - Continue to the next independent OPEN track; do not reopen re-entry without contradictory evidence.
+
+## MESSAGE 100 — SELLER AD ACCOUNTING ZERO-COST BOUNDARY (2026-09-30)
+
+- Added `tools/velora_seller_ad_accounting_boundary_lab.py` plus `.github/workflows/velora-zero-cost-seller-ad-accounting-boundary.yml` and `.remote/seller-ad-accounting.json`.
+- Deterministic Seller Ad Accounting Boundary = SUCCESS (run `36690890487`, job `109807581413`).
+- Source + Contract Health on the same head = SUCCESS (`109807618768`).
+- The lab confirms the existing seller-ad operational state-machine boundary while keeping all financial accounting policy fields explicitly OPEN.
+- No accounting schema/type/reference, second ledger engine, provider settlement code, campaign fixture, or real-money action was added.
+- Current open policy register remains: charge-recognition event/timing, revenue recognition, seller-balance treatment, refund/reversal mapping, provider settlement mapping, reporting attribution, and tax/invoice classification.
+- Vercel exact-SHA parity remains a separate FAILURE under the observed build-rate-limit boundary; it is not treated as a source/runtime failure.
+
+STATUS:
+- Seller/Admin/Owner exact-source re-entry = CLOSED-DONE.
+- Financial reconciliation + COD + inventory-failure zero-cost layers = CLOSED-DONE.
+- Seller-ad accounting boundary lab = CLOSED-DONE for engineering/research scope.
+- Seller-ad financial accounting implementation remains OPEN pending governed accounting contract.
