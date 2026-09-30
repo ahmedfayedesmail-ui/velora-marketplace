@@ -233,6 +233,51 @@
   async function renderCanonicalAdminSellers(){const c=document.getElementById('adminContent');const {data,error}=await db.from('sellers').select('id,user_id,store_name,store_slug,status,plan,rating,total_orders,total_products,total_sales,created_at,approved_at,rejection_reason').order('created_at',{ascending:false});if(error)throw error;c.innerHTML=`<div class="admin-section-card"><div class="velora-op-toolbar"><div><h3 style="margin:0">🏪 Sellers</h3><div class="velora-op-muted">Actions use protected RPCs; sellers cannot self-approve.</div></div><input class="velora-op-search op-search" placeholder="Search stores…" oninput="window.VELORA_FILTER_TABLE(this.value,'veloraSellersTable')"></div><div class="velora-op-table-wrap"><table class="velora-op-table" id="veloraSellersTable"><thead><tr><th>Store</th><th>Plan</th><th>Rating</th><th>Orders</th><th>Products</th><th>Status</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(s=>`<tr><td><strong>🏪 ${esc(s.store_name)}</strong><div class="velora-op-muted">/${esc(s.store_slug)}</div></td><td>${esc(s.plan||'free')}</td><td>${Number(s.rating||0).toFixed(1)}</td><td>${Number(s.total_orders||0)}</td><td>${Number(s.total_products||0)}</td><td><span class="velora-op-status ${cls(s.status)}">${esc(s.status)}</span></td><td><div class="velora-op-actions">${s.status==='pending'?`<button onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','approved')">✅ Approve</button><button class="velora-op-danger" onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','rejected')">❌ Reject</button>`:''}${s.status==='approved'?`<button class="velora-op-danger" onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','suspended')">🚫 Suspend</button>`:''}${s.status==='suspended'||s.status==='rejected'?`<button onclick="window.VELORA_SET_SELLER_STATUS('${s.id}','approved')">♻️ Restore</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="7" class="velora-op-muted" style="padding:2rem;text-align:center">No sellers.</td></tr>'}</tbody></table></div></div>`}
   async function renderCanonicalAdminProducts(){const c=document.getElementById('adminContent');const {data,error}=await db.from('products').select('id,seller_id,store_id,name,brand,price,currency_code,stock,status,created_at,updated_at').order('created_at',{ascending:false}).limit(250);if(error)throw error;c.innerHTML=`<div class="admin-section-card"><div class="velora-op-toolbar"><div><h3 style="margin:0">📦 Product Moderation</h3><div class="velora-op-muted">Canonical products are seller-owned and status-controlled by Admin/Owner.</div></div><input class="velora-op-search op-search" placeholder="Search products…" oninput="window.VELORA_FILTER_TABLE(this.value,'veloraProductsTable')"></div><div class="velora-op-table-wrap"><table class="velora-op-table" id="veloraProductsTable"><thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(p=>`<tr><td><strong>${esc(p.name)}</strong><div class="velora-op-muted">${esc(p.brand||'')}</div></td><td>${money(p.price,p.currency_code||'USD')}</td><td>${Number(p.stock||0)}</td><td><span class="velora-op-status ${cls(p.status)}">${esc(p.status)}</span></td><td><div class="velora-op-actions">${p.status==='pending'?`<button onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','approved')">✅ Approve</button><button class="velora-op-danger" onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','rejected')">❌ Reject</button>`:''}${p.status==='approved'?`<button class="velora-op-danger" onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','inactive')">⏸️ Deactivate</button>`:''}${p.status==='inactive'||p.status==='rejected'?`<button onclick="window.VELORA_SET_PRODUCT_STATUS('${p.id}','approved')">♻️ Restore</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="5" class="velora-op-muted" style="padding:2rem;text-align:center">No products.</td></tr>'}</tbody></table></div></div>`}
 
+
+  async function renderCanonicalSellerAdControl(expectedOperation){
+    const c=document.getElementById('adminContent');
+    const platform=document.getElementById('adminPlatform');
+    if(!c||!platform||expectedOperation!==adminPlatformOperation||!platform.classList.contains('active'))return false;
+    try{
+      const {data,error}=await db.rpc('velora_get_seller_ad_control_plane');
+      if(error)throw error;
+      if(expectedOperation!==adminPlatformOperation||!platform.classList.contains('active')||document.getElementById('adminContent')!==c)return false;
+      const d=data||{},s=d.summary||{};
+      const packages=Array.isArray(d.packages)?d.packages:[];
+      const campaigns=Array.isArray(d.campaigns)?d.campaigns:[];
+      const payments=Array.isArray(d.payment_attempts)?d.payment_attempts:[];
+      const statusClass=v=>{
+        const x=String(v||'pending').toLowerCase();
+        return ['active','completed'].includes(x)?'approved':['pending_payment','processing'].includes(x)?'processing':['payment_failed','cancelled','refunded'].includes(x)?'rejected':'processing';
+      };
+      const dateLabel=v=>{
+        if(!v)return '—';
+        const date=new Date(v);
+        return Number.isNaN(date.getTime())?'—':date.toLocaleString();
+      };
+      const summaryCurrency=campaigns.find(x=>x.currency_code)?.currency_code||packages.find(x=>x.currency_code)?.currency_code||'EGP';
+      const summaryRows=[
+        ['Total Campaigns',s.total_campaigns??0],
+        ['Pending Payment',s.pending_payment_count??0],
+        ['Active',s.active_count??0],
+        ['Completed',s.completed_count??0],
+        ['Payment Failed',s.payment_failed_count??0],
+        ['Cancelled',s.cancelled_count??0],
+        ['Refunded',s.refunded_count??0],
+        ['Campaign Value',money(s.campaign_value||0,summaryCurrency)],
+        ['Active Value',money(s.active_value||0,summaryCurrency)]
+      ].map(([label,value])=>'<div class="velora-op-kpi"><div class="kpi-value">'+esc(value)+'</div><div class="kpi-label">'+esc(label)+'</div></div>').join('');
+      const packageRows=packages.map(p=>'<tr><td><strong>'+esc(p.name||p.code||'Package')+'</strong><div class="velora-op-muted">'+esc(p.code||'')+'</div></td><td>'+esc(p.placement||'—')+'</td><td>'+esc(p.duration_days??'—')+' days</td><td>'+money(p.price||0,p.currency_code||summaryCurrency)+'</td><td>'+esc(p.currency_code||summaryCurrency)+'</td><td><span class="velora-op-status '+(p.is_active?'approved':'rejected')+'">'+esc(p.is_active?'active':'inactive')+'</span></td></tr>').join('')||'<tr><td colspan="6" class="velora-op-muted" style="padding:1.5rem;text-align:center">No advertising packages currently returned.</td></tr>';
+      const campaignRows=campaigns.map(x=>'<tr><td><strong>'+esc(x.store_name||'Store')+'</strong><div class="velora-op-muted">'+esc(x.seller_id||'')+'</div></td><td>'+esc(x.product_name||'Product')+'</td><td>'+esc(x.package_name||x.package_code||'Package')+'</td><td>'+esc(x.placement||'—')+'</td><td><span class="velora-op-status '+statusClass(x.status)+'">'+esc(x.status||'—')+'</span></td><td>'+money(x.price||0,x.currency_code||summaryCurrency)+'</td><td><div>'+esc(dateLabel(x.starts_at))+'</div><div class="velora-op-muted">'+esc(dateLabel(x.ends_at))+'</div></td><td>'+esc(x.state_reason||'—')+'</td></tr>').join('')||'<tr><td colspan="8" class="velora-op-muted" style="padding:1.5rem;text-align:center">No seller advertising campaigns currently exist.</td></tr>';
+      const paymentRows=payments.map(p=>'<tr><td>'+esc(p.status||'—')+'</td><td>'+money(p.amount||0,p.currency_code||summaryCurrency)+'</td><td>'+esc(p.currency_code||summaryCurrency)+'</td><td>'+esc(p.provider_id||'—')+'</td><td><div>'+esc(p.provider_payment_id||'—')+'</div><div class="velora-op-muted">'+esc(p.provider_session_id||'—')+'</div></td><td>'+esc(p.failure_code||p.error_code||'—')+'</td><td>'+esc(dateLabel(p.created_at))+'</td></tr>').join('')||'<tr><td colspan="7" class="velora-op-muted" style="padding:1.5rem;text-align:center">No seller advertising payment attempts currently exist.</td></tr>';
+      c.innerHTML='<div class="admin-section-card" data-seller-ad-control="true"><div class="velora-op-toolbar"><div><h3 style="margin:0">📣 Seller Advertising Control</h3><div class="velora-op-muted">Staff/Owner read-only governance visibility over existing advertising packages, campaigns and seller-ad payment attempts. Rendering this surface does not start, cancel, refund or otherwise mutate campaigns.</div></div><button class="btn" onclick="window.VELORA_RENDER_SELLER_AD_CONTROL()">↻ Refresh</button></div><div class="velora-op-grid" style="margin-top:1rem">'+summaryRows+'</div><div class="velora-op-table-wrap" style="margin-top:1rem"><table class="velora-op-table"><thead><tr><th>Package</th><th>Placement</th><th>Duration</th><th>Price</th><th>Currency</th><th>Status</th></tr></thead><tbody>'+packageRows+'</tbody></table></div><div class="velora-op-table-wrap" style="margin-top:1rem"><table class="velora-op-table"><thead><tr><th>Store</th><th>Product</th><th>Package</th><th>Placement</th><th>Status</th><th>Price</th><th>Dates</th><th>State Reason</th></tr></thead><tbody>'+campaignRows+'</tbody></table></div><div class="velora-op-table-wrap" style="margin-top:1rem"><table class="velora-op-table"><thead><tr><th>Status</th><th>Amount</th><th>Currency</th><th>Provider</th><th>Provider / Session</th><th>Failure</th><th>Created</th></tr></thead><tbody>'+paymentRows+'</tbody></table></div><div class="velora-op-note" style="margin-top:1rem"><b>Control boundary:</b> campaign lifecycle and advertising payment transitions continue through the existing canonical seller-ad contracts. Accounting, attribution, reporting and external provider settlement remain separate open business/provider gates.</div></div>';
+      return true;
+    }catch(e){
+      if(expectedOperation===adminPlatformOperation&&platform.classList.contains('active')&&document.getElementById('adminContent')===c)c.innerHTML='<div class="admin-section-card" data-seller-ad-control="error"><b>Seller Advertising Control unavailable.</b><div class="velora-op-muted">'+esc(e?.message||e)+'</div></div>';
+      return false;
+    }
+  }
+
   async function renderCanonicalPayoutControl(expectedOperation){
     const c=document.getElementById('adminContent');
     const platform=document.getElementById('adminPlatform');
@@ -272,6 +317,7 @@
     }
   }
 
+  window.VELORA_RENDER_SELLER_AD_CONTROL=()=>renderCanonicalSellerAdControl(adminPlatformOperation);
   window.VELORA_RENDER_PAYOUT_CONTROL=()=>renderCanonicalPayoutControl(adminPlatformOperation);
   window.VELORA_RENDER_SUBSCRIPTION_CONTROL=()=>renderCanonicalSubscriptionControl(adminPlatformOperation);
   window.VELORA_RECORD_PAYOUT_EXECUTION=async function(payoutId){
