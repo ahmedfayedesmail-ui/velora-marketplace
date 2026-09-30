@@ -15522,3 +15522,59 @@ Customer completes Beauty Passport
 -> no external AI endpoint
 -> customer commerce actions remain downstream of existing canonical product/cart contracts.
 
+
+
+## MESSAGE 87 — BEAUTY JOURNEY + PURCHASE-LINKED FEEDBACK EXACT-SOURCE BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- Beauty Journey account surface = CLOSED-DONE at exact-source Browser scope.
+- Purchase-linked Beauty Feedback surface = CLOSED-DONE for read/empty-state contract at exact-source Browser scope.
+- Actual feedback submission remains correctly purchase-linked and is not claimed positive-execution without a legitimate eligible order item.
+- Full end-to-end Beauty customer journey remains separately OPEN until Passport edit/reload, locale transition through the full flow, Routine -> Cart, mobile results, and an eligible purchase-linked feedback submission are independently evidenced.
+
+IMPLEMENTATION / TEST-ONLY:
+- Added .github/workflows/velora-beauty-journey-feedback-exact-source-browser-gate.yml.
+- Uses exact checked-out source, local Python HTTP server, headless Chromium, and existing E2E credentials.
+- No synthetic order, payment, order item, or feedback row was created.
+
+FINAL EXACT-SOURCE BROWSER:
+- Run: 36680553539
+- Job: 109774835832
+- Result: SUCCESS
+- workflow_sha: 523adb64ef6b8c03b9515af3f515d5716bd0126c
+- HTTP 200 = true.
+- Authenticated session = true.
+- Account page active = true.
+- #veloraBeautyJourney present + visible = true.
+- Journey includes Passport and Latest Routine = true.
+- Canonical current-routine RPC observed = 4.
+- Canonical replenishment-signals RPC observed = 4.
+- #veloraBeautyExperience present + visible = true.
+- Purchase-linked feedback wording/state present = true.
+- Empty-state/items state rendered = true.
+- Journey text length = 516.
+- Feedback text length = 516.
+- Browser errors = 0.
+- failures = [].
+- passed = true.
+- Artifact: beauty-journey-feedback-exact-source-browser-evidence.
+
+NEGATIVE / DATA BOUNDARY:
+- No real purchase item was fabricated to force the feedback form open.
+- The gate accepts the legitimate customer state in which purchase-linked feedback is visible while purchased products are absent/present according to actual DB state.
+- A future positive Feedback submission Browser proof requires a legitimate eligible order item and must use the canonical velora_submit_beauty_feedback path with its existing idempotency/eligibility guard.
+
+STATUS:
+- Beauty Journey read/presentation runtime = CLOSED-DONE for exact-source Browser scope.
+- Purchase-linked Feedback read/empty state = CLOSED-DONE for exact-source Browser scope.
+- Full Beauty Browser journey = OPEN / NOT FULLY EVIDENCED.
+
+ACTION FLOW:
+Account entry
+-> authenticated customer guard
+-> canonical Journey read (velora_get_current_beauty_routine + velora_get_replenishment_signals)
+-> Journey presentation
+-> purchase-linked Experience read
+-> eligible order-item gate before feedback mutation
+-> existing feedback RPC + idempotency
+-> downstream recommendation freshness via feedback event.
