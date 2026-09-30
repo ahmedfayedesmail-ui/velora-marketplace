@@ -52,3 +52,13 @@ assert.match(canonical, /expectedOperation!==adminPlatformOperation[\s\S]*?rende
 assert.match(canonical, /expectedOperation!==adminPlatformOperation[\s\S]*?document\.getElementById\('adminContent'\)!==c/);
 
 console.log('✅ Platform re-entry stale-operation contract passed');
+
+const releaseDomain = read('src/scripts/11-admin.js');
+assert.match(releaseDomain, /window\.VELORA_CREATE_RELEASE_UI/);
+assert.match(releaseDomain, /window\.VELORA_SET_RELEASE_STATUS/);
+assert.match(releaseDomain, /window\.VELORA_RENDER_RELEASES/);
+assert.doesNotMatch(releaseDomain, /window\.VELORA_CANONICAL_ADMIN_SECTION\s*=/);
+assert.doesNotMatch(releaseDomain, /window\.VELORA_OPEN_ADMIN\s*=/);
+assert.match(canonical, /releaseControl:'Release Control'/);
+assert.match(canonical, /section==='releaseControl'[\s\S]*?window\.VELORA_RENDER_RELEASES/);
+console.log('✅ Owner release control consolidation contract passed');
