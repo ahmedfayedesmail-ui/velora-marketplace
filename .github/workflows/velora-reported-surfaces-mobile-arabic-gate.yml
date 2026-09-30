@@ -145,8 +145,16 @@ jobs:
               p.screenshot(path='reported-admin-mobile-ar.png',full_page=True)
               p.close(); b.close()
 
+          out['checks']['money_locale_deterministic']=p.evaluate("""()=>{const s=window.VELORA_GLOBAL_LOCALE_STATE||{};const locale=String(s.date_locale||'');const sample=new Intl.NumberFormat(locale||'en-EG',{style:'currency',currency:'USD'}).format(9.99);return /^en-[A-Z]{2}$/.test(locale)&&sample.includes('9.99')}""") if 'p' in locals() else False
           out['browser_errors']=list(dict.fromkeys(out['browser_errors']))[:50]
-          out['passed']=not out['failures'] and not out['browser_errors'] and all(v is True for v in out['checks'].values())
+          required=(
+              'owner_authenticated','gift_surface_loaded','gift_code_minlength','gift_code_maxlength',
+              'gift_short_code_blocked','gift_overflow','subscription_surface_loaded','subscription_overflow',
+              'rtl','lang_ar','gift_arabic_title','gift_translation_runtime','gift_h3_html',
+              'gift_arabic_title_after_forced_render','subscription_arabic_title','arabic_overflow',
+              'money_locale_deterministic'
+          )
+          out['passed']=not out['failures'] and not out['browser_errors'] and all(out['checks'].get(k) is True for k in required)
           with open('velora-reported-mobile-arabic-evidence.json','w',encoding='utf-8') as f: json.dump(out,f,ensure_ascii=False,indent=2)
           print(json.dumps(out,ensure_ascii=False,indent=2))
           sys.exit(0 if out['passed'] else 1)
