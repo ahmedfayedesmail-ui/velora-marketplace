@@ -1,0 +1,201 @@
+name: Velora Beauty Journey Feedback Exact-Source Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/64-s1-d-beauty-journey.js"
+      - "src/scripts/65-s1-d-beauty-feedback.js"
+      - ".github/workflows/velora-beauty-journey-feedback-exact-source-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-beauty-journey-feedback-exact-source
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    name: Account -> Beauty Journey -> Purchase-linked Feedback
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > beauty-journey-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run exact-source Beauty Journey / Feedback Browser evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          app=os.environ["APP_URL"].rstrip("/")
+          email=os.environ.get("E2E_EMAIL","")
+          password=os.environ.get("E2E_PASSWORD","")
+          evidence={
+              "schema":"beauty-journey-feedback-exact-source-browser.v1",
+              "execution_target":"local_exact_source",
+              "workflow_sha":os.environ.get("GITHUB_SHA",""),
+              "checks":{},
+              "failures":[],
+              "browser_errors":[],
+          }
+
+          if not email or not password:
+              evidence["failures"].append("E2E_CREDENTIALS_MISSING")
+          else:
+              with sync_playwright() as p:
+                  browser=p.chromium.launch(headless=True)
+                  page=browser.new_page(viewport={"width":390,"height":844},locale="en-US")
+                  journey_rpc=[]
+                  replenishment_rpc=[]
+
+                  page.on("pageerror",lambda exc:evidence["browser_errors"].append("pageerror:"+str(exc)))
+                  page.on("console",lambda msg:evidence["browser_errors"].append("console:"+msg.text) if msg.type=="error" else None)
+                  page.on("request",lambda req:journey_rpc.append(req.url) if "/rest/v1/rpc/velora_get_current_beauty_routine" in req.url else None)
+                  page.on("request",lambda req:replenishment_rpc.append(req.url) if "/rest/v1/rpc/velora_get_replenishment_signals" in req.url else None)
+
+                  try:
+                      response=page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                      evidence["checks"]["http_status"]=response.status if response else None
+
+                      page.evaluate("() => openAuthModal('login')")
+                      page.locator("#loginEmail").fill(email)
+                      page.locator("#loginPassword").fill(password)
+                      page.locator("#authFormContent button[type='submit']").click()
+                      page.wait_for_timeout(3000)
+
+                      auth=page.evaluate("""async()=>{
+                        const r=await window.mahaSupabase.auth.getSession();
+                        return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null};
+                      }""")
+                      evidence["checks"]["authenticated_session"]=bool(auth["ok"])
+
+                      if auth["ok"]:
+                          page.evaluate("() => navigateTo('account')")
+                          page.wait_for_function("() => document.getElementById('page-account')?.classList.contains('active')",timeout=15000)
+                          page.wait_for_selector("#veloraBeautyJourney",state="attached",timeout=20000)
+                          page.wait_for_selector("#veloraBeautyExperience",state="attached",timeout=20000)
+                          page.wait_for_timeout(1400)
+
+                          journey=page.locator("#veloraBeautyJourney")
+                          experience=page.locator("#veloraBeautyExperience")
+
+                          jt=journey.inner_text()
+                          et=experience.inner_text()
+
+                          evidence["checks"]["account_active"]=True
+                          evidence["checks"]["journey_present"]=journey.count()==1
+                          evidence["checks"]["journey_visible"]=journey.is_visible()
+                          evidence["checks"]["journey_has_passport"]= "Passport" in jt
+                          evidence["checks"]["journey_has_latest_routine"]= "Latest Routine" in jt
+                          evidence["checks"]["journey_rpc_requests"]=len(journey_rpc)
+                          evidence["checks"]["replenishment_rpc_requests"]=len(replenishment_rpc)
+                          evidence["checks"]["feedback_surface_present"]=experience.count()==1
+                          evidence["checks"]["feedback_surface_visible"]=experience.is_visible()
+                          evidence["checks"]["feedback_purchase_linked_language_present"]=(
+                              "Products from your orders" in et and
+                              "purchase" not in et.lower() or "purchased products" in et.lower()
+                          )
+                          evidence["checks"]["feedback_empty_state_or_items"] = (
+                              "Your purchased products will appear here." in et
+                              or "Share experience" in et
+                              or "Saved ·" in et
+                          )
+                          evidence["checks"]["journey_text_length"]=len(jt)
+                          evidence["checks"]["feedback_text_length"]=len(et)
+
+                          page.screenshot(path="beauty-journey-feedback-exact-source.png",full_page=True)
+
+                  except Exception as exc:
+                      evidence["failures"].append("BROWSER_EXCEPTION:"+str(exc))
+                  finally:
+                      browser.close()
+
+          c=evidence["checks"]
+          if c.get("http_status") != 200:
+              evidence["failures"].append("LOCAL_SOURCE_HTTP_NOT_200")
+          if not c.get("authenticated_session"):
+              evidence["failures"].append("AUTHENTICATED_SESSION_MISSING")
+          if not c.get("account_active"):
+              evidence["failures"].append("ACCOUNT_NOT_ACTIVE")
+          if not c.get("journey_present"):
+              evidence["failures"].append("BEAUTY_JOURNEY_MISSING")
+          if not c.get("journey_visible"):
+              evidence["failures"].append("BEAUTY_JOURNEY_NOT_VISIBLE")
+          if not c.get("journey_has_passport"):
+              evidence["failures"].append("BEAUTY_JOURNEY_PASSPORT_SECTION_MISSING")
+          if not c.get("journey_has_latest_routine"):
+              evidence["failures"].append("BEAUTY_JOURNEY_ROUTINE_SECTION_MISSING")
+          if c.get("journey_rpc_requests",0) < 1:
+              evidence["failures"].append("CURRENT_ROUTINE_RPC_NOT_OBSERVED")
+          if c.get("replenishment_rpc_requests",0) < 1:
+              evidence["failures"].append("REPLENISHMENT_RPC_NOT_OBSERVED")
+          if not c.get("feedback_surface_present"):
+              evidence["failures"].append("BEAUTY_FEEDBACK_SURFACE_MISSING")
+          if not c.get("feedback_surface_visible"):
+              evidence["failures"].append("BEAUTY_FEEDBACK_SURFACE_NOT_VISIBLE")
+          if not c.get("feedback_purchase_linked_language_present"):
+              evidence["failures"].append("FEEDBACK_PURCHASE_LINKAGE_NOT_VISIBLE")
+          if not c.get("feedback_empty_state_or_items"):
+              evidence["failures"].append("FEEDBACK_STATE_NOT_RENDERED")
+
+          evidence["browser_errors"]=list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["checks"]["browser_error_count"]=len(evidence["browser_errors"])
+          evidence["passed"]=not evidence["failures"] and not evidence["browser_errors"]
+
+          with open("beauty-journey-feedback-browser-evidence.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload exact-source Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beauty-journey-feedback-exact-source-browser-evidence
+          path: |
+            beauty-journey-feedback-browser-evidence.json
+            beauty-journey-feedback-exact-source.png
+            beauty-journey-local-server.log
+          retention-days: 7
