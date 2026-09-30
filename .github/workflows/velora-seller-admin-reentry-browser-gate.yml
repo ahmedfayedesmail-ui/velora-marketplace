@@ -269,7 +269,8 @@ jobs:
                           rootTextLength: String(root?.innerText || '').trim().length,
                           visible: !!required && !!rect && rect.width > 0 && rect.height > 0,
                           loadingText: String(root?.querySelector('.velora-op-card')?.innerText || '').trim(),
-                          ownerGovernancePresent: !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance="launch-control"]')
+                          ownerGovernancePresent: !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance="launch-control"]'),
+                          ownerReleaseControlPresent: !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-release-control="true"]')
                         };
                       }""",
                       platform
