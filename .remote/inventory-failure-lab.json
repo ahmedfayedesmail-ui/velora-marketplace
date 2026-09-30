@@ -1,0 +1,7 @@
+{
+  "mode": "restore_test_read_only_inventory_failure_reconciliation",
+  "writes_allowed": false,
+  "production_allowed": false,
+  "real_money_allowed": false,
+  "verification_revision": 1
+}
