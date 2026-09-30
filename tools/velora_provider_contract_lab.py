@@ -26,7 +26,11 @@ def main() -> int:
       'real_money_moved': False,
     }
     for k,v in checks.items():
+        if k in {'provider_not_called','real_money_moved'}:
+            continue
         if not v: failures.append(k)
+    if checks['provider_not_called'] is not True: failures.append('provider_called_unexpectedly')
+    if checks['real_money_moved'] is not False: failures.append('real_money_moved_unexpectedly')
     evidence={
       'schema':'velora-provider-contract-lab.v1',
       'mode':'local_deterministic_emulation',
