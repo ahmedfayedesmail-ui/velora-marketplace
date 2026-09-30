@@ -14413,3 +14413,79 @@ STATUS:
 
 NEXT:
 - Continue with the next independent non-legal OPEN item; do not reopen closed Auth paths without regression.
+
+
+## MESSAGE 75 — RE-ENTRY / AUTH / PRODUCT DETAIL VERIFICATION RECONCILIATION (2026-09-30)
+
+CLASSIFICATION: VERIFICATION-DRIFT CLOSED / CURRENT SOURCE-CONTRACT-BROWSER BASELINE GREEN
+
+CURRENT VERIFIED COMMIT:
+- `569d2f788a4d57ef9733a250b4a757109ca9b190`
+- Test-only reconciliation after the Admin canonical renderer hardening and the exact-source Browser Gate work.
+
+ZERO-COST HEALTH:
+- Workflow: `36671358179`
+- Conclusion: SUCCESS
+- Passed:
+  - repository whitespace
+  - JavaScript syntax
+  - Beauty AI contract
+  - Product Detail contract
+  - Authentication lifecycle contract
+  - Platform re-entry contract
+  - static application check
+  - full static audit
+
+PLATFORM CONTRACT:
+- Workflow: `36671358201`
+- Conclusion: SUCCESS
+- The contract test was updated only to match the current canonical Admin renderer and current Browser Gate schema/JSON-key syntax.
+- No product behavior was changed by this reconciliation.
+
+SELLER/ADMIN BROWSER:
+- Workflow: `36671358197`
+- Job: `109746836845`
+- Conclusion: SUCCESS
+- Exact-source local Chromium gate passed:
+  - authenticated Seller first-open -> close -> second-open
+  - authenticated Admin first-open -> close -> second-open
+  - same document continuity
+  - history traversal
+  - canonical populated dashboard markers
+  - no browser errors
+- Commit Status: `Velora / Seller-Admin Reentry Browser Evidence = success`
+
+PRODUCT DETAIL:
+- Exact-source Browser closure remains valid from Message 73:
+  - run `36670711467`
+  - artifact `11077658929`
+  - all canonical metadata/render checks passed.
+
+AUTH:
+- Exact-source Auth base/resilience closure remains valid:
+  - resilience run `36670534199`
+  - authorization-negative run `36671091768`
+  - customer Admin/Seller entry denial = PASS
+  - duplicate-tab/session refresh = PASS
+  - multi-context/global logout refresh invalidation = PASS.
+
+RCA / TEST-HARNESS DRIFT:
+- Several intermediate failures in this sequence were test-contract or cleanup mismatches:
+  - Auth logout confirmation dialog not accepted by the new resilience test;
+  - Seller guard moved the customer into registration UI, invalidating a locator-based cleanup;
+  - Platform contract assertions lagged behind the canonical Admin renderer and Browser Gate schema.
+- These were corrected without changing product runtime behavior.
+- Final Health + Contract + Browser gates are green on the reconciled source.
+
+VERCEL BOUNDARY:
+- Vercel Preview parity remains independently blocked by the known deployment-rate/capacity boundary.
+- Exact-source Browser evidence is intentionally not promoted to a Vercel/Production claim.
+- Production remains frozen.
+
+STATUS:
+- Seller/Admin re-entry = CLOSED-DONE at exact-source Browser scope.
+- Auth base + resilience + customer platform authorization denial = CLOSED-DONE for tested Restore-Test scope.
+- Product Detail canonical metadata + exact-source Browser = CLOSED-DONE.
+- Current source/contract health = PASS.
+- Vercel exact current-HEAD Preview parity = OPEN/BLOCKED only by deployment capacity.
+- Remaining Master OPEN/BLOCKED/PENDING items remain active and must be handled in order.
