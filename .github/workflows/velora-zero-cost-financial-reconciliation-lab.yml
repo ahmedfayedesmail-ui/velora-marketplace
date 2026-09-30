@@ -1,0 +1,58 @@
+name: Velora Zero-Cost Financial Reconciliation Lab
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "tools/velora_financial_reconciliation_lab.py"
+      - ".github/workflows/velora-zero-cost-financial-reconciliation-lab.yml"
+      - ".remote/financial-reconciliation.json"
+      - "src/scripts/13-payments.js"
+      - "src/scripts/35-seller.js"
+      - "src/scripts/71-customer-orders-returns.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-zero-cost-financial-reconciliation-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lab:
+    name: Deterministic Financial Reconciliation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Run dependency-free financial lab
+        run: python3 tools/velora_financial_reconciliation_lab.py
+      - name: Syntax gate on governed financial surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in \
+            src/scripts/13-payments.js \
+            src/scripts/35-seller.js \
+            src/scripts/71-customer-orders-returns.js
+          do
+            node --check "$f"
+          done
+      - name: Publish summary
+        if: always()
+        run: |
+          cat financial-reconciliation-lab.json >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload deterministic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-financial-reconciliation-lab
+          path: financial-reconciliation-lab.json
+          retention-days: 3
