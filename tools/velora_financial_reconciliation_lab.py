@@ -20,12 +20,12 @@ def source_check(rel: str, patterns: list[str]) -> dict[str, Any]:
 
 def commission_invariant() -> dict[str, Any]:
     gross = Decimal("120.00")
-    rate = Decimal("0.125")
+    rate = Decimal("12.50")
     commission = Decimal("15.00")
     seller = Decimal("105.00")
     return {
         "name": "commission_arithmetic",
-        "passed": gross * rate == commission and gross == commission + seller,
+        "passed": (gross * rate / Decimal("100")) == commission and gross == commission + seller,
         "evidence": {
             "gross": str(gross),
             "rate": str(rate),
