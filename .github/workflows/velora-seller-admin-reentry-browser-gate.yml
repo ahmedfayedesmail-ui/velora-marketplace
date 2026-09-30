@@ -164,7 +164,7 @@ jobs:
                   raise RuntimeError("Magic-link token was not returned for " + email)
               return token_hash
 
-          def run_role(page, label, user_id, platform, expected_text):
+          def run_role(page, label, user_id, platform, expected_text, owner_governance=False):
               role = evidence["roles"].setdefault(label, {"user_id_present": bool(user_id)})
               email = user_email(user_id)
               role["email_present"] = bool(email)
@@ -248,6 +248,8 @@ jobs:
                   timeout=30000
               )
               page.wait_for_timeout(500)
+              if owner_governance:
+                  page.wait_for_selector('[data-owner-governance="launch-control"]', state="visible", timeout=30000)
 
               def render_marker_snapshot():
                   return page.evaluate(
@@ -352,6 +354,7 @@ jobs:
                       platform == "admin"
                       and platform_node.locator("#adminSidebar").count() == 1
                       and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard")
+                  and (not owner_governance or platform_node.locator('[data-owner-governance="launch-control"]').count() == 1)
                   )
               )
               page.screenshot(path=f"{label}-first-open.png", full_page=True)
@@ -432,6 +435,7 @@ jobs:
                       platform == "admin"
                       and platform_node.locator("#adminSidebar").count() == 1
                       and platform_node.locator("#adminHeaderTitle").inner_text().strip() in ("Dashboard", "Owner Dashboard")
+                  and (not owner_governance or platform_node.locator('[data-owner-governance="launch-control"]').count() == 1)
                   )
               )
               page.screenshot(path=f"{label}-second-open.png", full_page=True)
@@ -460,24 +464,29 @@ jobs:
 
               seller_user = first_approved_seller_user()
               admin_user = first_role_user("admin")
+              owner_user = first_role_user("owner")
 
               evidence["roles"]["seller"] = {"user_id_present": bool(seller_user)}
               evidence["roles"]["admin"] = {"user_id_present": bool(admin_user)}
+              evidence["roles"]["owner"] = {"user_id_present": bool(owner_user)}
 
               seller_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
               admin_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
-              for browser_page in (seller_page, admin_page):
+              owner_page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+              for browser_page in (seller_page, admin_page, owner_page):
                   browser_page.on("pageerror", lambda exc: browser_errors.append("pageerror:" + str(exc)))
                   browser_page.on("console", lambda msg: browser_errors.append("console:" + msg.text) if msg.type == "error" else None)
 
               run_role(seller_page, "seller", seller_user, "seller", "Canonical Seller Center")
               run_role(admin_page, "admin", admin_user, "admin", "Dashboard")
+              run_role(owner_page, "owner", owner_user, "admin", "Owner Dashboard", True)
 
               seller_page.close()
               admin_page.close()
+              owner_page.close()
               browser.close()
 
-          for label in ("seller", "admin"):
+          for label in ("seller", "admin", "owner"):
               r = evidence["roles"][label]
               expected = [
                   "email_present",
@@ -496,6 +505,9 @@ jobs:
                   if not r.get(key):
                       evidence["failures"].append(label + ": " + key)
 
+              if label == "owner":
+                  if r.get("second_open", {}).get("render_marker", {}).get("ownerGovernancePresent") is not True:
+                      evidence["failures"].append("owner: governance control plane not present")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
@@ -549,5 +561,8 @@ jobs:
             admin-first-open.png
             admin-closed.png
             admin-second-open.png
+            owner-first-open.png
+            owner-closed.png
+            owner-second-open.png
             reentry-local-server.log
           retention-days: 7
