@@ -89,3 +89,47 @@ Every new blocked-by-tool/cost item should first be evaluated against this seque
 Existing capability -> repository-native replacement -> bounded local/CI implementation -> free external API only when essential -> paid provider only if no safe zero-cost path exists.
 
 Never build a second business authority merely to avoid an external tool.
+
+
+## 5. Zero-Cost Commerce Lab
+
+File: `tools/velora_zero_cost_commerce_lab.py`
+Workflow: `.github/workflows/velora-zero-cost-commerce-lab.yml`
+
+Purpose:
+- deterministically execute checkout / cancellation / returns / subscription / advertising / payout state-machine scenarios;
+- verify that existing canonical source owners still exist;
+- produce machine-readable evidence without a database write or provider call.
+
+Important boundary:
+- simulation only;
+- it cannot create legal, tax, provider, bank, or Production evidence;
+- proposed commercial policies are marked NOT ACTIVE and are never silently enabled.
+
+## 6. Zero-Cost Restore-Test Commerce Evidence
+
+File: `.github/workflows/velora-zero-cost-commerce-evidence.yml`
+
+Purpose:
+- fixed, read-only probes of Restore-Test subscription, advertising, payment, payout, return, legal, and provider state;
+- no arbitrary SQL;
+- no write capability;
+- no Production connection.
+
+This turns repeated manual DB snapshots into a repeatable evidence artifact.
+
+## 7. Zero-Cost Provider Contract Lab
+
+File: `tools/velora_provider_contract_lab.py`
+Workflow: `.github/workflows/velora-zero-cost-provider-contract-lab.yml`
+
+Purpose:
+- deterministic provider-contract emulation for intention shape;
+- SHA-512/HMAC webhook validation;
+- tamper rejection;
+- duplicate-event/idempotency behavior;
+- late-capture reconciliation boundary;
+- missing-client-secret recovery boundary.
+
+This does NOT call Paymob and therefore never counts as live Provider PASS.
+
