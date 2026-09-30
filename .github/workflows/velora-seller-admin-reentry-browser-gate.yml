@@ -467,6 +467,18 @@ jobs:
                       "text_length": len(payout_root.inner_text()) if payout_root.count() else 0,
                   }
                   page.screenshot(path="owner-payout-control.png", full_page=True)
+                  page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('finops')""")
+                  page.wait_for_function(
+                      "() => !!document.querySelector('#adminContent [data-velora-finops-control=" + '"' + "true" + '"' + "]')",
+                      timeout=15000,
+                  )
+                  finops_root = page.locator('#adminContent [data-velora-finops-control="true"]')
+                  role["finops_control"] = {
+                      "present": finops_root.count() == 1,
+                      "visible": finops_root.first.is_visible() if finops_root.count() else False,
+                      "text_length": len(finops_root.inner_text()) if finops_root.count() else 0,
+                  }
+                  page.screenshot(path="owner-finops-control.png", full_page=True)
                   page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('dashboard')""")
                   page.wait_for_function(
                       "() => !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance=" + '"' + "launch-control" + '"' + "]') && !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-release-control=" + '"' + "true" + '"' + "]')",
@@ -555,6 +567,10 @@ jobs:
                       evidence["failures"].append("owner: payout control route not present")
                   if r.get("payout_control", {}).get("visible") is not True:
                       evidence["failures"].append("owner: payout control route not visible")
+                  if r.get("finops_control", {}).get("present") is not True:
+                      evidence["failures"].append("owner: finops control route not present")
+                  if r.get("finops_control", {}).get("visible") is not True:
+                      evidence["failures"].append("owner: finops control route not visible")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
@@ -613,5 +629,6 @@ jobs:
             owner-second-open.png
             owner-release-control.png
             owner-payout-control.png
+            owner-finops-control.png
             reentry-local-server.log
           retention-days: 7
