@@ -15227,3 +15227,124 @@ Next independent execution priority remains Subscription commercial/runtime/prov
 Boundary: this closes only the Owner/Staff read/control surface. Advertising accounting, reporting, attribution, provider settlement/reconciliation, and production remain OPEN.
 
 Seller Advertising accounting/reporting/provider evidence stays explicitly OPEN.
+
+
+## MESSAGE 84 — SELLER SUBSCRIPTION CANONICAL ROUTE + LEGAL FAIL-CLOSED BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- SELLER SUBSCRIPTION CANONICAL CENTER REACHABILITY = CLOSED-DONE AT SOURCE / CONTRACT / EXACT-SOURCE BROWSER SCOPE
+- LEGAL FAIL-CLOSED NEGATIVE PATH = CLOSED-DONE AT EXACT-SOURCE BROWSER SCOPE
+- OWNER/STAFF SUBSCRIPTION CONTROL READ SURFACE = ALREADY CLOSED-DONE
+- SUBSCRIPTION COMMERCIAL POLICY / PROVIDER SETTLEMENT / PRODUCTION = STILL OPEN
+
+OBSERVED GAP:
+- The canonical Seller Center in src/scripts/12-localization.js had no Subscription route.
+- Existing subscription behavior already lived in src/scripts/35-seller.js as v39LoadSubscription(), including seller entitlement read, active paid-plan discovery, legal-document readiness, legal acceptance, provider checkout invocation, and the existing fail-closed wording.
+- The previous Seller Subscription Browser gate incorrectly waited for the legacy #veloraSellerSubscription39 host after opening the canonical Seller platform. That host is only created by the legacy Seller Operations installer and therefore was not a valid proof of the canonical Seller Center.
+- No subscription business-policy gap was inferred from that test failure.
+
+REUSE / SMALLEST SAFE CHANGE:
+- src/scripts/35-seller.js:
+  - v39LoadSubscription(target) now accepts an optional host element.
+  - Existing subscription purchase logic was reused unchanged.
+  - Existing legal fail-closed behavior remains authoritative.
+  - Exported window.VELORA_RENDER_SELLER_SUBSCRIPTION=v39LoadSubscription as a renderer adapter only.
+- src/scripts/12-localization.js:
+  - Added canonical Seller Center Subscription navigation/route.
+  - canonicalSellerSection('subscription') creates #veloraCanonicalSellerSubscription and delegates to window.VELORA_RENDER_SELLER_SUBSCRIPTION(host).
+  - Seller stale-operation checks remain authoritative before and after the awaited render.
+- No new subscription engine, schema, RPC, scheduler, provider, entitlement engine, or permission system was introduced.
+
+SOURCE / CONTRACT:
+- Canonical route + adapter change commits:
+  - a2035143457df7943b703f8d3345e844e690bb9f
+  - 3d62bd7c00c90d6111de54265340e615abb4a1b0
+- Contract test update:
+  - 9f7b0ea4d9030e798ff54476fa5e563aacbf608e
+- Velora Platform Re-entry Contract Gate on 9f7b0ea4d9030e798ff54476fa5e563aacbf608e = SUCCESS.
+- The contract now locks the canonical Subscription route, canonical host, renderer adapter export, and reuse of the existing provider/legal flow.
+
+BROWSER — OWNER/STAFF SUBSCRIPTION CONTROL:
+- Workflow: .github/workflows/velora-owner-subscription-control-exact-source-browser-gate.yml
+- Run: 36679607960
+- Job: 109772079136
+- Execution target: local_exact_source
+- Result: SUCCESS
+- Marker [data-subscription-control="true"] present and visible.
+- Subscription control text length = 950.
+- Existing canonical velora_get_subscription_control_plane RPC observed once.
+- Basic / Pro / Enterprise plan names rendered.
+- Error marker absent.
+- Browser errors = 0.
+
+BROWSER — SELLER CANONICAL SUBSCRIPTION + LEGAL NEGATIVE PATH:
+- Workflow: .github/workflows/velora-seller-subscription-legal-gate-browser.yml
+- Final workflow commit with canonical test-path correction + concurrency isolation + payment-purpose evidence fix:
+  - 6777e98124bdc13f216d14f7e25d7a24f1cb0548
+- Run: 36679785205
+- Job: 109772535073
+- Execution target: local_exact_source
+- Result: SUCCESS
+- Canonical seller subscription host present = true.
+- Canonical seller subscription host visible = true.
+- Subscription button present = true.
+- Paid plan options = 3.
+- Basic / Pro / Enterprise present = true.
+- Legal fail-closed message present = true: "Seller subscription terms are not published yet."
+- Checkout Function Requests = 0.
+- Legal acceptance RPC requests = 0.
+- Before seller_subscriptions = 0; after = 0.
+- Before subscription payment_attempts = 0; after = 0.
+- subscription_rows_unchanged = true.
+- payment_attempt_rows_unchanged = true.
+- Browser errors = 0.
+- failures = [].
+- passed = true.
+- The payment-attempt evidence now queries purpose=subscription, matching the canonical payment_attempts contract.
+
+RESTORE-TEST CURRENT BOUNDARY:
+- seller_subscriptions = 0.
+- seller_subscription_renewal_jobs = 0.
+- subscription payment attempts = 0.
+- subscription_plans = 4: Free, Basic, Pro, Enterprise.
+- Required seller legal documents are not currently published; checkout therefore remains intentionally fail-closed.
+- No QA subscription row or provider payment was fabricated for Browser evidence.
+
+OPEN SUBSCRIPTION WORK:
+- cancellation policy and access timing
+- upgrade / downgrade / replacement semantics
+- proration / no-proration rule
+- renewal notice and final entitlement cutoff
+- refund eligibility and allocation
+- tax / invoice treatment based on real business classification
+- entitlement catalog and effective-date semantics
+- provider settlement / reconciliation
+- positive provider payment evidence
+- production provider configuration and Production Browser/Provider evidence
+- legal document publication by the appropriate human/legal gate
+
+ADVERTISING CARRY-FORWARD:
+- Seller Advertising Control Plane remains CLOSED-DONE for Owner/Staff read/control + exact-source Browser scope.
+- Advertising accounting, reporting, attribution, revenue recognition, refund/reversal economics, provider settlement/reconciliation, legal publication and Production remain OPEN.
+
+PREVIEW / PRODUCTION:
+- Current-head Vercel Preview parity remains OPEN/BLOCKED by the existing deployment capacity/rate-limit condition.
+- Production remains FROZEN.
+- Exact-source Browser evidence does not substitute for Preview or Production evidence.
+
+RCA / TESTING RULE:
+- The previous #veloraSellerSubscription39 timeout was a test-path defect caused by targeting a legacy Seller Operations host from the canonical Seller platform.
+- Do not use that historical failure as a product/runtime defect after the canonical route was proven.
+- Do not weaken future gates to legacy hosts merely to make the gate pass.
+
+ACTION FLOW:
+Seller enters Subscription
+-> authenticated Seller route/role guard
+-> canonical Seller Subscription renderer adapter
+-> existing seller entitlement + plan/legal readiness reads
+-> legal guard
+-> no checkout / no legal mutation when required legal documents are unpublished
+-> provider checkout only after the governed legal state is satisfied
+-> downstream subscription state machine / payment / renewal contracts
+-> audit / retry / provider exception as applicable
+
