@@ -107,6 +107,7 @@
           <div class="seller-nav-item" data-section="orders" onclick="window.VELORA_CANONICAL_SELLER_SECTION('orders',this)"><span>🧾</span><span>Orders</span></div>
         </div>
         <div class="seller-nav-section"><div class="seller-nav-title">Store</div>
+          <div class="seller-nav-item" data-section="subscription" onclick="window.VELORA_CANONICAL_SELLER_SECTION('subscription',this)"><span>🔄</span><span>Subscription</span></div>
           <div class="seller-nav-item" data-section="settings" onclick="window.VELORA_CANONICAL_SELLER_SECTION('settings',this)"><span>⚙️</span><span>Store Settings</span></div>
         </div>
       </nav>
@@ -122,7 +123,7 @@
     if(!platform)return;
     if(typeof closeSellerSidebar==='function') closeSellerSidebar();
     document.querySelectorAll('.seller-nav-item').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
-    const titles={dashboard:'Dashboard',products:'Products',inventory:'Inventory',orders:'Orders',settings:'Store Settings'};const h=document.getElementById('sellerHeaderTitle');if(h)h.textContent=titles[section]||section;
+    const titles={dashboard:'Dashboard',products:'Products',inventory:'Inventory',orders:'Orders',subscription:'Subscription',settings:'Store Settings'};const h=document.getElementById('sellerHeaderTitle');if(h)h.textContent=titles[section]||section;
     try{
       const seller=window.VELORA_CANONICAL_SELLER||await canonicalSeller((await authUser()).id); window.VELORA_CANONICAL_SELLER=seller; window.VELORA_CANONICAL_STORE=window.VELORA_CANONICAL_STORE||await canonicalStore((await authUser()).id);
       if(operation!==sellerPlatformOperation || !platform.classList.contains('active') || document.getElementById('sellerContent')!==c) return false;
@@ -136,6 +137,13 @@
       } else if(section==='products') await renderCanonicalProducts(seller);
       else if(section==='inventory') await renderCanonicalInventory(seller);
       else if(section==='orders') await renderCanonicalOrders(seller);
+      else if(section==='subscription'){
+        if(typeof window.VELORA_RENDER_SELLER_SUBSCRIPTION!=='function') throw new Error('SELLER_SUBSCRIPTION_RENDERER_UNAVAILABLE');
+        c.innerHTML='<div id="veloraCanonicalSellerSubscription"></div>';
+        const host=document.getElementById('veloraCanonicalSellerSubscription');
+        await window.VELORA_RENDER_SELLER_SUBSCRIPTION(host);
+        if(operation!==sellerPlatformOperation || !platform.classList.contains('active') || document.getElementById('sellerContent')!==c) return false;
+      }
       else if(section==='settings') await renderCanonicalSellerSettings(seller);
     }catch(e){
       if(operation===sellerPlatformOperation && platform.classList.contains('active') && document.getElementById('sellerContent')===c){
