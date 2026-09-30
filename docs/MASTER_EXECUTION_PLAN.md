@@ -15755,3 +15755,100 @@ STATUS:
 - Feedback idempotency = CLOSED-DONE at exact-source Browser scope.
 - Physical/Production provider/browser parity remains separate and is not implied.
 - Production remains FROZEN.
+
+
+## MESSAGE 91 — BEAUTY AGGREGATE EXACT-SOURCE BROWSER RCA + STATE-BASED CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- Beauty Aggregate Browser failure was isolated to transient/asynchronous DOM assertion timing, not a demonstrated Beauty runtime defect.
+- No application runtime source, Supabase schema, RPC contract, or Production environment was changed for this RCA.
+- Beauty Aggregate combined flow = CLOSED-DONE at exact-source Browser scope after state-based gate hardening.
+
+INITIAL FAILURE EVIDENCE:
+- Workflow: `.github/workflows/velora-beauty-aggregate-exact-source-browser-gate.yml`.
+- Run: `36682131951`.
+- Job: `109779695158`.
+- Head/source: `9ada8dde724e227dd32c2c3aa5d059b91dad401c`.
+- Result: FAILURE.
+- Confirmed passing checks included HTTP 200, authenticated session, Passport modal/open/persisted state, AR/EN locale attributes, Routine status + 5 steps, Recommendations present + visible with 5 cards and 17 reason chips, Journey present + Passport text, Journey/Replenishment RPC traffic, Feedback surface visibility, and browser error count = 0.
+- Only failed assertions were `passport_ar_text_present`, `journey_routine_text`, and `feedback_state_rendered`.
+- The captured screenshot showed the Account Journey and Beauty Experience surfaces still displaying their transient loading states at the assertion point.
+
+RCA:
+- The existing Passport locale lifecycle can change the locale contract synchronously while the active render/translation lifecycle settles asynchronously.
+- Journey source `src/scripts/64-s1-d-beauty-journey.js` renders a loading skeleton before awaiting the canonical `velora_get_current_beauty_routine` + `velora_get_replenishment_signals` calls.
+- Feedback source `src/scripts/65-s1-d-beauty-feedback.js` likewise renders a loading placeholder before awaiting purchase/feedback reads.
+- The original aggregate gate asserted text immediately after host visibility rather than after those existing render lifecycles completed.
+- This is test-path timing/assertion drift; no browser/page error was observed and the application surfaces subsequently rendered their canonical content.
+
+DIAGNOSTIC EVIDENCE:
+- Test-only diagnostic commit: `bf375c7340a1675e9afc9302c9f373f6dd209156`.
+- Diagnostic run: `36683838713`.
+- Result: SUCCESS with DOM evidence captured after allowing the existing lifecycle to settle.
+- Journey DOM snapshot showed canonical rendered content including `Latest Routine`, status `complete`, 5 selected steps, ruleset `beauty-rules.v5`, and routine history.
+- Beauty Experience DOM snapshot showed purchase-linked product rows and `Share experience` controls.
+- No runtime code change was introduced.
+
+FINAL GATE HARDENING:
+- Final test-only commit: `e23eda3195dbdeef6832262127b4b164d1ae32d3`.
+- The Passport Arabic assertion is now state-based: the gate waits for actual Arabic Passport content (`روتينك` or `ميزانيتك`) rather than using a fixed delay.
+- Existing Journey/Feedback gates use state-based waits that require the loading skeleton to be replaced by the rendered surface before reading assertion text.
+- The diagnostic DOM snapshots remain available in the Browser artifact for traceability.
+- No application runtime change was required.
+
+FINAL EXACT-SOURCE BROWSER EVIDENCE:
+- Run: `36684025308`.
+- Job: `109785640531`.
+- Head/source: `e23eda3195dbdeef6832262127b4b164d1ae32d3`.
+- Result: SUCCESS.
+- HTTP status = 200.
+- Authenticated session = true.
+- Passport modal open = true.
+- Persisted oily Passport selection = true.
+- Passport Arabic locale = true.
+- Passport Arabic text snapshot present = true; exact DOM included `روتينك`, `بشرتك عاملة إزاي؟`, and `ميزانيتك للروتين` content.
+- Passport EN locale restored = true.
+- Passport close/reopen persisted oily state = true.
+- Routine modal active = true.
+- Routine status valid = true.
+- Routine step count = 5.
+- Recommendation section present + visible = true.
+- Recommendation RPC requests = 1.
+- Recommendation cards = 5.
+- Recommendation reason chips = 17.
+- Beauty Journey present = true.
+- Journey loading state absent before assertion = true.
+- Journey Passport text = true.
+- Journey Latest Routine text = true.
+- Journey RPC requests = 4.
+- Replenishment RPC requests = 4.
+- Beauty Experience visible = true.
+- Feedback loading state absent before assertion = true.
+- Feedback rendered state = true.
+- Browser error count = 0.
+- failures = [].
+- passed = true.
+- Artifact: `beauty-aggregate-exact-source-browser-evidence` (Run `36684025308`).
+
+ACTION FLOW EVIDENCE:
+Authenticated customer
+-> Passport V2 persisted-state edit
+-> EN -> AR -> EN locale transition
+-> deterministic Routine (5 steps)
+-> canonical Recommendations (5 cards / 17 reason chips)
+-> Account Beauty Journey loaded from canonical routine + replenishment RPCs
+-> purchase-linked Beauty Experience loaded from existing order/feedback reads
+-> aggregate assertions after authoritative render completion
+-> Browser error-free PASS.
+
+BOUNDARY:
+- This closes the Beauty Aggregate at exact-source Browser scope only.
+- It does not establish Vercel Preview parity or Production parity.
+- The same-head Vercel Preview parity workflow on `e23eda3195dbdeef6832262127b4b164d1ae32d3` remains FAILED because the observed Vercel state is `failure` and the deployment status URL reports `upgradeToPro=build-rate-limit`.
+- Health Gate on the same HEAD: SUCCESS (run `36684025245`).
+- Production remains FROZEN.
+
+STATUS:
+- Beauty individual surfaces remain under their previously recorded closures.
+- Beauty Aggregate combined exact-source Browser coverage = CLOSED-DONE.
+- Remaining project work continues from the OPEN areas already defined in this Master; do not reopen the aggregate RCA without contradictory runtime evidence.
