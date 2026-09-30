@@ -90,6 +90,20 @@ console.log('✅ Owner subscription control-plane source contract passed');
 
 console.log('✅ Payout control-plane source contract passed');
 
+const sellerAdMigration = read('supabase/migrations/20260930090000_owner_seller_ad_control_plane_read.sql');
+assert.match(sellerAdMigration, /create or replace function public\.velora_get_seller_ad_control_plane/);
+assert.match(sellerAdMigration, /not public\.velora_is_staff\(\)/);
+assert.match(sellerAdMigration, /seller_ad_campaigns/);
+assert.match(sellerAdMigration, /payment_attempts/);
+assert.match(sellerAdMigration, /revoke all on function public\.velora_get_seller_ad_control_plane\(\)/);
+assert.match(sellerAdMigration, /grant execute on function public\.velora_get_seller_ad_control_plane\(\) to authenticated/);
+assert.match(canonical, /sellerAdControl:'Seller Advertising'/);
+assert.match(canonical, /section==='sellerAdControl'[\s\S]*?renderCanonicalSellerAdControl\(operation\)/);
+assert.match(canonical, /data-seller-ad-control="true"/);
+assert.match(canonical, /velora_get_seller_ad_control_plane/);
+assert.match(canonical, /VELORA_RENDER_SELLER_AD_CONTROL/);
+console.log('✅ Owner seller advertising control-plane source contract passed');
+
 const finopsDomain = read('src/scripts/04-payments.js');
 assert.match(finopsDomain, /window\.VELORA_CAPTURE_FINOPS/);
 assert.match(finopsDomain, /window\.VELORA_RENDER_FINOPS/);
