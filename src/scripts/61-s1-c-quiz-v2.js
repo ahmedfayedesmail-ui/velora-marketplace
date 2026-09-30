@@ -590,6 +590,20 @@
 
   window.addEventListener('velora:languagechange', function () {
     refreshEntryPoint();
+
+    // The Passport editor is a dynamic surface that renders its labels through
+    // the local t() contract. Repaint the already-open editor when the
+    // canonical locale lifecycle changes; do not rely on DOM observation.
+    const modal = document.getElementById(ROOT_ID);
+    if (!modal?.classList.contains('active') || state.busy || state.ai.busy) return;
+
+    const title = document.getElementById('veloraQuizTitle');
+    if (title) title.textContent = t('روتينك', 'Your Routine');
+
+    const close = document.getElementById('veloraQuizClose');
+    if (close) close.setAttribute('aria-label', t('إغلاق', 'Close'));
+
+    render();
   });
   
   async function refreshEntryPoint() {
