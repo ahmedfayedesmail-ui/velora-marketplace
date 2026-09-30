@@ -1,0 +1,286 @@
+name: Velora Routine Cart Exact-Source Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/62-s1-c-routine-cart.js"
+      - "src/scripts/60-s1-c-routine-ux.js"
+      - "src/scripts/61-s1-c-quiz-v2.js"
+      - ".github/workflows/velora-routine-cart-exact-source-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-routine-cart-exact-source
+  cancel-in-progress: true
+
+jobs:
+  routine-cart-browser:
+    name: Routine -> Add All -> Reversible Cart Rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > routine-cart-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run authenticated Routine -> Cart browser evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          app=os.environ["APP_URL"].rstrip("/")
+          email=os.environ.get("E2E_EMAIL","")
+          password=os.environ.get("E2E_PASSWORD","")
+          evidence={
+              "schema":"routine-cart-exact-source-browser.v1",
+              "execution_target":"local_exact_source",
+              "workflow_sha":os.environ.get("GITHUB_SHA",""),
+              "checks":{},
+              "failures":[],
+              "browser_errors":[]
+          }
+
+          def normalize_cart(rows):
+              out={}
+              for row in rows or []:
+                  key=str(row.get("product_id") or "")+"::"+str(row.get("product_variant_id") or "")
+                  out[key]=int(row.get("quantity") or 0)
+              return out
+
+          with sync_playwright() as p:
+              browser=p.chromium.launch(headless=True)
+              page=browser.new_page(viewport={"width":390,"height":844},locale="en-US")
+
+              add_rpc=[]
+              remove_rpc=[]
+              page.on("pageerror",lambda exc:evidence["browser_errors"].append("pageerror:"+str(exc)))
+              page.on("console",lambda msg:evidence["browser_errors"].append("console:"+msg.text) if msg.type=="error" else None)
+              page.on("request",lambda req:add_rpc.append(req.url) if "/rest/v1/rpc/velora_upsert_cart_item" in req.url else None)
+              page.on("request",lambda req:remove_rpc.append(req.url) if "/rest/v1/rpc/velora_remove_cart_item" in req.url else None)
+
+              try:
+                  response=page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                  evidence["checks"]["http_status"]=response.status if response else None
+
+                  page.evaluate("() => openAuthModal('login')")
+                  page.locator("#loginEmail").fill(email)
+                  page.locator("#loginPassword").fill(password)
+                  page.locator("#authFormContent button[type='submit']").click()
+                  page.wait_for_timeout(3000)
+
+                  auth=page.evaluate("""async()=>{
+                    const r=await window.mahaSupabase.auth.getSession();
+                    return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null};
+                  }""")
+                  evidence["checks"]["authenticated_session"]=bool(auth["ok"])
+
+                  if auth["ok"]:
+                      page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                      page.wait_for_timeout(900)
+
+                      page.evaluate("async()=>{ if(window.__VELORA_CURRENT_ROUTINE?.steps?.length) return true; if(window.veloraRoutineUX?.open){await window.veloraRoutineUX.open(); return true;} return false; }")
+                      page.wait_for_timeout(1000)
+
+                      routine=page.evaluate("() => window.__VELORA_CURRENT_ROUTINE || null")
+                      evidence["checks"]["routine_present"]=bool(routine)
+                      evidence["checks"]["routine_valid_status"]=bool(
+                          isinstance(routine,dict) and routine.get("status") in ("complete","partial","no_matches")
+                      )
+
+                      selected=[]
+                      if isinstance(routine,dict):
+                          for step in (routine.get("steps") or []):
+                              if step.get("selection_status")=="selected" and step.get("product",{}).get("id"):
+                                  product=step.get("product") or {}
+                                  variant=step.get("variant") or None
+                                  selected.append({
+                                      "product_id":str(product.get("id")),
+                                      "product_variant_id":str(variant.get("id")) if variant and variant.get("id") else None,
+                                      "name":str(product.get("name") or "Product")
+                                  })
+                      evidence["checks"]["selected_step_count"]=len(selected)
+
+                      initial_rows=page.evaluate("""async()=>{
+                        const user=await window.mahaSupabase.auth.getUser();
+                        const uid=user?.data?.user?.id;
+                        const r=await window.mahaSupabase.from('carts')
+                          .select('id,cart_items(product_id,product_variant_id,quantity)')
+                          .eq('customer_id',uid).maybeSingle();
+                        return r?.data?.cart_items||[];
+                      }""")
+                      initial=normalize_cart(initial_rows)
+                      evidence["checks"]["initial_cart_line_count"]=len(initial)
+
+                      page.wait_for_selector("#veloraRoutineAddAll",state="visible",timeout=10000)
+                      add_button=page.locator("#veloraRoutineAddAll")
+                      evidence["checks"]["routine_add_all_present"]=add_button.count()==1 and add_button.is_visible()
+
+                      if selected:
+                          add_button.click()
+                          page.wait_for_timeout(1800)
+
+                          result=page.evaluate("""()=>window.__VELORA_ROUTINE_CART_LAST_RESULT || null""")
+                          if not result:
+                              evidence["checks"]["adapter_result_missing"]=True
+                          else:
+                              evidence["checks"]["adapter_result_present"]=True
+                              evidence["checks"]["adapter_added"]=int(result.get("added") or 0)
+                              evidence["checks"]["adapter_already_in_cart"]=int(result.get("alreadyInCart") or 0)
+                              evidence["checks"]["adapter_skipped_count"]=len(result.get("skipped") or [])
+                              evidence["checks"]["adapter_failed_count"]=len(result.get("failed") or [])
+
+                          after_rows=page.evaluate("""async()=>{
+                            const user=await window.mahaSupabase.auth.getUser();
+                            const uid=user?.data?.user?.id;
+                            const r=await window.mahaSupabase.from('carts')
+                              .select('id,cart_items(product_id,product_variant_id,quantity)')
+                              .eq('customer_id',uid).maybeSingle();
+                            return r?.data?.cart_items||[];
+                          }""")
+                          after=normalize_cart(after_rows)
+
+                          expected_new=[]
+                          for line in selected:
+                              key=line["product_id"]+"::"+str(line["product_variant_id"] or "")
+                              if initial.get(key,0)<=0 and after.get(key,0)>0:
+                                  expected_new.append(line)
+                          evidence["checks"]["new_lines_observed"]=len(expected_new)
+                          evidence["checks"]["server_cart_changed_for_new_lines"]=len(expected_new)>0
+
+                          # Roll back only lines that were absent from the initial cart.
+                          rollback_failures=[]
+                          for line in expected_new:
+                              try:
+                                  if line["product_variant_id"]:
+                                      rr=page.evaluate("""async(line)=>{
+                                        const r=await window.mahaSupabase.rpc(
+                                          'velora_remove_cart_item_variant',
+                                          {p_product_id:line.product_id,p_product_variant_id:line.product_variant_id}
+                                        );
+                                        return r?.error?.message||null;
+                                      }""",line)
+                                  else:
+                                      rr=page.evaluate("""async(line)=>{
+                                        const r=await window.mahaSupabase.rpc(
+                                          'velora_remove_cart_item',
+                                          {p_product_id:line.product_id}
+                                        );
+                                        return r?.error?.message||null;
+                                      }""",line)
+                                  if rr:
+                                      rollback_failures.append(line["name"]+":"+str(rr))
+                              except Exception as exc:
+                                  rollback_failures.append(line["name"]+":"+str(exc))
+                          evidence["checks"]["rollback_failures"]=len(rollback_failures)
+
+                          final_rows=page.evaluate("""async()=>{
+                            const user=await window.mahaSupabase.auth.getUser();
+                            const uid=user?.data?.user?.id;
+                            const r=await window.mahaSupabase.from('carts')
+                              .select('id,cart_items(product_id,product_variant_id,quantity)')
+                              .eq('customer_id',uid).maybeSingle();
+                            return r?.data?.cart_items||[];
+                          }""")
+                          final=normalize_cart(final_rows)
+                          evidence["checks"]["final_cart_line_count"]=len(final)
+                          evidence["checks"]["cart_restored_exactly"]=final==initial
+
+                          # Reload and enter the canonical Cart view to verify the UI follows
+                          # the restored server cart rather than stale local state.
+                          page.goto(app+"#cart",wait_until="domcontentloaded",timeout=60000)
+                          page.wait_for_timeout(1200)
+                          evidence["checks"]["cart_page_active"]=bool(
+                              page.locator("#page-cart").count()==1 and page.locator("#page-cart").is_visible()
+                          )
+                          cart_text=page.locator("body").inner_text()
+                          evidence["checks"]["cart_ui_loaded"]=len(cart_text.strip())>50
+
+                          if rollback_failures:
+                              evidence["failures"].extend(["ROLLBACK:"+x for x in rollback_failures])
+                          if not evidence["checks"]["cart_restored_exactly"]:
+                              evidence["failures"].append("CART_NOT_RESTORED_TO_BASELINE")
+                      else:
+                          evidence["failures"].append("NO_SELECTED_ROUTINE_STEPS")
+                  page.screenshot(path="routine-cart-exact-source.png",full_page=True)
+              except Exception as exc:
+                  evidence["failures"].append("BROWSER_EXCEPTION:"+str(exc))
+              finally:
+                  browser.close()
+
+          c=evidence["checks"]
+          if c.get("http_status")!=200: evidence["failures"].append("LOCAL_SOURCE_HTTP_NOT_200")
+          if not c.get("authenticated_session"): evidence["failures"].append("AUTHENTICATED_SESSION_MISSING")
+          if not c.get("routine_present"): evidence["failures"].append("ROUTINE_MISSING")
+          if not c.get("routine_valid_status"): evidence["failures"].append("ROUTINE_STATUS_INVALID")
+          if c.get("selected_step_count",0)<=0: evidence["failures"].append("NO_SELECTED_ROUTINE_STEPS")
+          if not c.get("routine_add_all_present"): evidence["failures"].append("ROUTINE_ADD_ALL_MISSING")
+          if c.get("adapter_failed_count",0)>0: evidence["failures"].append("ROUTINE_CART_ADAPTER_FAILED")
+          if c.get("new_lines_observed",0)<=0: evidence["failures"].append("NO_NEW_CART_LINE_OBSERVED_AFTER_ADD_ALL")
+          if not c.get("server_cart_changed_for_new_lines"): evidence["failures"].append("SERVER_CART_DID_NOT_CHANGE_FOR_ADD_ALL")
+          if not c.get("cart_restored_exactly"): evidence["failures"].append("CART_BASELINE_RESTORE_FAILED")
+          if not c.get("cart_page_active"): evidence["failures"].append("CART_PAGE_NOT_ACTIVE")
+          if not c.get("cart_ui_loaded"): evidence["failures"].append("CART_UI_NOT_LOADED")
+
+          evidence["checks"]["add_rpc_request_count"]=len(add_rpc)
+          evidence["checks"]["remove_rpc_request_count"]=len(remove_rpc)
+          evidence["browser_errors"]=list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["checks"]["browser_error_count"]=len(evidence["browser_errors"])
+          evidence["passed"]=not evidence["failures"] and not evidence["browser_errors"]
+
+          with open("routine-cart-browser-evidence.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload exact-source Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routine-cart-exact-source-browser-evidence
+          path: |
+            routine-cart-browser-evidence.json
+            routine-cart-exact-source.png
+            routine-cart-local-server.log
+          retention-days: 7
