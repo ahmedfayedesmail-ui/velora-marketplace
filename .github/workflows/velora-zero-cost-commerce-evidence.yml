@@ -1,0 +1,87 @@
+name: Velora Zero-Cost Commerce Evidence
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".remote/commerce-evidence.json"
+      - ".github/workflows/velora-zero-cost-commerce-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: Fixed Restore-Test Commerce Probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Validate secret
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: test -n "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      - name: Run fixed read-only probes
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: python
+        run: |
+          import json, os, urllib.request, urllib.error
+          base=os.environ['SUPABASE_URL'].rstrip('/')
+          key=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          headers={'apikey':key,'Authorization':'Bearer '+key,'Accept':'application/json'}
+          probes={
+            'subscription_plans':'subscription_plans?select=id,name,monthly_price,yearly_price,currency_code&order=monthly_price',
+            'seller_subscriptions':'seller_subscriptions?select=id,status,billing_cycle,price,currency_code,started_at,expires_at,payment_status',
+            'seller_subscription_renewal_jobs':'seller_subscription_renewal_jobs?select=id,status,attempt_count,next_attempt_at,lease_until',
+            'seller_ad_packages':'seller_ad_packages?select=id,code,name,placement,duration_days,price,currency_code,is_active&order=sort_order',
+            'seller_ad_campaigns':'seller_ad_campaigns?select=id,status,price,currency_code,starts_at,ends_at,payment_attempt_id',
+            'subscription_payment_attempts':'payment_attempts?select=id,status,amount,currency_code,purpose,seller_subscription_id,provider_session_id&purpose=eq.subscription',
+            'seller_ad_payment_attempts':'payment_attempts?select=id,status,amount,currency_code,purpose,seller_ad_campaign_id,provider_session_id&purpose=eq.seller_ad',
+            'payouts':'payouts?select=id,seller_id,amount,currency,status,method,reference,processed_at',
+            'seller_payout_items':'seller_payout_items?select=id,payout_id,order_item_id,net_amount',
+            'returns':'returns?select=id,order_id,store_id,status,refund_amount,currency_code,refund_reference,refund_provider,refund_method,refund_processed_at',
+            'legal_documents':'legal_documents?select=document_type,audience,locale,version,status,effective_from,effective_to',
+            'payment_providers':'payment_providers?select=code,name,environment,is_active,webhook_enabled,config_version&code=eq.paymob'
+          }
+          evidence={'schema':'velora-zero-cost-commerce-evidence.v1','project_ref':'arlaxqmhtvjwjbjinjfw','results':{},'failures':[]}
+          for name,path in probes.items():
+            req=urllib.request.Request(base+'/rest/v1/'+path,headers=headers,method='GET')
+            try:
+              with urllib.request.urlopen(req,timeout=25) as resp:
+                body=json.loads(resp.read().decode('utf-8') or 'null')
+                evidence['results'][name]={'http_status':resp.status,'row_count':len(body) if isinstance(body,list) else None,'rows':body[:50] if isinstance(body,list) else body}
+            except urllib.error.HTTPError as exc:
+              evidence['results'][name]={'http_status':exc.code,'body_prefix':exc.read().decode('utf-8',errors='replace')[:500]}
+              evidence['failures'].append(name+':http_'+str(exc.code))
+            except Exception as exc:
+              evidence['failures'].append(name+':'+type(exc).__name__)
+          published=[r for r in evidence['results']['legal_documents'].get('rows',[]) if r.get('status')=='published']
+          evidence['derived']={
+            'published_legal_documents':len(published),
+            'seller_subscription_count':evidence['results']['seller_subscriptions'].get('row_count'),
+            'renewal_job_count':evidence['results']['seller_subscription_renewal_jobs'].get('row_count'),
+            'seller_ad_campaign_count':evidence['results']['seller_ad_campaigns'].get('row_count'),
+            'subscription_payment_attempt_count':evidence['results']['subscription_payment_attempts'].get('row_count'),
+            'seller_ad_payment_attempt_count':evidence['results']['seller_ad_payment_attempts'].get('row_count'),
+            'payout_count':evidence['results']['payouts'].get('row_count'),
+            'return_count':evidence['results']['returns'].get('row_count')
+          }
+          with open('commerce-evidence.json','w',encoding='utf-8') as f:
+            json.dump(evidence,f,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          raise SystemExit(1 if evidence['failures'] else 0)
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-commerce-evidence
+          path: commerce-evidence.json
+          retention-days: 3
