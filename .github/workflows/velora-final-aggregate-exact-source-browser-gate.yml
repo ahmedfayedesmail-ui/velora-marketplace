@@ -28,8 +28,6 @@ jobs:
       APP_URL: http://127.0.0.1:4173
       CUSTOMER_EMAIL: ${{ secrets.E2E_EMAIL }}
       CUSTOMER_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-      SELLER_EMAIL: ${{ secrets.SELLER_E2E_EMAIL }}
-      SELLER_PASSWORD: ${{ secrets.SELLER_E2E_PASSWORD }}
     steps:
       - name: Checkout exact source
         uses: actions/checkout@v4
@@ -73,6 +71,14 @@ jobs:
               for x in rows or []:
                   if str(x.get("user_id")) in auth:return str(x["user_id"])
               raise RuntimeError("missing role "+role)
+          def approved_seller():
+              rows=api("/rest/v1/sellers?select=user_id,status&status=eq.approved&limit=50")
+              for x in rows or []:
+                  uid=str(x.get("user_id") or "")
+                  if uid in auth and api("/rest/v1/user_roles?select=user_id&user_id=eq."+urllib.parse.quote(uid)+"&role=eq.seller"):
+                      return uid,str(auth[uid].get("email") or "")
+              raise RuntimeError("missing approved seller fixture")
+
           def magic(email):
               r=api("/auth/v1/admin/generate_link","POST",{"type":"magiclink","email":email,"options":{"redirect_to":APP+"/#home"}})
               return str(r.get("hashed_token") or "")
@@ -111,9 +117,10 @@ jobs:
 
               # Seller: existing credentials; open -> close -> re-entry.
               out["roles"]["seller"]={}
-              if not os.environ.get("SELLER_EMAIL") or not os.environ.get("SELLER_PASSWORD"):raise RuntimeError("seller E2E secrets missing")
-              seller.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000); seller.evaluate("() => openAuthModal('login')"); seller.locator("#loginEmail").fill(os.environ["SELLER_EMAIL"]); seller.locator("#loginPassword").fill(os.environ["SELLER_PASSWORD"]); seller.locator("#authFormContent button[type='submit']").click(); seller.wait_for_timeout(2500)
+              seller_uid,seller_email=approved_seller()
+              login(seller,seller_email)
               out["roles"]["seller"]["authenticated_session"]=bool(session(seller)["present"])
+              out["roles"]["seller"]["authenticated_user_match"]=session(seller)["id"]==seller_uid
               seller.evaluate("()=>window.switchPlatform('seller')"); seller.wait_for_selector("#sellerContent .seller-welcome",state="visible",timeout=30000); out["roles"]["seller"]["first_open"]=True
               seller.evaluate("()=>window.VELORA_CLOSE_SELLER()"); seller.wait_for_function("()=>!document.getElementById('sellerPlatform')?.classList.contains('active')",timeout=10000); out["roles"]["seller"]["closed_without_refresh"]=True
               seller.evaluate("()=>window.switchPlatform('seller')"); seller.wait_for_selector("#sellerContent .seller-welcome",state="visible",timeout=30000); out["roles"]["seller"]["reentry_active_without_refresh"]=seller.locator("#sellerPlatform.active").count()==1; out["roles"]["seller"]["reentry_content"]=True
