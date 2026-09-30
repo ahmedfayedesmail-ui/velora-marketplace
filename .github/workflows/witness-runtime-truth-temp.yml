@@ -22,28 +22,24 @@ jobs:
         with:
           path: velora
 
-      - name: Fetch WITNESS main source
+      - name: Prepare WITNESS 0.9.1 runtime + current draft generator
         run: |
           set -euo pipefail
-          rm -rf witness /tmp/witness.tar.gz
-          curl -fsSL https://github.com/ahmedfayedesmail-ui/witness-engine/archive/refs/heads/main.tar.gz -o /tmp/witness.tar.gz
-          tar -xzf /tmp/witness.tar.gz -C /tmp
-          mv /tmp/witness-engine-main witness
-          test -f witness/bin/witness.js
-          test -f witness/src/business-truth-drafts.js
+          rm -rf /tmp/witnesspkg
+          npm install --prefix /tmp/witnesspkg --no-save @witness-engine/cli@0.9.1
+          npm --prefix /tmp/witnesspkg exec -- witness doctor
+          curl -fsSL https://raw.githubusercontent.com/ahmedfayedesmail-ui/witness-engine/main/src/business-truth-drafts.js \
+            -o /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
+          test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js
+          test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install WITNESS runtime
-        working-directory: witness
-        run: npm install
-
       - name: Install Chromium
-        working-directory: witness
-        run: npx playwright install --with-deps chromium
+        run: npx --prefix /tmp/witnesspkg playwright install --with-deps chromium
 
       - name: Start Velora exact-source server
         run: |
@@ -178,21 +174,19 @@ jobs:
           PY
 
       - name: Create local WITNESS authorization
-        working-directory: witness
         run: |
-          node bin/witness.js target authorize-local \
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js target authorize-local \
             --url "$APP_URL" \
-            --repo ../velora \
-            --output ../witness-grant.json
+            --repo ./velora \
+            --output ./witness-grant.json
 
       - name: Run authenticated WITNESS runtime scan
-        working-directory: witness
         run: |
           set +e
-          node bin/witness.js scan \
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan \
             --url "$APP_URL#home" \
-            --grant ../witness-grant.json \
-            --repo ../velora \
+            --grant ./witness-grant.json \
+            --repo ./velora \
             --mode full \
             --personas seller,admin,owner,rtl \
             --profiles ../profiles.json \
@@ -200,25 +194,29 @@ jobs:
             --max-pages 20 \
             --max-actions 8 \
             --allow-private-origin \
-            --output ../velora-witness-runtime
+            --output ./velora-witness-runtime
           rc=$?
           echo "WITNESS_SCAN_EXIT_CODE=$rc"
           exit 0
 
       - name: Generate runtime-linked Business Truth drafts
-        working-directory: witness
         run: |
-          node bin/witness.js truth-drafts init \
-            --repo ../velora \
-            --result ../velora-witness-runtime/result.json \
-            --output ../velora-business-truth-drafts.json
+          node --input-type=module <<'NODE'
+          import fs from "node:fs/promises";
+          import { inspectRepository } from "/tmp/witnesspkg/node_modules/@witness-engine/cli/src/repository.js";
+          import { generateBusinessTruthDrafts, writeBusinessTruthDrafts } from "/tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js";
+          const repository = await inspectRepository("./velora");
+          const result = JSON.parse(await fs.readFile("./velora-witness-runtime/result.json","utf8"));
+          const drafts = generateBusinessTruthDrafts({repository,result,contracts:[]});
+          await writeBusinessTruthDrafts("./velora-business-truth-drafts.json",drafts);
+          console.log(JSON.stringify({summary:drafts.summary},null,2));
+          NODE
           echo "=== DRAFT SUMMARY ==="
-          cat ../velora-business-truth-drafts.json
+          cat ./velora-business-truth-drafts.json
 
       - name: Verify evidence bundle
         if: always()
-        working-directory: witness
-        run: node bin/witness.js verify --bundle ../velora-witness-runtime || true
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./velora-witness-runtime || true
 
       - name: Upload runtime evidence + drafts
         if: always()
