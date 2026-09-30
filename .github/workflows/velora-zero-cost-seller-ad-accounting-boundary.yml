@@ -1,0 +1,41 @@
+name: Velora Zero-Cost Seller Ad Accounting Boundary
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - 'tools/velora_seller_ad_accounting_boundary_lab.py'
+      - '.github/workflows/velora-zero-cost-seller-ad-accounting-boundary.yml'
+      - '.remote/seller-ad-accounting.json'
+      - 'src/scripts/35-seller.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lab:
+    name: Deterministic Seller Ad Accounting Boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Run dependency-free boundary lab
+        run: python3 tools/velora_seller_ad_accounting_boundary_lab.py
+      - name: Syntax gate
+        run: node --check src/scripts/35-seller.js
+      - name: Publish summary
+        if: always()
+        run: cat seller-ad-accounting-boundary-lab.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-seller-ad-accounting-boundary
+          path: seller-ad-accounting-boundary-lab.json
+          retention-days: 3
