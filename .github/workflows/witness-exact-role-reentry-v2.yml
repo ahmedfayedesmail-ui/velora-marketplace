@@ -128,7 +128,7 @@ jobs:
               page.wait_for_selector(selector,timeout=30000)
 
           def snap(page,platform,label):
-              return page.evaluate("""(p,label)=>{
+              return page.evaluate("""(args)=>{\n                const p=args.p; const label=args.label;
                 const id=p==="seller"?"sellerPlatform":"adminPlatform";
                 const root=document.getElementById(id);
                 const content=document.getElementById(p==="seller"?"sellerContent":"adminContent");
@@ -153,7 +153,7 @@ jobs:
                     roles:window.STATE.user.roles||null
                   }:null
                 };
-              }""",platform,label)
+              }""",{"p":platform,"label":label})
 
           evidence={"schema":"witness-exact-role-reentry.v2","roles":{},"failures":[]}
 
