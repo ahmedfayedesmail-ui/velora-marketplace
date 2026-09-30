@@ -455,7 +455,7 @@
     host.addEventListener("click",function(e){var remove=e.target.closest(".s2aRemoveVariant");if(remove){var row=remove.closest(".velora-seller-variant-row");if(row)row.remove();}});
     try{
       var loaded=await loadVariants(productId,true);
-      if(document.body.contains(host))rowsHost.innerHTML=(loaded||[]).map(sellerVariantRow).join("");
+      if(document.body.contains(host)){rowsHost.innerHTML=(loaded||[]).map(sellerVariantRow).join("");host.dataset.s2aVariantHydrated="1";}
     }catch(err){
       rowsHost.innerHTML='<div class="velora-op-muted">Existing variants could not be loaded. You can still add a new variant.</div>';
       console.warn("S2-A canonical variant hydration unavailable:",err);
@@ -476,9 +476,10 @@
         var saveFn=window.VELORA_SAVE_PRODUCT;
         if(typeof saveFn==="function" && !window.__VELORA_S2A_CANONICAL_SAVE_WRAPPED__){
           window.VELORA_SAVE_PRODUCT=async function(event,id){
-            var rows=(id&&isUuid(id))?canonicalEditRows():[];
+            var host=document.getElementById("s2aCanonicalVariantEditor");
+            var rows=(id&&isUuid(id)&&host?.dataset.s2aVariantHydrated==="1")?canonicalEditRows():null;
             var result2=await saveFn.apply(this,arguments);
-            if(id&&isUuid(id)&&rows.length||id&&isUuid(id)&&document.getElementById("s2aCanonicalVariantEditor")){
+            if(id&&isUuid(id)&&rows){
               try{await saveSellerVariants(id,rows);if(typeof showToast==="function")showToast("✅ Product and variants saved successfully.","success");}
               catch(err2){if(typeof showToast==="function")showToast("⚠️ Product saved, but variants were not attached: "+(err2.message||err2),"warning");}
             }
