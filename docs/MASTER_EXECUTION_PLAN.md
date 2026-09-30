@@ -15448,3 +15448,77 @@ EVENT: customer supplies natural-language beauty description
 -> AUDIT/RETRY: existing canonical Passport/Routine paths
 -> HUMAN EXCEPTION: future safety/privacy/provider ambiguity only; not required for current normal deterministic local-intent flow
 
+
+
+## MESSAGE 86 — CUSTOMER BEAUTY RECOMMENDATIONS EXACT-SOURCE BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- CUSTOMER BEAUTY RECOMMENDATION UX = CLOSED-DONE at L1/L2/L3/L5/L6 exact-source Browser scope.
+- Canonical Recommendation backend = previously closed at source/DB/contract scope.
+- Preview parity / Production remain separate and OPEN/BLOCKED.
+
+OBSERVED TEST GAP:
+- Existing Recommendation Browser workflow was Preview-targeted and depended on a hardcoded Vercel Preview URL.
+- Current Preview parity is independently blocked by deployment capacity/rate-limit, so that workflow could not supply current exact-source runtime evidence.
+- Source inspection confirmed the canonical Recommendation presentation already exists in src/scripts/59-s1-b2-beauty-recommendations.js; no duplicate UI or second Recommendation engine was created.
+
+TEST-ONLY CHANGE:
+- Added .github/workflows/velora-customer-recommendation-exact-source-browser-gate.yml.
+- Workflow uses:
+  - exact branch checkout;
+  - local python3 HTTP server over src/;
+  - headless Chromium / Playwright;
+  - existing authenticated E2E customer credentials;
+  - direct observation of the canonical REST RPC request;
+  - explicit assertion that Customer Beauty AI external endpoint is not called.
+- The gate does not mutate application/database state.
+
+RCA / FIRST FAILED RUN:
+- Run 36680376749 on workflow commit a742247ae9c856df4d4a96aca613fb1030dfa218 failed because the test waited for page-home.active after login without explicitly re-establishing #home.
+- Authenticated session and complete V2 Passport were already true in that failed run.
+- The failure was classified as Browser test-path drift, not a product/runtime failure.
+- Test-only fix commit: 755ac974180e99fc39942405c8ac45523cee16e9, which explicitly navigates to #home after successful authentication.
+
+FINAL EXACT-SOURCE BROWSER EVIDENCE:
+- Run: 36680475662
+- Job: 109774599106
+- Result: SUCCESS
+- workflow_sha: 755ac974180e99fc39942405c8ac45523cee16e9
+- HTTP 200 = true.
+- Authenticated session = true.
+- Passport present = true.
+- Passport V2 = true.
+- Passport complete = true.
+- Recommendation section present = true.
+- Recommendation section visible = true.
+- Canonical velora_get_beauty_recommendations RPC requests = 2.
+- Customer Beauty AI external endpoint requests = 0.
+- Canonical recommendation status = success.
+- Canonical recommendation count = 5.
+- Recommendation card count = 5.
+- Reason-chip count = 17.
+- Empty fallback state = false.
+- Browser error count = 0.
+- failures = [].
+- passed = true.
+- Artifact: customer-recommendation-exact-source-browser-evidence.
+
+DATABASE / CONTRACT BOUNDARY:
+- Restore-Test live ACL for velora_get_beauty_recommendations() = SECURITY DEFINER, anon_execute=false, authenticated_execute=true, service_execute=true.
+- Restore-Test recommendation state observed during this phase: beauty_recommendation_runs=3, beauty_recommendation_items=14, complete V2 profiles=3.
+- No synthetic recommendation rows were inserted by the gate.
+
+STATUS:
+- Customer Recommendation UI exact-source Browser proof = CLOSED-DONE.
+- Recommendation provider/Preview/Production parity remains OPEN.
+- Existing low-risk duplicate getRecommendations() declaration remains source-hygiene only; it is not a second engine and was not touched by this closure.
+
+ACTION FLOW:
+Customer completes Beauty Passport
+-> authenticated customer guard
+-> canonical velora_get_beauty_recommendations()
+-> deterministic eligibility/ranking
+-> Recommendation cards + canonical reason evidence
+-> no external AI endpoint
+-> customer commerce actions remain downstream of existing canonical product/cart contracts.
+
