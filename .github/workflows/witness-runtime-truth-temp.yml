@@ -128,6 +128,9 @@ jobs:
           seller_uid=approved_seller()
           admin_uid=role_user("admin")
           owner_uid=role_user("owner")
+          customer_rows=api("/rest/v1/users?select=id,role&role=eq.customer&limit=50")
+          customer_uid=next((str(row.get("id") or "") for row in (customer_rows or []) if str(row.get("id") or "") in auth),None)
+          if not customer_uid: raise RuntimeError("NO_CUSTOMER_AUTH_USER")
 
           with sync_playwright() as pw:
               browser=pw.chromium.launch(headless=True)
@@ -165,13 +168,15 @@ jobs:
               build(admin_uid,"profiles/admin.json",False)
               build(owner_uid,"profiles/owner.json",False)
               build(admin_uid,"profiles/rtl.json",True)
+              build(customer_uid,"profiles/customer.json",False)
               browser.close()
 
           pathlib.Path("profiles.json").write_text(json.dumps({
               "seller":"profiles/seller.json",
               "admin":"profiles/admin.json",
               "owner":"profiles/owner.json",
-              "rtl":"profiles/rtl.json"
+              "rtl":"profiles/rtl.json",
+              "customer":"profiles/customer.json"
           },indent=2))
           print("WITNESS_RUNTIME_PROFILES_READY")
           PY
@@ -217,6 +222,41 @@ jobs:
           echo "=== DRAFT SUMMARY ==="
           cat ./velora-business-truth-drafts.json
 
+      - name: Run targeted customer checkout scan
+        run: |
+          set +e
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan \
+            --url "$APP_URL#home" \
+            --grant ./witness-grant.json \
+            --repo ./velora \
+            --mode focus \
+            --focus checkout \
+            --personas customer \
+            --profiles ./profiles.json \
+            --explore \
+            --max-pages 15 \
+            --max-actions 12 \
+            --allow-private-origin \
+            --output ./velora-witness-checkout
+          rc=$?
+          echo "WITNESS_CHECKOUT_SCAN_EXIT_CODE=$rc"
+          exit 0
+
+      - name: Generate checkout Business Truth drafts
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs/promises";
+          import { inspectRepository } from "/tmp/witnesspkg/node_modules/@witness-engine/cli/src/repository.js";
+          import { generateBusinessTruthDrafts, writeBusinessTruthDrafts } from "/tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js";
+          const repository = await inspectRepository("./velora");
+          const result = JSON.parse(await fs.readFile("./velora-witness-checkout/result.json","utf8"));
+          const drafts = generateBusinessTruthDrafts({repository,result,contracts:[]});
+          await writeBusinessTruthDrafts("./velora-checkout-business-truth-drafts.json",drafts);
+          console.log(JSON.stringify({summary:drafts.summary},null,2));
+          NODE
+          echo "=== CHECKOUT DRAFT SUMMARY ==="
+          cat ./velora-checkout-business-truth-drafts.json
+
       - name: Verify evidence bundle
         if: always()
         run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./velora-witness-runtime || true
@@ -229,5 +269,7 @@ jobs:
           path: |
             velora-witness-runtime/
             velora-business-truth-drafts.json
+            velora-witness-checkout/
+            velora-checkout-business-truth-drafts.json
             /tmp/velora-runtime.log
           retention-days: 7
