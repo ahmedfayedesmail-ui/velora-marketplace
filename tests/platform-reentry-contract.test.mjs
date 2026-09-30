@@ -24,9 +24,10 @@ assert.match(canonical, /document\.getElementById\('adminContent'\)!==c/);
 assert.match(router, /VELORA_INVALIDATE_SELLER_PLATFORM/);
 assert.match(router, /VELORA_INVALIDATE_ADMIN_PLATFORM/);
 
-assert.match(admin, /var expectedContent=document\.getElementById\('adminContent'\)/);
-assert.match(admin, /document\.getElementById\('adminContent'\)===expectedContent/);
-assert.match(admin, /document\.getElementById\('adminContent'\)!==c/);
+assert.match(admin, /window\.openAdminPlatform=function\(\)\{\s*return originalOpen\.apply\(this,arguments\);\s*\};/);
+assert.match(admin, /window\.VELORA_CANONICAL_ADMIN_SECTION=async function\(section,btn\)/);
+assert.match(admin, /if\(prevCanonical\) return prevCanonical\.apply\(this,arguments\)/);
+assert.match(admin, /if\(document\.getElementById\('adminContent'\)===c && platform\.classList\.contains\('active'\)\)/);
 
 const browserGate = read('.github/workflows/velora-seller-admin-reentry-browser-gate.yml');
 
