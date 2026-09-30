@@ -71,7 +71,6 @@ const decorate=async()=>{
   }
   decorateGiftCard();
 };
-let giftCardObserverStarted=false;
 async function applyGiftCardCode(){
   const input=document.getElementById('veloraGiftCardInput');
   const status=document.getElementById('veloraGiftCardStatus');
@@ -104,7 +103,6 @@ function removeGiftCardCode(){
   if(typeof renderCheckoutSummary==='function')renderCheckoutSummary();
   setTimeout(decorateGiftCard,0);
 }
-let legalConsentObserverStarted=false;
 async function ensureCheckoutLegalAcceptance(){
   const client=db;
   const locale=String(window.VELORA_GLOBAL_LOCALE||localStorage.getItem('velora_language')||'en').toLowerCase();
@@ -156,11 +154,6 @@ function decorateLegalConsent(){
   docsHint.style.marginTop='1rem';
   docsHint.innerHTML='<label style="display:flex;gap:.6rem;align-items:flex-start;cursor:pointer"><input id="veloraLegalConsent" type="checkbox" style="margin-top:.25rem"><span data-velora-i18n="I agree to the published Terms of Service and Privacy Policy, and any applicable promotion or gift card terms.">I agree to the published Terms of Service and Privacy Policy, and any applicable promotion or gift card terms.</span></label><div style="margin-top:.4rem;font-size:.78rem"><a href="#" onclick="openLegalDocument(\'terms_of_service\');return false" data-velora-i18n="Terms of Service">Terms of Service</a> · <a href="#" onclick="openLegalDocument(\'privacy_policy\');return false" data-velora-i18n="Privacy Policy">Privacy Policy</a></div>';
   host.appendChild(docsHint);
-  if(!legalConsentObserverStarted&&typeof MutationObserver==='function'){
-    legalConsentObserverStarted=true;
-    const observer=new MutationObserver(()=>{if(document.getElementById('checkoutSummary')&&!document.getElementById('veloraLegalConsentWrap'))decorateLegalConsent();});
-    observer.observe(host,{childList:true});
-  }
   if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
 }
 
@@ -178,11 +171,6 @@ function decorateGiftCard(){
   apply?.addEventListener('click',async()=>{await applyGiftCardCode();setTimeout(decorateGiftCard,0);});
   input?.addEventListener('keypress',async e=>{if(e.key==='Enter'){e.preventDefault();await applyGiftCardCode();setTimeout(decorateGiftCard,0);}});
   remove?.addEventListener('click',removeGiftCardCode);
-  if(!giftCardObserverStarted&&typeof MutationObserver==='function'){
-    giftCardObserverStarted=true;
-    const observer=new MutationObserver(()=>{if(document.getElementById('checkoutSummary')&&!document.getElementById('veloraGiftCardBox'))decorateGiftCard();});
-    const summary=document.getElementById('checkoutSummary');if(summary)observer.observe(summary,{childList:true});
-  }
 }
 let veloraShippingQuotePromise=null;
 async function refreshVeloraShippingQuote(){
