@@ -1,4 +1,4 @@
-name: WITNESS Focused Velora Re-entry — 0.9.1 patched source
+name: WITNESS Focused Velora Re-entry — 0.9.1 patched package
 
 on:
   push:
@@ -26,61 +26,45 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Fetch WITNESS 0.9.0 package
+      - name: Install WITNESS 0.9.0 package
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/witness
-          cd /tmp/witness
-          npm pack @witness-engine/cli@0.9.0 --silent
-          tar -xzf ./*.tgz
-          test -f /tmp/witness/package/bin/witness.js
-          test -f /tmp/witness/package/src/scanner.js
+          npm install --prefix /tmp/witnesspkg --no-save @witness-engine/cli@0.9.0
+          test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js
+          test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js
 
-      - name: Apply WITNESS 0.9.1 focused-seed patch
+      - name: Apply focused-seed fix from WITNESS 0.9.1
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path("/tmp/witness/package/src/scanner.js")
+          p = Path("/tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js")
           s = p.read_text()
 
-          marker = """export function buildSeededRoutes({url,repository,changedFiles=[],mode='full',focus=null,discoveredRoutes=[]}={})
-  """
+          old_seed = "const seededRoutes=uniqueBy([...seedRoutes({url,repository,changedFiles,mode,focus}),...(webDiscovery.routes||[])].filter(v=>focusMatch(v,focus)),v=>v).slice(0,maxPages*3);"
+          new_seed = "const seededRoutes=buildSeededRoutes({url,repository,changedFiles,mode,focus,discoveredRoutes:webDiscovery.routes}).slice(0,maxPages*3);"
+          helper = "export function buildSeededRoutes({url,repository,changedFiles=[],mode='full',focus=null,discoveredRoutes=[]}={}){\n  const routes=[...seedRoutes({url,repository,changedFiles,mode,focus}),...(discoveredRoutes||[])];\n  return uniqueBy(routes.filter(v=>v===url || focusMatch(v,focus)),v=>v);\n}\n\n"
 
           if "export function buildSeededRoutes(" not in s:
-              needle = """function seedRoutes({url,repository,changedFiles,mode,focus}){
-"""
-              idx = s.find(needle)
-              if idx < 0:
-                  raise SystemExit("seedRoutes function not found")
-              end = s.find("\n}", idx)
-              if end < 0:
-                  raise SystemExit("seedRoutes function boundary not found")
-              end += 2
-              helper = """\n\nexport function buildSeededRoutes({url,repository,changedFiles=[],mode='full',focus=null,discoveredRoutes=[]}={}){\n  const routes=[...seedRoutes({url,repository,changedFiles,mode,focus}),...(discoveredRoutes||[])];\n  return uniqueBy(routes.filter(v=>v===url || focusMatch(v,focus)),v=>v);\n}"""
-              s = s[:end] + helper + s[end:]
+              anchor = "export async function scanApplication({"
+              if anchor not in s:
+                  raise SystemExit("scanApplication anchor not found")
+              s = s.replace(anchor, helper + anchor, 1)
 
-          old = "const seededRoutes=uniqueBy([...seedRoutes({url,repository,changedFiles,mode,focus}),...(webDiscovery.routes||[])].filter(v=>focusMatch(v,focus)),v=>v).slice(0,maxPages*3);"
-          new = "const seededRoutes=buildSeededRoutes({url,repository,changedFiles,mode,focus,discoveredRoutes:webDiscovery.routes}).slice(0,maxPages*3);"
-
-          if old in s:
-              s = s.replace(old, new, 1)
-          elif new not in s:
-              raise SystemExit("seededRoutes line not found")
-
+          if old_seed not in s:
+              raise SystemExit("old seededRoutes line not found")
+          s = s.replace(old_seed, new_seed, 1)
           p.write_text(s)
           PY
 
-          grep -n "buildSeededRoutes" /tmp/witness/package/src/scanner.js
-          grep -n "const seededRoutes=" /tmp/witness/package/src/scanner.js
+          grep -n "buildSeededRoutes" /tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js
+          grep -n "const seededRoutes=" /tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js
 
-      - name: Verify patched WITNESS runtime
-        run: |
-          node /tmp/witness/package/bin/witness.js doctor
-          node -e "const p=require('/tmp/witness/package/package.json'); console.log('WITNESS_BASE_VERSION='+p.version)"
+      - name: Verify WITNESS runtime
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js doctor
 
       - name: Start Velora local preview
         run: |
@@ -90,13 +74,27 @@ jobs:
 
       - name: Authorize local repository
         run: |
-          node /tmp/witness/package/bin/witness.js target authorize-local             --url http://127.0.0.1:4173             --repo .             --output ./witness-grant.json
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js target authorize-local \
+            --url http://127.0.0.1:4173 \
+            --repo . \
+            --output ./witness-grant.json
 
       - name: Run focused WITNESS investigation
         shell: bash
         run: |
           set +e
-          node /tmp/witness/package/bin/witness.js scan             --url http://127.0.0.1:4173             --grant ./witness-grant.json             --repo .             --mode focus             --focus ${{ matrix.focus }}             --personas auto             --explore             --max-pages 12             --max-actions 6             --allow-private-origin             --output ./witness-${{ matrix.focus }}
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan \
+            --url http://127.0.0.1:4173 \
+            --grant ./witness-grant.json \
+            --repo . \
+            --mode focus \
+            --focus ${{ matrix.focus }} \
+            --personas auto \
+            --explore \
+            --max-pages 12 \
+            --max-actions 6 \
+            --allow-private-origin \
+            --output ./witness-${{ matrix.focus }}
           rc=$?
           echo "WITNESS_EXIT_CODE=$rc"
           exit 0
@@ -135,7 +133,7 @@ jobs:
           for f in findings[:80]:
               ev = f.get("evidence", {}) or {}
               action = ev.get("action", {}) or {}
-              picked = {
+              print(json.dumps({
                   "code": f.get("code"),
                   "severity": f.get("severity"),
                   "title": f.get("title"),
@@ -149,14 +147,13 @@ jobs:
                   "destination": ev.get("destination"),
                   "screenshot": ev.get("screenshot"),
                   "replayScript": ev.get("replayScript"),
-              }
-              print(json.dumps(picked, ensure_ascii=False))
+              }, ensure_ascii=False))
           PY
 
       - name: Verify focused evidence bundle
         if: always()
         continue-on-error: true
-        run: node /tmp/witness/package/bin/witness.js verify --bundle ./witness-${{ matrix.focus }}
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./witness-${{ matrix.focus }}
 
       - name: Upload focused evidence
         if: always()
