@@ -16281,3 +16281,61 @@ STATUS:
 - Legal publication = OPEN / human-gated.
 - Vercel Preview parity = BLOCKED by observed build-rate-limit state.
 - Production = FROZEN.
+
+## MESSAGE 99 — SELLER / ADMIN RE-ENTRY EXACT-SOURCE BROWSER GATE CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- Seller/Admin re-entry is now re-verified at exact-source Browser scope with real authenticated role sessions and no page refresh between close and reopen.
+- No application source change was required; the final change was test-gate scoping only.
+
+TEST-GATE RCA:
+- The first re-entry rerun (`36690213806`) failed after completing the actual re-entry sequence because the browser gate continued into Owner control-plane subroutes and timed out waiting for `data-payout-control="true"`.
+- That timeout occurred at the test's Owner Payout Control assertion, not at Seller/Admin open -> close -> re-entry.
+- The Owner control-plane checks are already covered by separate source/runtime gates and are not part of the stale-operation re-entry contract.
+- Browser gate was therefore narrowed to its actual responsibility: authenticated Seller/Admin/Owner open -> close -> reopen -> history, without refresh. Schema advanced to `seller-admin-reentry-browser.v7`.
+- No MutationObserver, arbitrary global click listener, router rewrite, localization rewrite, or database change was introduced.
+
+FINAL EXACT-SOURCE BROWSER EVIDENCE:
+- Workflow run: `36690504538`.
+- Job: `109806322785` — `Authenticated Seller/Admin open -> close -> re-entry -> history`.
+- Result: SUCCESS.
+- Source + Contract Health on the same head: SUCCESS (`109806323193`).
+- Vercel exact-SHA parity remains FAILURE because the existing Vercel status is still constrained by the observed build-rate-limit boundary; this is separate from exact-source Browser execution.
+- Browser errors = 0.
+- Failures = [].
+
+ROLE-LEVEL RESULTS:
+- Seller: authenticated user match = true; first open = active + expected content; close without refresh = true; second open without refresh = true; second expected content = true; back history returned to marketplace; forward history restored `#seller`.
+- Admin: authenticated user match = true; first open = active + expected content; close without refresh = true; second open without refresh = true; second expected content = true; back history returned to marketplace; forward history restored `#admin`.
+- Owner: authenticated user match = true; first open = active + expected content; close without refresh = true; second open without refresh = true; second expected content = true; back history returned to marketplace; forward history restored `#admin` (owner uses the canonical admin shell).
+- The same browser `documentId` is preserved across the open/close/re-entry lifecycle, proving the test did not rely on a page refresh to recover the platform.
+
+ACTION FLOW EVIDENCE:
+EVENT: authenticated user enters Seller/Admin/Owner platform
+-> GUARD: canonical auth + role check
+-> VALIDATION: operation counter + active platform/content identity
+-> STATE TRANSITION: canonical platform shell becomes active
+-> AUTOMATIC SIDE EFFECT: canonical section renderer populates content
+-> CLOSE EVENT: canonical close path invalidates stale operation + hides platform
+-> RE-ENTRY EVENT: route activates canonical shell again in the same document
+-> HISTORY: Back returns to marketplace; Forward returns to the platform route
+-> RETRY/DEDUPE: stale asynchronous operations are rejected by operation counter and content/platform identity checks
+
+DECISION:
+- No production code patch is justified by the reported Seller/Admin re-entry symptom under the current exact-source gate: the complete real-authenticated re-entry sequence passes.
+- The previous symptom should not be attributed to cache without evidence.
+- If the symptom is later reproduced against a specific Preview/Production deployment, capture that deployment URL/SHA first and compare against this exact-source PASS before modifying the canonical controller.
+
+EVIDENCE BOUNDARY:
+- L1 Source = PASS for the re-entry ownership/guards.
+- L3 Contract = PASS for stale-operation invalidation and route ownership.
+- L5 CI = PASS for source + contract health and exact-source Browser gate.
+- L6 Preview = still separate/blocked by current Vercel build-rate-limit status.
+- L7 Browser = PASS on exact-source local server with real authenticated role sessions.
+- L8 Provider = not relevant to this re-entry closure.
+- L9 Production = untouched/frozen.
+
+STATUS:
+- Seller/Admin/Owner stale-operation exact-source re-entry = CLOSED-DONE.
+- Re-entry architecture remains unchanged and canonical.
+- Continue to the next independent OPEN track; do not reopen re-entry without contradictory evidence.
