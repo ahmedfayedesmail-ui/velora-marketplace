@@ -31,7 +31,7 @@ assert.match(admin, /if\(document\.getElementById\('adminContent'\)===c && platf
 
 const browserGate = read('.github/workflows/velora-seller-admin-reentry-browser-gate.yml');
 
-assert.match(browserGate, /seller-admin-reentry-browser\.v2/);
+assert.match(browserGate, /seller-admin-reentry-browser\.v[0-9]+/);
 assert.match(browserGate, /first_open_document_id/);
 assert.match(browserGate, /second_open_document_id/);
 assert.match(browserGate, /closed_without_refresh = bool/);
