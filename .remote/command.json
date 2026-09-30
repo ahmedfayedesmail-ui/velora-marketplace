@@ -1,6 +1,6 @@
 {
-  "id": "platform-reentry-contract-2026-09-30",
+  "id": "owner-subscription-control-contract-2026-09-30",
   "command": "npm run test:platform-reentry",
   "requested_by": "owner",
-  "purpose": "verify platform re-entry source and autonomous browser-evidence workflow contract"
+  "purpose": "verify canonical payout, subscription, FinOps and platform re-entry source contracts after owner control-plane work"
 }
