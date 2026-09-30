@@ -123,7 +123,7 @@ jobs:
               page.wait_for_function("""p=>{
                 const id=p==="seller"?"sellerPlatform":"adminPlatform";
                 return !!document.getElementById(id)?.classList.contains("active");
-              }""",platform,timeout=15000)
+              }""",arg=platform,timeout=15000)
               selector="#sellerContent .seller-welcome" if platform=="seller" else "#adminContent .admin-section-card h3"
               page.wait_for_selector(selector,timeout=30000)
 
@@ -185,7 +185,7 @@ jobs:
                       page.wait_for_function("""p=>{
                         const id=p==="seller"?"sellerPlatform":"adminPlatform";
                         return !!document.getElementById(id)&&!document.getElementById(id).classList.contains("active");
-                      }""",platform,timeout=15000)
+                      }""",arg=platform,timeout=15000)
                       item["closed"]=snap(page,platform,"closed")
 
                       open_role(page,platform)
