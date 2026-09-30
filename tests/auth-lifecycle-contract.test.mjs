@@ -195,3 +195,20 @@ assert.ok(
   authEvidenceRunner.includes('window.VELORA_OPEN_ADMIN'),
   'Customer admin authorization evidence must use the canonical public Admin opener'
 );
+
+assert.ok(
+  source.includes('let __mahaAuthLifecycleGeneration = 0;'),
+  'Auth lifecycle must maintain a generation fence for stale deferred events'
+);
+assert.ok(
+  source.includes('const eventGeneration = ++__mahaAuthLifecycleGeneration;'),
+  'Auth listener events must advance the lifecycle generation'
+);
+assert.ok(
+  source.includes('if (eventGeneration !== __mahaAuthLifecycleGeneration) return;'),
+  'Deferred auth hydration must stop when a newer auth event supersedes it'
+);
+assert.ok(
+  source.includes('const currentSessionResult = await window.mahaSupabase.auth.getSession();'),
+  'Deferred auth hydration must confirm the current session before restoring app identity'
+);
