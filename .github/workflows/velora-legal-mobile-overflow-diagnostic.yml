@@ -85,12 +85,16 @@ jobs:
               out['checks']['legalFormScrollWidth']=p.evaluate("()=>document.querySelector('#veloraAdminLegal41Form')?.scrollWidth||0")
               out['checks']['legalFormClientWidth']=p.evaluate("()=>document.querySelector('#veloraAdminLegal41Form')?.clientWidth||0")
               out['checks']['legalContentText']=p.locator('#adminContent').inner_text()[:1200]
+              out['checks']['integration41_absent_on_legal']=p.locator('#veloraRealIntegration41').count()==0
+              out['checks']['document_overflow_clear']=p.evaluate('()=>document.documentElement.scrollWidth<=innerWidth+1')
               out['elements']=p.evaluate("""()=>Array.from(document.querySelectorAll('#adminContent *')).map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,id:el.id||'',cls:typeof el.className==='string'?el.className:'',left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,text:(el.innerText||el.value||'').slice(0,140)}}).filter(x=>x.right>innerWidth+1||x.left< -1||x.scrollWidth>x.clientWidth+4).sort((a,b)=>(b.right-innerWidth)-(a.right-innerWidth)).slice(0,40)""")
               p.screenshot(path='legal-mobile-overflow.png',full_page=True)
               p.close();b.close()
           print(json.dumps(out,ensure_ascii=False,indent=2))
           with open('legal-mobile-overflow-evidence.json','w',encoding='utf-8') as f:json.dump(out,f,ensure_ascii=False,indent=2)
-          sys.exit(0 if not out['browser_errors'] else 1)
+          required=['integration41_absent_on_legal','document_overflow_clear']
+          out['passed']=not out['browser_errors'] and all(out['checks'].get(k) for k in required)
+          sys.exit(0 if out['passed'] else 1)
           PY
       - name: Upload legal overflow evidence
         if: always()
