@@ -104,6 +104,8 @@ jobs:
               before=p.evaluate("()=>({count:(STATE.cart||[]).reduce((n,x)=>n+Number(x.quantity||0),0)})")
               ref=p.evaluate("""()=>{window.__VELORA_CHECKOUT_REFERENCE=null; return null}""")
               out['checks']['cart_before_submit_count']=int(before['count'])
+              out['checks']['cart_before_submit_shape']=p.evaluate("()=>JSON.stringify((STATE.cart||[]).slice(0,10).map(x=>({id:x.id,canonicalId:x.canonicalId,productId:x.productId,variantId:x.variantId,quantity:x.quantity})))")
+              out['checks']['cart_before_submit_uuid_flags']=p.evaluate("""()=>JSON.stringify((STATE.cart||[]).map(x=>{const v=String(x.canonicalId||x.productId||x.id||'');return {v,valid:/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)}}))""")
               submit=p.locator('#page-checkout form.checkout-form button[type="submit"]')
               submit.click()
               p.wait_for_timeout(4500)
