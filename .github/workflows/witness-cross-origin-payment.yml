@@ -46,7 +46,7 @@ jobs:
           node --check "$engine_file"
           ENGINE_FILE="$engine_file" node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
-          import { loadBusinessTruthContractsObject, resolveReadOnlyApiUrl } from process.env.ENGINE_FILE;
+          const { loadBusinessTruthContractsObject, resolveReadOnlyApiUrl } = await import(process.env.ENGINE_FILE);
           assert.equal(resolveReadOnlyApiUrl('http://127.0.0.1:4173/?velora_order_id=order-42','https://arlaxqmhtvjwjbjinjfw.supabase.co/rest/v1/orders?id=eq.{{query:velora_order_id}}&select=id',{allowedOrigins:['https://arlaxqmhtvjwjbjinjfw.supabase.co']}),'https://arlaxqmhtvjwjbjinjfw.supabase.co/rest/v1/orders?id=eq.order-42&select=id');
           assert.throws(()=>resolveReadOnlyApiUrl('http://127.0.0.1:4173/','https://evil.example/state',{allowedOrigins:['https://arlaxqmhtvjwjbjinjfw.supabase.co']}));
           assert.throws(()=>loadBusinessTruthContractsObject({schema:'witness-business-truth.v1',checks:[{id:'x',api:{method:'GET',path:'https://data.example/state',observation:{mode:'cross-origin'}}}]}));
@@ -226,7 +226,7 @@ jobs:
           rm -rf witness-cross-origin-run
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/witness/browser-claim-proof.json evidence/witness/cross-origin-browser-gate.json
+          git add -f evidence/witness/browser-claim-proof.json evidence/witness/cross-origin-browser-gate.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No verification evidence to commit."
             exit 0
