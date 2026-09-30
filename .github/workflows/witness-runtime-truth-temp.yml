@@ -66,6 +66,9 @@ jobs:
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             "${SUPABASE_URL}/rest/v1/notifications?select=id&limit=1" > /dev/null
 
+      - name: Install Python Playwright binding
+        run: python3 -m pip install --user --disable-pip-version-check playwright
+
       - name: Build authenticated WITNESS profiles
         run: |
           python3 - <<'PY'
