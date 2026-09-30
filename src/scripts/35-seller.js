@@ -42,8 +42,8 @@ async function v39LoadPayouts(){
  }
 }
 
-async function v39LoadSubscription(){
- const host=v39El('veloraSellerSubscription39'); if(!host)return;
+async function v39LoadSubscription(target){
+ const host=target||(v39El('veloraSellerSubscription39')); if(!host)return;
  host.innerHTML='<div class="velora-seller39-card"><div class="velora-seller39-muted">'+v39Esc(v39t('Loading subscription…'))+'</div></div>';
  try{
    const ent=await v39Rpc('velora_get_seller_entitlement');
@@ -121,6 +121,7 @@ async function v39LoadSubscription(){
    host.innerHTML='<div class="velora-seller39-card"><strong>'+v39Esc(v39t('Subscription unavailable'))+'</strong><div class="velora-seller39-muted" style="margin-top:.35rem">'+v39Esc(err.message||err)+'</div></div>';
  }
 }
+window.VELORA_RENDER_SELLER_SUBSCRIPTION=v39LoadSubscription;
 function v39AdIdempotencyStorageKey(packageId,productId){
  return 'VELORA-AD-'+String(packageId||'')+'-'+String(productId||'');
 }
