@@ -8879,7 +8879,21 @@ async function loadAdminLegalFromDb(){
             if(status)status.textContent='✅ Saved '+(x.data?.document_type||'legal document')+' '+(x.data?.version||'');
             form.reset();form.elements.reacceptance.checked=true;
             await loadAdminLegalFromDb();
-          }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+          }catch(err){
+            const raw=String(err?.message||err||'');
+            const messages={
+              INVALID_GIFT_CARD_CODE:'Gift card code must be between 8 and 80 characters.',
+              GIFT_CARD_CODE_EXISTS:'That gift card code already exists.',
+              INVALID_GIFT_CARD_AMOUNT:'Gift card amount must be greater than zero.',
+              INVALID_GIFT_CARD_CURRENCY:'The selected gift card currency is not active.',
+              INVALID_GIFT_CARD_EXPIRY:'Gift card expiry must be in the future.',
+              OWNER_ONLY:'Only the Owner can issue gift cards.'
+            };
+            if(status){
+              status.textContent='❌ '+(messages[raw]||raw);
+              try{window.VELORA_I18N_RENDER?.(status);}catch(_){}
+            }
+          }
         });
       }
       if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
@@ -8894,7 +8908,7 @@ function renderAdminPromotions() {
       '<p class="velora-op-muted" data-velora-i18n="Platform promotions are server-governed and non-stackable with coupons in the MVP.">Platform promotions are server-governed and non-stackable with coupons in the MVP.</p>'+
       '<form id="'+id+'Form" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:1rem">'+
         '<input name="name" class="form-input" placeholder="Promotion name" required>'+
-        '<input name="code" class="form-input" placeholder="Optional code">'+
+        '<input name="code" class="form-input" minlength="8" maxlength="80" autocomplete="off" placeholder="Optional code (8–80 characters)">'+
         '<select name="discount_type" class="form-input"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select>'+
         '<input name="discount_value" class="form-input" type="number" min="0" step="0.01" placeholder="Discount value" required>'+
         '<input name="currency" class="form-input" value="EGP" placeholder="Currency">'+
@@ -8999,6 +9013,8 @@ async function loadAdminGiftCardsFromDb(){
           const f=new FormData(form);const status=document.getElementById('veloraAdminGiftCards41Status');
           if(status)status.textContent='Issuing…';
           try{
+            const requestedCode=String(f.get('code')||'').trim();
+            if(requestedCode && (requestedCode.length<8 || requestedCode.length>80)) throw new Error('INVALID_GIFT_CARD_CODE');
             const x=await client.rpc('velora_issue_gift_card',{
               p_amount:Number(f.get('amount')||0),
               p_currency:String(f.get('currency')||'EGP'),
