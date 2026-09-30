@@ -2,5 +2,6 @@
   "mode": "deterministic_seller_ad_accounting_boundary",
   "writes_allowed": false,
   "production_allowed": false,
-  "real_money_allowed": false
+  "real_money_allowed": false,
+  "verification_revision": 2
 }
