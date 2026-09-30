@@ -1,0 +1,255 @@
+name: Velora Beauty Aggregate Exact-Source Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/61-s1-c-quiz-v2.js"
+      - "src/scripts/72-s1-e-customer-beauty-ai.js"
+      - "src/scripts/60-s1-c-routine-ux.js"
+      - "src/scripts/59-s1-b2-beauty-recommendations.js"
+      - "src/scripts/64-s1-d-beauty-journey.js"
+      - "src/scripts/65-s1-d-beauty-feedback.js"
+      - ".github/workflows/velora-beauty-aggregate-exact-source-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-beauty-aggregate-exact-source
+  cancel-in-progress: true
+
+jobs:
+  beauty-aggregate:
+    name: Passport -> Locale -> Routine -> Recommendations -> Journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > beauty-aggregate-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run authenticated Beauty aggregate Browser evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+
+          app=os.environ["APP_URL"].rstrip("/")
+          email=os.environ.get("E2E_EMAIL","")
+          password=os.environ.get("E2E_PASSWORD","")
+
+          evidence={
+              "schema":"beauty-aggregate-exact-source-browser.v1",
+              "execution_target":"local_exact_source",
+              "workflow_sha":os.environ.get("GITHUB_SHA",""),
+              "checks":{},
+              "failures":[],
+              "browser_errors":[]
+          }
+
+          if not email or not password:
+              evidence["failures"].append("E2E_CREDENTIALS_MISSING")
+          else:
+              with sync_playwright() as p:
+                  browser=p.chromium.launch(headless=True)
+                  page=p.chromium.launch if False else browser.new_page(
+                      viewport={"width":390,"height":844},
+                      locale="en-US"
+                  )
+
+                  def on_error(msg):
+                      if msg.type=="error":
+                          evidence["browser_errors"].append("console:"+msg.text)
+                  page.on("pageerror",lambda exc:evidence["browser_errors"].append("pageerror:"+str(exc)))
+                  page.on("console",on_error)
+
+                  routine_rpc=[]
+                  recommendation_rpc=[]
+                  journey_rpc=[]
+                  replenishment_rpc=[]
+                  page.on("request",lambda req:routine_rpc.append(req.url) if "/rest/v1/rpc/velora_generate_beauty_routine" in req.url else None)
+                  page.on("request",lambda req:recommendation_rpc.append(req.url) if "/rest/v1/rpc/velora_get_beauty_recommendations" in req.url else None)
+                  page.on("request",lambda req:journey_rpc.append(req.url) if "/rest/v1/rpc/velora_get_current_beauty_routine" in req.url else None)
+                  page.on("request",lambda req:replenishment_rpc.append(req.url) if "/rest/v1/rpc/velora_get_replenishment_signals" in req.url else None)
+
+                  try:
+                      response=page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                      evidence["checks"]["http_status"]=response.status if response else None
+
+                      page.evaluate("()=>openAuthModal('login')")
+                      page.locator("#loginEmail").fill(email)
+                      page.locator("#loginPassword").fill(password)
+                      page.locator("#authFormContent button[type='submit']").click()
+                      page.wait_for_timeout(3000)
+
+                      auth=page.evaluate("""async()=>{
+                        const r=await window.mahaSupabase.auth.getSession();
+                        return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null};
+                      }""")
+                      evidence["checks"]["authenticated_session"]=bool(auth["ok"])
+                      if auth["ok"]:
+                          # 1) Passport edit/re-entry with persisted values.
+                          page.evaluate("async()=>{await window.veloraBeautyPassportV2.open(); return true;}")
+                          page.wait_for_selector("#veloraQuizV2Modal.active",state="visible",timeout=10000)
+                          evidence["checks"]["passport_modal_open"]=True
+                          evidence["checks"]["passport_skin_selected"]=page.locator("#veloraQuizV2Modal .velora-quiz-option.selected[data-value='oily']").count()==1
+                          evidence["checks"]["passport_modal_text_present"]=len(page.locator("#veloraQuizBody").inner_text())>50
+
+                          # 2) Locale transition while the Passport editor is open.
+                          ar=page.evaluate("""async()=>{
+                            await window.VELORA_V5_SET_LANGUAGE('ar');
+                            return {lang:document.documentElement.lang,dir:document.documentElement.dir};
+                          }""")
+                          evidence["checks"]["passport_ar_locale"]=ar["lang"]=="ar" and ar["dir"]=="rtl"
+                          evidence["checks"]["passport_ar_text_present"]="روتينك" in page.locator("#veloraQuizV2Modal").inner_text() or "ميزانيتك" in page.locator("#veloraQuizV2Modal").inner_text()
+
+                          back=page.evaluate("""async()=>{
+                            await window.VELORA_V5_SET_LANGUAGE('en');
+                            return {lang:document.documentElement.lang,dir:document.documentElement.dir};
+                          }""")
+                          evidence["checks"]["passport_en_locale_restore"]=back["lang"]=="en" and back["dir"]=="ltr"
+
+                          page.locator("#veloraQuizClose").click()
+                          page.wait_for_timeout(300)
+                          evidence["checks"]["passport_modal_closed"]=page.locator("#veloraQuizV2Modal.active").count()==0
+
+                          # Reload and prove persisted V2 values are still used when editing.
+                          page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                          page.wait_for_timeout(800)
+                          page.evaluate("async()=>{await window.veloraBeautyPassportV2.open(); return true;}")
+                          page.wait_for_selector("#veloraQuizV2Modal.active",state="visible",timeout=10000)
+                          evidence["checks"]["passport_reopen_preserves_oily"]=page.locator("#veloraQuizV2Modal .velora-quiz-option.selected[data-value='oily']").count()==1
+                          page.locator("#veloraQuizClose").click()
+                          page.wait_for_timeout(200)
+
+                          # 3) Existing deterministic Routine UX.
+                          page.evaluate("async()=>{await window.veloraRoutineUX.open(); return true;}")
+                          page.wait_for_timeout(1200)
+                          routine=page.evaluate("()=>window.__VELORA_CURRENT_ROUTINE||null")
+                          evidence["checks"]["routine_modal_active"]=page.locator("#veloraRoutineUxModal.active").count()==1
+                          evidence["checks"]["routine_valid_status"]=bool(isinstance(routine,dict) and routine.get("status") in ("complete","partial","no_matches"))
+                          evidence["checks"]["routine_step_count"]=len(routine.get("steps",[])) if isinstance(routine,dict) else 0
+                          if page.locator("#veloraRoutineUxModal.active").count():
+                              close_candidates=page.locator("#veloraRoutineUxModal button")
+                              # Navigate home instead of assuming a specific close-control implementation.
+                          page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                          page.wait_for_timeout(1000)
+
+                          # 4) Canonical recommendations on the authenticated home.
+                          page.wait_for_timeout(1600)
+                          rec=page.locator("#veloraBeautyRecommendationsSection")
+                          grid=page.locator("#veloraBeautyRecommendationsGrid")
+                          evidence["checks"]["recommendation_section_present"]=rec.count()==1
+                          evidence["checks"]["recommendation_section_visible"]=rec.count()==1 and rec.is_visible()
+                          evidence["checks"]["recommendation_rpc_requests"]=len(recommendation_rpc)
+                          evidence["checks"]["recommendation_cards"]=grid.locator(".velora-recommendation-card").count() if grid.count() else 0
+                          evidence["checks"]["recommendation_reason_chips"]=grid.locator(".velora-recommendation-reason").count() if grid.count() else 0
+
+                          # 5) Account Beauty Journey.
+                          page.evaluate("()=>navigateTo('account')")
+                          page.wait_for_function("()=>document.getElementById('page-account')?.classList.contains('active')",timeout=15000)
+                          page.wait_for_selector("#veloraBeautyJourney",state="visible",timeout=20000)
+                          page.wait_for_selector("#veloraBeautyExperience",state="visible",timeout=20000)
+                          jt=page.locator("#veloraBeautyJourney").inner_text()
+                          et=page.locator("#veloraBeautyExperience").inner_text()
+                          evidence["checks"]["journey_present"]=True
+                          evidence["checks"]["journey_passport_text"]="Passport" in jt
+                          evidence["checks"]["journey_routine_text"]="Latest Routine" in jt
+                          evidence["checks"]["journey_rpc_requests"]=len(journey_rpc)
+                          evidence["checks"]["replenishment_rpc_requests"]=len(replenishment_rpc)
+                          evidence["checks"]["feedback_surface_visible"]=page.locator("#veloraBeautyExperience").is_visible()
+                          evidence["checks"]["feedback_state_rendered"]=("Share experience" in et or "Your purchased products will appear here." in et or "Saved" in et)
+
+                          page.screenshot(path="beauty-aggregate-exact-source.png",full_page=True)
+
+                  except Exception as exc:
+                      evidence["failures"].append("BROWSER_EXCEPTION:"+str(exc))
+                  finally:
+                      browser.close()
+
+          c=evidence["checks"]
+          required_true=[
+              "http_status","authenticated_session","passport_modal_open",
+              "passport_skin_selected","passport_modal_text_present",
+              "passport_ar_locale","passport_ar_text_present","passport_en_locale_restore",
+              "passport_modal_closed","passport_reopen_preserves_oily",
+              "routine_modal_active","routine_valid_status",
+              "recommendation_section_present","recommendation_section_visible",
+              "journey_present","journey_passport_text","journey_routine_text",
+              "feedback_surface_visible","feedback_state_rendered"
+          ]
+          for key in required_true:
+              if key=="http_status":
+                  if c.get(key)!=200: evidence["failures"].append("HTTP_NOT_200")
+              elif not c.get(key):
+                  evidence["failures"].append("CHECK_FAILED:"+key)
+
+          if c.get("recommendation_rpc_requests",0)<1:
+              evidence["failures"].append("RECOMMENDATION_RPC_NOT_OBSERVED")
+          if c.get("recommendation_cards",0)<1 and c.get("recommendation_reason_chips",0)<1:
+              evidence["failures"].append("RECOMMENDATION_CONTENT_NOT_RENDERED")
+          if c.get("routine_step_count",0)<=0:
+              evidence["failures"].append("ROUTINE_HAS_NO_STEPS")
+          if c.get("journey_rpc_requests",0)<1:
+              evidence["failures"].append("JOURNEY_RPC_NOT_OBSERVED")
+          if c.get("replenishment_rpc_requests",0)<1:
+              evidence["failures"].append("REPLENISHMENT_RPC_NOT_OBSERVED")
+
+          evidence["browser_errors"]=list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["checks"]["browser_error_count"]=len(evidence["browser_errors"])
+          evidence["passed"]=not evidence["failures"] and not evidence["browser_errors"]
+
+          with open("beauty-aggregate-browser-evidence.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload exact-source aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beauty-aggregate-exact-source-browser-evidence
+          path: |
+            beauty-aggregate-browser-evidence.json
+            beauty-aggregate-exact-source.png
+            beauty-aggregate-local-server.log
+          retention-days: 7
