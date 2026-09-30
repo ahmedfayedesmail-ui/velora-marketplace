@@ -49,5 +49,6 @@
         "pollIntervalMs": 300
       }
     }
-  ]
+  ],
+  "contractRevision": "2026-09-30.cross-origin-verified"
 }
