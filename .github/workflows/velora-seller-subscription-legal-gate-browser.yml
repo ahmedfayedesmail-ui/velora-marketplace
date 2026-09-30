@@ -1,0 +1,250 @@
+name: Velora Seller Subscription Legal Gate Browser
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/35-seller.js"
+      - "src/index.html"
+      - "supabase/migrations/20260930081000_owner_subscription_control_plane_read.sql"
+      - ".github/workflows/velora-seller-subscription-legal-gate-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-seller-subscription-legal-gate
+  cancel-in-progress: true
+
+jobs:
+  seller-subscription-legal:
+    name: Seller Subscription legal fail-closed Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > seller-subscription-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run Seller Subscription legal gate evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.request, urllib.parse
+          from playwright.sync_api import sync_playwright
+
+          BASE = os.environ["SUPABASE_URL"].rstrip("/")
+          APP = os.environ["APP_URL"].rstrip("/")
+          SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+          evidence = {
+              "schema": "seller-subscription-legal-gate.v1",
+              "execution_target": "local_exact_source",
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "failures": [],
+              "browser_errors": [],
+          }
+
+          if not SERVICE_ROLE:
+              evidence["failures"].append("SUPABASE_SERVICE_ROLE_KEY_MISSING")
+              open("seller-subscription-legal-gate-evidence.json","w",encoding="utf-8").write(json.dumps(evidence,ensure_ascii=False,indent=2))
+              sys.exit(1)
+
+          def api(path, method="GET", payload=None):
+              headers = {
+                  "apikey": SERVICE_ROLE,
+                  "Authorization": "Bearer " + SERVICE_ROLE,
+                  "Content-Type": "application/json",
+              }
+              data = json.dumps(payload).encode("utf-8") if payload is not None else None
+              req = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  body = resp.read().decode("utf-8")
+                  return json.loads(body) if body else None
+
+          def count(path):
+              rows = api(path)
+              return len(rows or [])
+
+          users = api("/auth/v1/admin/users?page=1&per_page=1000")
+          if isinstance(users, dict):
+              users = users.get("users", [])
+          auth_by_id = {str(u.get("id") or ""): u for u in (users or [])}
+          owners = api("/rest/v1/user_roles?select=user_id&role=eq.seller")
+          seller_id = next((str(x.get("user_id") or "") for x in owners or [] if str(x.get("user_id") or "") in auth_by_id), "")
+          if not seller_id:
+              evidence["failures"].append("SELLER_AUTH_FIXTURE_NOT_FOUND")
+          else:
+              evidence["checks"]["seller_fixture_found"] = True
+          seller_email = str(auth_by_id.get(seller_id, {}).get("email") or "")
+          if not seller_email:
+              evidence["failures"].append("SELLER_EMAIL_NOT_FOUND")
+
+          before_subs = count("/rest/v1/seller_subscriptions?select=id&limit=1000")
+          before_attempts = count("/rest/v1/payment_attempts?select=id&purpose=eq.seller_subscription&limit=1000")
+          evidence["checks"]["before_seller_subscriptions"] = before_subs
+          evidence["checks"]["before_subscription_payment_attempts"] = before_attempts
+
+          def magic_link(email):
+              result = api(
+                  "/auth/v1/admin/generate_link",
+                  method="POST",
+                  payload={"type":"magiclink","email":email,"options":{"redirect_to":APP+"/#home"}},
+              )
+              token = str(result.get("hashed_token") or "")
+              if not token:
+                  raise RuntimeError("MAGIC_LINK_TOKEN_NOT_RETURNED")
+              return token
+
+          if not evidence["failures"]:
+              with sync_playwright() as p:
+                  browser = p.chromium.launch(headless=True)
+                  page = browser.new_page(viewport={"width":1440,"height":1000},locale="en-US")
+                  checkout_requests = []
+                  acceptance_requests = []
+                  page.on("pageerror", lambda exc: evidence["browser_errors"].append("pageerror:"+str(exc)))
+                  page.on("console", lambda msg: evidence["browser_errors"].append("console:"+msg.text) if msg.type=="error" else None)
+                  page.on("request", lambda req: checkout_requests.append(req.url) if "/functions/v1/velora-subscription-paymob-checkout-restore-test" in req.url else None)
+                  page.on("request", lambda req: acceptance_requests.append(req.url) if "/rest/v1/rpc/velora_accept_legal_document" in req.url else None)
+                  try:
+                      page.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+                      token=magic_link(seller_email)
+                      verify=page.evaluate(
+                          """async tokenHash => {
+                            try {
+                              const r=await window.mahaSupabase.auth.verifyOtp({token_hash:tokenHash,type:"magiclink"});
+                              return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null,error:r?.error?.message||null};
+                            } catch(e){return {ok:false,id:null,error:String(e?.message||e)}}
+                          }""", token)
+                      evidence["checks"]["magic_link_verify_ok"]=bool(verify.get("ok"))
+                      evidence["checks"]["authenticated_user_match"]=verify.get("id")==seller_id
+                      if not evidence["checks"]["magic_link_verify_ok"] or not evidence["checks"]["authenticated_user_match"]:
+                          evidence["failures"].append("SELLER_AUTHENTICATION_FAILED")
+                      else:
+                          page.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+                          page.wait_for_timeout(1200)
+                          page.evaluate("() => window.switchPlatform('seller')")
+                          page.wait_for_function("() => document.getElementById('sellerPlatform')?.classList.contains('active')",timeout=15000)
+                          page.wait_for_function(
+                              """() => !!document.getElementById('veloraSellerSubscription39') &&
+                                       !/Loading subscription/i.test(document.getElementById('veloraSellerSubscription39')?.innerText||'') &&
+                                       !!document.querySelector('#veloraSellerSubscription39 #v39Subscribe')""",
+                              timeout=30000,
+                          )
+                          sub=page.locator("#veloraSellerSubscription39")
+                          button=page.locator("#v39Subscribe")
+                          plan=page.locator("#v39Plan")
+                          evidence["checks"]["subscription_surface_present"]=sub.count()==1
+                          evidence["checks"]["subscription_surface_visible"]=sub.is_visible() if sub.count() else False
+                          evidence["checks"]["subscription_button_present"]=button.count()==1
+                          evidence["checks"]["paid_plan_options"]=plan.locator("option").count() if plan.count() else 0
+                          text_content=sub.inner_text() if sub.count() else ""
+                          for required in ["Basic","Pro","Enterprise"]:
+                              evidence["checks"]["contains_"+required.lower()]=required in text_content
+                          evidence["checks"]["legal_block_expected_text_present"]=(
+                              "Seller subscription" in text_content and "Permissions are enforced server-side" in text_content
+                          )
+
+                          page.screenshot(path="seller-subscription-before-click.png",full_page=True)
+                          if not evidence["checks"]["subscription_surface_present"]:
+                              evidence["failures"].append("SUBSCRIPTION_SURFACE_MISSING")
+                          if not evidence["checks"]["subscription_surface_visible"]:
+                              evidence["failures"].append("SUBSCRIPTION_SURFACE_NOT_VISIBLE")
+                          if evidence["checks"]["paid_plan_options"] < 3:
+                              evidence["failures"].append("EXPECTED_PAID_PLANS_NOT_RENDERED")
+                          for required in ["Basic","Pro","Enterprise"]:
+                              if not evidence["checks"].get("contains_"+required.lower()):
+                                  evidence["failures"].append("MISSING_PLAN:"+required)
+
+                          button.click()
+                          page.wait_for_function(
+                              """() => /terms are not published yet/i.test(
+                                   String(document.getElementById('v39SubStatus')?.innerText||'')
+                                 )""",
+                              timeout=10000,
+                          )
+                          status=page.locator("#v39SubStatus")
+                          evidence["checks"]["legal_fail_closed_message_present"]=status.inner_text().strip()=="Seller subscription terms are not published yet."
+                          evidence["checks"]["checkout_function_requests"]=len(checkout_requests)
+                          evidence["checks"]["legal_acceptance_requests"]=len(acceptance_requests)
+
+                          after_subs=count("/rest/v1/seller_subscriptions?select=id&limit=1000")
+                          after_attempts=count("/rest/v1/payment_attempts?select=id&purpose=eq.seller_subscription&limit=1000")
+                          evidence["checks"]["after_seller_subscriptions"]=after_subs
+                          evidence["checks"]["after_subscription_payment_attempts"]=after_attempts
+                          evidence["checks"]["subscription_rows_unchanged"]=after_subs==before_subs
+                          evidence["checks"]["payment_attempt_rows_unchanged"]=after_attempts==before_attempts
+
+                          page.screenshot(path="seller-subscription-legal-block.png",full_page=True)
+                          if not evidence["checks"]["legal_fail_closed_message_present"]:
+                              evidence["failures"].append("LEGAL_BLOCK_MESSAGE_NOT_SHOWN")
+                          if evidence["checks"]["checkout_function_requests"] != 0:
+                              evidence["failures"].append("SUBSCRIPTION_CHECKOUT_FUNCTION_CALLED")
+                          if evidence["checks"]["legal_acceptance_requests"] != 0:
+                              evidence["failures"].append("LEGAL_ACCEPTANCE_MUTATION_CALLED")
+                          if not evidence["checks"]["subscription_rows_unchanged"]:
+                              evidence["failures"].append("SELLER_SUBSCRIPTION_ROWS_CHANGED")
+                          if not evidence["checks"]["payment_attempt_rows_unchanged"]:
+                              evidence["failures"].append("SUBSCRIPTION_PAYMENT_ATTEMPT_ROWS_CHANGED")
+                  except Exception as exc:
+                      evidence["failures"].append("BROWSER_EXCEPTION:"+str(exc))
+                  finally:
+                      page.close()
+                      browser.close()
+
+          evidence["browser_errors"]=list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["passed"]=not evidence["failures"] and not evidence["browser_errors"]
+          with open("seller-subscription-legal-gate-evidence.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seller-subscription-legal-gate-browser-evidence
+          path: |
+            seller-subscription-legal-gate-evidence.json
+            seller-subscription-before-click.png
+            seller-subscription-legal-block.png
+            seller-subscription-local-server.log
+          retention-days: 7
+          if-no-files-found: warn
