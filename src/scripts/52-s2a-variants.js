@@ -416,7 +416,7 @@
     };
   }
 
-  function scanSellerModal(){
+  function integrateSellerModal(){
     var modal=document.getElementById("addProductModal");
     var form=modal&&modal.querySelector("#sellerProductForm");
     if(!modal||!form)return;
@@ -429,10 +429,15 @@
       .finally(function(){delete form.dataset.s2aEnhancing;});
   }
 
-  var sellerObserver=new MutationObserver(function(){scanSellerModal();});
-  sellerObserver.observe(document.body,{childList:true,subtree:true});
-  setTimeout(scanSellerModal,0);
-  setTimeout(scanSellerModal,250);
+  var originalOpenAddProductModal=window.openAddProductModal;
+  if(typeof originalOpenAddProductModal==="function" && !window.__VELORA_S2A_OPEN_MODAL_WRAPPED__){
+    window.openAddProductModal=function(editId){
+      var result=originalOpenAddProductModal.apply(this,arguments);
+      integrateSellerModal();
+      return result;
+    };
+    window.__VELORA_S2A_OPEN_MODAL_WRAPPED__=true;
+  }
 
   window.__VELORA_S2A_SELLER_INTEGRATED__=true;
   console.log("✅ S2-A seller variant integration ready");
