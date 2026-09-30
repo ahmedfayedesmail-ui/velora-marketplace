@@ -148,7 +148,11 @@ jobs:
               for p in (customer,seller,owner):p.close()
               b.close()
 
-          check("customer",["http_200","authenticated_session","recommendation_section_visible","recommendation_rpc_requests","recommendation_status","orders_route","orders_host_present","session_survived_checkout_navigation"])
+          check("customer",["http_200","authenticated_session","recommendation_section_visible","orders_route","orders_host_present","session_survived_checkout_navigation"])
+          if out["roles"]["customer"].get("recommendation_rpc_requests",0) < 1:
+              out["failures"].append("customer: recommendation_rpc_requests")
+          if out["roles"]["customer"].get("recommendation_status") not in ("success","ready"):
+              out["failures"].append("customer: recommendation_status")
           if out["roles"]["customer"].get("recommendation_ai_endpoint_requests",0)!=0: out["failures"].append("customer: recommendation invoked Beauty AI endpoint")
           if out["roles"]["customer"].get("recommendation_status") in ("success","ready") and out["roles"]["customer"].get("recommendation_count",0)<1: out["failures"].append("customer: ready recommendation response had no recommendations")
           check("seller",["authenticated_session","first_open","closed_without_refresh","reentry_active_without_refresh","reentry_content"])
