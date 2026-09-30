@@ -1,0 +1,150 @@
+name: WITNESS Runtime Truth Final (temporary)
+
+on:
+  push:
+    branches:
+      - "ops/witness-runtime-truth-2026-09-30"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-truth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: velora
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install WITNESS 0.9.1
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/witnesspkg --no-save @witness-engine/cli@0.9.1
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js doctor
+          cp velora/tmp-witness-business-truth-drafts.js /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
+          node --check /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
+          npx --prefix /tmp/witnesspkg playwright install --with-deps chromium
+
+      - name: Start Velora
+        run: |
+          nohup python3 -m http.server 4173 -d velora/src > /tmp/velora-runtime.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/",timeout=2) as r:
+                      if r.status == 200:
+                          print("VELORA_READY")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("VELORA_NOT_READY")
+          PY
+
+      - name: Verify test database access
+        run: |
+          test -n "${SUPABASE_SERVICE_ROLE_KEY:-}"
+          curl --fail --silent --show-error             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}"             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"             "${SUPABASE_URL}/rest/v1/notifications?select=id&limit=1" >/dev/null
+
+      - name: Build authenticated profiles
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, urllib.parse, urllib.request
+          from playwright.sync_api import sync_playwright
+          BASE=os.environ["SUPABASE_URL"].rstrip("/")
+          KEY=os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          APP=os.environ["APP_URL"].rstrip("/")
+          H={"apikey":KEY,"Authorization":"Bearer "+KEY,"Accept":"application/json"}
+          pathlib.Path("profiles").mkdir(exist_ok=True)
+          def api(path,method="GET",payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              h=dict(H)
+              if payload is not None: h["Content-Type"]="application/json"
+              q=urllib.request.Request(BASE+path,data=data,headers=h,method=method)
+              with urllib.request.urlopen(q,timeout=30) as x:
+                  raw=x.read().decode()
+                  return json.loads(raw) if raw else None
+          users=api("/auth/v1/admin/users?page=1&per_page=1000")
+          users=users.get("users",[]) if isinstance(users,dict) else (users or [])
+          auth={str(u.get("id")):u for u in users if u.get("id")}
+          def role(role):
+              rows=api("/rest/v1/user_roles?select=user_id&role=eq."+urllib.parse.quote(role))
+              for row in rows or []:
+                  uid=str(row.get("user_id") or "")
+                  if uid in auth:return uid
+              raise RuntimeError("NO_AUTH_USER_FOR_ROLE:"+role)
+          def seller():
+              rows=api("/rest/v1/sellers?select=user_id,status&status=eq.approved&limit=50")
+              for row in rows or []:
+                  uid=str(row.get("user_id") or "")
+                  if uid not in auth:continue
+                  rr=api("/rest/v1/user_roles?select=user_id&user_id=eq."+urllib.parse.quote(uid)+"&role=eq.seller")
+                  if rr:return uid
+              raise RuntimeError("NO_APPROVED_SELLER_AUTH_USER")
+          def magic(mail):
+              r=api("/auth/v1/admin/generate_link","POST",{"type":"magiclink","email":mail,"options":{"redirect_to":APP+"/#home"}})
+              token=str(r.get("hashed_token") or "")
+              if not token:raise RuntimeError("NO_MAGIC_HASH")
+              return token
+          ids={"seller":seller(),"admin":role("admin"),"owner":role("owner")}
+          with sync_playwright() as pw:
+              b=pw.chromium.launch(headless=True)
+              for name,uid,arabic in [("seller",ids["seller"],False),("admin",ids["admin"],False),("owner",ids["owner"],False),("rtl",ids["admin"],True)]:
+                  p=b.new_page(viewport={"width":1440,"height":1000},locale=("ar-EG" if arabic else "en-EG"))
+                  p.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+                  t=magic(str(auth[uid].get("email") or ""))
+                  r=p.evaluate("""async t=>{const x=await window.mahaSupabase.auth.verifyOtp({token_hash:t,type:"magiclink"});return {ok:!!x?.data?.session?.user,id:x?.data?.session?.user?.id||null,error:x?.error?.message||null}}""",t)
+                  if not r.get("ok") or str(r.get("id"))!=uid:raise RuntimeError("AUTH_FAILED:"+name)
+                  p.wait_for_timeout(1500)
+                  if arabic:
+                      r=p.evaluate("""async()=>{try{return {ok:!!(await window.VELORA_V5_SET_LANGUAGE("ar"))}}catch(e){return {ok:false,error:String(e)}}}""")
+                      if not r.get("ok"):raise RuntimeError("ARABIC_FAILED")
+                      p.wait_for_timeout(1200)
+                  p.context.storage_state(path="profiles/"+name+".json")
+                  p.close()
+              b.close()
+          pathlib.Path("profiles.json").write_text(json.dumps({k:"profiles/"+k+".json" for k in ["seller","admin","owner","rtl"]}))
+          print("PROFILES_READY")
+          PY
+
+      - name: Authorize target
+        run: |
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js target authorize-local             --url "$APP_URL" --repo ./velora --output ./witness-grant.json
+
+      - name: Runtime scan
+        run: |
+          set +e
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan             --url "$APP_URL#home"             --grant ./witness-grant.json             --repo ./velora             --mode full             --personas seller,admin,owner,rtl             --profiles ./profiles.json             --explore             --max-pages 20             --max-actions 8             --allow-private-origin             --output ./velora-witness-runtime
+          rc=$?
+          echo "WITNESS_SCAN_EXIT_CODE=$rc"
+          exit 0
+
+      - name: Generate drafts from runtime evidence
+        run: |
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js truth-drafts init             --repo ./velora             --result ./velora-witness-runtime/result.json             --output ./velora-business-truth-drafts.json
+          cat ./velora-business-truth-drafts.json
+
+      - name: Verify evidence
+        if: always()
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./velora-witness-runtime || true
+
+      - name: Upload runtime artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-runtime-truth-drafts-final
+          path: |
+            velora-witness-runtime/
+            velora-business-truth-drafts.json
+            /tmp/velora-runtime.log
+          retention-days: 7
