@@ -1,0 +1,45 @@
+{
+  "schema": "witness-cross-origin-observation.v1",
+  "checkId": "velora-payment-return-order-truth",
+  "verdict": "CONSISTENT",
+  "browser": {
+    "visibleClaim": true,
+    "state": "payment-success"
+  },
+  "api": {
+    "status": 200,
+    "bodyHash": "e5ff75ba1fb4fe15a2edb1e196ee42a8654821d3a0183db8186471c76902cff5",
+    "jsonValid": true,
+    "observation": {
+      "mode": "cross-origin",
+      "allowedOrigin": true,
+      "headerNames": [
+        "apikey",
+        "Authorization"
+      ]
+    }
+  },
+  "state": {
+    "assertions": [
+      {
+        "path": "[0].payment_status",
+        "expected": {
+          "equals": "paid"
+        },
+        "found": true,
+        "observed": "paid",
+        "ok": true
+      },
+      {
+        "path": "[0].status",
+        "expected": {
+          "equals": "confirmed"
+        },
+        "found": true,
+        "observed": "confirmed",
+        "ok": true
+      }
+    ],
+    "consistent": true
+  }
+}

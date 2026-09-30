@@ -1,0 +1,6 @@
+{
+  "schema": "witness-browser-claim-proof.v1",
+  "ownedPaidConfirmedOrderFound": true,
+  "browserSuccessClaimObserved": true,
+  "successText": "Payment successful"
+}

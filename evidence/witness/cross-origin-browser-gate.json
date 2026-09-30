@@ -1,0 +1,48 @@
+{
+  "schema": "witness-cross-origin-payment-gate.v1",
+  "witnessPackageVersion": "0.9.1",
+  "browserClaim": {
+    "observed": true,
+    "text": "Payment successful"
+  },
+  "businessTruth": {
+    "checksObserved": 1,
+    "consistent": 1,
+    "contradictions": 0,
+    "observationMode": "cross-origin",
+    "allowedOrigin": true,
+    "apiStatus": 200,
+    "apiUrlOrigin": "https://arlaxqmhtvjwjbjinjfw.supabase.co",
+    "stateAssertions": [
+      {
+        "path": "[0].payment_status",
+        "expected": {
+          "equals": "paid"
+        },
+        "found": true,
+        "observed": "paid",
+        "ok": true
+      },
+      {
+        "path": "[0].status",
+        "expected": {
+          "equals": "confirmed"
+        },
+        "found": true,
+        "observed": "confirmed",
+        "ok": true
+      }
+    ]
+  },
+  "browserDiagnostics": {
+    "consoleErrors": 0,
+    "pageErrors": 0
+  },
+  "passed": true,
+  "safety": {
+    "productionTouched": false,
+    "realMoneyMoved": false,
+    "destructiveBrowserActions": false,
+    "authStorageStatesUploaded": false
+  }
+}
