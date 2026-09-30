@@ -1,0 +1,391 @@
+name: Velora Notification Push Browser Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/55-s2e-notifications.js"
+      - "src/scripts/68-s1-d-mobile-push.js"
+      - "src/sw.js"
+      - "supabase/functions/velora-send-push-test/index.ts"
+      - "tests/notification-push-contract.test.mjs"
+      - "package.json"
+      - ".github/workflows/velora-notification-push-browser-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-notification-push-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  push-browser:
+    name: Authenticated Web Push Browser Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Node + Python + Playwright
+        run: |
+          node --version
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Run push contract
+        run: npm run test:notification-push
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > notification-push-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run authenticated push browser evidence
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.parse
+          import urllib.request
+          from playwright.sync_api import sync_playwright
+
+          BASE = os.environ["SUPABASE_URL"].rstrip("/")
+          KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          APP = os.environ["APP_URL"].rstrip("/")
+          EMAIL = os.environ.get("E2E_EMAIL", "")
+          PASSWORD = os.environ.get("E2E_PASSWORD", "")
+
+          evidence = {
+              "schema": "velora-notification-push-browser.v1",
+              "execution_target": "local_exact_source",
+              "checks": {},
+              "observations": {},
+              "failures": [],
+              "browser_errors": [],
+          }
+
+          def api(path, method="GET", payload=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              headers = {
+                  "apikey": KEY,
+                  "Authorization": "Bearer " + KEY,
+                  "Accept": "application/json",
+              }
+              if payload is not None:
+                  headers["Content-Type"] = "application/json"
+              request = urllib.request.Request(
+                  BASE + path,
+                  data=data,
+                  headers=headers,
+                  method=method,
+              )
+              with urllib.request.urlopen(request, timeout=40) as response:
+                  return json.loads(response.read().decode() or "null")
+
+          def list_rows(value):
+              return value if isinstance(value, list) else []
+
+          with sync_playwright() as pw:
+              browser = pw.chromium.launch(headless=True)
+              context = browser.new_context(
+                  viewport={"width": 390, "height": 844},
+                  locale="en-US",
+                  permissions=["notifications"],
+              )
+              page = context.new_page()
+              page_errors = []
+
+              page.on("pageerror", lambda e: page_errors.append("pageerror:" + str(e)[:300]))
+              page.on(
+                  "console",
+                  lambda m: page_errors.append("console:" + m.text[:300])
+                  if m.type == "error"
+                  else None,
+              )
+
+              evidence["checks"]["credentials_present"] = bool(EMAIL and PASSWORD)
+              if not evidence["checks"]["credentials_present"]:
+                  evidence["failures"].append("missing E2E credentials")
+              else:
+                  page.goto(APP + "/#home", wait_until="domcontentloaded", timeout=60000)
+                  evidence["checks"]["http_200"] = True
+
+                  page.evaluate("() => openAuthModal('login')")
+                  page.locator("#loginEmail").fill(EMAIL)
+                  page.locator("#loginPassword").fill(PASSWORD)
+                  page.locator("#authFormContent button[type='submit']").click()
+                  page.wait_for_timeout(2500)
+
+                  session = page.evaluate(
+                      """async () => {
+                        const r = await window.mahaSupabase.auth.getSession();
+                        const s = r?.data?.session;
+                        return {present: !!s, userId: s?.user?.id || null};
+                      }"""
+                  )
+                  evidence["checks"]["authenticated_session"] = bool(session["present"])
+                  user_id = session.get("userId")
+
+                  if session["present"]:
+                      page.locator("#notifBell .icon-btn").wait_for(state="visible", timeout=15000)
+                      page.locator("#notifBell .icon-btn").click()
+                      page.locator("#notifDropdown").wait_for(state="visible", timeout=10000)
+                      page.locator("#veloraPushEnableButton").wait_for(state="visible", timeout=15000)
+
+                      evidence["checks"]["notification_dropdown_visible"] = True
+                      evidence["checks"]["push_enable_control_visible"] = True
+                      evidence["observations"]["permission_before_enable"] = page.evaluate(
+                          "() => Notification.permission"
+                      )
+
+                      enabled = page.evaluate(
+                          """async () => {
+                            try {
+                              const ok = await window.veloraEnableMobilePush();
+                              return {ok: !!ok, permission: Notification.permission};
+                            } catch (error) {
+                              return {ok: false, permission: Notification.permission, error: String(error)};
+                            }
+                          }"""
+                      )
+                      evidence["checks"]["notification_permission_granted"] = (
+                          enabled.get("permission") == "granted"
+                      )
+                      evidence["checks"]["push_enable_returned_true"] = enabled.get("ok") is True
+                      evidence["observations"]["enable_result"] = {
+                          "ok": enabled.get("ok"),
+                          "permission": enabled.get("permission"),
+                          "error": enabled.get("error"),
+                      }
+
+                      subscription = page.evaluate(
+                          """async () => {
+                            const registration = await navigator.serviceWorker.getRegistration('/');
+                            const sub = registration
+                              ? await registration.pushManager.getSubscription()
+                              : null;
+                            return {
+                              registration: !!registration,
+                              subscriptionPresent: !!sub,
+                              endpointPresent: !!sub?.endpoint,
+                            };
+                          }"""
+                      )
+                      evidence["checks"]["service_worker_registered"] = (
+                          subscription.get("registration") is True
+                      )
+                      evidence["checks"]["push_subscription_present"] = (
+                          subscription.get("subscriptionPresent") is True
+                      )
+                      evidence["observations"]["service_worker"] = {
+                          "registration": subscription.get("registration"),
+                          "subscription_present": subscription.get("subscriptionPresent"),
+                          "endpoint_present": subscription.get("endpointPresent"),
+                      }
+
+                      endpoint = page.evaluate(
+                          """async () => {
+                            const registration = await navigator.serviceWorker.getRegistration('/');
+                            const sub = registration
+                              ? await registration.pushManager.getSubscription()
+                              : null;
+                            return sub?.endpoint || null;
+                          }"""
+                      )
+
+                      server_rows = []
+                      if user_id:
+                          server_rows = list_rows(
+                              api(
+                                  "/rest/v1/push_subscriptions?select=id,user_id,endpoint,active"
+                                  "&user_id=eq." + urllib.parse.quote(str(user_id)) + "&limit=50"
+                              )
+                          )
+                      matching = [
+                          row for row in server_rows
+                          if endpoint and row.get("endpoint") == endpoint
+                      ]
+                      active_matching = [row for row in matching if row.get("active") is True]
+                      evidence["checks"]["subscription_persisted_server_side"] = bool(active_matching)
+                      evidence["observations"]["server_subscription"] = {
+                          "row_present": bool(matching),
+                          "active": bool(active_matching),
+                      }
+
+                      send = page.evaluate(
+                          """async () => {
+                            try {
+                              const response = await window.mahaSupabase.functions.invoke(
+                                'velora-send-push-test',
+                                {
+                                  body: {
+                                    title: 'Velora automated push gate',
+                                    body: 'Automated Browser Gate push verification.',
+                                    url: '/'
+                                  }
+                                }
+                              );
+                              return {
+                                error: response?.error
+                                  ? String(response.error.message || response.error)
+                                  : null,
+                                data: response?.data || null
+                              };
+                            } catch (error) {
+                              return {error: String(error), data: null};
+                            }
+                          }"""
+                      )
+                      send_data = send.get("data") if isinstance(send, dict) else None
+                      evidence["checks"]["push_test_request_success"] = not bool(send.get("error"))
+                      evidence["checks"]["push_provider_handoff_sent"] = bool(
+                          isinstance(send_data, dict)
+                          and int(send_data.get("sent") or 0) >= 1
+                      )
+                      evidence["observations"]["send_result"] = {
+                          "request_success": not bool(send.get("error")),
+                          "sent": send_data.get("sent") if isinstance(send_data, dict) else None,
+                          "subscriptions": (
+                              send_data.get("subscriptions")
+                              if isinstance(send_data, dict) else None
+                          ),
+                          "removed": (
+                              send_data.get("removed")
+                              if isinstance(send_data, dict) else None
+                          ),
+                          "notification_created": bool(
+                              isinstance(send_data, dict)
+                              and send_data.get("notification_id")
+                          ),
+                          "error": send.get("error"),
+                      }
+
+                      notification_id = (
+                          send_data.get("notification_id")
+                          if isinstance(send_data, dict) else None
+                      )
+                      matching_ids = {str(row.get("id")) for row in server_rows if row.get("id")}
+                      if notification_id and matching_ids:
+                          notifications = list_rows(
+                              api(
+                                  "/rest/v1/notifications?select=id,user_id,type,title"
+                                  "&id=eq." + urllib.parse.quote(str(notification_id))
+                              )
+                          )
+                          deliveries = list_rows(
+                              api(
+                                  "/rest/v1/notification_push_deliveries"
+                                  "?select=notification_id,subscription_id,delivered_at"
+                                  "&notification_id=eq."
+                                  + urllib.parse.quote(str(notification_id))
+                              )
+                          )
+                          notification_match = [
+                              row for row in notifications
+                              if row.get("id") == notification_id
+                              and row.get("user_id") == user_id
+                              and row.get("type") == "push_test"
+                          ]
+                          delivered = [
+                              row for row in deliveries
+                              if str(row.get("subscription_id")) in matching_ids
+                              and row.get("delivered_at")
+                          ]
+                          evidence["checks"]["push_test_notification_persisted"] = bool(
+                              notification_match
+                          )
+                          evidence["checks"]["push_delivery_recorded"] = bool(delivered)
+                          evidence["observations"]["delivery"] = {
+                              "notification_persisted": bool(notification_match),
+                              "delivered_at_present": bool(delivered),
+                          }
+                      else:
+                          evidence["checks"]["push_test_notification_persisted"] = False
+                          evidence["checks"]["push_delivery_recorded"] = False
+
+                      disable = page.evaluate(
+                          """async () => {
+                            const button = document.getElementById('veloraPushEnableButton');
+                            if (!button) return {started: false};
+                            button.click();
+                            for (let i = 0; i < 20; i++) {
+                              await new Promise(resolve => setTimeout(resolve, 250));
+                              const registration = await navigator.serviceWorker.getRegistration('/');
+                              const sub = registration
+                                ? await registration.pushManager.getSubscription()
+                                : null;
+                              if (!sub) return {started: true, subscriptionPresent: false};
+                            }
+                            return {started: true, subscriptionPresent: true};
+                          }"""
+                      )
+                      evidence["checks"]["browser_cleanup_attempted"] = (
+                          disable.get("started") is True
+                      )
+                      evidence["checks"]["subscription_removed_from_browser"] = (
+                          disable.get("subscriptionPresent") is False
+                      )
+
+                  else:
+                      evidence["failures"].append("authenticated session missing")
+
+              evidence["browser_errors"] = list(dict.fromkeys(page_errors))[:50]
+              evidence["checks"]["browser_errors"] = evidence["browser_errors"]
+              context.close()
+              browser.close()
+
+          for key, value in evidence["checks"].items():
+              if key in {"browser_errors", "credentials_present"}:
+                  continue
+              if value is not True:
+                  evidence["failures"].append(key)
+
+          if evidence["browser_errors"]:
+              evidence["failures"].append("browser_errors")
+
+          evidence["failures"] = list(dict.fromkeys(evidence["failures"]))
+          evidence["passed"] = not evidence["failures"]
+
+          with open("notification-push-browser-evidence.json", "w") as output:
+              json.dump(evidence, output, indent=2, ensure_ascii=False)
+
+          print(json.dumps(evidence, indent=2, ensure_ascii=False))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload push browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-notification-push-browser-evidence
+          path: |
+            notification-push-browser-evidence.json
+            notification-push-local-server.log
+          retention-days: 7
