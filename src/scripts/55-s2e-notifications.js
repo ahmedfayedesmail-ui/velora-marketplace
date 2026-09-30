@@ -97,6 +97,10 @@
     }
   }
 
+  function syncPushUi(){
+    if(typeof window.VELORA_PUSH_UI_SYNC==='function') window.VELORA_PUSH_UI_SYNC();
+  }
+
   function renderBell(){
     var headerActions=document.querySelector('.header-actions');
     if(!headerActions) return;
@@ -104,6 +108,7 @@
     var existing=document.getElementById('notifBell');
     if(!getUser()){
       if(existing) existing.remove();
+      syncPushUi();
       return;
     }
 
@@ -120,6 +125,7 @@
       }
       var header=existing.querySelector('.notif-header h4');
       if(header) header.textContent='🔔 '+tx('Notifications','الإشعارات');
+      syncPushUi();
       return;
     }
 
@@ -146,6 +152,7 @@
       headerActions.appendChild(bell);
     }
     renderBadge();
+    syncPushUi();
   }
 
   function renderList(){
