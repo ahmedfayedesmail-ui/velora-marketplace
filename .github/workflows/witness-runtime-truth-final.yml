@@ -32,6 +32,7 @@ jobs:
           node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js doctor
           cp velora/tmp-witness-business-truth-drafts.js /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
           node --check /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
+          python3 -m pip install --quiet playwright
           npx --prefix /tmp/witnesspkg playwright install --with-deps chromium
 
       - name: Start Velora
