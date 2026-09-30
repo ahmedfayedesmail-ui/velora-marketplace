@@ -1,0 +1,260 @@
+name: Velora Owner Subscription Control Exact-Source Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/12-localization.js"
+      - "src/scripts/63-platform-router.js"
+      - "src/index.html"
+      - "tests/platform-reentry-contract.test.mjs"
+      - ".github/workflows/velora-owner-subscription-control-exact-source-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-owner-subscription-control-exact-source
+  cancel-in-progress: true
+
+jobs:
+  subscription-control-browser:
+    name: Owner Subscription Control exact-source Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > owner-subscription-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time
+          import urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as response:
+                      if response.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run focused Owner subscription control Browser evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.request
+          from playwright.sync_api import sync_playwright
+
+          BASE = os.environ["SUPABASE_URL"].rstrip("/")
+          APP = os.environ["APP_URL"].rstrip("/")
+          SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+          evidence = {
+              "schema": "owner-subscription-control-exact-source.v1",
+              "execution_target": "local_exact_source",
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "failures": [],
+              "browser_errors": [],
+          }
+
+          if not SERVICE_ROLE:
+              evidence["failures"].append("SUPABASE_SERVICE_ROLE_KEY_MISSING")
+              with open("owner-subscription-control-browser-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(evidence, f, ensure_ascii=False, indent=2)
+              sys.exit(1)
+
+          def api(path, method="GET", payload=None):
+              data = None
+              headers = {
+                  "apikey": SERVICE_ROLE,
+                  "Authorization": "Bearer " + SERVICE_ROLE,
+                  "Content-Type": "application/json",
+              }
+              if payload is not None:
+                  data = json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  body = resp.read().decode("utf-8")
+                  return json.loads(body) if body else None
+
+          users = api("/auth/v1/admin/users?page=1&per_page=1000")
+          if isinstance(users, dict):
+              users = users.get("users", [])
+          auth_by_id = {str(u.get("id") or ""): u for u in (users or [])}
+
+          owners = api("/rest/v1/user_roles?select=user_id&role=eq.owner")
+          owner_id = next(
+              (str(row.get("user_id") or "") for row in (owners or [])
+               if str(row.get("user_id") or "") in auth_by_id),
+              "",
+          )
+          if not owner_id:
+              evidence["failures"].append("OWNER_AUTH_FIXTURE_NOT_FOUND")
+          else:
+              evidence["checks"]["owner_fixture_found"] = True
+
+          owner_email = str(auth_by_id.get(owner_id, {}).get("email") or "")
+          if not owner_email:
+              evidence["failures"].append("OWNER_EMAIL_NOT_FOUND")
+          else:
+              evidence["checks"]["owner_email_found"] = True
+
+          def magic_link(email):
+              result = api(
+                  "/auth/v1/admin/generate_link",
+                  method="POST",
+                  payload={
+                      "type": "magiclink",
+                      "email": email,
+                      "options": {"redirect_to": APP + "/#home"},
+                  },
+              )
+              token_hash = str(result.get("hashed_token") or "")
+              if not token_hash:
+                  raise RuntimeError("MAGIC_LINK_TOKEN_NOT_RETURNED")
+              return token_hash
+
+          if not evidence["failures"]:
+              with sync_playwright() as p:
+                  browser = p.chromium.launch(headless=True)
+                  page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
+                  page.on("pageerror", lambda exc: evidence["browser_errors"].append("pageerror:" + str(exc)))
+                  page.on("console", lambda msg: evidence["browser_errors"].append("console:" + msg.text) if msg.type == "error" else None)
+                  subscription_rpc_requests = []
+                  page.on("request", lambda req: subscription_rpc_requests.append(req.url) if "/rest/v1/rpc/velora_get_subscription_control_plane" in req.url else None)
+
+                  try:
+                      page.goto(APP + "/#home", wait_until="domcontentloaded", timeout=60000)
+                      token_hash = magic_link(owner_email)
+
+                      verify = page.evaluate(
+                          """async (tokenHash) => {
+                            try {
+                              const r = await window.mahaSupabase.auth.verifyOtp({
+                                token_hash: tokenHash,
+                                type: "magiclink"
+                              });
+                              return {
+                                ok: !!r?.data?.session?.user,
+                                id: r?.data?.session?.user?.id || null,
+                                error: r?.error?.message || null
+                              };
+                            } catch (e) {
+                              return {ok:false,id:null,error:String(e?.message||e)};
+                            }
+                          }""",
+                          token_hash,
+                      )
+                      evidence["checks"]["magic_link_verify_ok"] = bool(verify.get("ok"))
+                      evidence["checks"]["authenticated_user_match"] = bool(verify.get("id") == owner_id)
+                      if not evidence["checks"]["magic_link_verify_ok"] or not evidence["checks"]["authenticated_user_match"]:
+                          evidence["failures"].append("OWNER_AUTHENTICATION_FAILED")
+                      else:
+                          page.wait_for_timeout(1000)
+                          page.goto(APP + "/#home", wait_until="domcontentloaded", timeout=60000)
+                          page.wait_for_timeout(1000)
+                          page.evaluate("() => window.switchPlatform('admin')")
+                          page.wait_for_function(
+                              "() => document.getElementById('adminPlatform')?.classList.contains('active')",
+                              timeout=15000,
+                          )
+                          evidence["checks"]["owner_admin_platform_active"] = True
+
+                          page.evaluate("() => window.VELORA_CANONICAL_ADMIN_SECTION('subscriptionControl')")
+                          page.wait_for_function(
+                              """() => {
+                                const ok = document.querySelector('#adminContent [data-subscription-control="true"]');
+                                const err = document.querySelector('#adminContent [data-subscription-control="error"]');
+                                return !!ok || !!err;
+                              }""",
+                              timeout=30000,
+                          )
+
+                          root = page.locator('#adminContent [data-subscription-control="true"]')
+                          err_root = page.locator('#adminContent [data-subscription-control="error"]')
+                          evidence["checks"]["subscription_control_present"] = root.count() == 1
+                          evidence["checks"]["subscription_control_visible"] = root.first.is_visible() if root.count() else False
+                          evidence["checks"]["subscription_control_text_length"] = len(root.inner_text()) if root.count() else 0
+                          evidence["checks"]["subscription_control_error_present"] = err_root.count() == 1
+                          evidence["checks"]["subscription_rpc_requests"] = len(subscription_rpc_requests)
+                          evidence["checks"]["subscription_rpc_called"] = len(subscription_rpc_requests) >= 1
+
+                          text_content = root.inner_text() if root.count() else ""
+                          for required in [
+                              "Subscription Control",
+                              "Basic",
+                              "Pro",
+                              "Enterprise",
+                          ]:
+                              evidence["checks"]["contains_" + required.lower().replace(" ", "_")] = required in text_content
+
+                          page.screenshot(path="owner-subscription-control.png", full_page=True)
+
+                          if not evidence["checks"]["subscription_control_present"]:
+                              evidence["failures"].append("SUBSCRIPTION_CONTROL_MARKER_MISSING")
+                          if not evidence["checks"]["subscription_control_visible"]:
+                              evidence["failures"].append("SUBSCRIPTION_CONTROL_NOT_VISIBLE")
+                          if evidence["checks"]["subscription_control_text_length"] <= 100:
+                              evidence["failures"].append("SUBSCRIPTION_CONTROL_CONTENT_TOO_SHORT")
+                          if not evidence["checks"]["subscription_rpc_called"]:
+                              evidence["failures"].append("SUBSCRIPTION_RPC_NOT_CALLED")
+                          if evidence["checks"]["subscription_control_error_present"]:
+                              evidence["failures"].append("SUBSCRIPTION_CONTROL_RENDERED_ERROR")
+                          for required in ["Basic", "Pro", "Enterprise"]:
+                              key = "contains_" + required.lower()
+                              if not evidence["checks"].get(key):
+                                  evidence["failures"].append("MISSING_EXPECTED_PLAN:" + required)
+                  except Exception as exc:
+                      evidence["failures"].append("BROWSER_EXCEPTION:" + str(exc))
+                  finally:
+                      page.close()
+                      browser.close()
+
+          evidence["browser_errors"] = list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["passed"] = not evidence["failures"] and not evidence["browser_errors"]
+          with open("owner-subscription-control-browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-subscription-control-exact-source-browser-evidence
+          path: |
+            owner-subscription-control-browser-evidence.json
+            owner-subscription-control.png
+            owner-subscription-local-server.log
+          retention-days: 7
+          if-no-files-found: warn
