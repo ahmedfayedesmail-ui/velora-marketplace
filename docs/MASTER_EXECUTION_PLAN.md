@@ -15891,3 +15891,52 @@ DECISION:
 - Do not add cancellation/upgrade/refund/proration code until the corresponding commercial policies are explicitly governed.
 - Do not fabricate a subscription row, payment attempt, renewal job, provider payment, or payout to produce Browser evidence.
 - Continue the next independent OPEN item; subscription implementation is sufficiently inventoried to avoid rebuilding existing lifecycle machinery.
+
+
+## MESSAGE 93 — SELLER ADVERTISING FINANCIAL-LAYER RECONCILIATION (2026-09-30)
+
+CLASSIFICATION:
+- Seller Advertising purchase/campaign lifecycle exists at L1/L2/L3.
+- The financial accounting bridge for advertising revenue is NOT evidenced in the current Restore-Test contract.
+- No financial schema/function mutation was made because the required accounting policy must be governed before implementation.
+
+EXISTING CANONICAL AD FLOW:
+- `velora_start_seller_ad_purchase` validates approved seller/store/product, Egypt country, seller legal acceptance, active advertising package, and purchase idempotency, then creates a pending `seller_ad_campaigns` row and its `seller_ad` payment attempt.
+- `velora_create_seller_ad_payment_attempt` reuses the canonical payment routing contract and records the payment attempt with `purpose='seller_ad'`.
+- `velora_sync_seller_ad_campaign` already transitions pending_payment -> active on captured payment, pending_payment -> payment_failed on failed payment, pending/active -> refunded on refunded payment, and active -> completed at duration expiry. It also writes audit events and notification lifecycle events for those operational state changes.
+- `velora_process_seller_ad_lifecycle` automatically processes active campaigns whose duration has expired.
+
+FINANCIAL-LAYER GAP PROOF:
+- Current Restore-Test tables show:
+  - `seller_ad_packages` = 3 configured packages.
+  - `seller_ad_campaigns` = 0 persistent campaigns.
+  - `payment_attempts` contains a dedicated `purpose='seller_ad'` contract and seller-ad campaign foreign key.
+  - `ledger_entries` currently supports sale/commission/refund/adjustment/payout types, but has no seller-ad-specific reference field.
+- Live function inventory found no public/private function whose definition references both `seller_ad` and `ledger_entries`.
+- Trigger inventory on `seller_ad_campaigns` and `payment_attempts` found payment automation triggers, but no seller-ad accounting trigger. The existing `velora_automation_from_payment()` only emits a generic `payment_failed` automation event for failed/cancelled payment attempts; it does not create advertising ledger entries.
+- Therefore there is no demonstrated canonical path today for charging a seller-ad campaign into the financial ledger, recognizing advertising revenue, linking reversals/refunds, or reconciling provider settlement into the seller-ad financial layer.
+
+OPEN — POLICY REQUIRED BEFORE BUILD:
+- advertising charge recognition event and timing
+- revenue recognition rule for the purchased placement
+- seller balance / marketplace revenue treatment
+- refund and reversal accounting
+- provider settlement/reconciliation mapping
+- reporting and attribution contract
+- tax/invoice classification
+- legal publication/readiness required for live advertising purchase
+
+DECISION:
+- Do NOT reuse the order commission ledger blindly for advertising; its current schema is order-centric and that would be an unsupported contract change.
+- Do NOT add a speculative ledger entry type/reference column or second accounting engine without an approved accounting contract.
+- Do NOT fabricate a campaign/payment row to manufacture Browser or financial evidence.
+- Advertising Control Plane remains CLOSED-DONE for Owner/Staff read/control + exact-source Browser scope.
+- Advertising financial/accounting/provider completeness remains OPEN.
+
+EVIDENCE BOUNDARY:
+- L1 Source/DB contract = verified for existing campaign/payment lifecycle.
+- L2 DB schema/trigger inventory = verified.
+- L3 ACL/contract boundaries preserved; no mutation.
+- L4/L5/L7 financial positive execution = NOT EVIDENCED because no real paid advertising campaign exists and synthetic financial evidence is prohibited.
+- L8 provider settlement = NOT EVIDENCED for advertising.
+- L9 Production = untouched; Production remains FROZEN.
