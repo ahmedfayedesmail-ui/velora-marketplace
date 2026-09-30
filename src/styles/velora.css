@@ -11,6 +11,8 @@
 .velora-op-table th,.velora-op-table td{padding:.8rem .65rem;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle;font-size:.85rem}
 .velora-op-table th{font-size:.73rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
 .velora-op-table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px}
+.admin-table-wrap{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;box-sizing:border-box}
+.admin-table-wrap table{max-width:none}
 .velora-gift-card-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-top:1rem}
 .velora-gift-card-form .btn{min-width:0}
 .velora-legal-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:1rem}
@@ -22,7 +24,7 @@
 .velora-op-danger{color:#c62828!important}
 .velora-op-muted{color:var(--text-muted)}
 .velora-op-modal{max-width:720px}
-@media(max-width:700px){.velora-op-table th,.velora-op-table td{padding:.7rem .45rem}.velora-op-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.velora-gift-card-form,.velora-legal-form{grid-template-columns:1fr}.velora-gift-card-form .btn,.velora-legal-form .btn{width:100%}.velora-legal-form textarea{grid-column:auto!important}}
+@media(max-width:700px){.velora-op-table th,.velora-op-table td{padding:.7rem .45rem}.velora-op-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.velora-gift-card-form,.velora-legal-form{grid-template-columns:1fr}.velora-gift-card-form .btn,.velora-legal-form .btn{width:100%}.velora-legal-form textarea{grid-column:auto!important}.admin-section-card{min-width:0;overflow-x:hidden}}
 
 /* ================================================================
    Extracted style block 23: style-23
