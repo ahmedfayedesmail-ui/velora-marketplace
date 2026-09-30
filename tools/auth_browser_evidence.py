@@ -554,6 +554,52 @@ def main():
             after_update = session_snapshot(page)
             evidence["checks"]["password_update_completes_and_clears_session"] = not bool(after_update.get("present"))
 
+            # Recovery links are one-time credentials. Reuse must not recreate a session.
+            reuse_page = context.new_page()
+            reuse_page.on("pageerror", lambda exc: browser_errors.append("recovery-reuse-pageerror:" + safe_error(exc)))
+            reuse_page.on("console", lambda msg: browser_errors.append("recovery-reuse-console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            reuse_page.goto(recovery_action_link, wait_until="networkidle", timeout=60000)
+            reuse_page.wait_for_timeout(1500)
+            reuse_session = session_snapshot(reuse_page)
+            evidence["checks"]["recovery_token_reuse_does_not_recreate_session"] = not bool(
+                reuse_session.get("present")
+            )
+            reuse_page.close()
+
+            # A tampered recovery token must also fail closed.
+            parsed = urllib.parse.urlsplit(recovery_action_link)
+            query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+            fragment = urllib.parse.parse_qsl(parsed.fragment, keep_blank_values=True)
+            tampered = False
+            token_names = {"token", "token_hash", "code", "access_token", "refresh_token"}
+            for seq in (query, fragment):
+                for idx, (name, value) in enumerate(seq):
+                    if name in token_names and value:
+                        seq[idx] = (name, value[:-1] + ("0" if value[-1] != "0" else "1"))
+                        tampered = True
+                        break
+                if tampered:
+                    break
+            if not tampered:
+                query.append(("code", "invalid-velora-recovery-token"))
+            tampered_link = urllib.parse.urlunsplit((
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                urllib.parse.urlencode(query),
+                urllib.parse.urlencode(fragment),
+            ))
+            invalid_page = context.new_page()
+            invalid_page.on("pageerror", lambda exc: browser_errors.append("recovery-invalid-pageerror:" + safe_error(exc)))
+            invalid_page.on("console", lambda msg: browser_errors.append("recovery-invalid-console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            invalid_page.goto(tampered_link, wait_until="networkidle", timeout=60000)
+            invalid_page.wait_for_timeout(1500)
+            invalid_session = session_snapshot(invalid_page)
+            evidence["checks"]["tampered_recovery_token_does_not_create_session"] = not bool(
+                invalid_session.get("present")
+            )
+            invalid_page.close()
+
             # Login with the new password proves the password update took effect.
             clean_page(page)
             page._velora_uid = uid
