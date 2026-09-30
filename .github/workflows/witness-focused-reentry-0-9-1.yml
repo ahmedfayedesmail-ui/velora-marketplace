@@ -31,7 +31,7 @@ jobs:
 
     env:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: ${{{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       APP_URL: http://127.0.0.1:4173
 
     steps:
