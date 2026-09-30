@@ -1,4 +1,4 @@
-# Re-run marker: validate current authenticated open/close/re-entry lifecycle.
+# Re-run marker: validate current authenticated open/close/re-entry lifecycle (runtime-parity-2026-09-30).
 name: Velora Seller Admin Reentry Browser Gate
 
 on:
