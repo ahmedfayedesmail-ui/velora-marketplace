@@ -16355,3 +16355,140 @@ STATUS:
 - Financial reconciliation + COD + inventory-failure zero-cost layers = CLOSED-DONE.
 - Seller-ad accounting boundary lab = CLOSED-DONE for engineering/research scope.
 - Seller-ad financial accounting implementation remains OPEN pending governed accounting contract.
+
+## MESSAGE 101 — REVENUE-FIRST LAUNCH RESET / FOUNDER CASH CEILING (2026-09-30)
+
+CLASSIFICATION:
+- Strategic execution reset; no application architecture rewrite.
+- Engineering feature expansion is FROZEN unless a blocker to legal activation, production launch, first transaction, revenue capture, or financial safety is demonstrated.
+- Production remains FROZEN.
+- Current execution remains Restore-Test + repository evidence until the required human/provider gates are opened.
+
+FOUNDER FUNDING CONTRACT:
+- Initial founder cash ceiling for launch preparation: 10,000 EGP.
+- Maximum recurring founder funding ceiling: 5,000 EGP/month.
+- The 5,000 EGP/month ceiling is a temporary runway cap, not a permanent operating subsidy.
+- Normal operating costs should transition to Velora-generated contribution as soon as real transaction economics support it.
+- No discretionary recurring cost may be introduced above the ceiling without explicit owner approval.
+
+REVENUE-FIRST OBJECTIVE:
+Primary objective:
+- obtain the first legitimate live Velora transaction with the smallest safe cash outlay.
+
+Success ladder:
+1. First legitimate paid/COD order.
+2. First 10 legitimate orders with end-to-end financial reconciliation.
+3. Repeatable order flow with measured contribution per order.
+4. Monthly contribution covers the founder's 5,000 EGP operating ceiling.
+5. Velora begins funding its own recurring operating costs.
+6. Only after self-funding is demonstrated should founder withdrawal and reinvestment policies be expanded.
+
+CANONICAL COMMERCIAL PATH:
+Seller onboarding -> approved store -> real product/stock -> customer acquisition -> product -> cart -> checkout -> card/COD -> order -> fulfillment -> commission -> reconciliation.
+
+NO-INVENTORY RULE:
+- Founder does not purchase marketplace inventory for the initial launch.
+- Sellers remain inventory owners unless a separately governed commercial model is introduced.
+- This preserves the asset-light marketplace model and minimizes working-capital requirements.
+
+CURRENT TECHNICAL BASELINE:
+- Product-ready remains approximately 95% at current evidence scope.
+- Quality remains approximately 94% at current evidence scope.
+- Production-ready remains approximately 72% because legal publication, Production/provider gates, backup/DR execution, monitoring/capacity, and exact Preview parity are not all closed.
+- Market traction remains unproven; current live users/revenue/GMV are 0 until legitimate market transactions are evidenced.
+- Closed engineering paths must not be reopened without contradictory evidence.
+
+LAUNCH BLOCKER TRACK — ORDER OF EXECUTION:
+
+A. LEGAL / ENTITY / TAX CLASSIFICATION — HUMAN GATE
+Goal:
+- select the smallest legally appropriate Egyptian structure for the marketplace model;
+- determine who is the seller of record / intermediary role, money flow, invoicing responsibility, and applicable tax treatment;
+- retrieve exact GAFI fees for the selected structure from the official application path before payment;
+- determine electronic invoicing/receipt obligations and any VAT registration requirement based on the actual activity and thresholds.
+Status: OPEN.
+User action eventually required:
+- renewed identity/document set and the information required by the official GAFI application;
+- do not send identity numbers or payment credentials in chat; use them only on the official government/provider portals.
+
+B. PRODUCTION CAPACITY / HOSTING
+Goal:
+- obtain an exact current-head Preview deployment when Vercel capacity permits;
+- keep Production frozen until release gates are explicitly authorized;
+- select the least-cost production configuration compatible with commercial use and required reliability.
+Status: BLOCKED/PENDING by current deployment-capacity boundary.
+
+C. PAYMENT PROVIDER / SETTLEMENT
+Goal:
+- complete Paymob merchant/provider onboarding, production credentials, settlement/bank details, webhook configuration, and reconciliation contract;
+- distinguish sandbox evidence from live provider settlement evidence.
+Status: OPEN / human-provider gated.
+
+D. SHIPPING / COD OPERATING CONTRACT
+Goal:
+- select an actual courier/fulfillment route for Egypt;
+- obtain actual current tariffs, COD collection rules, remittance timing, failed delivery, return, and refund handling;
+- preserve the existing canonical COD/payment routing and do not create a second shipping/payment engine.
+Status: OPEN / commercial contract gated.
+
+E. SELLER SUPPLY
+Goal:
+- recruit 3–5 legitimate initial sellers;
+- launch only 20–30 real products initially;
+- verify stock, product content, seller approval, fulfillment capability, pricing, and commercial terms.
+Status: OPEN / business execution.
+
+F. FIRST-CUSTOMER ACQUISITION
+Goal:
+- begin with low-cash acquisition channels before large paid advertising;
+- use seller audiences, organic content, referrals, and other low-cost channels;
+- do not spend material ad budget before basic conversion/order economics are observed.
+Status: OPEN / business execution.
+
+G. FIRST-TRANSACTION EVIDENCE
+Required end-to-end sequence:
+- real customer -> real product -> real cart -> real checkout -> real payment or COD collection -> real order -> real fulfillment -> commission -> financial reconciliation.
+Status: NOT EVIDENCED until a legitimate live transaction occurs.
+
+H. UNIT ECONOMICS / SELF-FUNDING
+Required measured fields per real order:
+- GMV
+- Velora commission
+- payment fees
+- shipping/COD cost allocation
+- refunds/returns
+- tax/accounting treatment
+- net contribution to Velora
+- seller payout obligation
+Target operating question:
+- how many real orders/month and how much GMV are required for Velora to cover its recurring costs without founder funding?
+Status: OPEN until real transaction data exists.
+
+COST FRAMEWORK:
+- One-time launch cash: target envelope <= 10,000 EGP; exact government/legal/provider amounts remain dependent on selected legal structure and contracts.
+- Recurring founder support: <= 5,000 EGP/month.
+- Fixed technical baseline is expected to remain in the low-thousands EGP/month at current Vercel Pro + Supabase Pro assumptions, excluding VAT, extra usage, and business/provider-specific charges.
+- Variable order costs must remain outside the fixed 5,000 EGP ceiling for measurement purposes, but total founder cash exposure still requires owner approval before spending.
+- No 15k–30k EGP/month advertising plan is assumed for initial launch.
+
+CURRENT OPEN / BLOCKED ITEMS CARRIED FORWARD:
+- Legal publication and tax/entity treatment = OPEN / human-gated.
+- Seller subscription commercial/provider completion = OPEN.
+- Seller advertising financial accounting implementation = OPEN pending governed accounting contract.
+- External payout settlement = OPEN / NOT EVIDENCED.
+- Production backup artifact / off-site retention / restore rehearsal / RPO-RTO = BLOCKED/PENDING as previously documented.
+- Exact current-head Vercel Preview parity = OPEN/BLOCKED by deployment capacity.
+- Full Owner control-plane completeness = OPEN where separately tracked.
+- Production provider configuration and live settlement = OPEN.
+- Market traction / real users / real revenue = OPEN.
+
+DECISION:
+- Stop treating the remaining work as a feature backlog.
+- Treat the launch as a finite gated sequence aimed at first revenue.
+- Execute the smallest safe step first; preserve all prior evidence and closed paths.
+- No payment, tax, legal, shipping, or production claim is considered complete without its corresponding evidence level.
+- No new feature should consume the founder runway unless it directly removes a first-revenue or production-safety blocker.
+
+NEXT EXECUTION STEP:
+- Build and reconcile the exact Legal/Entity/Tax + First-Transaction cost checklist from official Egyptian sources and the selected marketplace operating model.
+- No founder action is required before that checklist is produced, except preparing the renewed identity documents for use on the official portal when the legal gate is reached.
