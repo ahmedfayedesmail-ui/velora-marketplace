@@ -23,9 +23,10 @@ def commission_invariant() -> dict[str, Any]:
     rate = Decimal("12.50")
     commission = Decimal("15.00")
     seller = Decimal("105.00")
+    passed = (gross * rate / Decimal("100")) == commission and gross == commission + seller
     return {
         "name": "commission_arithmetic",
-        "passed": (gross * rate / Decimal("100")) == commission and gross == commission + seller,
+        "passed": passed,
         "evidence": {
             "gross": str(gross),
             "rate": str(rate),
@@ -33,7 +34,7 @@ def commission_invariant() -> dict[str, Any]:
             "seller": str(seller),
             "identity": "gross = commission + seller",
         },
-        "failures": [] if gross * rate == commission and gross == commission + seller else ["commission arithmetic mismatch"],
+        "failures": [] if passed else ["commission arithmetic mismatch"],
     }
 
 
