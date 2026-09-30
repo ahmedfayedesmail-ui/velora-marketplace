@@ -1,0 +1,119 @@
+name: Velora Zero-Cost COD Evidence
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".remote/cod-lab.json"
+      - ".github/workflows/velora-zero-cost-cod-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: Fixed Restore-Test COD Probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Validate secret
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: test -n "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      - name: Run fixed read-only probes
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: python
+        run: |
+          import json, os, urllib.request, urllib.error
+
+          base = os.environ["SUPABASE_URL"].rstrip("/")
+          key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          headers = {"apikey": key, "Authorization": "Bearer " + key, "Accept": "application/json"}
+
+          probes = {
+            "payment_methods": "payment_methods?select=id,code,name,method_type,is_active&order=code",
+            "payment_providers": "payment_providers?select=id,code,environment,is_active,webhook_enabled,config_version&order=priority",
+            "payment_routing_rules": "payment_routing_rules?select=id,country_code,currency_code,payment_method_id,provider_id,min_amount,max_amount,priority,is_active&is_active=eq.true&order=priority"
+          }
+
+          evidence = {"schema":"velora-zero-cost-cod-evidence.v1","project_ref":"arlaxqmhtvjwjbjinjfw","results":{},"derived":{},"failures":[]}
+
+          for name, path in probes.items():
+            request = urllib.request.Request(base + "/rest/v1/" + path, headers=headers, method="GET")
+            try:
+              with urllib.request.urlopen(request, timeout=25) as response:
+                rows = json.loads(response.read().decode("utf-8") or "null")
+                evidence["results"][name] = {
+                  "http_status": response.status,
+                  "row_count": len(rows) if isinstance(rows, list) else 0,
+                  "rows": rows[:200] if isinstance(rows, list) else rows
+                }
+            except urllib.error.HTTPError as exc:
+              evidence["results"][name] = {"http_status": exc.code, "body_prefix": exc.read().decode("utf-8", errors="replace")[:500]}
+              evidence["failures"].append(name + ":http_" + str(exc.code))
+            except Exception as exc:
+              evidence["failures"].append(name + ":" + type(exc).__name__)
+
+          methods = evidence["results"].get("payment_methods", {}).get("rows", [])
+          providers = evidence["results"].get("payment_providers", {}).get("rows", [])
+          rules = evidence["results"].get("payment_routing_rules", {}).get("rows", [])
+          methods_by_id = {row.get("id"): row for row in methods}
+          providers_by_id = {row.get("id"): row for row in providers}
+
+          eligible = []
+          for rule in rules:
+            method = methods_by_id.get(rule.get("payment_method_id"), {})
+            provider = providers_by_id.get(rule.get("provider_id"), {})
+            country = (rule.get("country_code") or "").upper()
+            currency = (rule.get("currency_code") or "").upper()
+            if country == "EG" and currency == "EGP" and method.get("is_active") and provider.get("is_active"):
+              eligible.append({
+                "method": method.get("code"),
+                "provider": provider.get("code"),
+                "environment": provider.get("environment"),
+                "priority": rule.get("priority"),
+                "operational_status": "manual_tender" if str(method.get("code")).lower() == "cash_on_delivery" else "test_verified_route"
+              })
+
+          cod = [row for row in eligible if str(row.get("method")).lower() == "cash_on_delivery"]
+          card_test = [row for row in eligible if str(row.get("method")).lower() == "card" and str(row.get("provider")).lower() == "paymob" and str(row.get("environment")).lower() == "test"]
+
+          evidence["derived"] = {
+            "EG/EGP_operational_methods": eligible,
+            "cash_on_delivery_present": bool(cod),
+            "cash_on_delivery_status": cod[0].get("operational_status") if cod else None,
+            "paymob_test_card_present": bool(card_test),
+            "routing_rule_count": len(rules),
+            "provider_count": len(providers),
+            "method_count": len(methods),
+            "writes_performed": False,
+            "real_money_moved": False,
+            "provider_settlement_evidence": False
+          }
+
+          if not cod:
+            evidence["failures"].append("cash_on_delivery_not_operational_for_EG_EGP")
+          if not card_test:
+            evidence["failures"].append("paymob_test_card_not_operational_for_EG_EGP")
+
+          evidence["status"] = "PASS" if not evidence["failures"] else "FAIL"
+          with open("cod-evidence.json","w",encoding="utf-8") as stream:
+            json.dump(evidence,stream,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          raise SystemExit(1 if evidence["status"] != "PASS" else 0)
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-cod-evidence
+          path: cod-evidence.json
+          retention-days: 3
