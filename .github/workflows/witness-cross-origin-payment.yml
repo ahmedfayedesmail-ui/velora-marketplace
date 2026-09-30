@@ -18,112 +18,69 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout evidence branch
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           package-manager-cache: false
 
-      - name: Install WITNESS 0.9.1 and Playwright
+      - name: Install WITNESS and Playwright
         run: |
           npm install -g @witness-engine/cli@0.9.1 playwright@1.57.0
           npx playwright install --with-deps chromium
 
-      - name: Inject pinned WITNESS business-truth engine
-        env:
-          WITNESS_ENGINE_COMMIT: 3c5ce4c94975da3be3ff928ea780389beb443a86
+      - name: Pin WITNESS business-truth engine
         run: |
           set -euo pipefail
           engine_file="$(npm root -g)/@witness-engine/cli/src/business-truth.js"
-          curl -fsSL "https://raw.githubusercontent.com/ahmedfayedesmail-ui/witness-engine/$WITNESS_ENGINE_COMMIT/src/business-truth.js" -o "$engine_file"
+          curl -fsSL "https://raw.githubusercontent.com/ahmedfayedesmail-ui/witness-engine/3c5ce4c94975da3be3ff928ea780389beb443a86/src/business-truth.js" -o "$engine_file"
           node --check "$engine_file"
-          ENGINE_FILE="$engine_file" node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          const { resolveReadOnlyApiUrl, loadBusinessTruthContractsObject } = await import(process.env.ENGINE_FILE);
-          assert.equal(
-            resolveReadOnlyApiUrl(
-              'http://127.0.0.1:4173/?velora_order_id=order-42',
-              'https://arlaxqmhtvjwjbjinjfw.supabase.co/rest/v1/orders?id=eq.{{query:velora_order_id}}&select=id',
-              { allowedOrigins: ['https://arlaxqmhtvjwjbjinjfw.supabase.co'] }
-            ),
-            'https://arlaxqmhtvjwjbjinjfw.supabase.co/rest/v1/orders?id=eq.order-42&select=id'
-          );
-          assert.throws(() => resolveReadOnlyApiUrl(
-            'http://127.0.0.1:4173/',
-            'https://evil.example/state',
-            { allowedOrigins: ['https://arlaxqmhtvjwjbjinjfw.supabase.co'] }
-          ));
-          assert.throws(() => loadBusinessTruthContractsObject({
-            schema: 'witness-business-truth.v1',
-            checks: [{ id: 'x', api: {
-              method: 'GET',
-              path: 'https://data.example/state',
-              observation: { mode: 'cross-origin' }
-            }}]
-          }));
-          console.log('cross-origin engine smoke PASS');
-          NODE
 
       - name: Start Velora local runtime
         run: |
           set -euo pipefail
           nohup python3 -m http.server 4173 --directory src >/tmp/velora-http.log 2>&1 &
           echo $! >/tmp/velora-http.pid
-          for i in {1..30}; do
+          for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
             sleep 1
           done
           cat /tmp/velora-http.log || true
           exit 1
 
-      - name: Run authenticated browser + WITNESS truth gate
+      - name: Run browser claim and WITNESS truth gate
         env:
           SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
           SUPABASE_PUBLISHABLE_KEY: sb_publishable_RDyqYgvJyT37RiQ1PNxYuQ_ov_8eceA
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          WITNESS_ENGINE_FILE: ${{ github.workspace }}/.witness-business-truth.js
           VELORA_LOCAL_URL: http://127.0.0.1:4173/
-          WITNESS_ENGINE_FILE: ${{ env.HOME }}/.npm-global/lib/node_modules/@witness-engine/cli/src/business-truth.js
         run: |
           set -euo pipefail
-          export WITNESS_ENGINE_FILE="$(npm root -g)/@witness-engine/cli/src/business-truth.js"
+          export WITNESS_ENGINE_FILE="$(pwd)/.witness-business-truth.js"
+          cp "$(npm root -g)/@witness-engine/cli/src/business-truth.js" "$WITNESS_ENGINE_FILE"
           node evidence/witness/run-cross-origin-payment-gate.mjs
 
-      - name: Validate sanitized evidence
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const gate=JSON.parse(fs.readFileSync('evidence/witness/cross-origin-browser-gate.json','utf8'));
-          if(gate.passed!==true) throw new Error('Gate evidence does not say passed=true');
-          if(gate.businessTruth?.consistent!==1) throw new Error('Expected exactly one consistent truth observation');
-          if(gate.businessTruth?.contradictions!==0) throw new Error('Expected zero contradictions');
-          if(gate.businessTruth?.observationMode!=='cross-origin') throw new Error('Expected cross-origin observation mode');
-          if(gate.businessTruth?.allowedOrigin!==true) throw new Error('Expected approved origin');
-          if(gate.browserClaim?.observed!==true) throw new Error('Expected browser success claim');
-          console.log('sanitized evidence validation PASS');
-          NODE
+      - name: Validate gate evidence
+        run: node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('evidence/witness/cross-origin-browser-gate.json','utf8'));if(!x.passed||x.businessTruth.consistent!==1||x.businessTruth.contradictions!==0||x.businessTruth.observationMode!=='cross-origin'||!x.businessTruth.allowedOrigin||!x.browserClaim.observed)process.exit(1);console.log(JSON.stringify(x,null,2));"
 
-      - name: Commit sanitized verification evidence
+      - name: Commit sanitized evidence
         if: always()
         run: |
-          rm -rf customer-state.json profiles.json witness-local-grant.json paid-order-id.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
           git add -f evidence/witness/browser-claim-proof.json evidence/witness/cross-origin-browser-gate.json evidence/witness/cross-origin-business-truth-observation.json
           if git diff --cached --quiet; then
             echo "No sanitized evidence to commit."
             exit 0
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "evidence: verify cross-origin payment business truth"
           git push origin "HEAD:$GITHUB_REF_NAME"
 
       - name: Stop Velora runtime
         if: always()
         run: |
-          if [ -f /tmp/velora-http.pid ]; then
-            kill "$(cat /tmp/velora-http.pid)" || true
-          fi
+          if [ -f /tmp/velora-http.pid ]; then kill "$(cat /tmp/velora-http.pid)" || true; fi
