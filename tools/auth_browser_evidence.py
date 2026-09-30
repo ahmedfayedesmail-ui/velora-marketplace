@@ -389,15 +389,18 @@ def main():
                 bool(page.evaluate("() => !!STATE?.user?.uid"))
             )
 
+            page.wait_for_timeout(1000)
             role_snapshot = page.evaluate(
                 """async () => {
-                    await new Promise(resolve => setTimeout(resolve, 350));
                     return {
                         role: STATE?.user?.role || null,
-                        roles: Array.isArray(STATE?.user?.roles) ? STATE.user.roles : null
+                        roles: Array.isArray(STATE?.user?.roles) ? STATE.user.roles : null,
+                        uid: STATE?.user?.uid || null,
+                        email: STATE?.user?.email || null
                     };
                 }"""
             )
+            evidence["observations"]["canonical_customer_role_snapshot"] = role_snapshot
             evidence["checks"]["canonical_customer_role_hydrated"] = (
                 role_snapshot.get("role") == "customer"
                 and isinstance(role_snapshot.get("roles"), list)
