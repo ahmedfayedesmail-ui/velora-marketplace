@@ -4266,6 +4266,7 @@ window.addEventListener('scroll', () => {
 
 let __mahaAuthListenerRegistered = false;
 let __mahaAuthProfileBootstrap = null;
+let __mahaAuthLifecycleGeneration = 0;
 
 async function loadOrBootstrapAuthProfile(authUser) {
     if (!authUser || !authUser.id || !window.mahaSupabase) return null;
@@ -4323,6 +4324,7 @@ async function loadOrBootstrapAuthProfile(authUser) {
 }
 
 async function initializeSupabaseAuth() {
+    const initGeneration = ++__mahaAuthLifecycleGeneration;
     if (!window.mahaSupabase || !window.mahaSupabase.auth) {
         console.warn('⚠️ initializeSupabaseAuth: Supabase client not available yet.');
         return;
@@ -4390,6 +4392,7 @@ async function initializeSupabaseAuth() {
             sellerId = null;
         }
 
+        if (initGeneration !== __mahaAuthLifecycleGeneration) return;
         const safeRole = (typeof ROLES !== 'undefined' && ROLES && ROLES.CUSTOMER)
             ? (profile.role || ROLES.CUSTOMER)
             : (profile.role || 'customer');
@@ -4430,6 +4433,7 @@ function registerAuthListenerOnce() {
     // Defer any follow-up database/RPC calls so SIGNED_IN cannot deadlock
     // the next Supabase request (e.g. the login handler itself).
     window.mahaSupabase.auth.onAuthStateChange((event, session) => {
+        const eventGeneration = ++__mahaAuthLifecycleGeneration;
         setTimeout(async () => {
             try {
                 if (event === 'PASSWORD_RECOVERY') {
@@ -4438,6 +4442,7 @@ function registerAuthListenerOnce() {
                 }
 
                 if (event === 'SIGNED_OUT') {
+                    if (eventGeneration !== __mahaAuthLifecycleGeneration) return;
                     STATE.user = null;
                     try { localStorage.removeItem(KEYS.USER); } catch (e) {}
                     updateAccountButton();
@@ -4482,6 +4487,11 @@ function registerAuthListenerOnce() {
                     } catch (e) {
                         sellerId = null;
                     }
+
+                    if (eventGeneration !== __mahaAuthLifecycleGeneration) return;
+                    const currentSessionResult = await window.mahaSupabase.auth.getSession();
+                    const currentSession = currentSessionResult?.data?.session || null;
+                    if (!currentSession?.user || String(currentSession.user.id) !== String(authUser.id)) return;
 
                     const safeRole = (typeof ROLES !== 'undefined' && ROLES && ROLES.CUSTOMER)
                         ? (profile.role || ROLES.CUSTOMER)
