@@ -11,7 +11,14 @@
   const esc = (v)=>escapeHtml(String(v ?? ''));
   const money = (n,c)=>{
     const amount=Number(n||0);
-    try{return new Intl.NumberFormat(undefined,{style:'currency',currency:c||window.VELORA_CURRENCY||'USD'}).format(amount)}catch(_){return `${amount.toFixed(2)} ${c||''}`}
+    const currency=c||window.VELORA_CURRENCY||'USD';
+    const localeState=window.VELORA_GLOBAL_LOCALE_STATE||{};
+    const locale=String(localeState.date_locale||(
+      String(localeState.locale||document.documentElement.lang||'en').toLowerCase()+'-'+
+      String(localeState.country_code||'EG').toUpperCase()
+    ));
+    try{return new Intl.NumberFormat(locale,{style:'currency',currency}).format(amount)}
+    catch(_){try{return new Intl.NumberFormat('en-EG',{style:'currency',currency}).format(amount)}catch(__){return String(amount.toFixed(2))+' '+currency}}
   };
   const cls = (s)=>String(s||'').toLowerCase().replace(/[^a-z0-9_-]/g,'');
   const toastErr = (e)=>{console.error(e);showToast('❌ '+(e?.message||'Operation failed. Please try again.'),'error');};
