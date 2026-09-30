@@ -15578,3 +15578,64 @@ Account entry
 -> eligible order-item gate before feedback mutation
 -> existing feedback RPC + idempotency
 -> downstream recommendation freshness via feedback event.
+
+
+## MESSAGE 88 — ROUTINE -> CART REVERSIBLE EXACT-SOURCE BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- Routine -> Cart canonical adapter = CLOSED-DONE at exact-source Browser scope.
+- Existing server/local dual-representation contract was exercised without rewriting the Cart.
+- Checkout remains the final commerce authority; this gate does not claim Checkout/Provider/Production completion.
+
+TEST INFRASTRUCTURE:
+- Added `.github/workflows/velora-routine-cart-exact-source-browser-gate.yml`.
+- Execution target = local_exact_source.
+- Existing E2E customer credentials were used.
+- The gate performs a reversible mutation and uses only the existing canonical cart add/remove RPCs to restore the customer's exact pre-test state.
+- No synthetic order, payment, or catalog row was created.
+
+FINAL EXACT-SOURCE BROWSER EVIDENCE:
+- Workflow run: `36680855911`
+- Job: `109775865013`
+- Head/source: `ea88066ac3d271eda8d5cdd2655c9886ab2de56c`
+- Result: SUCCESS
+- Routine present = true.
+- Routine status valid = true.
+- Selected routine steps = 5.
+- Initial server cart lines = 1.
+- Add All control present and visible = true.
+- New server cart lines observed after Add All = 4.
+- Server cart changed for new lines = true.
+- Rollback failures = 0.
+- Final server cart lines = 1.
+- Cart restored exactly to the initial baseline = true.
+- Cart page active after rollback = true.
+- Cart UI loaded = true.
+- Canonical cart-add RPC requests observed = 4.
+- Canonical cart-remove RPC requests observed = 4.
+- Browser error count = 0.
+- failures = [].
+- passed = true.
+- Artifact: `routine-cart-exact-source-browser-evidence`.
+
+RCA / GATE HARDENING:
+- The first temporary version of the gate expected an internal adapter result object that is not part of `window.veloraRoutineCart` public contract.
+- That assertion was removed; the final gate relies on canonical server-cart diff + official RPC traffic + exact baseline restoration.
+- No application runtime change was introduced by this correction.
+
+ACTION FLOW:
+Routine selection
+-> authenticated customer guard
+-> existing veloraRoutineCart.addAll()
+-> existing velora_upsert_cart_item / velora_upsert_cart_item_variant guards
+-> canonical server cart transition
+-> local UI cart synchronization
+-> official velora_remove_cart_item / velora_remove_cart_item_variant rollback for only newly created lines
+-> Cart view re-entry
+-> baseline equality proof.
+
+BOUNDARY:
+- This closes Routine -> Cart integration at exact-source Browser scope.
+- It does not establish Preview parity or Production parity.
+- It does not establish Checkout payment/provider success for this specific run.
+- Existing Paymob Restore-Test sandbox success remains a separate historical/provider evidence path.
