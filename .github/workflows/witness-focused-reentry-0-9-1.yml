@@ -221,18 +221,18 @@ jobs:
         run: |
           set +e
           node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan \
-            --url "$APP_URL#${${{{ matrix.start_hash }} \
+            --url "$APP_URL#${{ matrix.start_hash }} \
             --grant ./witness-grant.json \
             --repo . \
             --mode focus \
-            --focus "${${{{ matrix.focus }}" \
-            --personas "${${{{ matrix.persona }}" \
+            --focus "${{ matrix.focus }}" \
+            --personas "${{ matrix.persona }}" \
             --profiles ./profiles.json \
             --explore \
             --max-pages 12 \
             --max-actions 6 \
             --allow-private-origin \
-            --output ./witness-${${{{ matrix.profile_key }}
+            --output ./witness-${{ matrix.profile_key }}
           rc=$?
           echo "WITNESS_EXIT_CODE=$rc"
           exit 0
@@ -244,7 +244,7 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
-          focus="${${{{ matrix.profile_key }}"
+          focus="${{ matrix.profile_key }}"
           p=Path(f"witness-{focus}/result.json")
           if not p.exists():
               print(f"{focus}: no result.json")
@@ -252,9 +252,9 @@ jobs:
           r=json.loads(p.read_text())
           s=r.get("summary",{})
           print("SUMMARY:",json.dumps({
-              "persona":"${${{{ matrix.persona }}",
-              "focus":"${${{{ matrix.focus }}",
-              "start_hash":"${${{{ matrix.start_hash }}",
+              "persona":"${{ matrix.persona }}",
+              "focus":"${{ matrix.focus }}",
+              "start_hash":"${{ matrix.start_hash }}",
               "pagesVisited":s.get("pagesVisited"),
               "routesDiscovered":s.get("routesDiscovered"),
               "personasExecuted":s.get("personasExecuted"),
@@ -288,15 +288,15 @@ jobs:
       - name: Verify focused evidence bundle
         if: always()
         continue-on-error: true
-        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./witness-${${{{ matrix.profile_key }}
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./witness-${{ matrix.profile_key }}
 
       - name: Upload focused evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: witness-focused-auth-${${{{ matrix.profile_key }}
+          name: witness-focused-auth-${{ matrix.profile_key }}
           path: |
-            witness-${${{{ matrix.profile_key }}/
+            witness-${{ matrix.profile_key }}/
             profiles.json
             profiles/
             witness-grant.json
