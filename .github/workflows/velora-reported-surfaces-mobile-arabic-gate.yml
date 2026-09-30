@@ -124,6 +124,13 @@ jobs:
               p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('gift_cards')")
               p.wait_for_timeout(800)
               out['checks']['gift_arabic_title']='بطاقات الهدايا' in p.locator('#adminContent').inner_text()
+              out['checks']['i18n_render_available']=bool(p.evaluate("()=>typeof window.VELORA_I18N_RENDER==='function'"))
+              out['checks']['gift_translation_pack']=p.evaluate("()=>String(window.__VELORA_PACK?.ar?.['Gift Cards']||'')==='بطاقات الهدايا'")
+              out['checks']['gift_h3_html']=p.locator('#adminContent h3').first.get_attribute('data-velora-i18n')=='Gift Cards'
+              p.evaluate("()=>{try{window.VELORA_I18N_RENDER?.(document.getElementById('adminContent'));window.VELORA_TRANSLATE_ALL?.();}catch(e){}}")
+              p.wait_for_timeout(200)
+              out['checks']['gift_arabic_title_after_forced_render']='بطاقات الهدايا' in p.locator('#adminContent').inner_text()
+              out['checks']['gift_dom_debug']=p.locator('#adminContent h3').first.inner_text()
               p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('subscriptionControl')")
               p.wait_for_timeout(800)
               out['checks']['subscription_arabic_title']='التحكم في الاشتراكات' in p.locator('#adminContent').inner_text()
