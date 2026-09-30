@@ -59,6 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           export WITNESS_ENGINE_FILE="$(pwd)/.witness-business-truth.js"
+          export PLAYWRIGHT_PACKAGE="$(npm root -g)/playwright"
           cp "$(npm root -g)/@witness-engine/cli/src/business-truth.js" "$WITNESS_ENGINE_FILE"
           node evidence/witness/run-cross-origin-payment-gate.mjs
 
