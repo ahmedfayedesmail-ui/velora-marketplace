@@ -30,11 +30,19 @@ jobs:
           npm install -g @witness-engine/cli@0.9.1 playwright@1.57.0
           npx playwright install --with-deps chromium
 
+      - name: Checkout pinned WITNESS source
+        uses: actions/checkout@v6
+        with:
+          repository: ahmedfayedesmail-ui/witness-engine
+          ref: 3c5ce4c94975da3be3ff928ea780389beb443a86
+          path: .witness-source
+
       - name: Pin WITNESS business-truth engine
         run: |
           set -euo pipefail
           engine_file="$(npm root -g)/@witness-engine/cli/src/business-truth.js"
-          curl -fsSL "https://raw.githubusercontent.com/ahmedfayedesmail-ui/witness-engine/3c5ce4c94975da3be3ff928ea780389beb443a86/src/business-truth.js" -o "$engine_file"
+          cp .witness-source/src/business-truth.js "$engine_file"
+          cp .witness-source/src/business-truth.js .witness-business-truth.js
           node --check "$engine_file"
 
       - name: Start Velora local runtime
