@@ -1,0 +1,108 @@
+name: Velora Localization Browser Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/00-localization.js"
+      - "src/scripts/50-localization.js"
+      - "src/scripts/51-localization.js"
+      - ".github/workflows/velora-localization-browser-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  localization-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_URL: http://127.0.0.1:4173/
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > localization-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200: break
+              except Exception: time.sleep(1)
+          else: raise SystemExit("LOCAL_SERVER_NOT_READY")
+          PY
+      - name: Run localization browser evidence
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          from playwright.sync_api import sync_playwright
+          APP=os.environ["APP_URL"]
+          email=os.environ.get("E2E_EMAIL","")
+          password=os.environ.get("E2E_PASSWORD","")
+          evidence={"schema":"velora-localization-browser.v1","execution_mode":"local_exact_source","checks":{},"observations":{},"failures":[]}
+          with sync_playwright() as pw:
+              browser=pw.chromium.launch()
+              page=browser.new_page(viewport={"width":390,"height":844},locale="en-US")
+              errors=[]
+              page.on("pageerror",lambda e: errors.append("pageerror:"+str(e)[:200]))
+              page.goto(APP+"#home",wait_until="networkidle",timeout=60000)
+              evidence["checks"]["http_200"]=True
+              evidence["checks"]["v5_setter_available"]=bool(page.evaluate("() => typeof window.VELORA_V5_SET_LANGUAGE === 'function'"))
+              en=page.evaluate("""async()=>{await window.VELORA_V5_SET_LANGUAGE('en');return {lang:document.documentElement.lang,dir:document.documentElement.dir,stored:localStorage.getItem('velora_language')}}""")
+              ar=page.evaluate("""async()=>{await window.VELORA_V5_SET_LANGUAGE('ar');return {lang:document.documentElement.lang,dir:document.documentElement.dir,stored:localStorage.getItem('velora_language')}}""")
+              ar_text=page.locator("body").inner_text()
+              back=page.evaluate("""async()=>{await window.VELORA_V5_SET_LANGUAGE('en');return {lang:document.documentElement.lang,dir:document.documentElement.dir,stored:localStorage.getItem('velora_language')}}""")
+              page.reload(wait_until="networkidle",timeout=60000)
+              refreshed=page.evaluate("""()=>({lang:document.documentElement.lang,dir:document.documentElement.dir,stored:localStorage.getItem('velora_language')})""")
+              evidence["observations"]["en"]=en
+              evidence["observations"]["ar"]=ar
+              evidence["observations"]["back_to_en"]=back
+              evidence["observations"]["refreshed"]=refreshed
+              evidence["checks"]["english_paint"]=en["lang"]=="en" and en["dir"]=="ltr" and en["stored"]=="en"
+              evidence["checks"]["arabic_paint"]=ar["lang"]=="ar" and ar["dir"]=="rtl" and ar["stored"]=="ar"
+              evidence["checks"]["arabic_runtime_text_present"]=len(ar_text.strip())>20
+              evidence["checks"]["english_restore"]=back["lang"]=="en" and back["dir"]=="ltr" and back["stored"]=="en"
+              evidence["checks"]["refresh_persists_english"]=refreshed["lang"]=="en" and refreshed["dir"]=="ltr" and refreshed["stored"]=="en"
+              if email and password:
+                  page.evaluate("() => openAuthModal('login')")
+                  page.locator("#loginEmail").fill(email)
+                  page.locator("#loginPassword").fill(password)
+                  page.locator("#authFormContent button[type='submit']").click()
+                  page.wait_for_timeout(2500)
+                  session=page.evaluate("""async()=>{const r=await window.mahaSupabase.auth.getSession();return !!r?.data?.session?.user}""")
+                  evidence["checks"]["authenticated_session"]=bool(session)
+                  if session:
+                      auth_ar=page.evaluate("""async()=>{await window.VELORA_V5_SET_LANGUAGE('ar');return {lang:document.documentElement.lang,dir:document.documentElement.dir,stored:localStorage.getItem('velora_language')}}""")
+                      auth_back=page.evaluate("""async()=>{await window.VELORA_V5_SET_LANGUAGE('en');return {lang:document.documentElement.lang,dir:document.documentElement.dir,stored:localStorage.getItem('velora_language')}}""")
+                      evidence["checks"]["authenticated_locale_switch"]=auth_ar["lang"]=="ar" and auth_ar["dir"]=="rtl" and auth_back["lang"]=="en" and auth_back["dir"]=="ltr"
+                      evidence["observations"]["authenticated_locale"]= {"ar":auth_ar,"en":auth_back}
+              evidence["checks"]["page_errors"]=errors
+              browser.close()
+          evidence["failures"] += [k for k,v in evidence["checks"].items() if v is not True and k!="page_errors"]
+          if evidence["checks"].get("page_errors"): evidence["failures"].append("page_errors")
+          with open("localization-browser-evidence.json","w") as f: json.dump(evidence,f,indent=2,ensure_ascii=False)
+          print(json.dumps(evidence,indent=2,ensure_ascii=False))
+          raise SystemExit(1 if evidence["failures"] else 0)
+          PY
+      - name: Upload localization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-localization-browser-evidence
+          path: |
+            localization-browser-evidence.json
+            localization-local-server.log
+          retention-days: 7
