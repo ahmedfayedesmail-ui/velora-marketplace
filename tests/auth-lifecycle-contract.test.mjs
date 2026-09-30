@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source = fs.readFileSync('src/scripts/00-localization.js', 'utf8');
+const authEvidenceRunner = fs.readFileSync('tools/auth_browser_evidence.py', 'utf8');
 const stage8Source = fs.readFileSync('src/scripts/12-localization.js', 'utf8');
 
 const required = [
@@ -176,3 +177,12 @@ assert.equal(firstResults[1]?.id, 'bootstrap-user', 'Concurrent callers must rec
 assert.equal(helperSandbox.rpcCalls, 1, 'Concurrent auth hydration must dedupe the profile bootstrap RPC');
 
 console.log('AUTH_LIFECYCLE_CONTRACT_PASS');
+
+assert.ok(
+  authEvidenceRunner.includes('recovery_token_reuse_does_not_recreate_session'),
+  'Auth browser evidence must exercise recovery-token reuse as a fail-closed negative path'
+);
+assert.ok(
+  authEvidenceRunner.includes('tampered_recovery_token_does_not_create_session'),
+  'Auth browser evidence must exercise a tampered recovery token as a fail-closed negative path'
+);
