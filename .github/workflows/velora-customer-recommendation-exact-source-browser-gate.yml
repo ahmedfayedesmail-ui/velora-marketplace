@@ -117,6 +117,10 @@ jobs:
                   evidence["checks"]["authenticated_session"] = bool(auth["hasSession"])
 
                   if auth["hasSession"]:
+                      # Re-enter the canonical Home route after auth; login may leave
+                      # the application on its auth transition route/hash.
+                      page.goto(app+"#home", wait_until="domcontentloaded", timeout=60000)
+                      page.wait_for_timeout(700)
                       passport = page.evaluate("""async()=>{
                         const r=await window.mahaSupabase
                           .from('beauty_profiles')
