@@ -14990,3 +14990,92 @@ STATUS:
 
 NEXT:
 - Preserve the closed notification/push path and continue the next independent non-legal OPEN Master item; do not reopen this work without a regression.
+
+## MESSAGE 82 — OWNER RELEASE CONTROL CONSOLIDATION + EXACT-SOURCE ROUTE CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- OWNER RELEASE CONTROL VISIBILITY = CLOSED-DONE AT SOURCE/DB/CONTRACT/EXACT-SOURCE BROWSER SCOPE
+- RELEASE DOMAIN CONTROLLER = PRESERVED / REUSED
+- LEGACY ROUTE/NAV OVERRIDE = REMOVED
+- FULL OWNER CONTROL-PLANE COMPLETENESS = STILL OPEN
+
+RESEARCH / REUSE:
+- Existing `src/scripts/11-admin.js` already contained the Release Engineering & Change Control domain controller and the existing release RPC calls.
+- Existing Restore-Test release contracts are `velora_get_release_control_plane`, `velora_create_release_candidate`, `velora_add_release_check`, and `velora_update_release_status`.
+- The DB functions are staff-gated through `velora_is_staff()`; they remain the authoritative release state machine.
+- No new release schema, RPC, deployment engine, or business-rule implementation was justified.
+
+CONSOLIDATION:
+- `src/scripts/11-admin.js` was reduced to the existing release domain behavior only.
+- Removed its dynamic Delivery navigation injection.
+- Removed its override of `window.VELORA_CANONICAL_ADMIN_SECTION`.
+- Removed its override of `window.VELORA_OPEN_ADMIN`.
+- Therefore the release domain no longer competes with the canonical Admin router or introduces a second platform-entry path.
+- `src/scripts/12-localization.js` now owns the canonical `releaseControl` route and delegates rendering to the existing `window.VELORA_RENDER_RELEASES` domain controller.
+- Canonical Admin navigation now includes Release Control under System.
+- Owner Governance dashboard now also surfaces a compact read-only Release Control snapshot from the same canonical release RPC.
+
+OWNER BOUNDARY:
+- Release creation/approval/deployment/rollback remain explicit governed human actions.
+- Dashboard rendering never auto-creates, approves, deploys, or rolls back a release.
+- Production remains FROZEN; no release mutation was executed as part of this source consolidation.
+
+CONTRACT:
+- `tests/platform-reentry-contract.test.mjs` now locks:
+  - release domain action/render exports;
+  - absence of the legacy canonical router/open wrappers in `11-admin.js`;
+  - canonical `releaseControl` route ownership in `12-localization.js`;
+  - Owner Release Control marker and no-auto-mutation copy.
+- Final Source + Contract Health for the route consolidation = SUCCESS.
+
+BROWSER EVIDENCE:
+- Workflow: `.github/workflows/velora-seller-admin-reentry-browser-gate.yml`
+- Run: `36674565433`
+- Job: `109756617019`
+- Head/source commit: `c9ffddeebcbd36c7cbca9e72abeeea4482cf3ea0`
+- Conclusion: SUCCESS
+- Artifact: `11079635632`
+- Execution target: `local_exact_source`
+- failures = []
+- browser_errors = []
+
+PROVEN OWNER CHECKS:
+- authenticated Owner session = TRUE
+- Owner first-open canonical dashboard = TRUE
+- Owner governance panel present = TRUE
+- Owner Release Control snapshot present = TRUE
+- Owner close without refresh = TRUE
+- Owner re-entry without refresh = TRUE
+- Owner Release Control snapshot present after re-entry = TRUE
+- Owner Release Control route opened through canonical `VELORA_CANONICAL_ADMIN_SECTION('releaseControl')` = TRUE
+- Release Control UI visible = TRUE
+- Create candidate control present = TRUE
+- Return to Owner Dashboard after route verification = TRUE
+
+EVIDENCE BOUNDARY:
+- This closes Owner Release Control route/visibility and proves the existing domain controller is reached through the canonical route without the previous legacy wrapper architecture.
+- It does not close the complete privileged action matrix, complete Owner exception tooling, subscription/ads/payout governance, DR execution, legal publication, or Production cutover.
+- Vercel exact current-HEAD Preview parity remains separately blocked by deployment capacity/rate limits.
+- Production remains FROZEN.
+
+ACTION FLOW:
+Owner enters governance Dashboard
+-> authenticated Owner role guard
+-> canonical Admin controller
+-> releaseControl route selection
+-> existing Release domain controller
+-> canonical `velora_get_release_control_plane` read
+-> explicit human action only for create/check/status transitions
+-> existing release state machine + audit
+-> downstream CI/CD/hosting remains external to this HTML control plane
+
+STATUS:
+- Owner Release Control visibility/route = CLOSED-DONE.
+- Release domain consolidation = CLOSED-DONE.
+- Full Owner control-plane completeness = OPEN.
+- Exact-source Browser infrastructure = CLOSED-DONE.
+- Vercel current-HEAD exact Preview = OPEN/BLOCKED by capacity.
+- Production = FROZEN.
+
+NEXT:
+- Continue with the next independent Owner control-plane gap; prioritize existing canonical payout/settlement or subscription/advertising governance before speculative new infrastructure.
