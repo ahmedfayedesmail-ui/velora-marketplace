@@ -16193,3 +16193,91 @@ DECISION:
 - COD operational routing is sufficiently established; do not rebuild it.
 - Next work should move to the remaining independent open commerce/reconciliation track rather than modifying the payment router.
 - Production remains FROZEN.
+
+## MESSAGE 98 — ZERO-COST FINANCIAL FIX + INVENTORY FAILURE RECONCILIATION (2026-09-30)
+
+CLASSIFICATION:
+- The previously failed financial deterministic lab was a harness false-negative and is now corrected and green.
+- Zero-cost inventory/payment-failure reconciliation is CLOSED-DONE at its current engineering + Restore-Test evidence scope.
+- No database mutation, provider call, real-money movement, or Production operation occurred.
+
+FINANCIAL LAB RCA / CLOSURE:
+- Initial deterministic financial run `36688503771` failed only because the lab returned the old fractional-rate expression in its `failures` field even though the corrected `passed` expression had already evaluated true.
+- The canonical live data contract was independently verified as percentage rate semantics (`rate=12.50`, `gross × rate / 100 = commission`).
+- Lab correction commit: `d5e69f8ee17331563c435af1f92d281fa14acf57`.
+- Forced re-run via the fixed financial evidence descriptor on commit `64df39ff226c647245f917736661d02be0568092`.
+- Deterministic Financial Reconciliation = SUCCESS, run `36688633711`, job `109800303901`.
+- Fixed Restore-Test Financial Probes = SUCCESS, run `36688633674`, job `109800285156`.
+- Source + Contract Health on the same head = SUCCESS, job `109800328931`.
+- Exact-SHA Vercel parity = FAILURE on the same head, preserving the existing Vercel build-rate-limit boundary rather than being reclassified as an application failure.
+
+INVENTORY / FAILED-PAYMENT RECONCILIATION:
+- Direct Restore-Test inspection found the single cancelled order is correctly paired with `payment_status=failed`, not an invalid cancellation state.
+- Its payment attempt is `purpose=marketplace_order`, `status=failed`; the existing trigger `trg_velora_release_inventory_after_failed_payment` invokes the private canonical release function.
+- The canonical function releases product and variant stock by ordered quantity, reverses pending commission rows, sets the order to `cancelled` + `payment_status=failed`, fails pending payment rows, and audits `payment_failed_inventory_released`.
+- This explains the prior apparent cancelled/payment mismatch; that earlier check was itself an incorrect invariant because it omitted the valid `cancelled + failed` terminal state.
+- Live Restore-Test evidence currently shows:
+  - products = 5; negative product stock = 0;
+  - product variants = 1; negative variant stock = 0;
+  - cancelled orders = 1;
+  - unexpected cancelled/payment-status combinations = 0;
+  - failed marketplace payment attempts = 1;
+  - inventory-release audit events = 1;
+  - failed-payment orders missing an inventory-release audit = 0.
+- Deterministic Inventory Failure Contract = SUCCESS, run `36688872399`, job `109801055998`.
+- Fixed Restore-Test Inventory Failure Probes = SUCCESS, run `36688872335`, job `109801055569`.
+
+NEW ZERO-COST TOOLING:
+1. `tools/velora_inventory_failure_reconciliation_lab.py`
+   - dependency-free simulation of failed marketplace payment -> inventory release state flow;
+   - checks canonical cancellation states, quantity-based product/variant release, commission reversal boundary, and negative cases.
+2. `.github/workflows/velora-zero-cost-inventory-failure-lab.yml`
+   - zero-cost deterministic gate + bounded Node syntax checks.
+3. `.github/workflows/velora-zero-cost-inventory-failure-evidence.yml`
+   - fixed read-only Restore-Test probes for products, variants, cancelled orders, failed marketplace payment attempts, and inventory-release audit events.
+4. `.remote/inventory-failure-lab.json`
+   - explicit no-write / no-Production / no-real-money descriptor.
+
+ACTION FLOW RECONCILIATION:
+EVENT: marketplace payment attempt becomes failed
+-> GUARD: `purpose=marketplace_order`, `status=failed`, `order_id` present
+-> VALIDATION: target order exists and is still pending/confirmed with pending payment
+-> STATE TRANSITION: inventory restored; pending commissions reversed; order becomes cancelled + failed
+-> AUTOMATIC SIDE EFFECT: pending payment rows fail + audit event
+-> NEXT EVENT: customer may re-enter cart/checkout without retained reservation stock
+-> RETRY/DEDUPE: trigger is state-scoped; guarded terminal state prevents repeated release after transition
+-> HUMAN EXCEPTION: only unresolved provider/financial ambiguity
+
+IMPORTANT BOUNDARY:
+- There is no dedicated inventory-reservation table in the current Restore-Test schema; the existing order/payment trigger is the canonical inventory-release mechanism.
+- No speculative reservation engine was created.
+- Stock non-negativity is a sanity/reconciliation check, not proof of historical stock correctness beyond the observed current state.
+- Provider settlement, bank settlement, refund execution, and Production remain separate evidence layers.
+
+EVIDENCE BOUNDARY:
+- L1 Source = verified for client ownership and existing canonical payment/returns sources.
+- L2 Restore-Test DB/function/trigger = verified live.
+- L3 Contract/guard/automatic side effects = verified.
+- L4 Negative cases = deterministic lab verified.
+- L5 CI = deterministic lab + fixed read-only evidence both SUCCESS.
+- L6 Preview = unchanged / Vercel build-rate-limit boundary.
+- L7 Browser = no new claim.
+- L8 Provider = no new settlement claim.
+- L9 Production = untouched/frozen.
+
+DECISION:
+- Keep the current inventory release trigger as the sole canonical mechanism.
+- Do not add an inventory reservation subsystem without a demonstrated requirement and governed contract.
+- Treat the previously observed cancelled+failed order as valid terminal behavior under the current payment-failure flow.
+- Continue to the next independent open track; do not reopen payment/COD/inventory architecture without contradictory evidence.
+
+STATUS:
+- Financial reconciliation deterministic + Restore-Test evidence = CLOSED-DONE.
+- COD contract/routing = CLOSED-DONE.
+- Inventory failure-release reconciliation = CLOSED-DONE.
+- Seller-ad financial accounting = OPEN.
+- External payout settlement = OPEN / NOT EVIDENCED.
+- Seller subscription commercial/provider completion = OPEN.
+- Legal publication = OPEN / human-gated.
+- Vercel Preview parity = BLOCKED by observed build-rate-limit state.
+- Production = FROZEN.
