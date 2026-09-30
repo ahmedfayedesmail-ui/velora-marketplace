@@ -1,0 +1,127 @@
+name: WITNESS Focused Velora Re-entry
+
+on:
+  push:
+    branches:
+      - witness/focused-reentry-2026-09-30
+
+permissions:
+  contents: read
+
+jobs:
+  focused-reentry:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        focus: [seller, admin]
+
+    steps:
+      - name: Checkout Velora
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Start Velora local preview
+        run: |
+          python3 -m http.server 4173 -d src > /tmp/velora-server.log 2>&1 &
+          sleep 3
+          curl --fail --silent --show-error http://127.0.0.1:4173/ > /dev/null
+
+      - name: Authorize local repository
+        run: |
+          npx --yes @witness-engine/cli@0.9.0 target authorize-local \
+            --url http://127.0.0.1:4173 \
+            --repo . \
+            --output ./witness-grant.json
+
+      - name: Run focused WITNESS investigation
+        shell: bash
+        run: |
+          set +e
+          npx --yes @witness-engine/cli@0.9.0 scan \
+            --url http://127.0.0.1:4173 \
+            --grant ./witness-grant.json \
+            --repo . \
+            --mode focus \
+            --focus ${{ matrix.focus }} \
+            --personas auto \
+            --explore \
+            --max-pages 12 \
+            --max-actions 6 \
+            --allow-private-origin \
+            --output ./witness-${{ matrix.focus }}
+          echo "WITNESS_EXIT_CODE=$?"
+
+      - name: Extract focused findings
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          focus = "${{ matrix.focus }}"
+          p = Path(f"witness-{focus}/result.json")
+          if not p.exists():
+              print(f"{focus}: no result.json")
+              raise SystemExit(0)
+
+          r = json.loads(p.read_text())
+          s = r.get("summary", {})
+          print(f"FOCUS={focus}")
+          print("SUMMARY:", json.dumps({
+              "pagesVisited": s.get("pagesVisited"),
+              "routesDiscovered": s.get("routesDiscovered"),
+              "personasExecuted": s.get("personasExecuted"),
+              "safeActionsExecuted": s.get("safeActionsExecuted"),
+              "confirmedFindings": s.get("confirmedFindings"),
+              "high": s.get("high"),
+              "medium": s.get("medium"),
+              "low": s.get("low"),
+              "routeCoverage": r.get("coverage", {}).get("routeCoverage"),
+          }, ensure_ascii=False))
+
+          findings = r.get("findings", [])
+          print(f"FINDINGS={len(findings)}")
+          for f in findings[:80]:
+              ev = f.get("evidence", {}) or {}
+              action = ev.get("action", {}) or {}
+              picked = {
+                  "code": f.get("code"),
+                  "severity": f.get("severity"),
+                  "title": f.get("title"),
+                  "persona": f.get("persona"),
+                  "page": f.get("page"),
+                  "reentryStatus": ev.get("reentryStatus"),
+                  "reentryError": ev.get("reentryError"),
+                  "actionText": action.get("text"),
+                  "actionHref": action.get("href"),
+                  "selector": action.get("selector"),
+                  "destination": ev.get("destination"),
+                  "screenshot": ev.get("screenshot"),
+                  "replayScript": ev.get("replayScript"),
+              }
+              print(json.dumps(picked, ensure_ascii=False))
+          PY
+
+      - name: Verify focused evidence bundle
+        if: always()
+        continue-on-error: true
+        run: npx --yes @witness-engine/cli@0.9.0 verify --bundle ./witness-${{ matrix.focus }}
+
+      - name: Upload focused evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: witness-focused-${{ matrix.focus }}
+          path: |
+            witness-${{ matrix.focus }}/
+            witness-grant.json
+            /tmp/velora-server.log
+          if-no-files-found: warn
+          retention-days: 7
