@@ -1,0 +1,119 @@
+name: Velora Authentication Resilience Browser Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/00-localization.js"
+      - ".github/workflows/velora-auth-resilience-browser-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Validate secret
+        run: test -n "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > auth-resilience-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200: break
+              except Exception: time.sleep(1)
+          else: raise SystemExit("LOCAL_SERVER_NOT_READY")
+          PY
+      - name: Run bounded resilience evidence
+        run: python3 - <<'PY'
+          import json, os, secrets, string, time, urllib.request, urllib.parse
+          from playwright.sync_api import sync_playwright
+          BASE=os.environ["SUPABASE_URL"].rstrip("/")
+          KEY=os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          APP=os.environ["APP_URL"]
+          def req(method,path,body=None,expected=(200,201,204)):
+              data=json.dumps(body).encode() if body is not None else None
+              h={"apikey":KEY,"Authorization":"Bearer "+KEY,"Accept":"application/json"}
+              if data: h["Content-Type"]="application/json"
+              q=urllib.request.Request(BASE+path,headers=h,data=data,method=method)
+              with urllib.request.urlopen(q,timeout=30) as r:
+                  raw=r.read().decode()
+                  return json.loads(raw) if raw else None
+          suffix=secrets.token_hex(8)
+          email=f"velora-resilience-{os.environ.get('GITHUB_RUN_ID','run')}-{suffix}@example.invalid"
+          password="V3lora!"+''.join(secrets.choice(string.ascii_letters+string.digits) for _ in range(24))
+          uid=None
+          evidence={"schema":"velora-auth-resilience.v1","execution_mode":"local_exact_source_ephemeral_fixture","checks":{},"observations":{},"failures":[]}
+          def snap(page):
+              return page.evaluate("""async()=>{const r=await window.mahaSupabase.auth.getSession();const s=r?.data?.session;return {present:!!s,userId:s?.user?.id||null}}""")
+          def login(p):
+              p.locator("#accountBtn").click()
+              p.locator("#authModal.active").wait_for(timeout=10000)
+              p.locator("#loginEmail").fill(email)
+              p.locator("#loginPassword").fill(password)
+              p.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
+              p.wait_for_function("(uid)=>STATE?.user?.uid===uid",arg=uid,timeout=30000)
+          try:
+              created=req("POST","/auth/v1/admin/users",{"email":email,"password":password,"email_confirm":True})
+              uid=(created.get("user") or created).get("id")
+              with sync_playwright() as pw:
+                  browser=pw.chromium.launch()
+                  ctx=browser.new_context()
+                  a=ctx.new_page(); b=ctx.new_page()
+                  for p in (a,b): p.goto(APP,wait_until="networkidle",timeout=60000)
+                  login(a)
+                  b.reload(wait_until="networkidle")
+                  evidence["checks"]["duplicate_tab_refresh_preserves_session"]=bool(snap(b)["present"])
+                  a.locator("#accountContent button",has_text="Logout").click(); time.sleep(1)
+                  rb=b.evaluate("""async()=>{const r=await window.mahaSupabase.auth.refreshSession();return {present:!!r?.data?.session,error:r?.error?.code||null}}""")
+                  evidence["checks"]["same_context_refresh_after_global_logout_fails_closed"]=not rb["present"]
+                  ctx.close()
+                  da=browser.new_context(); db=browser.new_context()
+                  pa=da.new_page(); pb=db.new_page()
+                  for p in (pa,pb): p.goto(APP,wait_until="networkidle",timeout=60000)
+                  login(pa); login(pb)
+                  evidence["checks"]["separate_contexts_can_authenticate"]=bool(snap(pa)["present"] and snap(pb)["present"])
+                  pa.locator("#accountContent button",has_text="Logout").click(); time.sleep(1)
+                  rb=pb.evaluate("""async()=>{const r=await window.mahaSupabase.auth.refreshSession();return {present:!!r?.data?.session,error:r?.error?.code||null}}""")
+                  evidence["observations"]["separate_context_refresh_after_global_logout"]=rb
+                  evidence["checks"]["global_logout_invalidates_separate_context_refresh"]=not rb["present"]
+                  da.close(); db.close(); browser.close()
+          except Exception as e:
+              evidence["failures"].append(type(e).__name__+":"+str(e)[:240])
+          finally:
+              if uid:
+                  try: req("DELETE","/auth/v1/admin/users/"+urllib.parse.quote(uid,safe=""),expected=(200,204))
+                  except Exception as e: evidence["failures"].append("cleanup:"+str(e)[:200])
+          evidence["failures"] += [k for k,v in evidence["checks"].items() if v is not True]
+          with open("auth-resilience-evidence.json","w") as f: json.dump(evidence,f,indent=2)
+          print(json.dumps(evidence,indent=2))
+          raise SystemExit(1 if evidence["failures"] else 0)
+      - name: Upload resilience evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-auth-resilience-browser-evidence
+          path: |
+            auth-resilience-evidence.json
+            auth-resilience-local-server.log
+          retention-days: 3
