@@ -491,6 +491,18 @@ jobs:
                       "text_length": len(subscription_root.inner_text()) if subscription_root.count() else 0,
                   }
                   page.screenshot(path="owner-subscription-control.png", full_page=True)
+                  page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('sellerAdControl')""")
+                  page.wait_for_function(
+                      "() => !!document.querySelector('#adminContent [data-seller-ad-control=" + '"' + "true" + '"' + "]')",
+                      timeout=15000,
+                  )
+                  seller_ad_root = page.locator('#adminContent [data-seller-ad-control="true"]')
+                  role["seller_ad_control"] = {
+                      "present": seller_ad_root.count() == 1,
+                      "visible": seller_ad_root.first.is_visible() if seller_ad_root.count() else False,
+                      "text_length": len(seller_ad_root.inner_text()) if seller_ad_root.count() else 0,
+                  }
+                  page.screenshot(path="owner-seller-ad-control.png", full_page=True)
                   page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('dashboard')""")
                   page.wait_for_function(
                       "() => !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance=" + '"' + "launch-control" + '"' + "]') && !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-release-control=" + '"' + "true" + '"' + "]')",
@@ -587,6 +599,10 @@ jobs:
                       evidence["failures"].append("owner: subscription control route not present")
                   if r.get("subscription_control", {}).get("visible") is not True:
                       evidence["failures"].append("owner: subscription control route not visible")
+                  if r.get("seller_ad_control", {}).get("present") is not True:
+                      evidence["failures"].append("owner: seller advertising control route not present")
+                  if r.get("seller_ad_control", {}).get("visible") is not True:
+                      evidence["failures"].append("owner: seller advertising control route not visible")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
