@@ -202,7 +202,7 @@ jobs:
                   "checksObserved":len(target),
                   "consistent":len(consistent),
                   "contradictions":len(contradictions),
-                  "observationModes":sorted({((o.get("api") or {}).get("observation") or {}).get("mode") for o in target if ((o.get("api") or {}).get("observation") or {}).get("mode"})
+                  "observationMode":next(((o.get("api") or {}).get("observation") or {}).get("mode") for o in target if ((o.get("api") or {}).get("observation") or {}).get("mode")),
               },
               "witnessScan":{
                   "runId":result.get("runId"),
