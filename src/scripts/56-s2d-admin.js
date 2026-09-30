@@ -76,7 +76,9 @@
     var n=Number(value||0), code=String(currency||'').toUpperCase();
     if(!Number.isFinite(n)) return '—';
     try{
-      return new Intl.NumberFormat(undefined,{
+      var s=window.VELORA_GLOBAL_LOCALE_STATE||{};
+      var locale=String(s.date_locale||((s.locale||document.documentElement.lang||'en').toLowerCase()+'-'+(s.country_code||'EG').toUpperCase()));
+      return new Intl.NumberFormat(locale,{
         style:'currency',currency:code||'USD',maximumFractionDigits:2
       }).format(n);
     }catch(_){
