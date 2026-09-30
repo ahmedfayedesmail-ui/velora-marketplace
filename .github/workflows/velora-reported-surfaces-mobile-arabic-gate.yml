@@ -132,7 +132,7 @@ jobs:
               out['checks']['gift_arabic_title']='بطاقات الهدايا' in p.locator('#adminContent').inner_text()
               out['checks']['gift_debug_locale']=p.evaluate("()=>({htmlLang:document.documentElement.lang,dir:document.documentElement.dir,globalLocale:window.VELORA_GLOBAL_LOCALE,globalStateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale,hasPack:!!window.__VELORA_PACK?.ar,packValue:String(window.__VELORA_PACK?.ar?.['Gift Cards']||''),translation:typeof window.VELORA_GET_TRANSLATION==='function' ? String(window.VELORA_GET_TRANSLATION('Gift Cards','ar')||'') : 'NO_GET_TRANSLATION'})")
               out['checks']['i18n_render_available']=bool(p.evaluate("()=>typeof window.VELORA_I18N_RENDER==='function'"))
-              out['checks']['gift_translation_pack']=p.evaluate("()=>String(window.__VELORA_PACK?.ar?.['Gift Cards']||'')==='بطاقات الهدايا'")
+              out['checks']['gift_translation_runtime']=p.evaluate("()=>typeof window.VELORA_GET_TRANSLATION==='function' && String(window.VELORA_GET_TRANSLATION('Gift Cards','ar')||'')==='بطاقات الهدايا'")
               out['checks']['gift_h3_html']=p.locator('#adminContent h3').first.get_attribute('data-velora-i18n')=='Gift Cards'
               p.evaluate("()=>{try{window.VELORA_I18N_RENDER?.(document.getElementById('adminContent'));window.VELORA_TRANSLATE_ALL?.();}catch(e){}}")
               p.wait_for_timeout(200)
