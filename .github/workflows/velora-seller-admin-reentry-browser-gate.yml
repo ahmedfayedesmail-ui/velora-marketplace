@@ -268,7 +268,8 @@ jobs:
                           text: String(required?.innerText || '').trim(),
                           rootTextLength: String(root?.innerText || '').trim().length,
                           visible: !!required && !!rect && rect.width > 0 && rect.height > 0,
-                          loadingText: String(root?.querySelector('.velora-op-card')?.innerText || '').trim()
+                          loadingText: String(root?.querySelector('.velora-op-card')?.innerText || '').trim(),
+                          ownerGovernancePresent: !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance="launch-control"]')
                         };
                       }""",
                       platform
