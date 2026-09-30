@@ -1,0 +1,290 @@
+name: Velora Beauty Feedback Positive Exact-Source Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/65-s1-d-beauty-feedback.js"
+      - ".github/workflows/velora-beauty-feedback-positive-exact-source-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-beauty-feedback-positive-exact-source
+  cancel-in-progress: true
+
+jobs:
+  feedback-positive:
+    name: Delivered purchase -> Feedback -> Idempotency -> Cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > beauty-feedback-positive-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as r:
+                      if r.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run positive purchase-linked Feedback browser evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.request
+          from playwright.sync_api import sync_playwright
+
+          app=os.environ["APP_URL"].rstrip("/")
+          base=os.environ["SUPABASE_URL"].rstrip("/")
+          service=os.environ.get("SUPABASE_SERVICE_ROLE_KEY","")
+          test_email="customer-test@velora.local"
+          user_id="83f3f4a6-451c-416f-96ba-1aab66beeccc"
+          order_item_id="1c3537fb-c977-482b-929e-6e4ae1f48079"
+          product_id="21d977a0-111b-4bb4-9736-0f2994294d48"
+          idem_key="browser-gate-feedback-"+os.environ.get("GITHUB_RUN_ID","unknown")
+
+          evidence={
+              "schema":"beauty-feedback-positive-exact-source-browser.v1",
+              "execution_target":"local_exact_source",
+              "workflow_sha":os.environ.get("GITHUB_SHA",""),
+              "checks":{},
+              "failures":[],
+              "browser_errors":[],
+              "cleanup":{}
+          }
+
+          def api(path, method="GET", payload=None):
+              data=None
+              headers={"apikey":service,"Authorization":"Bearer "+service,"Content-Type":"application/json","Prefer":"return=representation"}
+              if payload is not None:
+                  data=json.dumps(payload).encode()
+              req=urllib.request.Request(base+path,data=data,headers=headers,method=method)
+              with urllib.request.urlopen(req,timeout=30) as resp:
+                  raw=resp.read().decode()
+                  return json.loads(raw) if raw else None
+
+          if not service:
+              evidence["failures"].append("SUPABASE_SERVICE_ROLE_KEY_MISSING")
+          else:
+              # Baseline proof: this dedicated delivered fixture must start without the
+              # test idempotency key already present.
+              try:
+                  before=api("/rest/v1/beauty_feedback?select=id,user_id,order_item_id,idempotency_key&user_id=eq."+user_id)
+                  evidence["checks"]["baseline_feedback_count"]=len(before or [])
+                  evidence["checks"]["baseline_test_key_absent"]=not any(
+                      str(x.get("idempotency_key"))==idem_key for x in (before or [])
+                  )
+                  users=api("/auth/v1/admin/users?page=1&per_page=1000")
+                  if isinstance(users,dict): users=users.get("users",[])
+                  evidence["checks"]["delivered_fixture_user_present"]=any(
+                      str(u.get("id"))==user_id and str(u.get("email","")).lower()==test_email
+                      for u in (users or [])
+                  )
+              except Exception as exc:
+                  evidence["failures"].append("BASELINE_LOOKUP_FAILED:"+str(exc))
+
+              with sync_playwright() as p:
+                  browser=p.chromium.launch(headless=True)
+                  page=browser.new_page(viewport={"width":390,"height":844},locale="en-US")
+                  feedback_rpc=[]
+                  page.on("pageerror",lambda exc:evidence["browser_errors"].append("pageerror:"+str(exc)))
+                  page.on("console",lambda msg:evidence["browser_errors"].append("console:"+msg.text) if msg.type=="error" else None)
+                  page.on("request",lambda req:feedback_rpc.append(req.url) if "/rest/v1/rpc/velora_submit_beauty_feedback" in req.url else None)
+                  try:
+                      page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                      token_result=api(
+                          "/auth/v1/admin/generate_link",
+                          method="POST",
+                          payload={"type":"magiclink","email":test_email,"options":{"redirect_to":app+"/#home"}}
+                      )
+                      token_hash=str(token_result.get("hashed_token") or "")
+                      if not token_hash:
+                          evidence["failures"].append("MAGIC_LINK_TOKEN_NOT_RETURNED")
+                      else:
+                          verified=page.evaluate("""async(tokenHash)=>{
+                            const r=await window.mahaSupabase.auth.verifyOtp({token_hash:tokenHash,type:'magiclink'});
+                            return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null};
+                          }""",token_hash)
+                          evidence["checks"]["authenticated_session"]=bool(verified["ok"])
+                          evidence["checks"]["authenticated_user_match"]=verified["id"]==user_id
+
+                          if verified["ok"] and verified["id"]==user_id:
+                              page.goto(app+"#home",wait_until="domcontentloaded",timeout=60000)
+                              page.wait_for_timeout(700)
+                              page.evaluate("()=>navigateTo('account')")
+                              page.wait_for_function("()=>document.getElementById('page-account')?.classList.contains('active')",timeout=15000)
+                              page.wait_for_selector("#veloraBeautyExperience",state="attached",timeout=20000)
+                              page.wait_for_timeout(1500)
+
+                              experience=page.locator("#veloraBeautyExperience")
+                              evidence["checks"]["experience_surface_present"]=experience.count()==1
+                              evidence["checks"]["experience_surface_visible"]=experience.is_visible()
+                              button=page.locator('[data-feedback-item="'+order_item_id+'"]')
+                              evidence["checks"]["eligible_feedback_button_present"]=button.count()==1
+                              evidence["checks"]["eligible_feedback_button_visible"]=button.is_visible() if button.count() else False
+
+                              if button.count()==1:
+                                  button.click()
+                                  page.wait_for_selector("#veloraBeautyFeedbackModal",state="visible",timeout=10000)
+                                  evidence["checks"]["feedback_modal_visible"]=page.locator("#veloraBeautyFeedbackModal").is_visible()
+                                  evidence["checks"]["feedback_order_item_match"]=page.locator("#veloraFeedbackOrderItemId").input_value()==order_item_id
+                                  evidence["checks"]["feedback_product_match"]=page.locator("#veloraFeedbackProductId").input_value()==product_id
+
+                                  page.locator("#veloraFeedbackRating button[data-rating='5']").click()
+                                  page.locator("#veloraFeedbackTexture").select_option("light")
+                                  page.locator("#veloraFeedbackEffect").select_option("helpful")
+                                  page.locator("#veloraBeautyFeedbackForm button[type='submit']").click()
+                                  page.wait_for_timeout(1400)
+
+                                  rows=api(
+                                      "/rest/v1/beauty_feedback?select=id,user_id,product_id,order_item_id,rating,texture,effect,source,idempotency_key,moderation_status&user_id=eq."+user_id+"&idempotency_key=eq."+idem_key
+                                  )
+                                  evidence["checks"]["feedback_rpc_requests"]=len(feedback_rpc)
+                                  evidence["checks"]["feedback_row_created"]=len(rows or [])==1
+                                  row=(rows or [None])[0]
+                                  evidence["checks"]["feedback_rating"]=row.get("rating") if row else None
+                                  evidence["checks"]["feedback_texture"]=row.get("texture") if row else None
+                                  evidence["checks"]["feedback_effect"]=row.get("effect") if row else None
+                                  evidence["checks"]["feedback_source"]=row.get("source") if row else None
+                                  evidence["checks"]["feedback_moderation_status"]=row.get("moderation_status") if row else None
+                                  evidence["checks"]["ui_saved_state_visible"]=(
+                                      "Saved · approved" in experience.inner_text()
+                                      or "Saved" in experience.inner_text()
+                                  )
+
+                                  # Replay the exact same canonical RPC payload to prove idempotency
+                                  replay=page.evaluate("""async(args)=>{
+                                    const r=await window.mahaSupabase.rpc('velora_submit_beauty_feedback',{
+                                      p_product_id:args.product_id,
+                                      p_product_variant_id:null,
+                                      p_order_item_id:args.order_item_id,
+                                      p_rating:5,
+                                      p_texture:'light',
+                                      p_effect:'helpful',
+                                      p_source:'purchase',
+                                      p_idempotency_key:args.idem_key
+                                    });
+                                    return r?.error ? {error:r.error.message,data:null} : {error:null,data:r.data};
+                                  }""",{"product_id":product_id,"order_item_id":order_item_id,"idem_key":idem_key})
+                                  evidence["checks"]["idempotency_replay_error"]=replay.get("error")
+                                  evidence["checks"]["idempotency_replay_ok"]=bool(replay.get("data",{}).get("ok"))
+                                  evidence["checks"]["idempotency_replay_flag"]=bool(replay.get("data",{}).get("idempotent"))
+
+                                  page.screenshot(path="beauty-feedback-positive-exact-source.png",full_page=True)
+                  except Exception as exc:
+                      evidence["failures"].append("BROWSER_EXCEPTION:"+str(exc))
+                  finally:
+                      browser.close()
+
+              # Cleanup only the exact idempotency-key row created by this run.
+              try:
+                  deleted=api("/rest/v1/beauty_feedback?user_id=eq."+user_id+"&idempotency_key=eq."+idem_key,method="DELETE")
+                  evidence["cleanup"]["deleted_test_rows"]=len(deleted or [])
+                  after=api("/rest/v1/beauty_feedback?select=id&user_id=eq."+user_id+"&idempotency_key=eq."+idem_key)
+                  evidence["cleanup"]["remaining_test_rows"]=len(after or [])
+                  evidence["cleanup"]["clean"]=len(after or [])==0
+              except Exception as exc:
+                  evidence["cleanup"]["error"]=str(exc)
+                  evidence["failures"].append("TEST_FEEDBACK_CLEANUP_FAILED:"+str(exc))
+
+          c=evidence["checks"]
+          if c.get("baseline_test_key_absent") is not True:
+              evidence["failures"].append("TEST_IDEMPOTENCY_KEY_ALREADY_PRESENT")
+          if not c.get("delivered_fixture_user_present"):
+              evidence["failures"].append("DELIVERED_FIXTURE_USER_MISSING")
+          if not c.get("authenticated_session"):
+              evidence["failures"].append("AUTHENTICATED_SESSION_MISSING")
+          if not c.get("authenticated_user_match"):
+              evidence["failures"].append("AUTHENTICATED_USER_MISMATCH")
+          if not c.get("experience_surface_present"):
+              evidence["failures"].append("EXPERIENCE_SURFACE_MISSING")
+          if not c.get("experience_surface_visible"):
+              evidence["failures"].append("EXPERIENCE_SURFACE_NOT_VISIBLE")
+          if not c.get("eligible_feedback_button_present"):
+              evidence["failures"].append("ELIGIBLE_FEEDBACK_BUTTON_MISSING")
+          if not c.get("eligible_feedback_button_visible"):
+              evidence["failures"].append("ELIGIBLE_FEEDBACK_BUTTON_NOT_VISIBLE")
+          if not c.get("feedback_modal_visible"):
+              evidence["failures"].append("FEEDBACK_MODAL_NOT_VISIBLE")
+          if not c.get("feedback_order_item_match"):
+              evidence["failures"].append("FEEDBACK_ORDER_ITEM_MISMATCH")
+          if not c.get("feedback_product_match"):
+              evidence["failures"].append("FEEDBACK_PRODUCT_MISMATCH")
+          if c.get("feedback_rpc_requests",0) < 1:
+              evidence["failures"].append("FEEDBACK_RPC_NOT_OBSERVED")
+          if not c.get("feedback_row_created"):
+              evidence["failures"].append("FEEDBACK_ROW_NOT_CREATED")
+          if c.get("feedback_rating") != 5:
+              evidence["failures"].append("FEEDBACK_RATING_MISMATCH")
+          if c.get("feedback_texture") != "light":
+              evidence["failures"].append("FEEDBACK_TEXTURE_MISMATCH")
+          if c.get("feedback_effect") != "helpful":
+              evidence["failures"].append("FEEDBACK_EFFECT_MISMATCH")
+          if c.get("feedback_source") != "purchase":
+              evidence["failures"].append("FEEDBACK_SOURCE_MISMATCH")
+          if c.get("feedback_moderation_status") != "approved":
+              evidence["failures"].append("FEEDBACK_MODERATION_STATUS_MISMATCH")
+          if not c.get("ui_saved_state_visible"):
+              evidence["failures"].append("UI_SAVED_STATE_NOT_VISIBLE")
+          if not c.get("idempotency_replay_ok"):
+              evidence["failures"].append("IDEMPOTENCY_REPLAY_NOT_OK")
+          if not c.get("idempotency_replay_flag"):
+              evidence["failures"].append("IDEMPOTENCY_REPLAY_FLAG_NOT_TRUE")
+          if c.get("idempotency_replay_error"):
+              evidence["failures"].append("IDEMPOTENCY_REPLAY_ERROR:"+str(c.get("idempotency_replay_error")))
+          if evidence["cleanup"].get("clean") is not True:
+              evidence["failures"].append("TEST_CLEANUP_NOT_CLEAN")
+
+          evidence["browser_errors"]=list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["checks"]["browser_error_count"]=len(evidence["browser_errors"])
+          evidence["passed"]=not evidence["failures"] and not evidence["browser_errors"]
+
+          with open("beauty-feedback-positive-browser-evidence.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          print(json.dumps(evidence,ensure_ascii=False,indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload positive Feedback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beauty-feedback-positive-exact-source-browser-evidence
+          path: |
+            beauty-feedback-positive-browser-evidence.json
+            beauty-feedback-positive-exact-source.png
+            beauty-feedback-positive-local-server.log
+          retention-days: 7
