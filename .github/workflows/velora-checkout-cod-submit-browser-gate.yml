@@ -101,20 +101,24 @@ jobs:
               if cod.count()==0: raise RuntimeError('COD payment option unavailable')
               cod.first.click()
               p.wait_for_timeout(700)
-              before=p.evaluate("()=>({count:(STATE.cart||[]).reduce((n,x)=>n+Number(x.quantity||0),0),reference:window.__VELORA_CHECKOUT_REFERENCE||null})")
+              before=p.evaluate("()=>({count:(STATE.cart||[]).reduce((n,x)=>n+Number(x.quantity||0),0)})")
+              ref=p.evaluate("""()=>{window.__VELORA_CHECKOUT_REFERENCE=null; return null}""")
               out['checks']['cart_before_submit_count']=int(before['count'])
               submit=p.locator('#page-checkout form.checkout-form button[type="submit"]')
               submit.click()
               p.wait_for_timeout(4500)
+              ref=p.evaluate("()=>window.__VELORA_CHECKOUT_REFERENCE||null")
+              out['checks']['checkout_reference']=ref
               out['checks']['after_submit_hash']=p.evaluate('()=>location.hash')
               out['checks']['after_submit_cart_count']=p.evaluate("()=>({count:(STATE.cart||[]).reduce((n,x)=>n+Number(x.quantity||0),0),submitting:window.__VELORA_CHECKOUT_SUBMITTING})")['count']
               out['checks']['order_route_reached']=p.evaluate("()=>location.hash.includes('orders')")
-              orders=api('/rest/v1/orders?select=id,order_number,total,currency,status,payment_status,customer_id,checkout_reference&customer_id=eq.'+urllib.parse.quote(uid,safe='')+'&order=created_at.desc&limit=5')
-              out['checks']['recent_customer_orders']=len(orders or [])
+              if not ref: out['failures'].append('checkout reference missing after submit')
+              orders=api('/rest/v1/orders?select=id,order_number,total,currency,status,payment_status,customer_id,checkout_reference&customer_id=eq.'+urllib.parse.quote(uid,safe='')+'&checkout_reference=eq.'+urllib.parse.quote(str(ref or ''),safe='')+'&limit=1')
+              out['checks']['exact_order_found']=len(orders or [])==1
               if orders:
                   o=orders[0]
                   out['checks']['latest_order_currency']=str(o.get('currency') or '').upper()=='EGP'
-                  out['checks']['latest_order_payment_status']=str(o.get('payment_status') or '').lower() in ('pending','unpaid')
+                  out['checks']['latest_order_payment_status']=str(o.get('payment_status') or '').lower() in ('pending','unpaid') and str(o.get('status') or '').lower() in ('pending','confirmed','processing')
                   out['checks']['latest_order_customer_match']=str(o.get('customer_id') or '')==uid
                   out['checks']['latest_order_number_present']=bool(o.get('order_number'))
                   out['checks']['latest_order_reference_present']=bool(o.get('checkout_reference'))
