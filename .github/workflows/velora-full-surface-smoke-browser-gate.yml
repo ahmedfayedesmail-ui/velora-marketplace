@@ -1,0 +1,203 @@
+name: Velora Full Surface Smoke Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/**"
+      - "tests/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  surface-smoke:
+    name: Customer + Seller + Admin full surface smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CUSTOMER_EMAIL: ${{ secrets.E2E_EMAIL }}
+      CUSTOMER_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      APP_URL: http://127.0.0.1:4173
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > surface-smoke-local.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:4173/',timeout=2) as r:
+                      if r.status==200: break
+              except Exception: time.sleep(1)
+          else: raise SystemExit('LOCAL_SERVER_NOT_READY')
+          PY
+
+      - name: Run full surface smoke
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.parse, urllib.request, sys
+          from playwright.sync_api import sync_playwright
+
+          BASE=os.environ['SUPABASE_URL'].rstrip('/')
+          KEY=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          APP=os.environ['APP_URL'].rstrip('/')
+          out={'schema':'velora-full-surface-smoke.v1','execution_target':'local_exact_source','surfaces':{},'failures':[],'browser_errors':[]}
+
+          def api(path,method='GET',payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              headers={'apikey':KEY,'Authorization':'Bearer '+KEY,'Accept':'application/json'}
+              if payload is not None: headers['Content-Type']='application/json'
+              req=urllib.request.Request(BASE+path,data=data,headers=headers,method=method)
+              with urllib.request.urlopen(req,timeout=30) as r: return json.loads(r.read().decode() or 'null')
+
+          users=api('/auth/v1/admin/users?page=1&per_page=1000').get('users',[])
+          auth={str(u.get('id')):u for u in users if u.get('id')}
+          def role_email(role):
+              rows=api('/rest/v1/user_roles?select=user_id&role=eq.'+urllib.parse.quote(role))
+              for row in rows or []:
+                  uid=str(row.get('user_id') or '')
+                  if uid in auth: return uid,str(auth[uid].get('email') or '')
+              raise RuntimeError('missing role fixture '+role)
+          def approved_seller():
+              rows=api('/rest/v1/sellers?select=user_id,status&status=eq.approved&limit=50')
+              for row in rows or []:
+                  uid=str(row.get('user_id') or '')
+                  if uid in auth:
+                      rr=api('/rest/v1/user_roles?select=user_id&user_id=eq.'+urllib.parse.quote(uid)+'&role=eq.seller')
+                      if rr: return uid,str(auth[uid].get('email') or '')
+              raise RuntimeError('missing approved seller fixture')
+          def magic(email):
+              r=api('/auth/v1/admin/generate_link','POST',{'type':'magiclink','email':email,'options':{'redirect_to':APP+'/#home'}})
+              return str(r.get('hashed_token') or '')
+          def sess(p):
+              return p.evaluate("""async()=>{const r=await window.mahaSupabase.auth.getSession();return !!r?.data?.session?.user}""")
+          def login(p,email):
+              p.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              token=magic(email)
+              ok=p.evaluate("""async t=>{const r=await window.mahaSupabase.auth.verifyOtp({token_hash:t,type:'magiclink'});return !!r?.data?.session?.user}""",token)
+              if not ok: raise RuntimeError('authentication failed')
+              p.wait_for_timeout(1000)
+          def observe(p,label):
+              p.on('pageerror',lambda e:out['browser_errors'].append(label+': '+str(e)))
+              p.on('console',lambda m:out['browser_errors'].append(label+': '+m.text) if m.type=='error' else None)
+          def smoke(p,label):
+              p.wait_for_timeout(700)
+              snap=p.evaluate("""()=>({hash:location.hash,activePages:document.querySelectorAll('#mainContent .page.active').length,mainText:(document.getElementById('mainContent')?.innerText||'').slice(0,500),width:innerWidth,docWidth:document.documentElement.scrollWidth,bodyWidth:document.body.scrollWidth})""")
+              out['surfaces'][label]=snap
+              if max(snap['docWidth'],snap['bodyWidth']) > snap['width']+4: out['failures'].append(label+': document-overflow')
+              if label.startswith('customer/') and snap['activePages']!=1: out['failures'].append(label+': no-single-active-customer-page')
+              text=snap['mainText']
+              if 'Page unavailable.' in text or 'Could not load this section.' in text or 'Admin section failed.' in text: out['failures'].append(label+': error-surface-rendered')
+
+          with sync_playwright() as pw:
+              b=pw.chromium.launch(headless=True)
+
+              customer=b.new_page(viewport={'width':1440,'height':1000},locale='en-US')
+              observe(customer,'customer-desktop')
+              customer.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              customer.evaluate("()=>openAuthModal('login')")
+              customer.locator('#loginEmail').fill(os.environ['CUSTOMER_EMAIL'])
+              customer.locator('#loginPassword').fill(os.environ['CUSTOMER_PASSWORD'])
+              customer.locator('#authFormContent button[type="submit"]').click()
+              customer.wait_for_timeout(2200)
+              if not sess(customer): raise RuntimeError('customer authentication failed')
+              for route in ['home','shop','shops','deals','favorites','orders','checkout','account']:
+                  customer.evaluate('(r)=>navigateTo(r)',route)
+                  smoke(customer,'customer-desktop/'+route)
+
+              cm=b.new_page(viewport={'width':390,'height':844},locale='en-US')
+              observe(cm,'customer-mobile')
+              cm.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              for route in ['home','shop','shops','deals','favorites','orders','checkout','account']:
+                  cm.evaluate('(r)=>navigateTo(r)',route)
+                  smoke(cm,'customer-mobile/'+route)
+              cm.evaluate("()=>window.VELORA_V5_SET_LANGUAGE('ar')")
+              cm.wait_for_timeout(900)
+              smoke(cm,'customer-mobile/ar-home')
+
+              seller=b.new_page(viewport={'width':1440,'height':1000},locale='en-US')
+              observe(seller,'seller-desktop')
+              seller_uid,seller_email=approved_seller()
+              login(seller,seller_email)
+              if not sess(seller): raise RuntimeError('seller authentication failed')
+              seller.evaluate("()=>window.switchPlatform('seller')")
+              seller.wait_for_selector('#sellerContent .seller-welcome',state='visible',timeout=30000)
+              for section in ['dashboard','products','inventory','orders','subscription','settings']:
+                  seller.evaluate('(s)=>window.VELORA_CANONICAL_SELLER_SECTION(s)',section)
+                  smoke(seller,'seller-desktop/'+section)
+
+              sm=b.new_page(viewport={'width':390,'height':844},locale='en-US')
+              observe(sm,'seller-mobile')
+              login(sm,seller_email)
+              sm.evaluate("()=>window.switchPlatform('seller')")
+              sm.wait_for_selector('#sellerContent .seller-welcome',state='visible',timeout=30000)
+              for section in ['dashboard','products','inventory','orders','subscription','settings']:
+                  sm.evaluate('(s)=>window.VELORA_CANONICAL_SELLER_SECTION(s)',section)
+                  smoke(sm,'seller-mobile/'+section)
+              sm.evaluate("()=>window.VELORA_V5_SET_LANGUAGE('ar')")
+              sm.wait_for_timeout(900)
+              smoke(sm,'seller-mobile/ar-subscription')
+
+              owner=b.new_page(viewport={'width':1440,'height':1000},locale='en-US')
+              observe(owner,'owner-desktop')
+              owner_uid,owner_email=role_email('owner')
+              login(owner,owner_email)
+              if not sess(owner): raise RuntimeError('owner authentication failed')
+              owner.evaluate("()=>window.switchPlatform('admin')")
+              owner.wait_for_selector('#adminContent',state='visible',timeout=30000)
+              admin_sections=['dashboard','sellers','products','orders','users','audit','applications','seller_onboarding','releaseControl','payoutControl','subscriptionControl','sellerAdControl','finops','promotions','coupons','gift_cards','trust','legal']
+              for section in admin_sections:
+                  owner.evaluate('(s)=>window.VELORA_CANONICAL_ADMIN_SECTION(s)',section)
+                  smoke(owner,'owner-desktop/'+section)
+
+              om=b.new_page(viewport={'width':390,'height':844},locale='en-US')
+              observe(om,'owner-mobile')
+              login(om,owner_email)
+              om.evaluate("()=>window.switchPlatform('admin')")
+              om.wait_for_selector('#adminContent',state='visible',timeout=30000)
+              for section in admin_sections:
+                  om.evaluate('(s)=>window.VELORA_CANONICAL_ADMIN_SECTION(s)',section)
+                  smoke(om,'owner-mobile/'+section)
+              om.evaluate("()=>window.VELORA_V5_SET_LANGUAGE('ar')")
+              om.wait_for_timeout(900)
+              for section in ['dashboard','subscriptionControl','gift_cards','legal','payoutControl','sellerAdControl']:
+                  om.evaluate('(s)=>window.VELORA_CANONICAL_ADMIN_SECTION(s)',section)
+                  smoke(om,'owner-mobile/ar-'+section)
+
+              for p in [customer,cm,seller,sm,owner,om]: p.close()
+              b.close()
+
+          out['browser_errors']=list(dict.fromkeys(out['browser_errors']))[:100]
+          out['passed']=not out['failures'] and not out['browser_errors']
+          with open('velora-full-surface-smoke-evidence.json','w',encoding='utf-8') as f: json.dump(out,f,ensure_ascii=False,indent=2)
+          print(json.dumps({'passed':out['passed'],'failures':out['failures'],'browser_errors':out['browser_errors'],'surface_count':len(out['surfaces'])},ensure_ascii=False,indent=2))
+          sys.exit(0 if out['passed'] else 1)
+          PY
+
+      - name: Upload full surface smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-full-surface-smoke-evidence
+          path: |
+            velora-full-surface-smoke-evidence.json
+            surface-smoke-local.log
+          retention-days: 7
