@@ -159,3 +159,25 @@ Important boundary:
 - the evidence workflow is fixed read-only and Restore-Test only;
 - no payout, return, ad campaign, subscription, provider settlement, or real-money fixture is created;
 - a passing reconciliation invariant does not prove external provider/bank settlement or Production readiness.
+
+## 9. Zero-Cost COD Contract Lab
+
+Files:
+- `tools/velora_zero_cost_cod_lab.py`
+- `.github/workflows/velora-zero-cost-cod-lab.yml`
+- `.github/workflows/velora-zero-cost-cod-evidence.yml`
+- `.remote/cod-lab.json`
+
+Purpose:
+- verify the current Egypt/EGP COD route from the existing payment contract;
+- keep COD explicitly classified as `manual_tender`, not provider settlement;
+- prove negative geography/currency gating without mutating orders or creating payment fixtures.
+
+Current live Restore-Test evidence:
+- `velora_get_operational_payment_methods('EG','EGP')` returns Card via Paymob TEST and Cash on Delivery via the existing cash-on-delivery route;
+- `US/USD` and `EG/USD` return no operational payment methods under the current function contract;
+- no order/payment mutation was executed.
+
+Boundary:
+- this verifies payment-method availability and guard shape only;
+- cash collection, delivery reconciliation, refunds, bank settlement, and Production payment operations remain separate evidence gates.
