@@ -16034,3 +16034,90 @@ DECISION:
 STATUS:
 - Zero-cost execution/evidence layer = CLOSED-DONE for the currently implemented tooling described above.
 - Commercial/provider/legal/Production gates remain separately OPEN/BLOCKED where already documented.
+
+
+## MESSAGE 96 — ZERO-COST FINANCIAL RECONCILIATION LAYER (2026-09-30)
+
+CLASSIFICATION:
+- Zero-cost financial reconciliation tooling = CLOSED-DONE for the currently defined engineering invariants and Restore-Test evidence scope.
+- The live Restore-Test reconciliation query passed with no invariant errors.
+- No schema/function/business-policy mutation was required.
+- External payout settlement, provider settlement, advertising accounting, legal publication, and Production finance remain separately OPEN / NOT EVIDENCED where previously documented.
+
+IMPLEMENTED TOOLS:
+1. `tools/velora_financial_reconciliation_lab.py`
+   - dependency-free deterministic lab;
+   - validates canonical source ownership at the UI boundary;
+   - tests commission arithmetic, payout-to-ledger shape, purpose-specific payment bindings, and refund evidence gates;
+   - records explicit commercial/provider/Production boundaries without activating them.
+2. `.github/workflows/velora-zero-cost-financial-reconciliation-lab.yml`
+   - zero-cost GitHub Actions deterministic gate;
+   - runs Python lab plus bounded `node --check` on governed checkout/seller/returns sources.
+3. `.github/workflows/velora-zero-cost-financial-evidence.yml`
+   - fixed read-only Restore-Test probes for commissions, payouts, payout items, payout ledger entries, payment attempts, and returns;
+   - derives reconciliation errors without arbitrary SQL or write access;
+   - treats the absence of a positive seller-ad fixture as NOT EVIDENCED, not as a manufactured PASS.
+4. `.remote/financial-reconciliation.json`
+   - explicit no-write / no-Production / no-real-money descriptor.
+
+SOURCE RECONCILIATION:
+- Checkout source ownership verified in `src/scripts/13-payments.js` using the stable `__VELORA_CHECKOUT_REFERENCE` and `__VELORA_CHECKOUT_SUBMITTING` guards.
+- Seller subscription/advertising UI ownership verified in `src/scripts/35-seller.js` using `v39LoadSubscription`, `v39LoadAds`, and the Restore-Test subscription checkout boundary.
+- Seller payout request UI ownership verified in `src/scripts/35-seller.js` using `v39LoadPayouts` and `velora_request_seller_payout`.
+- Customer return/cancellation ownership verified in `src/scripts/71-customer-orders-returns.js` using `velora_request_return` and `velora_cancel_order`.
+- Backend financial execution remains source-of-truth in the existing Supabase RPC/function contract; the lab does not create a second backend authority.
+
+LIVE RESTORE-TEST DATABASE VERIFICATION:
+- Commission rows = 20.
+- Commission arithmetic/formula errors = 0 using the observed percentage contract `commission = gross × rate / 100`.
+- Payouts = 0.
+- Seller payout items = 0.
+- Paid payouts missing a payout ledger entry = 0.
+- Payout items missing a parent payout = 0.
+- Duplicate payout order-item assignments = 0.
+- Payment attempts = 64.
+- Subscription payment attempts = 0; subscription binding errors = 0.
+- Seller-ad payment attempts = 0; seller-ad binding errors = 0.
+- Returns = 0.
+- Refunded returns = 0; refunded-return evidence errors = 0.
+- Seller-ad campaigns = 0.
+- Seller-ad payment attempts = 0.
+- Seller-ad sale-ledger references = 0.
+- Overall reconciliation invariants = TRUE.
+
+IMPORTANT RCA FROM VERIFICATION:
+- The first live reconciliation query incorrectly interpreted the `commissions.rate` field as a fractional decimal and reported 20 false formula errors.
+- Direct Restore-Test row inspection showed `rate=12.50` with `gross=160.00` and `commission=20.00`, proving the current contract stores the commission rate as a percentage.
+- The query was corrected to `gross × rate / 100`; the corrected live query returned 0 formula errors and overall reconciliation_invariants_pass = true.
+- The deterministic lab was corrected to the same canonical percentage semantics before final documentation.
+
+FINANCIAL BOUNDARIES:
+- Payout internal ledger bridge remains CLOSED-DONE at the existing contract boundary; no payout was fabricated.
+- Advertising accounting bridge remains OPEN because no canonical ledger mapping for seller advertising has been evidenced and no positive campaign/payment fixture exists.
+- External payout/bank settlement remains NOT EVIDENCED.
+- Subscription commercial policy and provider settlement remain OPEN as previously recorded.
+- Refund external execution remains a governed human/provider boundary; the return/refund lab only validates required evidence shape.
+- Production remains FROZEN.
+
+EVIDENCE BOUNDARY:
+- L1 Source = verified for the governed client ownership points.
+- L2 Restore-Test DB = verified by live read-only SQL.
+- L3 Contract/financial invariants = verified for the existing payout/payment/return shapes.
+- L4 Negative/guard semantics = simulated locally for refund and purpose-specific binding boundaries.
+- L5 CI = workflow definitions created; push-run completion is not independently reclassified here unless a run result is directly retrieved.
+- L6 Preview = unchanged; Vercel build-capacity/rate-limit boundary remains separate.
+- L7 Browser = no new Browser claim.
+- L8 Provider = no new provider settlement claim.
+- L9 Production = untouched/frozen.
+
+DECISION:
+- Keep the financial layer zero-cost-first: deterministic tests + fixed Restore-Test evidence replace repetitive manual reconciliation without pretending to be bank/provider settlement.
+- Do not add accounting schema/types, refund payout transports, or provider settlement code until the relevant commercial/accounting/provider contracts are governed and evidenced.
+- Continue to the next independent open track rather than rebuilding existing financial infrastructure.
+
+STATUS:
+- Zero-Cost Financial Reconciliation Layer = CLOSED-DONE (engineering/evidence scope).
+- Advertising financial accounting = OPEN.
+- External payout settlement = OPEN / NOT EVIDENCED.
+- Subscription commercial/provider completion = OPEN as previously recorded.
+- Production = FROZEN.
