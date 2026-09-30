@@ -15852,3 +15852,42 @@ STATUS:
 - Beauty individual surfaces remain under their previously recorded closures.
 - Beauty Aggregate combined exact-source Browser coverage = CLOSED-DONE.
 - Remaining project work continues from the OPEN areas already defined in this Master; do not reopen the aggregate RCA without contradictory runtime evidence.
+
+
+## MESSAGE 92 — SELLER SUBSCRIPTION LIFECYCLE CONTRACT RECONCILIATION (2026-09-30)
+
+CLASSIFICATION:
+- Subscription lifecycle orchestration is materially implemented at L1/L2/L3 in Restore-Test.
+- No new subscription business policy was invented.
+- No schema/function/UI mutation was required for this reconciliation.
+- Subscription commercial/provider completion remains OPEN.
+
+SOURCE / DATABASE FINDINGS:
+- Canonical Seller Subscription UI remains `src/scripts/35-seller.js` via `v39LoadSubscription()`; it reuses the existing entitlement, pricing, seller-legal readiness, acceptance, and Restore-Test Paymob checkout path.
+- Canonical purchase RPC `velora_start_subscription_purchase` enforces authenticated approved-seller/store ownership, store-country match, active non-Free plan, pricing resolution, card-method availability, idempotency, and a 30-minute pending window before creating the subscription payment attempt.
+- Subscription state synchronization `velora_sync_subscription_state` already defines pending -> active after captured payment, pending expiry -> cancelled, active expiry -> past_due/cancelled, past_due -> active after capture, and past_due -> expired after the existing 7-day grace rule.
+- Renewal orchestration already exists through `velora_run_renewal_batch`, `velora_create_subscription_renewal_payment_attempt_internal`, `velora_record_renewal_result`, and `velora_find_renewal_job_for_callback`.
+- Renewal mechanics include unique idempotency keys, claim/lease handling, retry backoff up to six attempts, requires-customer-action state, late-capture detection, and creation of the next active subscription period from the existing billing cycle.
+- The live `seller_subscription_renewal_jobs` table has 0 rows in Restore-Test, so no renewal execution was manufactured merely to create evidence.
+- `seller_subscriptions` has 0 rows and subscription payment attempts are 0 in the current Restore-Test state.
+- `subscription_plans` contains the expected Free/Basic/Pro/Enterprise catalog; current seller-paid plans and existing regional pricing remain the source of truth.
+- The Restore-Test Paymob subscription Edge Function `velora-subscription-paymob-checkout-restore-test` is ACTIVE (version 12) with JWT verification enabled and explicit TEST/Sandbox routing. It contains provider-intent creation, provider-session binding/recovery, and local initialization-failure compensation paths.
+- Current seller legal publication remains absent, so a real positive subscription purchase cannot proceed through the canonical legal gate without a separate human/legal publication decision.
+
+WHAT IS IMPLEMENTED VS OPEN:
+- CLOSED at engineering contract scope: initial subscription creation state machine, provider-session binding/recovery hooks, renewal job claim/idempotency/retry state machine, entitlement state synchronization, expiry notification scheduling hooks.
+- OPEN: cancellation business policy + access timing, upgrade/downgrade/replacement semantics, proration/no-proration, refund eligibility/allocation, tax/invoice treatment, entitlement effective-date policy, provider settlement/reconciliation, positive provider payment evidence, Production provider configuration/evidence, and legal publication.
+- The frontend explicitly keeps upgrade/change flow disabled pending a governed replacement policy; this is treated as intentional fail-closed behavior, not an implementation defect.
+
+EVIDENCE BOUNDARY:
+- L1 Source = verified for the existing orchestration.
+- L2 Restore-Test schema/function inventory = verified.
+- L3 private renewal/payment function access remains service-scoped where previously reviewed; no ACL mutation made.
+- L4/L5/L6/L7 positive commercial subscription execution is not claimed because the required legal/provider state is not present and no synthetic subscription/payment fixture was created.
+- L8 Provider subscription settlement = NOT EVIDENCED in this reconciliation.
+- L9 Production = not touched; Production remains FROZEN.
+
+DECISION:
+- Do not add cancellation/upgrade/refund/proration code until the corresponding commercial policies are explicitly governed.
+- Do not fabricate a subscription row, payment attempt, renewal job, provider payment, or payout to produce Browser evidence.
+- Continue the next independent OPEN item; subscription implementation is sufficiently inventoried to avoid rebuilding existing lifecycle machinery.
