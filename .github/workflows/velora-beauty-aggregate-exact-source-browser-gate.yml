@@ -139,7 +139,11 @@ jobs:
                             return {lang:document.documentElement.lang,dir:document.documentElement.dir};
                           }""")
                           evidence["checks"]["passport_ar_locale"]=ar["lang"]=="ar" and ar["dir"]=="rtl"
-                          evidence["checks"]["passport_ar_text_present"]="روتينك" in page.locator("#veloraQuizV2Modal").inner_text() or "ميزانيتك" in page.locator("#veloraQuizV2Modal").inner_text()
+                          # setLang() is synchronous but active-surface refresh is queued;
+                          # allow the existing runtime lifecycle to settle before inspecting the open editor.
+                          page.wait_for_timeout(800)
+                          passport_ar_text=page.locator("#veloraQuizV2Modal").inner_text()
+                          evidence["checks"]["passport_ar_text_present"]="روتينك" in passport_ar_text or "ميزانيتك" in passport_ar_text
 
                           back=page.evaluate("""async()=>{
                             await window.VELORA_V5_SET_LANGUAGE('en');
@@ -188,6 +192,19 @@ jobs:
                           page.wait_for_function("()=>document.getElementById('page-account')?.classList.contains('active')",timeout=15000)
                           page.wait_for_selector("#veloraBeautyJourney",state="visible",timeout=20000)
                           page.wait_for_selector("#veloraBeautyExperience",state="visible",timeout=20000)
+                          # These two surfaces resolve their Supabase-backed data asynchronously.
+                          # Wait for the existing render lifecycle to replace the skeleton states;
+                          # do not assert against transient "Loading…" text.
+                          page.wait_for_function("""()=>{
+                            const host=document.querySelector("#veloraBeautyJourney");
+                            if(!host) return false;
+                            return !host.querySelector(".velora-journey-loading") && !!host.querySelector(".velora-journey-grid");
+                          }""",timeout=20000)
+                          page.wait_for_function("""()=>{
+                            const host=document.querySelector("#veloraBeautyExperience");
+                            if(!host) return false;
+                            return !host.querySelector(".velora-journey-loading") && !!host.querySelector("[data-velora-experience-list]");
+                          }""",timeout=20000)
                           jt=page.locator("#veloraBeautyJourney").inner_text()
                           et=page.locator("#veloraBeautyExperience").inner_text()
                           evidence["checks"]["journey_present"]=True
