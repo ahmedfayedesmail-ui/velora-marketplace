@@ -1,0 +1,180 @@
+name: Velora Zero-Cost Financial Evidence
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".remote/financial-reconciliation.json"
+      - ".github/workflows/velora-zero-cost-financial-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: Fixed Restore-Test Financial Probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Validate secret
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: test -n "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      - name: Run fixed read-only probes
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: python
+        run: |
+          import json, os, urllib.request, urllib.error
+          from decimal import Decimal, InvalidOperation
+
+          base = os.environ["SUPABASE_URL"].rstrip("/")
+          key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          headers = {"apikey": key, "Authorization": "Bearer " + key, "Accept": "application/json"}
+
+          probes = {
+            "commissions": "commissions?select=id,order_id,order_item_id,seller_id,rate,gross_amount,commission_amount,seller_amount,status,order_currency_code,seller_currency_code,fx_rate_to_order_currency&limit=200",
+            "payouts": "payouts?select=id,seller_id,amount,currency,method,reference,status,processed_at&limit=200",
+            "seller_payout_items": "seller_payout_items?select=id,payout_id,order_item_id,gross_amount,commission_amount,net_amount&limit=500",
+            "payout_ledger_entries": "ledger_entries?select=id,seller_id,order_id,payout_id,type,amount,currency,status,reference,created_at&type=eq.payout&limit=500",
+            "payment_attempts": "payment_attempts?select=id,order_id,amount,currency_code,status,purpose,seller_subscription_id,seller_ad_campaign_id,provider_payment_id,payment_reference&limit=500",
+            "returns": "returns?select=id,order_id,store_id,status,refund_amount,currency_code,refund_reference,refund_provider,refund_method,refund_processed_at&limit=500"
+          }
+
+          evidence = {
+            "schema": "velora-zero-cost-financial-evidence.v1",
+            "project_ref": "arlaxqmhtvjwjbjinjfw",
+            "results": {},
+            "derived": {},
+            "failures": []
+          }
+
+          for name, path in probes.items():
+            request = urllib.request.Request(base + "/rest/v1/" + path, headers=headers, method="GET")
+            try:
+              with urllib.request.urlopen(request, timeout=25) as response:
+                body = json.loads(response.read().decode("utf-8") or "null")
+                rows = body if isinstance(body, list) else []
+                evidence["results"][name] = {
+                  "http_status": response.status,
+                  "row_count": len(rows),
+                  "rows": rows[:200]
+                }
+            except urllib.error.HTTPError as exc:
+              prefix = exc.read().decode("utf-8", errors="replace")[:500]
+              evidence["results"][name] = {"http_status": exc.code, "body_prefix": prefix}
+              evidence["failures"].append(name + ":http_" + str(exc.code))
+            except Exception as exc:
+              evidence["failures"].append(name + ":" + type(exc).__name__)
+
+          commissions = evidence["results"].get("commissions", {}).get("rows", [])
+          payout_rows = evidence["results"].get("payouts", {}).get("rows", [])
+          payout_items = evidence["results"].get("seller_payout_items", {}).get("rows", [])
+          payout_ledger = evidence["results"].get("payout_ledger_entries", {}).get("rows", [])
+          payment_attempts = evidence["results"].get("payment_attempts", {}).get("rows", [])
+          returns = evidence["results"].get("returns", {}).get("rows", [])
+
+          commission_errors = []
+          for row in commissions:
+            try:
+              gross = Decimal(str(row.get("gross_amount") or "0"))
+              fee = Decimal(str(row.get("commission_amount") or "0"))
+              seller = Decimal(str(row.get("seller_amount") or "0"))
+              rate = Decimal(str(row.get("rate") or "0"))
+              expected_fee = (gross * rate).quantize(Decimal("0.0001"))
+              if abs(gross - fee - seller) > Decimal("0.0001"):
+                commission_errors.append(row.get("id"))
+              elif abs(expected_fee - fee) > Decimal("0.0001"):
+                commission_errors.append(row.get("id"))
+            except (InvalidOperation, TypeError):
+              commission_errors.append(row.get("id"))
+
+          payout_ledger_by_payout = {}
+          for row in payout_ledger:
+            payout_id = row.get("payout_id")
+            if payout_id:
+              payout_ledger_by_payout[payout_id] = payout_ledger_by_payout.get(payout_id, 0) + 1
+
+          paid_payout_missing_ledger = []
+          payout_reference_errors = []
+          for row in payout_rows:
+            status = str(row.get("status") or "")
+            payout_id = row.get("id")
+            if status == "paid":
+              if payout_ledger_by_payout.get(payout_id, 0) != 1:
+                paid_payout_missing_ledger.append(payout_id)
+              if not row.get("reference") or not row.get("method"):
+                payout_reference_errors.append(payout_id)
+
+          payout_item_errors = []
+          seen_order_items = set()
+          payout_ids = {row.get("id") for row in payout_rows}
+          for row in payout_items:
+            order_item_id = row.get("order_item_id")
+            if order_item_id in seen_order_items:
+              payout_item_errors.append(order_item_id)
+            seen_order_items.add(order_item_id)
+            if row.get("payout_id") not in payout_ids:
+              payout_item_errors.append(row.get("id"))
+
+          purpose_binding_errors = []
+          for row in payment_attempts:
+            purpose = str(row.get("purpose") or "")
+            if purpose == "subscription" and not row.get("seller_subscription_id"):
+              purpose_binding_errors.append(row.get("id"))
+            if purpose == "seller_ad" and not row.get("seller_ad_campaign_id"):
+              purpose_binding_errors.append(row.get("id"))
+
+          refunded_return_errors = []
+          for row in returns:
+            if str(row.get("status") or "") == "refunded":
+              required = ["refund_reference", "refund_provider", "refund_method", "refund_processed_at"]
+              if any(not row.get(field) for field in required):
+                refunded_return_errors.append(row.get("id"))
+
+          evidence["derived"] = {
+            "commission_count": len(commissions),
+            "commission_arithmetic_errors": commission_errors,
+            "payout_count": len(payout_rows),
+            "paid_payout_missing_ledger": paid_payout_missing_ledger,
+            "payout_reference_errors": payout_reference_errors,
+            "payout_item_count": len(payout_items),
+            "payout_item_errors": payout_item_errors,
+            "payment_attempt_count": len(payment_attempts),
+            "purpose_binding_errors": purpose_binding_errors,
+            "return_count": len(returns),
+            "refunded_return_errors": refunded_return_errors,
+            "ad_accounting_positive_fixture": False,
+            "ad_accounting_status": "NOT_EVIDENCED_WHEN_NO_SELLER_AD_CAMPAIGN_EXISTS",
+            "external_payout_settlement": "NOT_EVIDENCED",
+            "real_money_moved": False
+          }
+
+          hard_failures = (
+            commission_errors
+            + paid_payout_missing_ledger
+            + payout_reference_errors
+            + payout_item_errors
+            + purpose_binding_errors
+            + refunded_return_errors
+          )
+          evidence["status"] = "PASS" if not evidence["failures"] and not hard_failures else "FAIL"
+          with open("financial-evidence.json", "w", encoding="utf-8") as stream:
+            json.dump(evidence, stream, ensure_ascii=False, indent=2)
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+          raise SystemExit(1 if evidence["status"] != "PASS" else 0)
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-financial-evidence
+          path: financial-evidence.json
+          retention-days: 3
