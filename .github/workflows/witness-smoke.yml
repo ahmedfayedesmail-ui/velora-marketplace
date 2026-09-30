@@ -1,0 +1,23 @@
+name: WITNESS Smoke
+
+on:
+  push:
+    branches:
+      - witness/focused-reentry-0-9-1-2026-09-30
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      TEST_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check
+        run: |
+          set -euo pipefail
+          test -n "$TEST_SECRET"
+          node --version
+          echo "WORKFLOW_SMOKE_OK"
