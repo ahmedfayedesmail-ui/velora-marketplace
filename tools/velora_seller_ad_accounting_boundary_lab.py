@@ -21,7 +21,7 @@ def main() -> int:
     if not source['exists']: failures.append('canonical seller advertising source missing')
     if source['missing']: failures.append('seller advertising source contract missing')
 
-    states = {'pending_payment': {'active','payment_failed','refunded'}, 'active': {'completed','refunded'}, 'payment_failed': set(), 'completed': set(), 'refunded': set()}
+    states = {'pending_payment': ['active','payment_failed','refunded'], 'active': ['completed','refunded'], 'payment_failed': [], 'completed': [], 'refunded': []}
     purchase_flow = ['validated','pending_campaign','seller_ad_payment_attempt','provider_capture_boundary','active']
     accounting = {
         'charge_recognition_event': 'OPEN',
@@ -34,7 +34,7 @@ def main() -> int:
     }
     checks = {
         'source_contract_present': source['exists'] and not source['missing'],
-        'state_machine_has_terminal_paths': states['pending_payment'] >= {'payment_failed','refunded'},
+        'state_machine_has_terminal_paths': set(states['pending_payment']) >= {'payment_failed','refunded'},
         'purchase_flow_keeps_provider_boundary': purchase_flow.index('provider_capture_boundary') > purchase_flow.index('seller_ad_payment_attempt'),
         'accounting_policy_not_activated': all(value == 'OPEN' for value in accounting.values()),
         'no_second_accounting_engine': True,
