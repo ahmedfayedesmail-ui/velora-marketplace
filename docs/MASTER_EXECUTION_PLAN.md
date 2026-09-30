@@ -14206,3 +14206,82 @@ Auth confirmation/login/recovery event
 CURRENT STATUS:
 - Authentication base lifecycle = CLOSED-DONE.
 - Remaining Auth/Resilience edges = OPEN and must be handled without regressing the closed base.
+
+
+## MESSAGE 72 — AUTH SESSION RESILIENCE / DUPLICATE-TAB + MULTI-CONTEXT CLOSURE (2026-09-30)
+
+CLASSIFICATION: AUTH RESILIENCE — CLOSED-DONE / AUTONOMOUS EXACT-SOURCE BROWSER EVIDENCE
+
+OBJECTIVE:
+- Close the remaining base-auth resilience edge carried from Message 71:
+  - duplicate-tab session continuity;
+  - refresh behavior after logout;
+  - separate browser-context / multi-device-style session behavior;
+  - global logout invalidation through the existing Supabase Auth contract.
+- Reuse the existing canonical Auth lifecycle and governed Supabase Auth APIs.
+- No new Auth engine, schema change, or Production action.
+
+EVIDENCE GATE:
+- Workflow: `.github/workflows/velora-auth-resilience-browser-gate.yml`
+- Final workflow run: `36670534199`
+- Job: `109744360901`
+- Head/source commit: `833b2159bf5205f987da5a6e85df0a034d8af731`
+- Conclusion: SUCCESS
+- Artifact: `11077394123`
+- Artifact schema: `velora-auth-resilience.v1`
+- Execution mode: `local_exact_source_ephemeral_fixture`
+
+PROVEN CHECKS:
+- duplicate-tab refresh preserves authenticated session = TRUE
+- same-context refresh after global logout fails closed = TRUE
+- separate browser contexts can authenticate independently = TRUE
+- global logout invalidates the separate-context refresh session = TRUE
+- observed post-global-logout refresh state:
+  - session present = false
+  - error = `refresh_token_not_found`
+- failures = []
+
+TEST-FLOW RCA:
+- The first resilience attempt failed because the test clicked the existing Velora Logout control without accepting its confirmation dialog.
+- That was a Browser test-flow defect, not an Auth runtime defect.
+- The gate was corrected to reuse the existing dialog-accept behavior already present in the canonical Auth Browser Gate.
+- No product Auth source was changed for this closure.
+
+ARCHITECTURE BOUNDARY:
+- Existing `window.mahaSupabase.auth.signOut()` remains the canonical logout mechanism.
+- Existing Supabase Auth session/storage behavior remains authoritative.
+- Duplicate-tab synchronization is observed through the existing Auth client lifecycle; no new global listener or MutationObserver was introduced.
+- Separate contexts were used only as an evidence model for isolated browser storage / multi-device-style sessions.
+- The result confirms the current global sign-out contract in Restore-Test.
+
+SAFETY:
+- Restore-Test only.
+- Ephemeral Auth fixture created and deleted by the gate.
+- Service-role credential remained runner-side and was not injected into page state or evidence.
+- Production remained frozen.
+- No schema mutation.
+- No business-logic change.
+- No payment/commerce/AI change.
+
+STATUS:
+- Authentication base lifecycle = CLOSED-DONE.
+- Auth duplicate-tab resilience = CLOSED-DONE.
+- Auth multi-context/global logout resilience = CLOSED-DONE.
+- Auth session refresh/logout boundary = CLOSED-DONE for the tested Restore-Test contract.
+- Production email/provider delivery remains a separate evidence boundary.
+- OTP numeric delivery, session expiry timing, and broader authorization-negative paths remain separate open Master sub-items.
+
+ACTION FLOW:
+Auth event
+-> session guard
+-> canonical identity hydration
+-> duplicate-tab / multi-context state propagation
+-> governed global sign-out
+-> refresh-token invalidation
+-> canonical application logout state
+-> evidence + fixture cleanup
+-> continue to remaining authorization/security edges.
+
+CARRY-FORWARD:
+- Do not reopen the closed Auth base or resilience path without a new regression.
+- Continue with the next independent non-legal OPEN item in Master order.
