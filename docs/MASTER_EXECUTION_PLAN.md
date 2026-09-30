@@ -14584,3 +14584,115 @@ STATUS:
 
 NEXT:
 - Continue to the next independent non-legal OPEN item without reopening the current localization contract.
+
+
+## MESSAGE 78 — OWNER GOVERNANCE CONTROL-PLANE VISIBILITY CLOSURE (2026-09-30)
+
+CLASSIFICATION:
+- OWNER GOVERNANCE VISIBILITY = CLOSED-DONE AT SOURCE / DB CONTRACT / EXACT-SOURCE BROWSER
+- FULL OWNER CONTROL-PLANE COMPLETENESS = OPEN
+
+OBJECTIVE:
+- Execute the next independent non-legal OPEN item after Auth/Product Detail/Localization verification.
+- Reuse the existing canonical Owner/Admin shell and existing governed Supabase control-plane RPCs.
+- Surface launch/readiness/reconciliation visibility to the authenticated Owner without creating a second governance engine, new schema, or duplicate audit system.
+- Verify the Owner surface in authenticated Chromium against the exact checked-out source.
+
+RESEARCH / REUSE RESULT:
+- Existing Restore-Test functions were verified before implementation:
+  - `velora_get_launch_control_plane()`
+  - `velora_get_launch_readiness()`
+  - `velora_get_reconciliation_dashboard()`
+- Existing function authorization is staff-gated; the UI exposure is additionally restricted to the canonical `owner` role already resolved by `canonicalRoles()`.
+- Existing `velora_launch_gates` already contains the authoritative launch gate state, including the backup/rollback gate.
+- Restore-Test currently has an Owner role account available for governed Browser evidence.
+- No new RPC, table, schema, scheduler, listener, or permission system was justified.
+
+IMPLEMENTATION:
+- File: `src/scripts/12-localization.js`
+- Added canonical `renderCanonicalOwnerGovernance(expectedOperation)`.
+- Owner Governance Control Plane reuses the three existing RPCs above.
+- The panel exposes:
+  - overall launch-control status;
+  - core readiness counts;
+  - open reconciliation findings;
+  - backup/rollback gate status and evidence boundary;
+  - required launch gates and their current status/notes.
+- The panel is mounted in a stable `ownerGovernanceContent` shell outside the volatile `adminContent` renderer.
+- Owner shell visibility is automatically hidden outside the Dashboard section.
+- Existing admin operation tokens remain authoritative; the governance read is guarded by the same `adminPlatformOperation` stale-operation contract.
+- No MutationObserver, arbitrary global click listener, duplicate engine, or schema change was introduced.
+
+CONTRACT / TEST:
+- `tests/platform-reentry-contract.test.mjs` now locks:
+  - Owner governance helper presence;
+  - existing canonical launch/readiness/reconciliation RPC reuse;
+  - stable Owner governance shell;
+  - stale-operation protection.
+- Final Platform Re-entry Contract Gate:
+  - Run: `36672533489`
+  - Conclusion: SUCCESS
+- Final Zero-Cost Health Gate for commit `7358e390bece7ff9bfaf88eb8bea239850349263`:
+  - Run: `36672551055`
+  - Conclusion: SUCCESS
+
+BROWSER EVIDENCE:
+- Workflow: `.github/workflows/velora-seller-admin-reentry-browser-gate.yml`
+- Run: `36672551054`
+- Job: `109750483840`
+- Head/source commit: `7358e390bece7ff9bfaf88eb8bea239850349263`
+- Conclusion: SUCCESS
+- Artifact: `11078257544`
+- Execution mode: `local_exact_source`
+- Schema: `seller-admin-reentry-browser.v6`
+- Failures: `[]`
+- Browser errors: `[]`
+
+PROVEN OWNER CHECKS:
+- authenticated session = TRUE
+- authenticated user match = TRUE
+- first Owner Dashboard open = TRUE
+- canonical dashboard content = TRUE
+- Owner Governance Control Plane present = TRUE
+- close without refresh = TRUE
+- second open without refresh = TRUE
+- same document continuity = TRUE
+- Owner Governance Control Plane present after re-entry = TRUE
+- history back/forward checks = TRUE
+- exact-source Chromium page errors = 0
+
+OBSERVED CONTROL-PLANE STATE IN BROWSER EVIDENCE:
+- Owner Governance Control Plane rendered as a protected read-only governance surface.
+- Current launch status rendered as `blocked`, matching the existing required launch gates.
+- Backup/rollback gate rendered as `pending`, with the existing deployment-environment validation boundary.
+- Payment provider and cryptographic webhook gates remain `blocked`.
+- Reconciliation open findings rendered as the current Restore-Test value.
+- These values are displayed from the existing canonical RPCs/gates; no synthetic readiness state was introduced.
+
+BOUNDARY:
+- This closes Owner governance visibility and exact-source Browser proof for the implemented scope.
+- It does NOT claim the entire Owner control plane is complete.
+- Full privileged action matrix, complete exception tooling, full launch/backup operational drill, and all Owner-specific end-to-end governance workflows remain tracked separately until their own evidence gates close.
+- Actual Production backup remains blocked by the previously recorded missing governed credentials/encryption key.
+- Vercel exact-current-HEAD Preview remains independently blocked by the known deployment-capacity/rate-limit boundary.
+- Production remains FROZEN.
+- No Production mutation was performed.
+
+ACTION FLOW:
+EVENT: Owner enters governance Dashboard
+-> AUTH/ROLE: authenticated Owner + canonical role lookup
+-> GUARD: Owner role + active canonical admin platform
+-> VALIDATION: existing launch/readiness/reconciliation contracts
+-> STATE: read-only governance snapshot
+-> AUTOMATIC SIDE EFFECT: none; no mutation
+-> NEXT EVENT: Owner can navigate to existing governed operational sections
+-> AUDIT/RETRY: existing RPC/read contracts and stale-operation guard
+-> HUMAN EXCEPTION: actual launch/cutover/backup/legal/fraud/provider decisions remain governed Owner exceptions
+
+STATUS:
+- Owner governance visibility = CLOSED-DONE for this implemented scope.
+- Owner full control-plane completeness = OPEN.
+- Production = FROZEN.
+
+NEXT:
+- Continue with the next independent non-legal OPEN Master item without reopening the closed Owner governance visibility path.
