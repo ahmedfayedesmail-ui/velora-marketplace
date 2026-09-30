@@ -15940,3 +15940,40 @@ EVIDENCE BOUNDARY:
 - L4/L5/L7 financial positive execution = NOT EVIDENCED because no real paid advertising campaign exists and synthetic financial evidence is prohibited.
 - L8 provider settlement = NOT EVIDENCED for advertising.
 - L9 Production = untouched; Production remains FROZEN.
+
+
+## MESSAGE 94 — PAYOUT EXECUTION / LEDGER CONTRACT RECONCILIATION (2026-09-30)
+
+CLASSIFICATION:
+- Payout request eligibility and external-execution recording are already implemented in the canonical financial contract.
+- Internal payout-to-ledger consistency is evidenced at L1/L2/L3.
+- Real external payout settlement remains OPEN / NOT EVIDENCED because it is an irreversible financial action and no legitimate payable payout exists in current Restore-Test state.
+
+CANONICAL CONTRACT:
+- `velora_request_seller_payout` is seller-scoped and requires an approved seller + approved store.
+- Eligibility is derived from finalized commissions on paid + delivered orders, with the existing delivered-plus-7-day return-window guard, and excludes order items already attached to a payout.
+- A pending payout and its `seller_payout_items` are created transactionally from that canonical eligible set.
+- `velora_record_payout_execution` is Owner/Staff-governed, requires a real execution method + external reference, is idempotent for the same already-paid reference, updates the payout to paid, and writes the corresponding posted negative `ledger_entries` payout row keyed by the payout.
+- `velora_get_payout_control_plane` explicitly reports paid payouts that are missing a corresponding payout ledger entry, providing a reconciliation visibility check.
+
+RESTORE-TEST STATE:
+- `payouts` = 0.
+- `seller_payout_items` = 0.
+- Finalized commissions = 5 in the current live query.
+- Current derived balance before the delivery-window constraint = 0 for the queried finalized paid/delivered commission set.
+- Therefore there is no legitimate payout available to execute in the current Restore-Test state.
+- No payout, bank transfer, or synthetic financial fixture was created.
+
+DECISION:
+- No payout code or schema change is justified now.
+- Do not create a fake payable payout merely to obtain Browser/provider evidence.
+- The existing payout ledger bridge is not an open implementation defect.
+- The remaining payout track is external settlement/reconciliation evidence, exception handling, and Production readiness under the existing human governance gate.
+
+EVIDENCE BOUNDARY:
+- L1 Source = verified canonical request/execution-recording/reconciliation contracts.
+- L2 DB = verified live payout/commission state.
+- L3 Contract/authorization = Owner/Staff execution recording guard remains canonical.
+- L4/L5/L7 positive payout execution = NOT EVIDENCED because no real payable payout exists and synthetic evidence is prohibited.
+- L8 external financial settlement = NOT EVIDENCED.
+- L9 Production = untouched; Production remains FROZEN.
