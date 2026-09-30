@@ -161,18 +161,16 @@ jobs:
                           page.wait_for_timeout(1200)
                           page.evaluate("() => window.switchPlatform('seller')")
                           page.wait_for_function("() => document.getElementById('sellerPlatform')?.classList.contains('active')",timeout=15000)
-                          page.wait_for_function(
-                              """() => !!document.getElementById('veloraSellerSubscription39') &&
-                                       !/Loading subscription/i.test(document.getElementById('veloraSellerSubscription39')?.innerText||'') &&
-                                       !!document.querySelector('#veloraSellerSubscription39 #v39Subscribe')""",
-                              timeout=30000,
-                          )
+                          page.wait_for_selector("#veloraSellerSubscription39",state="attached",timeout=30000)
+                          page.wait_for_timeout(6000)
                           sub=page.locator("#veloraSellerSubscription39")
                           button=page.locator("#v39Subscribe")
                           plan=page.locator("#v39Plan")
                           evidence["checks"]["subscription_surface_present"]=sub.count()==1
                           evidence["checks"]["subscription_surface_visible"]=sub.is_visible() if sub.count() else False
                           evidence["checks"]["subscription_button_present"]=button.count()==1
+                          evidence["checks"]["subscription_host_text"]=sub.inner_text().strip() if sub.count() else ""
+                          evidence["checks"]["subscription_host_html_length"]=len(sub.inner_html()) if sub.count() else 0
                           evidence["checks"]["paid_plan_options"]=plan.locator("option").count() if plan.count() else 0
                           text_content=sub.inner_text() if sub.count() else ""
                           for required in ["Basic","Pro","Enterprise"]:
@@ -191,6 +189,10 @@ jobs:
                           for required in ["Basic","Pro","Enterprise"]:
                               if not evidence["checks"].get("contains_"+required.lower()):
                                   evidence["failures"].append("MISSING_PLAN:"+required)
+
+                          if evidence["checks"]["subscription_button_present"] is not True:
+                              evidence["failures"].append("SUBSCRIPTION_BUTTON_NOT_RENDERED")
+                              raise RuntimeError("SUBSCRIPTION_RUNTIME_NOT_READY:" + evidence["checks"]["subscription_host_text"][:300])
 
                           button.click()
                           page.wait_for_function(
