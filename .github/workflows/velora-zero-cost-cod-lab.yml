@@ -1,0 +1,43 @@
+name: Velora Zero-Cost COD Contract Lab
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "tools/velora_zero_cost_cod_lab.py"
+      - ".github/workflows/velora-zero-cost-cod-lab.yml"
+      - ".remote/cod-lab.json"
+      - "src/scripts/13-payments.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lab:
+    name: Deterministic COD Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Run dependency-free COD lab
+        run: python3 tools/velora_zero_cost_cod_lab.py
+      - name: Syntax gate
+        run: node --check src/scripts/13-payments.js
+      - name: Publish summary
+        if: always()
+        run: |
+          cat zero-cost-cod-lab.json >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-cod-lab
+          path: zero-cost-cod-lab.json
+          retention-days: 3
