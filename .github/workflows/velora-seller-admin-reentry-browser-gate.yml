@@ -479,6 +479,18 @@ jobs:
                       "text_length": len(finops_root.inner_text()) if finops_root.count() else 0,
                   }
                   page.screenshot(path="owner-finops-control.png", full_page=True)
+                  page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('subscriptionControl')""")
+                  page.wait_for_function(
+                      "() => !!document.querySelector('#adminContent [data-subscription-control=" + '"' + "true" + '"' + "]')",
+                      timeout=15000,
+                  )
+                  subscription_root = page.locator('#adminContent [data-subscription-control="true"]')
+                  role["subscription_control"] = {
+                      "present": subscription_root.count() == 1,
+                      "visible": subscription_root.first.is_visible() if subscription_root.count() else False,
+                      "text_length": len(subscription_root.inner_text()) if subscription_root.count() else 0,
+                  }
+                  page.screenshot(path="owner-subscription-control.png", full_page=True)
                   page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('dashboard')""")
                   page.wait_for_function(
                       "() => !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance=" + '"' + "launch-control" + '"' + "]') && !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-release-control=" + '"' + "true" + '"' + "]')",
@@ -571,6 +583,10 @@ jobs:
                       evidence["failures"].append("owner: finops control route not present")
                   if r.get("finops_control", {}).get("visible") is not True:
                       evidence["failures"].append("owner: finops control route not visible")
+                  if r.get("subscription_control", {}).get("present") is not True:
+                      evidence["failures"].append("owner: subscription control route not present")
+                  if r.get("subscription_control", {}).get("visible") is not True:
+                      evidence["failures"].append("owner: subscription control route not visible")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
@@ -630,5 +646,6 @@ jobs:
             owner-release-control.png
             owner-payout-control.png
             owner-finops-control.png
+            owner-subscription-control.png
             reentry-local-server.log
           retention-days: 7

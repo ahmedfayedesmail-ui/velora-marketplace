@@ -74,6 +74,20 @@ assert.match(canonical, /data-payout-control="true"/);
 assert.match(canonical, /velora_get_payout_control_plane/);
 assert.match(canonical, /velora_record_payout_execution/);
 assert.match(canonical, /Record execution/);
+const subscriptionMigration = read('supabase/migrations/20260930081000_owner_subscription_control_plane_read.sql');
+assert.match(subscriptionMigration, /create or replace function public\.velora_get_subscription_control_plane/);
+assert.match(subscriptionMigration, /not public\.velora_is_staff\(\)/);
+assert.match(subscriptionMigration, /seller_subscription_renewal_jobs/);
+assert.match(subscriptionMigration, /revoke all on function public\.velora_get_subscription_control_plane\(\)/);
+assert.match(subscriptionMigration, /grant execute on function public\.velora_get_subscription_control_plane\(\) to authenticated/);
+assert.match(canonical, /subscriptionControl:'Subscription Control'/);
+assert.match(canonical, /section==='subscriptionControl'[\s\S]*?renderCanonicalSubscriptionControl\(operation\)/);
+assert.match(canonical, /data-subscription-control="true"/);
+assert.match(canonical, /velora_get_subscription_control_plane/);
+assert.match(canonical, /VELORA_RENDER_SUBSCRIPTION_CONTROL/);
+assert.match(canonical, /read-only visibility over the existing seller subscription/);
+console.log('✅ Owner subscription control-plane source contract passed');
+
 console.log('✅ Payout control-plane source contract passed');
 
 const finopsDomain = read('src/scripts/04-payments.js');
