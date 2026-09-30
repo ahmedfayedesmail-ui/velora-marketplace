@@ -1,0 +1,34 @@
+name: Velora Zero-Cost Provider Contract Lab
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "tools/velora_provider_contract_lab.py"
+      - ".github/workflows/velora-zero-cost-provider-contract-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lab:
+    name: Provider Contract Simulation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Run provider contract lab
+        run: python3 tools/velora_provider_contract_lab.py
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-provider-contract-lab
+          path: provider-contract-lab.json
+          retention-days: 3
