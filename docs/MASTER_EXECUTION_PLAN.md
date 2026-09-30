@@ -14285,3 +14285,64 @@ Auth event
 CARRY-FORWARD:
 - Do not reopen the closed Auth base or resilience path without a new regression.
 - Continue with the next independent non-legal OPEN item in Master order.
+
+
+## MESSAGE 73 — PRODUCT DETAIL EXACT-SOURCE BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION: PRODUCT DETAIL — CLOSED-DONE AT SOURCE/DB/CONTRACT/EXACT-SOURCE BROWSER SCOPE
+
+OBJECTIVE:
+- Close the carried Product Detail Browser evidence item without creating a new renderer, new metadata source, or Vercel dependency.
+- Reuse the existing repository-native Product Detail Browser Gate against the exact checked-out source.
+
+FINAL EVIDENCE:
+- Workflow: `.github/workflows/velora-product-detail-browser-gate.yml`
+- Run: `36670711467`
+- Job: `109744899983`
+- Head/source commit: `72e663fe8227064701bef373def99eae0c06fa63`
+- Conclusion: SUCCESS
+- Artifact: `11077658929`
+- Execution mode: `local_exact_source`
+- Target: `http://127.0.0.1:4173`
+- Product fixture: Test Vitamin C Serum
+- Product UUID: `21d977a0-111b-4bb4-9736-0f2994294d48`
+
+PROVEN BROWSER CHECKS:
+- HTTP 200 = TRUE
+- authenticated Supabase session = TRUE
+- Product Detail modal active = TRUE
+- product name visible = TRUE
+- description visible = TRUE
+- ingredients visible = TRUE
+- benefits visible = TRUE
+- how-to-use visible = TRUE
+- Best For / skin-type detail visible = TRUE
+- Add to Cart visible = TRUE
+- canonical detail merge present = TRUE
+- canonical ingredients = `[vitamin_c]`
+- canonical benefits = `[brightening, hydration, even_looking_skin]`
+- canonical how-to-use present = TRUE
+- canonical skin types = `[oily, dry, combination, normal]`
+- canonical concerns = `[pigmentation, dull_skin, acne_marks]`
+- canonical seasonal_fit present = TRUE
+- page errors = 0
+- failures = []
+
+BOUNDARY:
+- This closes exact-source Browser behavior.
+- Vercel Preview parity remains a separate L6 deployment-capacity boundary because Vercel deployment limits are still external to the exact-source gate.
+- Production remains frozen.
+- No schema/RPC/catalog-contract change was introduced by this closure.
+- Existing `src/scripts/52-s2a-variants.js` canonical metadata merge remains authoritative.
+
+STATUS:
+- Product Detail canonical metadata source contract = CLOSED-DONE.
+- Product Detail source rendering fix = CLOSED-DONE.
+- Product Detail contract test = covered by the continuous zero-cost health gate.
+- Product Detail exact-source Browser evidence = CLOSED-DONE.
+- Exact current-HEAD Vercel Preview parity = OPEN only where required by strict SHA policy/capacity.
+- Production = FROZEN.
+
+NEXT:
+- Preserve this closed Product Detail path.
+- Continue to the next independent non-legal OPEN item; do not reopen Product Detail without a regression.
