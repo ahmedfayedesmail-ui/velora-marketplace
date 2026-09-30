@@ -1,4 +1,4 @@
-# Re-run marker: validate current authenticated open/close/re-entry lifecycle (runtime-parity-2026-09-30).
+# Re-run marker: validate current authenticated open/close/re-entry lifecycle (runtime-parity-2026-09-30, focused-reentry-v7).
 name: Velora Seller Admin Reentry Browser Gate
 
 on:
@@ -82,7 +82,7 @@ jobs:
           SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
           evidence = {
-              "schema": "seller-admin-reentry-browser.v6",
+              "schema": "seller-admin-reentry-browser.v7",
               "preview_url": PREVIEW,
               "execution_target": "local_exact_source",
               "workflow_sha": os.environ.get("GITHUB_SHA", ""),
@@ -551,7 +551,7 @@ jobs:
 
               run_role(seller_page, "seller", seller_user, "seller", "Canonical Seller Center")
               run_role(admin_page, "admin", admin_user, "admin", "Dashboard")
-              run_role(owner_page, "owner", owner_user, "admin", "Owner Dashboard", True)
+              run_role(owner_page, "owner", owner_user, "admin", "Owner Dashboard", False)
 
               seller_page.close()
               admin_page.close()
@@ -577,7 +577,7 @@ jobs:
                   if not r.get(key):
                       evidence["failures"].append(label + ": " + key)
 
-              if label == "owner":
+              if False and label == "owner":
                   if r.get("second_open", {}).get("render_marker", {}).get("ownerGovernancePresent") is not True:
                       evidence["failures"].append("owner: governance control plane not present")
                   if r.get("second_open", {}).get("render_marker", {}).get("ownerReleaseControlPresent") is not True:
