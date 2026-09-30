@@ -29,7 +29,7 @@ jobs:
     env:
       SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      APP_URL: http://127.0.0.1:4173
+      APP_URL: http://localhost:4173
       E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
       E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
     steps:
@@ -67,7 +67,7 @@ jobs:
 
       - name: Run authenticated push browser evidence
         run: |
-          python3 - <<'PY'
+          xvfb-run -a python3 - <<'PY'
           import json
           import os
           import sys
@@ -113,12 +113,13 @@ jobs:
               return value if isinstance(value, list) else []
 
           with sync_playwright() as pw:
-              browser = pw.chromium.launch(headless=True)
+              browser = pw.chromium.launch(headless=False)
               context = browser.new_context(
                   viewport={"width": 390, "height": 844},
                   locale="en-US",
                   permissions=["notifications"],
               )
+              context.grant_permissions(["notifications"], origin=APP)
               page = context.new_page()
               page_errors = []
 
