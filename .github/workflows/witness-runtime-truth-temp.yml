@@ -22,12 +22,15 @@ jobs:
         with:
           path: velora
 
-      - name: Checkout WITNESS main
-        uses: actions/checkout@v4
-        with:
-          repository: ahmedfayedesmail-ui/witness-engine
-          ref: main
-          path: witness
+      - name: Fetch WITNESS main source
+        run: |
+          set -euo pipefail
+          rm -rf witness /tmp/witness.tar.gz
+          curl -fsSL https://codeload.github.com/ahmedfayedesmail-ui/witness-engine/tar.gz/refs/heads/main -o /tmp/witness.tar.gz
+          tar -xzf /tmp/witness.tar.gz -C /tmp
+          mv /tmp/witness-engine-main witness
+          test -f witness/bin/witness.js
+          test -f witness/src/business-truth-drafts.js
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -225,8 +228,5 @@ jobs:
           path: |
             velora-witness-runtime/
             velora-business-truth-drafts.json
-            witness-grant.json
-            profiles.json
-            profiles/
             /tmp/velora-runtime.log
           retention-days: 7
