@@ -14528,3 +14528,59 @@ STATUS:
 NEXT:
 - Resume actual DR execution only after the governed Production backup credentials/encryption key are deliberately configured.
 - Continue unrelated technical OPEN items meanwhile.
+
+
+## MESSAGE 77 — LOCALIZATION EXACT-SOURCE BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION: LOCALIZATION — CLOSED-DONE FOR CURRENT EN/AR RUNTIME CONTRACT / STALE ES-EG FINDING PRESERVED
+
+OBJECTIVE:
+- Close the carried Localization Browser evidence gap for the currently exposed language contract.
+- Verify the real V5 language authority in exact-source Chromium rather than infer behavior from source.
+- Preserve the existing deterministic localization architecture.
+
+FINAL EVIDENCE:
+- Workflow: `.github/workflows/velora-localization-browser-gate.yml`
+- Run: `36671662614`
+- Job: `109747766836`
+- Head/source commit: `d2a6d9bacf904bd66ef0257c70ab311254749b5b`
+- Conclusion: SUCCESS
+- Artifact: `11078825242`
+- Execution mode: `local_exact_source`
+
+PROVEN CHECKS:
+- HTTP 200 = TRUE
+- V5 setter available = TRUE
+- English paint = TRUE
+  - lang=en
+  - dir=ltr
+  - stored=en
+- Arabic paint = TRUE
+  - lang=ar
+  - dir=rtl
+  - stored=ar
+- Arabic runtime text present = TRUE
+- English restore = TRUE
+- Refresh persists English = TRUE
+- Authenticated session = TRUE
+- Authenticated locale switch = TRUE
+- page errors = 0
+- failures = []
+
+BOUNDARY:
+- Current exposed language contract is EN/AR.
+- Legacy FIND-BE-013 was explicitly triaged as STALE because it depends on an ES-EG combination that is outside the currently exposed language contract.
+- No Spanish runtime contract was reintroduced merely to satisfy the stale finding.
+- No second localization engine, observer, router, or language authority was created.
+- Production remains frozen.
+- Vercel Preview parity remains a separate deployment-capacity boundary.
+
+STATUS:
+- Localization V5 source/runtime authority = CLOSED-DONE.
+- Current EN/AR exact-source Browser proof = CLOSED-DONE.
+- Authenticated EN/AR switch = CLOSED-DONE.
+- FIND-BE-013 ES-EG = STALE / not active under current product contract.
+- Production = FROZEN.
+
+NEXT:
+- Continue to the next independent non-legal OPEN item without reopening the current localization contract.
