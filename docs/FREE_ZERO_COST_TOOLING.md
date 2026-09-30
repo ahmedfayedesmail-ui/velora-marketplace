@@ -133,3 +133,29 @@ Purpose:
 
 This does NOT call Paymob and therefore never counts as live Provider PASS.
 
+
+## 8. Zero-Cost Financial Reconciliation Lab
+
+Files:
+- `tools/velora_financial_reconciliation_lab.py`
+- `.github/workflows/velora-zero-cost-financial-reconciliation-lab.yml`
+- `.github/workflows/velora-zero-cost-financial-evidence.yml`
+- `.remote/financial-reconciliation.json`
+
+Purpose:
+- verify canonical financial invariants without creating data;
+- validate commission arithmetic, payout-to-ledger shape, purpose-specific payment bindings, and return/refund evidence gates;
+- create a repeatable, fixed read-only Restore-Test evidence snapshot.
+
+Current live Restore-Test evidence:
+- 20 commission rows; 0 commission arithmetic errors;
+- 0 payouts and 0 payout items;
+- 64 payment attempts; 0 subscription binding errors; 0 seller-ad binding errors;
+- 0 returns and 0 refunded returns with evidence errors;
+- 0 seller-ad campaigns / seller-ad payment attempts, so positive advertising accounting remains NOT EVIDENCED rather than fabricated;
+- reconciliation invariants = true.
+
+Important boundary:
+- the evidence workflow is fixed read-only and Restore-Test only;
+- no payout, return, ad campaign, subscription, provider settlement, or real-money fixture is created;
+- a passing reconciliation invariant does not prove external provider/bank settlement or Production readiness.
