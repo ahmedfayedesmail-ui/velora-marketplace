@@ -34,13 +34,70 @@ async function renderPayments(){const c=document.getElementById('adminContent');
  <div class="admin-section-card"><h3>🧪 Recent Payment Attempts</h3><div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>Created</th><th>Order</th><th>Amount</th><th>Status</th><th>Provider Ref</th><th>Error</th></tr></thead><tbody>${ats.map(a=>`<tr><td>${new Date(a.created_at).toLocaleString()}</td><td><code>${esc(a.order_id)}</code></td><td>${money(a.amount,a.currency_code)}</td><td><span class="velora-op-status ${cls(a.status)}">${esc(a.status)}</span></td><td>${esc(a.payment_reference||a.provider_session_id||'—')}</td><td>${esc(a.failure_reason||a.failure_code||'')}</td></tr>`).join('')||'<tr><td colspan="6">No payment attempts.</td></tr>'}</tbody></table></div></div>
  <div class="admin-section-card"><h3>🔔 Provider Webhooks</h3><div class="velora-op-table-wrap"><table class="velora-op-table"><thead><tr><th>Received</th><th>Provider</th><th>Event</th><th>Signature</th><th>Status</th><th>Retries</th></tr></thead><tbody>${wh.map(w=>`<tr><td>${new Date(w.received_at).toLocaleString()}</td><td>${esc(w.provider_code||'')}</td><td>${esc(w.event_type||w.event_id)}</td><td><span class="velora-pay-badge ${w.signature_verified?'ready':'pending'}">${w.signature_verified?'verified':'unverified'}</span></td><td>${esc(w.status||'received')}</td><td>${Number(w.retry_count||0)}</td></tr>`).join('')||'<tr><td colspan="6">No webhook events.</td></tr>'}</tbody></table></div></div>`;
  }catch(e){c.innerHTML=`<div class="velora-pay-note">❌ ${esc(e.message||e)}</div>`}}
-async function startPayment(orderId,methodId,country){const currency=String(document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase();const {data:ops,error:opError}=await db.rpc('velora_get_operational_payment_methods',{p_country_code:String(country||'EG').toUpperCase(),p_currency_code:currency});if(opError)throw opError;if(!Array.isArray(ops)||!ops.some(m=>m.id===methodId))throw new Error('PAYMENT_METHOD_NOT_OPERATIONAL');const idempotency=`VELORA-PAY-${orderId}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;const sess=db.functions?.invoke?db.functions.invoke.bind(db.functions):null;if(!sess)throw new Error('Payment session service unavailable');const eg=String(country||'').toUpperCase()==='EG';const functionName=eg&&currency==='EGP'?'velora-paymob-checkout':'velora-payment-session';const body={order_id:orderId,payment_method_id:methodId||null,country_code:String(country||'EG').toUpperCase(),idempotency_key:idempotency};if(functionName==='velora-paymob-checkout')body.return_url=window.location.href;const {data,error}=await sess(functionName,{body});if(error)throw error;return data}
+async function startPayment(orderId,methodId,country){const currency=String(document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase();const {data:ops,error:opError}=await db.rpc('velora_get_operational_payment_methods',{p_country_code:String(country||'EG').toUpperCase(),p_currency_code:currency});if(opError)throw opError;if(!Array.isArray(ops)||!ops.some(m=>m.id===methodId))throw new Error('PAYMENT_METHOD_NOT_OPERATIONAL');const idempotency=`VELORA-PAY-${orderId}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;const sess=db.functions?.invoke?db.functions.invoke.bind(db.functions):null;if(!sess)throw new Error('Payment session service unavailable');const eg=String(country||'').toUpperCase()==='EG';const functionName=eg&&currency==='EGP'?'velora-paymob-checkout':'velora-payment-session';const body={order_id:orderId,payment_method_id:methodId||null,country_code:String(country||'EG').toUpperCase(),idempotency_key:idempotency};if(functionName==='velora-paymob-checkout'){const returnUrl=new URL(window.location.href);returnUrl.searchParams.set('velora_order_id',String(orderId));body.return_url=returnUrl.toString();}const {data,error}=await sess(functionName,{body});if(error)throw error;return data}
+async function renderVerifiedPaymentReturn(){
+  if(window.__VELORA_PAYMENT_RETURN_WATCH__)return;
+  const url=new URL(window.location.href);
+  const orderId=String(url.searchParams.get('velora_order_id')||'').trim();
+  if(!orderId)return;
+  window.__VELORA_PAYMENT_RETURN_WATCH__=orderId;
+
+  let box=document.getElementById('veloraPaymentReturnStatus');
+  if(!box){
+    box=document.createElement('div');
+    box.id='veloraPaymentReturnStatus';
+    box.setAttribute('role','status');
+    box.setAttribute('aria-live','polite');
+    box.style.cssText='position:fixed;top:1rem;left:1rem;right:1rem;z-index:10050;padding:1rem 1.1rem;border-radius:14px;background:#fff;border:1px solid rgba(0,0,0,.12);box-shadow:0 10px 28px rgba(0,0,0,.14);font-weight:700;max-width:720px;margin:auto;';
+    document.body.appendChild(box);
+  }
+
+  const escape=typeof escapeHtml==='function'?escapeHtml:(v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m])));
+  const paint=(html)=>{box.innerHTML=html;box.hidden=false;};
+  paint('⏳ Payment is being verified…');
+
+  try{
+    const {data:userData,error:userError}=await db.auth.getUser();
+    if(userError)throw userError;
+    if(!userData?.user)throw new Error('Payment return requires authentication');
+
+    let terminal=null;
+    for(let attempt=1;attempt<=12;attempt++){
+      const orderResult=await db.from('orders').select('id,order_number,payment_status,status').eq('id',orderId).eq('customer_id',userData.user.id).maybeSingle();
+      if(orderResult.error)throw orderResult.error;
+      const order=orderResult.data;
+      const paid=String(order?.payment_status||'').toLowerCase()==='paid';
+      const confirmed=String(order?.status||'').toLowerCase()==='confirmed';
+      if(paid&&confirmed){
+        terminal={order};
+        break;
+      }
+      if(String(order?.payment_status||'').toLowerCase()==='failed')break;
+      if(attempt<12)await new Promise(resolve=>setTimeout(resolve,1500));
+    }
+
+    if(terminal){
+      paint('✅ <span data-witness-business-truth="payment-success">Payment successful</span> — Order #'+escape(terminal.order.order_number||orderId)+' is confirmed and paid.');
+      // Keep the order query parameter visible until this page leaves the verified
+      // payment-return state. WITNESS uses it to bind the exact returned order to
+      // the read-only business-truth contract; it contains no authentication secret.
+      return;
+    }
+
+    paint('ℹ️ Payment is still being verified. No successful payment claim was made yet.');
+  }catch(error){
+    console.error('Velora payment return verification failed:',error);
+    paint('⚠️ Payment verification is unavailable right now. No successful payment claim was made.');
+  }
+}
+
 window.VELORA_START_PAYMENT=startPayment;window.VELORA_RENDER_PAYMENTS=renderPayments;
 const prev=window.VELORA_CANONICAL_ADMIN_SECTION;
 window.VELORA_CANONICAL_ADMIN_SECTION=async function(section,btn){if(section==='payments')return renderPayments();return prev?prev(section,btn):undefined};
 const oldOpen=window.VELORA_OPEN_ADMIN;
 window.VELORA_OPEN_ADMIN=async function(){const r=oldOpen?await oldOpen():undefined;setTimeout(adminNav,100);return r};
 if(window.VELORA_CANONICAL_ADMIN_SECTION)setTimeout(adminNav,250);
+setTimeout(()=>{renderVerifiedPaymentReturn();},0);
 /* Upgrade checkout payment choices when the canonical checkout renders. */
 const decorate=async()=>{
   const box=document.querySelector('.payment-methods');

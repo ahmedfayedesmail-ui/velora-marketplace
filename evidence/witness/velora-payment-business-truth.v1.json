@@ -1,0 +1,54 @@
+{
+  "schema": "witness-business-truth.v1",
+  "checks": [
+    {
+      "id": "velora-payment-return-order-truth",
+      "title": "Velora payment return claim agrees with canonical order state",
+      "severity": "medium",
+      "personas": [
+        "customer"
+      ],
+      "when": {
+        "pathPattern": "^/.*$"
+      },
+      "browser": {
+        "successPattern": "Payment successful",
+        "mustContain": [
+          "Payment successful"
+        ]
+      },
+      "api": {
+        "method": "GET",
+        "path": "https://arlaxqmhtvjwjbjinjfw.supabase.co/rest/v1/orders?id=eq.{{query:velora_order_id}}&select=id,order_number,payment_status,status&limit=1",
+        "expectStatus": 200,
+        "observation": {
+          "mode": "cross-origin",
+          "allowedOrigins": [
+            "https://arlaxqmhtvjwjbjinjfw.supabase.co"
+          ],
+          "headersFromEnv": {
+            "apikey": "WITNESS_VELORA_SUPABASE_PUBLISHABLE_KEY",
+            "Authorization": "WITNESS_VELORA_SUPABASE_AUTHORIZATION"
+          }
+        }
+      },
+      "state": {
+        "assertions": [
+          {
+            "path": "[0].payment_status",
+            "equals": "paid"
+          },
+          {
+            "path": "[0].status",
+            "equals": "confirmed"
+          }
+        ]
+      },
+      "verification": {
+        "pollAttempts": 5,
+        "pollIntervalMs": 300
+      }
+    }
+  ],
+  "contractRevision": "2026-09-30.cross-origin-verified"
+}
