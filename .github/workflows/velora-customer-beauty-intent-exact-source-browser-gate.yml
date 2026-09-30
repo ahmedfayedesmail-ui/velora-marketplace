@@ -1,0 +1,334 @@
+name: Velora Customer Beauty Intent Exact-Source Browser Gate
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/scripts/61-s1-c-quiz-v2.js"
+      - "src/scripts/72-s1-e-customer-beauty-ai.js"
+      - "src/scripts/60-s1-c-routine-ux.js"
+      - ".github/workflows/velora-customer-beauty-intent-exact-source-browser-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: velora-customer-beauty-intent-exact-source
+  cancel-in-progress: true
+
+jobs:
+  browser-ai:
+    name: Customer NL -> Local Intent -> Passport -> Routine
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start exact-source local server
+        run: |
+          nohup python3 -m http.server 4173 -d src > customer-beauty-intent-local-server.log 2>&1 &
+          python3 - <<'PY'
+          import time
+          import urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=2) as response:
+                      if response.status == 200:
+                          print("exact-source local server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_EXACT_SOURCE_SERVER_NOT_READY")
+          PY
+
+      - name: Run exact-source authenticated Beauty Intent browser evidence
+        env:
+          APP_URL: http://127.0.0.1:4173
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from playwright.sync_api import sync_playwright
+
+          app = os.environ["APP_URL"].rstrip("/")
+          email = os.environ.get("E2E_EMAIL", "")
+          password = os.environ.get("E2E_PASSWORD", "")
+
+          evidence = {
+              "schema": "customer-beauty-intent-exact-source-browser.v1",
+              "execution_target": "local_exact_source",
+              "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+              "checks": {},
+              "failures": [],
+              "browser_errors": [],
+          }
+
+          if not email or not password:
+              evidence["failures"].append("E2E_CREDENTIALS_MISSING")
+              with open("customer-beauty-intent-browser-evidence.json", "w", encoding="utf-8") as f:
+                  json.dump(evidence, f, ensure_ascii=False, indent=2)
+              print(json.dumps(evidence, ensure_ascii=False, indent=2))
+              sys.exit(1)
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(
+                  viewport={"width": 1440, "height": 1000},
+                  locale="en-US",
+              )
+
+              network_requests = []
+              ai_endpoint_requests = []
+
+              page.on(
+                  "pageerror",
+                  lambda exc: evidence["browser_errors"].append("pageerror:" + str(exc)),
+              )
+              page.on(
+                  "console",
+                  lambda msg: evidence["browser_errors"].append("console:" + msg.text)
+                  if msg.type == "error" else None,
+              )
+              page.on(
+                  "request",
+                  lambda req: network_requests.append(req.url),
+              )
+              page.on(
+                  "request",
+                  lambda req: ai_endpoint_requests.append(req.url)
+                  if "velora-beauty-ai-intent" in req.url else None,
+              )
+
+              try:
+                  response = page.goto(app + "/#home", wait_until="domcontentloaded", timeout=60000)
+                  evidence["checks"]["http_status"] = response.status if response else None
+                  evidence["checks"]["title"] = page.title()
+
+                  # Verify the local interpreter contract directly without network.
+                  direct_ready = page.evaluate(
+                      """() => window.veloraBeautyAI?.interpret(
+                        'بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه'
+                      )""",
+                  )
+                  evidence["checks"]["direct_interpret_ready"] = bool(
+                      isinstance(direct_ready, dict) and direct_ready.get("decision") == "ready"
+                  )
+                  evidence["checks"]["direct_skin_type"] = (
+                      direct_ready.get("skin_type") if isinstance(direct_ready, dict) else None
+                  )
+                  evidence["checks"]["direct_goal"] = (
+                      direct_ready.get("goal") if isinstance(direct_ready, dict) else None
+                  )
+                  evidence["checks"]["direct_budget"] = (
+                      direct_ready.get("routine_budget") if isinstance(direct_ready, dict) else None
+                  )
+
+                  unsafe = page.evaluate(
+                      """() => window.veloraBeautyAI?.interpret('عايزة جرعة دواء لتشخيص حبوب بشرتي')""",
+                  )
+                  evidence["checks"]["unsafe_request_stays_unsafe"] = bool(
+                      isinstance(unsafe, dict) and unsafe.get("decision") == "unsafe"
+                  )
+
+                  unsupported = page.evaluate(
+                      """() => window.veloraBeautyAI?.interpret('كود خصم وشحن للطلب رقم 123')""",
+                  )
+                  evidence["checks"]["unsupported_request_stays_unsupported"] = bool(
+                      isinstance(unsupported, dict) and unsupported.get("decision") == "unsupported"
+                  )
+
+                  page.evaluate("() => openAuthModal('login')")
+                  page.locator("#loginEmail").fill(email)
+                  page.locator("#loginPassword").fill(password)
+                  page.locator("#authFormContent button[type='submit']").click()
+                  page.wait_for_timeout(3500)
+
+                  auth = page.evaluate(
+                      """async () => {
+                        const r = await window.mahaSupabase.auth.getSession();
+                        return {
+                          hasSession: !!r?.data?.session?.user,
+                          userId: r?.data?.session?.user?.id || null
+                        };
+                      }""",
+                  )
+                  evidence["checks"]["authenticated_session"] = bool(auth["hasSession"])
+                  evidence["checks"]["authenticated_user_id_present"] = bool(auth["userId"])
+
+                  if not auth["hasSession"]:
+                      evidence["failures"].append("AUTHENTICATED_SESSION_MISSING")
+                  else:
+                      page.evaluate("async () => { await window.veloraBeautyPassportV2.open(); }")
+                      page.wait_for_timeout(800)
+
+                      evidence["checks"]["natural_input_present"] = (
+                          page.locator("#veloraQuizIntentInput").count() == 1
+                      )
+                      evidence["checks"]["natural_submit_present"] = (
+                          page.locator("#veloraQuizIntentSubmit").count() == 1
+                      )
+
+                      page.locator("#veloraQuizIntentInput").fill(
+                          "بشرتي دهنية وعايزة ترطيب وميزانيتي حوالي 700 جنيه"
+                      )
+                      page.locator("#veloraQuizIntentSubmit").click()
+
+                      page.wait_for_function(
+                          "() => !!document.getElementById('veloraQuizConfirm')",
+                          timeout=10000,
+                      )
+
+                      review = page.locator("#veloraQuizBody")
+                      review_text = review.inner_text()
+                      evidence["checks"]["review_visible"] = review.is_visible()
+                      evidence["checks"]["review_text_present"] = "Review what we understood" in review_text
+                      evidence["checks"]["understood_oily"] = "Oily" in review_text
+                      evidence["checks"]["understood_hydration"] = "Hydration" in review_text
+                      evidence["checks"]["understood_budget"] = "EGP 500–1,000" in review_text
+
+                      page.locator("#veloraQuizConfirm").click()
+                      page.wait_for_function(
+                          "() => window.__VELORA_CURRENT_ROUTINE && "
+                          "['complete','partial','no_matches'].includes(window.__VELORA_CURRENT_ROUTINE.status)",
+                          timeout=20000,
+                      )
+
+                      routine_active = page.locator("#veloraRoutineUxModal.active").count() == 1
+                      routine_text = (
+                          page.locator("#veloraRoutineBody").inner_text()
+                          if page.locator("#veloraRoutineBody").count() else ""
+                      )
+                      current_routine = page.evaluate(
+                          "() => window.__VELORA_CURRENT_ROUTINE || null"
+                      )
+
+                      passport = page.evaluate(
+                          """async () => {
+                            const r = await window.mahaSupabase
+                              .from('beauty_profiles')
+                              .select('quiz_version,skin_type,goal,routine_budget')
+                              .maybeSingle();
+                            return r?.data || null;
+                          }""",
+                      )
+
+                      evidence["checks"]["routine_modal_active"] = routine_active
+                      evidence["checks"]["routine_built_from_passport"] = (
+                          "Built from your Beauty Passport" in routine_text
+                      )
+                      evidence["checks"]["routine_status"] = (
+                          current_routine.get("status")
+                          if isinstance(current_routine, dict) else None
+                      )
+                      evidence["checks"]["routine_step_count"] = (
+                          len(current_routine.get("steps", []))
+                          if isinstance(current_routine, dict) else 0
+                      )
+                      evidence["checks"]["passport_skin_type"] = (
+                          passport.get("skin_type") if isinstance(passport, dict) else None
+                      )
+                      evidence["checks"]["passport_goal"] = (
+                          passport.get("goal") if isinstance(passport, dict) else None
+                      )
+                      evidence["checks"]["passport_budget"] = (
+                          passport.get("routine_budget") if isinstance(passport, dict) else None
+                      )
+
+                  page.screenshot(path="customer-beauty-intent-exact-source.png", full_page=True)
+
+              except Exception as exc:
+                  evidence["failures"].append("BROWSER_EXCEPTION:" + str(exc))
+              finally:
+                  browser.close()
+
+          c = evidence["checks"]
+
+          if c.get("http_status") != 200:
+              evidence["failures"].append("LOCAL_SOURCE_HTTP_NOT_200")
+          if not c.get("direct_interpret_ready"):
+              evidence["failures"].append("DIRECT_LOCAL_INTERPRETER_NOT_READY")
+          if c.get("direct_skin_type") != "oily":
+              evidence["failures"].append("DIRECT_SKIN_TYPE_MISMATCH")
+          if c.get("direct_goal") != "hydration":
+              evidence["failures"].append("DIRECT_GOAL_MISMATCH")
+          if c.get("direct_budget") != "500_1000":
+              evidence["failures"].append("DIRECT_BUDGET_MISMATCH")
+          if not c.get("unsafe_request_stays_unsafe"):
+              evidence["failures"].append("UNSAFE_INPUT_NOT_BLOCKED")
+          if not c.get("unsupported_request_stays_unsupported"):
+              evidence["failures"].append("UNSUPPORTED_INPUT_NOT_BLOCKED")
+          if not c.get("authenticated_session"):
+              evidence["failures"].append("AUTHENTICATED_SESSION_MISSING")
+          if not c.get("natural_input_present"):
+              evidence["failures"].append("NATURAL_INPUT_MISSING")
+          if not c.get("natural_submit_present"):
+              evidence["failures"].append("NATURAL_SUBMIT_MISSING")
+          if not c.get("review_visible"):
+              evidence["failures"].append("REVIEW_NOT_VISIBLE")
+          if not c.get("review_text_present"):
+              evidence["failures"].append("REVIEW_TEXT_NOT_PRESENT")
+          if not c.get("understood_oily"):
+              evidence["failures"].append("OILY_INTENT_NOT_SHOWN")
+          if not c.get("understood_hydration"):
+              evidence["failures"].append("HYDRATION_INTENT_NOT_SHOWN")
+          if not c.get("understood_budget"):
+              evidence["failures"].append("BUDGET_INTENT_NOT_SHOWN")
+          if not c.get("routine_modal_active"):
+              evidence["failures"].append("ROUTINE_MODAL_NOT_ACTIVE")
+          if not c.get("routine_built_from_passport"):
+              evidence["failures"].append("ROUTINE_PASSPORT_BASIS_NOT_SHOWN")
+          if c.get("routine_status") not in ("complete", "partial", "no_matches"):
+              evidence["failures"].append("INVALID_ROUTINE_STATUS")
+          if c.get("passport_skin_type") != "oily":
+              evidence["failures"].append("PERSISTED_SKIN_TYPE_MISMATCH")
+          if c.get("passport_goal") != "hydration":
+              evidence["failures"].append("PERSISTED_GOAL_MISMATCH")
+          if c.get("passport_budget") != "500_1000":
+              evidence["failures"].append("PERSISTED_BUDGET_MISMATCH")
+          if ai_endpoint_requests:
+              evidence["failures"].append("PAID_OR_EXTERNAL_BEAUTY_AI_ENDPOINT_CALLED")
+
+          evidence["checks"]["ai_endpoint_requests"] = len(ai_endpoint_requests)
+          evidence["checks"]["total_network_requests"] = len(network_requests)
+          evidence["browser_errors"] = list(dict.fromkeys(evidence["browser_errors"]))[:50]
+          evidence["passed"] = not evidence["failures"] and not evidence["browser_errors"]
+
+          with open("customer-beauty-intent-browser-evidence.json", "w", encoding="utf-8") as f:
+              json.dump(evidence, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+          sys.exit(0 if evidence["passed"] else 1)
+          PY
+
+      - name: Upload exact-source Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-beauty-intent-exact-source-browser-evidence
+          path: |
+            customer-beauty-intent-browser-evidence.json
+            customer-beauty-intent-exact-source.png
+            customer-beauty-intent-local-server.log
+          retention-days: 7
