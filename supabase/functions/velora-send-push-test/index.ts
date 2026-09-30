@@ -89,6 +89,19 @@ export default {
     const errors: Array<{ subscription_id: string; status?: number }> = [];
 
     for (const subscription of subscriptions) {
+      const claimResult = await ctx.supabaseAdmin.rpc("velora_claim_push_delivery", {
+        p_notification_id: inserted.data.id,
+        p_subscription_id: subscription.id,
+      });
+
+      if (claimResult.error || claimResult.data !== true) {
+        errors.push({
+          subscription_id: subscription.id,
+          detail: "DELIVERY_CLAIM_FAILED",
+        });
+        continue;
+      }
+
       try {
         await webpush.sendNotification(
           {
@@ -102,12 +115,26 @@ export default {
           { TTL: 3600 },
         );
 
-        await ctx.supabaseAdmin.rpc("velora_mark_push_delivery", {
+        const deliveredResult = await ctx.supabaseAdmin.rpc("velora_mark_push_delivery", {
           p_notification_id: inserted.data.id,
           p_subscription_id: subscription.id,
         });
+
+        if (deliveredResult.error || deliveredResult.data !== true) {
+          errors.push({
+            subscription_id: subscription.id,
+            detail: "DELIVERY_MARK_FAILED",
+          });
+          continue;
+        }
+
         sent += 1;
       } catch (error) {
+        await ctx.supabaseAdmin.rpc("velora_unmark_push_delivery", {
+          p_notification_id: inserted.data.id,
+          p_subscription_id: subscription.id,
+        });
+
         const status = typeof error?.statusCode === "number" ? error.statusCode : undefined;
         errors.push({ subscription_id: subscription.id, status });
 
