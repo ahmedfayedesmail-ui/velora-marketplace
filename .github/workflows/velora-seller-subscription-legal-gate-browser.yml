@@ -1,3 +1,4 @@
+# Exact-source Browser gate retained; this push intentionally re-runs the seller subscription legal fail-closed proof.
 name: Velora Seller Subscription Legal Gate Browser
 
 on:
