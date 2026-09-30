@@ -440,6 +440,27 @@ jobs:
                   and (not owner_governance or platform_node.locator('[data-owner-governance="launch-control"]').count() == 1)
                   )
               )
+              if platform == "admin" and owner_governance:
+                  page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('releaseControl')""")
+                  page.wait_for_function(
+                      "() => !!document.querySelector('#adminContent [data-velora-release-control=" + '"' + "true" + '"' + "]')",
+                      timeout=15000,
+                  )
+                  release_root = page.locator('#adminContent [data-velora-release-control="true"]')
+                  release_create = release_root.locator('button').filter(has_text="Create candidate")
+                  role["release_control"] = {
+                      "present": release_root.count() == 1,
+                      "visible": release_root.first.is_visible() if release_root.count() else False,
+                      "create_candidate_control_present": release_create.count() >= 1,
+                      "text_length": len(release_root.inner_text()) if release_root.count() else 0,
+                  }
+                  page.screenshot(path="owner-release-control.png", full_page=True)
+                  page.evaluate("""() => window.VELORA_CANONICAL_ADMIN_SECTION('dashboard')""")
+                  page.wait_for_function(
+                      "() => !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-governance=" + '"' + "launch-control" + '"' + "]') && !!document.getElementById('ownerGovernanceContent')?.querySelector('[data-owner-release-control=" + '"' + "true" + '"' + "]')",
+                      timeout=15000,
+                  )
+
               page.screenshot(path=f"{label}-second-open.png", full_page=True)
 
               page.evaluate("() => { window.location.hash = 'home'; }")
@@ -512,6 +533,12 @@ jobs:
                       evidence["failures"].append("owner: governance control plane not present")
                   if r.get("second_open", {}).get("render_marker", {}).get("ownerReleaseControlPresent") is not True:
                       evidence["failures"].append("owner: release control not present")
+                  if r.get("release_control", {}).get("present") is not True:
+                      evidence["failures"].append("owner: release control route not present")
+                  if r.get("release_control", {}).get("visible") is not True:
+                      evidence["failures"].append("owner: release control route not visible")
+                  if r.get("release_control", {}).get("create_candidate_control_present") is not True:
+                      evidence["failures"].append("owner: release create control not present")
               if label == "seller":
                   if r.get("back_hash") not in ("", "#home"):
                       evidence["failures"].append("seller: unexpected back hash " + str(r.get("back_hash")))
@@ -568,5 +595,6 @@ jobs:
             owner-first-open.png
             owner-closed.png
             owner-second-open.png
+            owner-release-control.png
             reentry-local-server.log
           retention-days: 7
