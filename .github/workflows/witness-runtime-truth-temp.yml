@@ -189,7 +189,7 @@ jobs:
             --repo ./velora \
             --mode full \
             --personas seller,admin,owner,rtl \
-            --profiles ../profiles.json \
+            --profiles ./profiles.json \
             --explore \
             --max-pages 20 \
             --max-actions 8 \
