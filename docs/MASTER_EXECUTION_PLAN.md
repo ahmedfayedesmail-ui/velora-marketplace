@@ -14696,3 +14696,96 @@ STATUS:
 
 NEXT:
 - Continue with the next independent non-legal OPEN Master item without reopening the closed Owner governance visibility path.
+
+
+## MESSAGE 79 — EXACT-SOURCE AGGREGATE BROWSER EVIDENCE TOOL (2026-09-30)
+
+OBJECTIVE:
+- Remove the operational dependency on opening a laptop or waiting for a Vercel Preview for application-level aggregate Browser evidence.
+- Preserve the official Final Aggregate Browser Gate as the Preview/production-parity gate; do not relabel local exact-source evidence as Preview evidence.
+
+IMPLEMENTATION:
+- Added workflow:
+  - `.github/workflows/velora-final-aggregate-exact-source-browser-gate.yml`
+- Execution target:
+  - GitHub Actions Ubuntu runner
+  - exact checked-out `audit/runtime-parity-2026-09-28` source
+  - local `python3 -m http.server` over `src/`
+  - headless Chromium / Playwright
+- Authentication:
+  - Customer uses existing E2E repository credentials.
+  - Seller uses an existing approved Restore-Test Seller fixture plus a generated magic-link token; no Seller E2E secret dependency was introduced.
+  - Owner uses the existing Owner role fixture plus a generated magic-link token.
+- No Production access or mutation.
+- No database mutation was introduced by the gate.
+
+AGGREGATE COVERAGE:
+1. Customer:
+   - HTTP 200
+   - authenticated Supabase session
+   - Orders route
+   - Orders host present
+   - authenticated session survives Checkout navigation
+2. Seller:
+   - authenticated session
+   - authenticated user match
+   - canonical Seller open
+   - canonical close without refresh
+   - canonical Seller re-entry without refresh
+   - canonical Seller content after re-entry
+3. Owner:
+   - authenticated session
+   - authenticated user match
+   - canonical Owner/Admin Dashboard
+   - Owner Governance Control Plane present
+   - canonical close without refresh
+   - canonical Owner re-entry without refresh
+   - governance panel present after re-entry
+4. Screenshots:
+   - `aggregate-customer.png`
+   - `aggregate-seller.png`
+   - `aggregate-owner.png`
+5. Browser diagnostics:
+   - page errors = 0
+   - console error events = 0
+
+REAL EXECUTION EVIDENCE:
+- Workflow run: `36672890968`
+- Job: `109751537413`
+- Commit/source: `f015e64b5271859aa06f20753aa66d390f59b0d9`
+- Conclusion: SUCCESS
+- Artifact: `11078442684`
+- Artifact schema: `velora-final-aggregate-exact-source.v1`
+- `passed = true`
+- `failures = []`
+- `browser_errors = []`
+
+INITIAL GATE HARDENING:
+- First run `36672816783` correctly failed because `SELLER_E2E_EMAIL/PASSWORD` secrets were absent.
+- The gate was hardened to reuse the canonical approved Seller Restore-Test fixture instead of introducing another secret dependency.
+- Second run `36672890968` passed.
+
+EVIDENCE BOUNDARY:
+- Exact-source Aggregate Browser evidence = CLOSED-DONE for application-level exact-source runtime verification.
+- Official Preview Aggregate Browser Gate = OPEN because it intentionally requires a READY Vercel Preview whose deployed SHA exactly matches the tested source.
+- Current Vercel Preview capacity remains blocked by the previously observed deployment-rate limit.
+- Therefore this message does NOT claim Preview parity, Production parity, or provider/production evidence.
+- The new exact-source gate is now the autonomous no-laptop evidence path; the official Preview gate remains the final deployment-parity gate.
+
+GOVERNANCE:
+- This is test/evidence infrastructure only.
+- It does not replace the canonical application architecture.
+- It does not introduce a second business engine.
+- It does not bypass Owner/Staff guards.
+- It does not authorize Production changes.
+- It keeps the existing evidence hierarchy intact:
+  Source -> DB -> Contract/ACL -> Negative -> CI -> Exact-Source Browser -> Preview -> Provider -> Production.
+
+STATUS:
+- Exact-source aggregate Browser tooling = CLOSED-DONE.
+- Owner Governance visibility = CLOSED-DONE for implemented scope.
+- Official Preview Aggregate = OPEN/BLOCKED by deployment capacity.
+- Production = FROZEN.
+
+NEXT:
+- Continue the next independent non-legal OPEN item; do not reopen the exact-source aggregate tooling.
