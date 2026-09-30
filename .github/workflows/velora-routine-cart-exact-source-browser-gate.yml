@@ -160,16 +160,9 @@ jobs:
                           add_button.click()
                           page.wait_for_timeout(1800)
 
-                          result=page.evaluate("""()=>window.__VELORA_ROUTINE_CART_LAST_RESULT || null""")
-                          if not result:
-                              evidence["checks"]["adapter_result_missing"]=True
-                          else:
-                              evidence["checks"]["adapter_result_present"]=True
-                              evidence["checks"]["adapter_added"]=int(result.get("added") or 0)
-                              evidence["checks"]["adapter_already_in_cart"]=int(result.get("alreadyInCart") or 0)
-                              evidence["checks"]["adapter_skipped_count"]=len(result.get("skipped") or [])
-                              evidence["checks"]["adapter_failed_count"]=len(result.get("failed") or [])
-
+                          # The adapter intentionally exposes only addAll(); its internal
+                          # result object is not a public contract. Observe the canonical
+                          # server-cart delta instead.
                           after_rows=page.evaluate("""async()=>{
                             const user=await window.mahaSupabase.auth.getUser();
                             const uid=user?.data?.user?.id;
