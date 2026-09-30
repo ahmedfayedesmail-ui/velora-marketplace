@@ -29,14 +29,7 @@ jobs:
           rm -rf /tmp/witnesspkg
           npm install --prefix /tmp/witnesspkg --no-save @witness-engine/cli@0.9.1
           node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js doctor
-          curl --fail --silent --show-error             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GITHUB_TOKEN"             "https://api.github.com/repos/ahmedfayedesmail-ui/witness-engine/contents/src/business-truth-drafts.js?ref=main"             -o /tmp/witness-draft.json
-          node --input-type=module <<'NODE'
-          import fs from "node:fs/promises";
-          const body=JSON.parse(await fs.readFile("/tmp/witness-draft.json","utf8"));
-          if(!body.content || body.encoding!=="base64") throw new Error("WITNESS_DRAFT_SOURCE_UNAVAILABLE");
-          const source=Buffer.from(body.content.replace(/\s/g,""),"base64").toString("utf8");
-          await fs.writeFile("/tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js",source,{mode:0o600});
-          NODE
+          cp velora/tmp-witness-business-truth-drafts.js /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
           node --check /tmp/witnesspkg/node_modules/@witness-engine/cli/src/business-truth-drafts.js
           test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js
 
