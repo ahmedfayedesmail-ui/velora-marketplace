@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import process from 'node:process';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
+const playwrightPackage = String(process.env.PLAYWRIGHT_PACKAGE || 'playwright');
+const { chromium } = require(playwrightPackage);
 
 const {
   loadBusinessTruthContracts,
