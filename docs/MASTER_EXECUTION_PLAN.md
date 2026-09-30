@@ -16121,3 +16121,75 @@ STATUS:
 - External payout settlement = OPEN / NOT EVIDENCED.
 - Subscription commercial/provider completion = OPEN as previously recorded.
 - Production = FROZEN.
+
+
+## MESSAGE 97 — ZERO-COST COD CONTRACT / ROUTING GATE (2026-09-30)
+
+CLASSIFICATION:
+- COD routing contract = CLOSED-DONE at L1/L2/L3 for the current Restore-Test Egypt/EGP operational-method scope.
+- No order, payment, provider, inventory, or Production mutation was performed.
+- Cash collection / settlement and delivery-side reconciliation are not claimed.
+
+RESEARCH-FIRST FINDING:
+- The existing canonical function `velora_get_operational_payment_methods(p_country_code, p_currency_code)` is the source of truth for currently operational methods.
+- Its current contract hard-gates to country `EG` and currency `EGP`.
+- For Egypt/EGP it permits:
+  - `cash_on_delivery` as `manual_tender`;
+  - `card` through Paymob TEST as `test_verified_route`.
+- The existing `velora_set_order_payment_method` additionally guards authenticated ownership, pending payment status, active method, operational route, and records an audit event.
+- No second COD engine or payment router was introduced.
+
+NEW ZERO-COST CAPABILITIES:
+1. `tools/velora_zero_cost_cod_lab.py`
+   - dependency-free deterministic contract simulation;
+   - verifies canonical source symbols;
+   - models EG/EGP COD + Paymob TEST routing and negative non-EG/non-EGP closure;
+   - preserves the manual-tender/provider-settlement boundary.
+2. `.github/workflows/velora-zero-cost-cod-lab.yml`
+   - zero-cost deterministic CI gate plus bounded Node syntax check.
+3. `.github/workflows/velora-zero-cost-cod-evidence.yml`
+   - fixed read-only Restore-Test probes for payment methods/providers/routing rules;
+   - derives the current EG/EGP operational-method contract without writes.
+4. `.remote/cod-lab.json`
+   - explicit no-write / no-Production / no-real-money descriptor.
+
+LIVE RESTORE-TEST VERIFICATION:
+- Direct execution of `velora_get_operational_payment_methods('EG','EGP')` returned exactly two operational routes:
+  - Card / Paymob / TEST / `test_verified_route`.
+  - Cash on Delivery / cash_on_delivery / TEST / `manual_tender`.
+- Direct execution for `US/USD` returned no operational methods.
+- Direct execution for `EG/USD` returned no operational methods.
+- Active routing-rule inventory contained exactly the corresponding EG/EGP Card and COD rules in the current Restore-Test state.
+- Checkout source `src/scripts/13-payments.js` contains the canonical `cash_on_delivery`, `velora_get_operational_payment_methods`, and `velora_set_order_payment_method` contracts.
+- No real order/payment selection was executed.
+
+ACTION FLOW RECONCILIATION:
+EVENT: customer selects payment method
+-> AUTHORIZATION: authenticated customer + order ownership
+-> VALIDATION: payment pending + active method + current operational route
+-> STATE TRANSITION: pending payment record is aligned to selected method/provider
+-> AUTOMATIC SIDE EFFECT: audit event records method/provider/amount/currency
+-> NEXT EVENT: checkout/payment processing
+-> PROVIDER BOUNDARY: COD remains manual tender; card provider remains Paymob TEST
+-> HUMAN EXCEPTION: only external settlement/collection ambiguity
+
+IMPORTANT BOUNDARY:
+- `manual_tender` is an operational classification, not proof that cash was collected.
+- This layer does not invent COD collection confirmation, driver/courier settlement, refund transport, bank settlement, or Production evidence.
+- Existing checkout/payment architecture remains authoritative.
+
+EVIDENCE BOUNDARY:
+- L1 Source = verified.
+- L2 Restore-Test DB/function execution = verified.
+- L3 payment routing/guard contract = verified.
+- L4 negative geography/currency behavior = verified by direct function execution.
+- L5 CI workflow definitions = added; push-run completion is not independently reclassified here unless a run result is directly retrieved.
+- L6 Preview = unchanged.
+- L7 Browser = no new Browser claim.
+- L8 Provider = no new provider-settlement claim.
+- L9 Production = untouched/frozen.
+
+DECISION:
+- COD operational routing is sufficiently established; do not rebuild it.
+- Next work should move to the remaining independent open commerce/reconciliation track rather than modifying the payment router.
+- Production remains FROZEN.
