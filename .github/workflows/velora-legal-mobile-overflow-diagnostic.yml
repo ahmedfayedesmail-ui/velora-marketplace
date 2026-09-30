@@ -1,0 +1,104 @@
+name: Velora Legal Mobile Overflow Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - "src/**"
+      - ".github/workflows/velora-legal-mobile-overflow-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Setup Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+      - name: Start exact-source server
+        run: |
+          nohup python3 -m http.server 4173 -d src > legal-overflow-local.log 2>&1 &
+          python3 - <<'PY'
+          import time,urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:4173/',timeout=2) as r:
+                      if r.status==200: break
+              except Exception: time.sleep(1)
+          else: raise SystemExit('LOCAL_SERVER_NOT_READY')
+          PY
+      - name: Diagnose exact legal overflow
+        run: |
+          python3 - <<'PY'
+          import json,os,sys,urllib.parse,urllib.request
+          from playwright.sync_api import sync_playwright
+          BASE=os.environ['SUPABASE_URL'].rstrip('/')
+          KEY=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          APP=os.environ['APP_URL'].rstrip('/')
+          out={'schema':'velora-legal-mobile-overflow.v1','execution_target':'local_exact_source','checks':{},'elements':[],'browser_errors':[]}
+          def api(path,method='GET',payload=None):
+              data=json.dumps(payload).encode() if payload is not None else None
+              h={'apikey':KEY,'Authorization':'Bearer '+KEY,'Accept':'application/json'}
+              if payload is not None:h['Content-Type']='application/json'
+              req=urllib.request.Request(BASE+path,data=data,headers=h,method=method)
+              with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read().decode() or 'null')
+          users=api('/auth/v1/admin/users?page=1&per_page=1000').get('users',[])
+          auth={str(u.get('id')):u for u in users if u.get('id')}
+          rows=api('/rest/v1/user_roles?select=user_id&role=eq.owner')
+          uid=next((str(x['user_id']) for x in rows if str(x.get('user_id')) in auth),None)
+          if not uid:raise RuntimeError('owner fixture missing')
+          email=str(auth[uid].get('email') or '')
+          link=api('/auth/v1/admin/generate_link','POST',{'type':'magiclink','email':email,'options':{'redirect_to':APP+'/#home'}})
+          token=str(link.get('hashed_token') or '')
+          if not token:raise RuntimeError('magiclink unavailable')
+          with sync_playwright() as pw:
+              b=pw.chromium.launch(headless=True)
+              p=b.new_page(viewport={'width':390,'height':844},locale='en-US')
+              p.on('pageerror',lambda e:out['browser_errors'].append('pageerror:'+str(e)))
+              p.on('console',lambda m:out['browser_errors'].append('console:'+m.text) if m.type=='error' else None)
+              p.goto(APP+'/#home',wait_until='domcontentloaded',timeout=60000)
+              ok=p.evaluate("""async t=>{const r=await window.mahaSupabase.auth.verifyOtp({token_hash:t,type:'magiclink'});return !!r?.data?.session?.user}""",token)
+              if not ok:raise RuntimeError('authentication failed')
+              p.wait_for_timeout(1000)
+              p.evaluate("()=>window.switchPlatform('admin')")
+              p.wait_for_selector('#adminContent',state='visible',timeout=30000)
+              p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('legal')")
+              p.wait_for_timeout(1200)
+              out['checks']['width']=p.evaluate('()=>innerWidth')
+              out['checks']['scrollWidth']=p.evaluate('()=>document.documentElement.scrollWidth')
+              out['checks']['bodyScrollWidth']=p.evaluate('()=>document.body.scrollWidth')
+              out['checks']['legalFormScrollWidth']=p.evaluate("()=>document.querySelector('#veloraAdminLegal41Form')?.scrollWidth||0")
+              out['checks']['legalFormClientWidth']=p.evaluate("()=>document.querySelector('#veloraAdminLegal41Form')?.clientWidth||0")
+              out['checks']['legalContentText']=p.locator('#adminContent').inner_text()[:1200]
+              out['elements']=p.evaluate("""()=>Array.from(document.querySelectorAll('#adminContent *')).map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,id:el.id||'',cls:typeof el.className==='string'?el.className:'',left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,text:(el.innerText||el.value||'').slice(0,140)}}).filter(x=>x.right>innerWidth+1||x.left< -1||x.scrollWidth>x.clientWidth+4).sort((a,b)=>(b.right-innerWidth)-(a.right-innerWidth)).slice(0,40)""")
+              p.screenshot(path='legal-mobile-overflow.png',full_page=True)
+              p.close();b.close()
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          with open('legal-mobile-overflow-evidence.json','w',encoding='utf-8') as f:json.dump(out,f,ensure_ascii=False,indent=2)
+          sys.exit(0 if not out['browser_errors'] else 1)
+          PY
+      - name: Upload legal overflow evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-legal-mobile-overflow-diagnostic
+          path: |
+            legal-mobile-overflow-evidence.json
+            legal-mobile-overflow.png
+            legal-overflow-local.log
+          retention-days: 7
