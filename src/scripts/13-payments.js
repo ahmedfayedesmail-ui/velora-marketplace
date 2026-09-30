@@ -186,7 +186,7 @@ function decorateGiftCard(){
 }
 let veloraShippingQuotePromise=null;
 async function refreshVeloraShippingQuote(){
-  const original=window.STATE?.cart||[];
+  const original=(typeof STATE!=='undefined'&&Array.isArray(STATE.cart))?STATE.cart:(window.STATE?.cart||[]);
   const items=original.map(i=>({product_id:i.canonicalId||i.productId||i.id,quantity:Number(i.quantity||1)})).filter(i=>/^[0-9a-f-]{36}$/i.test(String(i.product_id))&&i.quantity>0);
   if(!items.length){window.VELORA_SHIPPING_QUOTE=null;return null}
   const country=String(document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG').toUpperCase();
@@ -267,7 +267,7 @@ window.placeOrder=async function(event){
     throw new Error('PAYMENT_METHOD_REQUIRED');
   }
 
-    const original=window.STATE?.cart||[];
+    const original=(typeof STATE!=='undefined'&&Array.isArray(STATE.cart))?STATE.cart:(window.STATE?.cart||[]);
     const canonical=original.map(i=>({
       product_id:i.canonicalId||i.productId||i.id,
       product_variant_id:i.variantId||i.product_variant_id||null,
