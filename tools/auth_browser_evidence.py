@@ -232,7 +232,7 @@ cleanup_errors = []
 
 def main():
     evidence = {
-        "schema": "velora-auth-browser.v2",
+        "schema": "velora-auth-browser.v3",
         "execution_mode": "local_exact_source_ephemeral_fixture",
         "target_url": APP_URL,
         "fixture": {"ephemeral": True, "restore_test_only": True},
@@ -455,6 +455,79 @@ def main():
                 and refresh_result.get("refreshedUserId") == uid
             )
             evidence["observations"]["refresh_error_code"] = refresh_result.get("errorCode")
+
+            # Duplicate-tab resilience: same browser context should synchronize the
+            # canonical auth session across tabs through the existing Supabase client.
+            duplicate_page = context.new_page()
+            duplicate_page.on("pageerror", lambda exc: browser_errors.append("duplicate-pageerror:" + safe_error(exc)))
+            duplicate_page.on("console", lambda msg: browser_errors.append("duplicate-console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            clean_page(duplicate_page)
+            duplicate_initial = session_snapshot(duplicate_page)
+            evidence["checks"]["duplicate_tab_sees_authenticated_session"] = (
+                duplicate_initial.get("present") and duplicate_initial.get("userId") == uid
+            )
+            ui_logout(page)
+            page_after_duplicate_logout = session_snapshot(page)
+            duplicate_after_logout = session_snapshot(duplicate_page)
+            evidence["checks"]["duplicate_tab_logout_clears_primary_session"] = (
+                not bool(page_after_duplicate_logout.get("present"))
+                and not bool(duplicate_after_logout.get("present"))
+            )
+            duplicate_page.close()
+
+            # Separate browser contexts model separate devices/tabs with isolated
+            # local storage. Both authenticate independently with the same governed
+            # credentials; global sign-out semantics are then observed rather than
+            # assumed.
+            device_a = context
+            device_b = browser.new_context()
+            device_b_page = device_b.new_page()
+            device_b_page.on("pageerror", lambda exc: browser_errors.append("device-b-pageerror:" + safe_error(exc)))
+            device_b_page.on("console", lambda msg: browser_errors.append("device-b-console:" + safe_error(msg.text)) if msg.type == "error" else None)
+            clean_page(device_a.pages[0])
+            device_a_page = device_a.pages[0]
+            open_login_modal(device_a_page)
+            device_a_page.locator("#loginEmail").fill(email)
+            device_a_page.locator("#loginPassword").fill(password)
+            device_a_page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
+            wait_for_state(device_a_page, uid, timeout=30000)
+
+            clean_page(device_b_page)
+            open_login_modal(device_b_page)
+            device_b_page.locator("#loginEmail").fill(email)
+            device_b_page.locator("#loginPassword").fill(password)
+            device_b_page.locator("#authFormContent form").evaluate("(f)=>f.requestSubmit()")
+            wait_for_state(device_b_page, uid, timeout=30000)
+            device_b_before_global = session_snapshot(device_b_page)
+            evidence["checks"]["separate_context_can_authenticate"] = (
+                device_b_before_global.get("present") and device_b_before_global.get("userId") == uid
+            )
+
+            ui_logout(device_a_page)
+            device_b_after_global = session_snapshot(device_b_page)
+            device_b_refresh_after_global = device_b_page.evaluate(
+                """async () => {
+                    try {
+                        const result = await window.mahaSupabase.auth.refreshSession();
+                        return {
+                            sessionPresent: !!result?.data?.session,
+                            userId: result?.data?.session?.user?.id || null,
+                            errorCode: result?.error?.code || null
+                        };
+                    } catch (error) {
+                        return {sessionPresent:false,userId:null,errorCode:error?.code || null};
+                    }
+                }"""
+            )
+            evidence["checks"]["global_logout_invalidates_separate_context_refresh"] = (
+                not bool(device_b_refresh_after_global.get("sessionPresent"))
+            )
+            evidence["observations"]["separate_context_after_global_logout"] = {
+                "session_present_before_refresh": bool(device_b_after_global.get("present")),
+                "refresh_session_present": bool(device_b_refresh_after_global.get("sessionPresent")),
+                "refresh_error_code": device_b_refresh_after_global.get("errorCode"),
+            }
+            device_b.close()
 
             # UI logout.
             ui_logout(page)
