@@ -75,3 +75,12 @@ assert.match(canonical, /velora_get_payout_control_plane/);
 assert.match(canonical, /velora_record_payout_execution/);
 assert.match(canonical, /Record execution/);
 console.log('✅ Payout control-plane source contract passed');
+
+const finopsDomain = read('src/scripts/04-payments.js');
+assert.match(finopsDomain, /window\.VELORA_CAPTURE_FINOPS/);
+assert.match(finopsDomain, /window\.VELORA_RENDER_FINOPS/);
+assert.doesNotMatch(finopsDomain, /window\.VELORA_CANONICAL_ADMIN_SECTION\s*=/);
+assert.doesNotMatch(finopsDomain, /window\.VELORA_OPEN_ADMIN\s*=/);
+assert.match(canonical, /finops:'FinOps & Economics'/);
+assert.match(canonical, /section==='finops'[\s\S]*?window\.VELORA_RENDER_FINOPS/);
+console.log('✅ FinOps canonical route consolidation contract passed');
