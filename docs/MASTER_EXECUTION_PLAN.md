@@ -15213,4 +15213,17 @@ Owner Seller Advertising control event -> admin/owner authorization guard -> can
 This closure proves the Owner/Staff read/control surface only. It does NOT prove live campaign activation, provider settlement, advertising accounting, attribution, or Production readiness.
 
 ### NEXT
-Next independent execution priority remains Subscription commercial/runtime/provider/Browser evidence, while Seller Advertising accounting/reporting/provider evidence stays explicitly OPEN.
+Next independent execution priority remains Subscription commercial/runtime/provider/Browser evidence, while Seller Advertising Control Plane — CLOSED-DONE at read/control + exact-source Browser scope:
+- canonical route: sellerAdControl
+- canonical RPC: velora_get_seller_ad_control_plane
+- canonical renderer: renderCanonicalSellerAdControl(expectedOperation)
+- public helper: window.VELORA_RENDER_SELLER_AD_CONTROL
+- exact DOM evidence: [data-seller-ad-control="true"]
+- Restore-Test DB/ACL contract verified
+- focused exact-source Browser run: 36677868376
+- exact-source Browser evidence: marker present + visible, text length 1183, RPC request observed, no Browser errors
+- renderer commit: 7583d0b
+- focused Browser gate commits: 10a5998 then 6e3be621
+Boundary: this closes only the Owner/Staff read/control surface. Advertising accounting, reporting, attribution, provider settlement/reconciliation, and production remain OPEN.
+
+Seller Advertising accounting/reporting/provider evidence stays explicitly OPEN.
