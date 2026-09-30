@@ -1,4 +1,4 @@
-# Exact-source Browser gate retained; this push intentionally re-runs the seller subscription legal fail-closed proof.
+# Exact-source Browser gate: canonical Seller subscription route + legal fail-closed proof.
 name: Velora Seller Subscription Legal Gate Browser
 
 on:
@@ -162,9 +162,10 @@ jobs:
                           page.wait_for_timeout(1200)
                           page.evaluate("() => window.switchPlatform('seller')")
                           page.wait_for_function("() => document.getElementById('sellerPlatform')?.classList.contains('active')",timeout=15000)
-                          page.wait_for_selector("#veloraSellerSubscription39",state="attached",timeout=30000)
-                          page.wait_for_timeout(6000)
-                          sub=page.locator("#veloraSellerSubscription39")
+                          page.evaluate("() => window.VELORA_CANONICAL_SELLER_SECTION('subscription')")
+                          page.wait_for_selector("#veloraCanonicalSellerSubscription",state="attached",timeout=30000)
+                          page.wait_for_timeout(2500)
+                          sub=page.locator("#veloraCanonicalSellerSubscription")
                           button=page.locator("#v39Subscribe")
                           plan=page.locator("#v39Plan")
                           evidence["checks"]["subscription_surface_present"]=sub.count()==1
