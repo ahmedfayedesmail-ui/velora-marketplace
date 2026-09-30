@@ -9,7 +9,7 @@
         "customer"
       ],
       "when": {
-        "pathPattern": "^/$"
+        "pathPattern": "^/.*$"
       },
       "browser": {
         "successPattern": "Payment successful",
