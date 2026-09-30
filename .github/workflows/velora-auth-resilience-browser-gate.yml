@@ -85,6 +85,7 @@ jobs:
                   login(a)
                   b.reload(wait_until="networkidle")
                   evidence["checks"]["duplicate_tab_refresh_preserves_session"]=bool(snap(b)["present"])
+                  a.once("dialog", lambda dialog: dialog.accept())
                   a.locator("#accountContent button",has_text="Logout").click(); time.sleep(1)
                   rb=b.evaluate("""async()=>{const r=await window.mahaSupabase.auth.refreshSession();return {present:!!r?.data?.session,error:r?.error?.code||null}}""")
                   evidence["checks"]["same_context_refresh_after_global_logout_fails_closed"]=not rb["present"]
@@ -94,6 +95,7 @@ jobs:
                   for p in (pa,pb): p.goto(APP,wait_until="networkidle",timeout=60000)
                   login(pa); login(pb)
                   evidence["checks"]["separate_contexts_can_authenticate"]=bool(snap(pa)["present"] and snap(pb)["present"])
+                  pa.once("dialog", lambda dialog: dialog.accept())
                   pa.locator("#accountContent button",has_text="Logout").click(); time.sleep(1)
                   rb=pb.evaluate("""async()=>{const r=await window.mahaSupabase.auth.refreshSession();return {present:!!r?.data?.session,error:r?.error?.code||null}}""")
                   evidence["observations"]["separate_context_refresh_after_global_logout"]=rb
