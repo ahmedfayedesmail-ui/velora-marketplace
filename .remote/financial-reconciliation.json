@@ -1,0 +1,6 @@
+{
+  "mode": "live_restore_test_fixed_financial_probes",
+  "writes_allowed": false,
+  "production_allowed": false,
+  "real_money_allowed": false
+}
