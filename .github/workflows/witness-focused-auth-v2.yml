@@ -1,0 +1,305 @@
+name: WITNESS Focused Velora Re-entry — authenticated 0.9.1 v2
+
+on:
+  push:
+    branches:
+      - witness/focused-reentry-0-9-1-2026-09-30
+
+permissions:
+  contents: read
+
+jobs:
+  focused-reentry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - persona: seller
+            focus: seller
+            start_hash: seller
+            profile_key: seller
+          - persona: admin
+            focus: admin
+            start_hash: admin
+            profile_key: admin
+          - persona: rtl
+            focus: admin
+            start_hash: admin
+            profile_key: rtl
+
+    env:
+      SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      APP_URL: http://127.0.0.1:4173
+
+    steps:
+      - name: Checkout Velora
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install WITNESS 0.9.0 package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
+          npm install --prefix /tmp/witnesspkg --no-save @witness-engine/cli@0.9.0
+          test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js
+          test -f /tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js
+
+      - name: Apply WITNESS 0.9.1 focused-seed patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("/tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js")
+          s=p.read_text()
+          old_seed="const seededRoutes=uniqueBy([...seedRoutes({url,repository,changedFiles,mode,focus}),...(webDiscovery.routes||[])].filter(v=>focusMatch(v,focus)),v=>v).slice(0,maxPages*3);"
+          new_seed="const seededRoutes=buildSeededRoutes({url,repository,changedFiles,mode,focus,discoveredRoutes:webDiscovery.routes}).slice(0,maxPages*3);"
+          helper="""export function buildSeededRoutes({url,repository,changedFiles=[],mode='full',focus=null,discoveredRoutes=[]}={}){
+            const routes=[...seedRoutes({url,repository,changedFiles,mode,focus}),...(discoveredRoutes||[])];
+            return uniqueBy(routes.filter(v=>v===url || focusMatch(v,focus)),v=>v);
+          }
+
+          """
+          if "export function buildSeededRoutes(" not in s:
+              s=s.replace("export async function scanApplication({",helper+"export async function scanApplication({",1)
+          if old_seed not in s:
+              raise SystemExit("old seededRoutes line not found")
+          p.write_text(s.replace(old_seed,new_seed,1))
+          PY
+          grep -n "buildSeededRoutes" /tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js
+          grep -n "const seededRoutes=" /tmp/witnesspkg/node_modules/@witness-engine/cli/src/scanner.js
+
+      - name: Verify WITNESS runtime
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js doctor
+
+      - name: Start exact-source Velora server
+        run: |
+          set -euo pipefail
+          nohup python3 -m http.server 4173 -d src > /tmp/velora-server.log 2>&1 &
+          python3 - <<'PY'
+          import time, urllib.request
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:4173/",timeout=2) as r:
+                      if r.status == 200:
+                          print("Velora local exact-source server ready")
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("LOCAL_SERVER_NOT_READY")
+          PY
+
+      - name: Build authenticated WITNESS profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, urllib.parse, urllib.request
+          from playwright.sync_api import sync_playwright
+
+          BASE=os.environ["SUPABASE_URL"].rstrip("/")
+          KEY=os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          APP=os.environ["APP_URL"].rstrip("/")
+          pathlib.Path("profiles").mkdir(exist_ok=True)
+
+          def api(path, method="GET", payload=None):
+              data=json.dumps(payload).encode("utf-8") if payload is not None else None
+              headers={"apikey":KEY,"Authorization":"Bearer "+KEY,"Content-Type":"application/json","Accept":"application/json"}
+              req=urllib.request.Request(BASE+path,data=data,headers=headers,method=method)
+              with urllib.request.urlopen(req,timeout=30) as resp:
+                  raw=resp.read().decode()
+                  return json.loads(raw) if raw else None
+
+          users=api("/auth/v1/admin/users?page=1&per_page=1000")
+          users=users.get("users",[]) if isinstance(users,dict) else (users or [])
+          auth_by_id={str(u.get("id") or ""):u for u in users if u.get("id")}
+
+          def first_role_user(role):
+              rows=api("/rest/v1/user_roles?select=user_id&role=eq."+urllib.parse.quote(role))
+              for row in rows or []:
+                  uid=str(row.get("user_id") or "")
+                  if uid in auth_by_id:
+                      return uid
+              raise RuntimeError("No Auth user found for role "+role)
+
+          def first_approved_seller_user():
+              rows=api("/rest/v1/sellers?select=user_id,status&status=eq.approved&limit=50")
+              for row in rows or []:
+                  uid=str(row.get("user_id") or "")
+                  if uid not in auth_by_id:
+                      continue
+                  roles=api("/rest/v1/user_roles?select=user_id&user_id=eq."+urllib.parse.quote(uid)+"&role=eq.seller")
+                  if roles:
+                      return uid
+              raise RuntimeError("No approved seller Auth user found")
+
+          def email_for(uid):
+              email=str(auth_by_id[uid].get("email") or "")
+              if not email:
+                  raise RuntimeError("Missing email for "+uid)
+              return email
+
+          def magic_hash(email, redirect_hash):
+              payload={"type":"magiclink","email":email,"options":{"redirect_to":APP+"/#"+redirect_hash}}
+              result=api("/auth/v1/admin/generate_link",method="POST",payload=payload)
+              token=str(result.get("hashed_token") or "")
+              if not token:
+                  raise RuntimeError("No hashed_token returned")
+              return token
+
+          seller_uid=first_approved_seller_user()
+          admin_uid=first_role_user("admin")
+
+          with sync_playwright() as pw:
+              browser=pw.chromium.launch()
+              def build_profile(uid,path,redirect_hash,arabic=False):
+                  page=browser.new_page(viewport={"width":390,"height":844},locale=("ar-EG" if arabic else "en-EG"))
+                  page.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+                  token=magic_hash(email_for(uid),redirect_hash)
+                  page.goto(APP+"/#home",wait_until="domcontentloaded",timeout=60000)
+                  page.wait_for_timeout(1000)
+                  result=page.evaluate("""async tokenHash=>{
+                    try{
+                      const r=await window.mahaSupabase.auth.verifyOtp({token_hash:tokenHash,type:"magiclink"});
+                      return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null,error:r?.error?.message||null};
+                    }catch(e){return {ok:false,id:null,error:String(e?.message||e)};}
+                  }""",token)
+                  if not result.get("ok") or str(result.get("id") or "") != uid:
+                      raise RuntimeError("Auth verify failed for "+path+": "+str(result))
+                  page.wait_for_timeout(1200)
+                  if arabic:
+                      locale=page.evaluate("""async()=>{
+                        try{
+                          if(typeof window.VELORA_V5_SET_LANGUAGE!=="function") return {ok:false,reason:"V5_SET_LANGUAGE_UNAVAILABLE"};
+                          return {ok:!!(await window.VELORA_V5_SET_LANGUAGE("ar"))};
+                        }catch(e){return {ok:false,reason:String(e?.message||e)};}
+                      }""")
+                      if not locale.get("ok"):
+                          raise RuntimeError("Arabic locale set failed: "+str(locale))
+                      page.wait_for_timeout(1400)
+                  session=page.evaluate("""async()=>{
+                    const r=await window.mahaSupabase.auth.getSession();
+                    return {ok:!!r?.data?.session?.user,id:r?.data?.session?.user?.id||null};
+                  }""")
+                  if not session.get("ok") or str(session.get("id") or "") != uid:
+                      raise RuntimeError("Session not present for "+path)
+                  page.context.storage_state(path=path)
+                  page.close()
+
+              build_profile(seller_uid,"profiles/seller.json","seller",False)
+              build_profile(admin_uid,"profiles/admin.json","admin",False)
+              build_profile(admin_uid,"profiles/rtl.json","admin",True)
+              browser.close()
+
+          pathlib.Path("profiles.json").write_text(json.dumps({
+              "seller":"profiles/seller.json",
+              "admin":"profiles/admin.json",
+              "rtl":"profiles/rtl.json"
+          },indent=2))
+          print("WITNESS_PROFILES_READY")
+          PY
+
+      - name: Write local authorization grant
+        run: |
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js target authorize-local \
+            --url "$APP_URL" \
+            --repo . \
+            --output ./witness-grant.json
+
+      - name: Run authenticated focused WITNESS investigation
+        shell: bash
+        run: |
+          set +e
+          node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js scan \
+            --url "$APP_URL#${{ matrix.start_hash }}" \
+            --grant ./witness-grant.json \
+            --repo . \
+            --mode focus \
+            --focus "${{ matrix.focus }}" \
+            --personas "${{ matrix.persona }}" \
+            --profiles ./profiles.json \
+            --explore \
+            --max-pages 12 \
+            --max-actions 6 \
+            --allow-private-origin \
+            --output ./witness-${{ matrix.profile_key }}
+          rc=$?
+          echo "WITNESS_EXIT_CODE=$rc"
+          exit 0
+
+      - name: Extract focused evidence
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          focus="${{ matrix.profile_key }}"
+          p=Path(f"witness-{focus}/result.json")
+          if not p.exists():
+              print(f"{focus}: no result.json")
+              raise SystemExit(0)
+          r=json.loads(p.read_text())
+          s=r.get("summary",{})
+          print("SUMMARY:",json.dumps({
+              "persona":"${{ matrix.persona }}",
+              "focus":"${{ matrix.focus }}",
+              "start_hash":"${{ matrix.start_hash }}",
+              "pagesVisited":s.get("pagesVisited"),
+              "routesDiscovered":s.get("routesDiscovered"),
+              "personasExecuted":s.get("personasExecuted"),
+              "safeActionsExecuted":s.get("safeActionsExecuted"),
+              "confirmedFindings":s.get("confirmedFindings"),
+              "high":s.get("high"),
+              "medium":s.get("medium"),
+              "low":s.get("low"),
+              "routeCoverage":r.get("coverage",{}).get("routeCoverage")
+          },ensure_ascii=False))
+          for f in r.get("findings",[])[:120]:
+              ev=f.get("evidence",{}) or {}
+              a=ev.get("action",{}) or {}
+              print(json.dumps({
+                  "code":f.get("code"),
+                  "severity":f.get("severity"),
+                  "title":f.get("title"),
+                  "persona":f.get("persona"),
+                  "page":f.get("page"),
+                  "reentryStatus":ev.get("reentryStatus"),
+                  "reentryError":ev.get("reentryError"),
+                  "actionText":a.get("text"),
+                  "actionHref":a.get("href"),
+                  "selector":a.get("selector"),
+                  "destination":ev.get("destination"),
+                  "screenshot":ev.get("screenshot"),
+                  "replayScript":ev.get("replayScript")
+              },ensure_ascii=False))
+          PY
+
+      - name: Verify focused evidence bundle
+        if: always()
+        continue-on-error: true
+        run: node /tmp/witnesspkg/node_modules/@witness-engine/cli/bin/witness.js verify --bundle ./witness-${{ matrix.profile_key }}
+
+      - name: Upload focused evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: witness-focused-auth-${{ matrix.profile_key }}
+          path: |
+            witness-${{ matrix.profile_key }}/
+            profiles.json
+            profiles/
+            witness-grant.json
+            /tmp/velora-server.log
+          if-no-files-found: warn
+          retention-days: 7
