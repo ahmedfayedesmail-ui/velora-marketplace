@@ -74,7 +74,7 @@ jobs:
           user_id="83f3f4a6-451c-416f-96ba-1aab66beeccc"
           order_item_id="1c3537fb-c977-482b-929e-6e4ae1f48079"
           product_id="21d977a0-111b-4bb4-9736-0f2994294d48"
-          idem_key="browser-gate-feedback-"+os.environ.get("GITHUB_RUN_ID","unknown")
+          idem_key="beauty-feedback-"+order_item_id
 
           evidence={
               "schema":"beauty-feedback-positive-exact-source-browser.v1",
