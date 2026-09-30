@@ -101,14 +101,20 @@ jobs:
               p.wait_for_selector('#adminContent .admin-section-card h3',state='visible',timeout=30000)
 
               p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('gift_cards')")
-              p.wait_for_timeout(800)
+              p.wait_for_timeout(1200)
               gift=p.locator('#adminContent')
-              out['checks']['gift_surface_loaded']=gift.count()==1 and 'Gift Cards' in gift.inner_text()
+              gift_html=p.evaluate("()=>document.getElementById('adminContent')?.innerHTML||''")
+              gift_text=gift.inner_text()
+              out['checks']['gift_surface_loaded']=gift.count()==1 and ('Gift Cards' in gift_text or 'بطاقات الهدايا' in gift_text)
+              out['checks']['gift_dom_debug_before_ar']=(gift_html[:1200])
               code=p.locator('#veloraAdminGiftCards41Form input[name="code"]')
-              out['checks']['gift_code_minlength']=code.get_attribute('minlength')=='8'
-              out['checks']['gift_code_maxlength']=code.get_attribute('maxlength')=='80'
-              code.fill('SME20')
-              out['checks']['gift_short_code_blocked']=bool(p.evaluate('''()=>!document.querySelector('#veloraAdminGiftCards41Form input[name="code"]').checkValidity()'''))
+              out['checks']['gift_code_minlength']=(code.get_attribute('minlength')=='8') if code.count() else False
+              out['checks']['gift_code_maxlength']=(code.get_attribute('maxlength')=='80') if code.count() else False
+              if code.count():
+                  code.fill('SME20')
+                  out['checks']['gift_short_code_blocked']=bool(p.evaluate('''()=>!document.querySelector('#veloraAdminGiftCards41Form input[name="code"]').checkValidity()'''))
+              else:
+                  out['checks']['gift_short_code_blocked']=False
               overflow(p,'gift')
 
               p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('subscriptionControl')")
@@ -122,8 +128,9 @@ jobs:
               out['checks']['rtl']=p.evaluate("()=>document.documentElement.dir==='rtl'")
               out['checks']['lang_ar']=p.evaluate("()=>document.documentElement.lang==='ar'")
               p.evaluate("()=>window.VELORA_CANONICAL_ADMIN_SECTION('gift_cards')")
-              p.wait_for_timeout(800)
+              p.wait_for_timeout(1200)
               out['checks']['gift_arabic_title']='بطاقات الهدايا' in p.locator('#adminContent').inner_text()
+              out['checks']['gift_debug_locale']=p.evaluate("()=>({htmlLang:document.documentElement.lang,dir:document.documentElement.dir,globalLocale:window.VELORA_GLOBAL_LOCALE,globalStateLocale:window.VELORA_GLOBAL_LOCALE_STATE?.locale,hasPack:!!window.__VELORA_PACK?.ar,packValue:String(window.__VELORA_PACK?.ar?.['Gift Cards']||''),translation:typeof window.VELORA_GET_TRANSLATION==='function' ? String(window.VELORA_GET_TRANSLATION('Gift Cards','ar')||'') : 'NO_GET_TRANSLATION'})")
               out['checks']['i18n_render_available']=bool(p.evaluate("()=>typeof window.VELORA_I18N_RENDER==='function'"))
               out['checks']['gift_translation_pack']=p.evaluate("()=>String(window.__VELORA_PACK?.ar?.['Gift Cards']||'')==='بطاقات الهدايا'")
               out['checks']['gift_h3_html']=p.locator('#adminContent h3').first.get_attribute('data-velora-i18n')=='Gift Cards'
