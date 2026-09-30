@@ -15977,3 +15977,60 @@ EVIDENCE BOUNDARY:
 - L4/L5/L7 positive payout execution = NOT EVIDENCED because no real payable payout exists and synthetic evidence is prohibited.
 - L8 external financial settlement = NOT EVIDENCED.
 - L9 Production = untouched; Production remains FROZEN.
+
+
+
+## MESSAGE 95 — ZERO-COST EXECUTION LAYER EXPANSION (2026-09-30)
+
+CLASSIFICATION:
+- Zero-cost engineering/evidence capability expanded materially without changing the canonical business architecture.
+- The new tooling is explicitly split between deterministic simulation, live read-only Restore-Test evidence, and provider-contract emulation.
+- No Production, external provider, legal publication, or real-money operation was performed.
+
+NEW ZERO-COST CAPABILITIES:
+1. `tools/velora_zero_cost_commerce_lab.py`
+   - dependency-free deterministic scenarios for Order Cancellation, Returns/Refund state transitions, Subscription lifecycle, Seller Advertising lifecycle, Payout recording, and canonical source ownership.
+   - Workflow: `.github/workflows/velora-zero-cost-commerce-lab.yml`.
+   - First successful run: `36685836154`.
+2. `.github/workflows/velora-zero-cost-commerce-evidence.yml`
+   - fixed read-only Restore-Test probes for subscription plans/subscriptions/renewal jobs, advertising packages/campaigns, subscription/ad payment attempts, payouts/payout items, returns, legal documents, and Paymob provider configuration.
+   - No arbitrary SQL, no write capability, no Production access.
+   - Successful run: `36685970439`.
+3. `tools/velora_provider_contract_lab.py`
+   - local deterministic provider-contract emulation covering Paymob intention shape, SHA-512/HMAC verification, tamper rejection, duplicate-event idempotency, late-capture reconciliation boundary, and missing-client-secret recovery boundary.
+   - Workflow: `.github/workflows/velora-zero-cost-provider-contract-lab.yml`.
+   - Initial harness failure was itself isolated to the harness: expected `real_money_moved=false` was mistakenly treated as a failure. Test-only correction commit `f787ce46c5629ae1d042cf487eeb0dd881b19bf4`.
+   - Final successful run: `36686102257`.
+4. `docs/FREE_ZERO_COST_TOOLING.md` expanded to document the new capabilities and their evidence boundaries.
+
+CURRENT VALIDATION:
+- Zero-Cost Commerce Lab = PASS.
+- Zero-Cost Restore-Test Commerce Evidence = PASS.
+- Zero-Cost Provider Contract Lab = PASS.
+- Zero-Cost Health Gate at commit `f787ce46c5629ae1d042cf487eeb0dd881b19bf4` = PASS (run `36686102269`).
+- The later documentation-only extension commit to `docs/FREE_ZERO_COST_TOOLING.md` does not alter application runtime behavior.
+
+WHAT THIS TOOLING CAN REPLACE:
+- repeated manual QA execution;
+- many paid/browser-agent dependencies for supported flows;
+- deterministic provider failure/recovery testing;
+- repeated Restore-Test state snapshotting;
+- a substantial portion of team-style regression/evidence work.
+
+WHAT IT CANNOT LEGITIMATELY REPLACE:
+- legal counsel or legal publication authority;
+- tax/entity/Merchant-of-Record classification;
+- real bank/provider settlement;
+- provider-side paid-plan/account capability;
+- irreversible Production financial execution;
+- Production backup credentials that are not presently configured;
+- Preview deployment capacity itself.
+
+DECISION:
+- Continue building repository-native zero-cost tools whenever they can supply equivalent engineering/evidence value without falsifying a higher evidence layer.
+- Never label a deterministic emulator as Provider PASS, a simulated policy as approved business policy, or a live Restore-Test artifact as Production evidence.
+- Existing canonical business engines remain authoritative; the tooling layer observes, tests, simulates, and verifies them rather than replacing them.
+
+STATUS:
+- Zero-cost execution/evidence layer = CLOSED-DONE for the currently implemented tooling described above.
+- Commercial/provider/legal/Production gates remain separately OPEN/BLOCKED where already documented.
