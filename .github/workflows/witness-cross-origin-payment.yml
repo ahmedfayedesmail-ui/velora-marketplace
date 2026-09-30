@@ -184,45 +184,93 @@ jobs:
           printf '%s' "$?" > /tmp/witness-exit-code
           exit 0
 
-      - name: Build sanitized gate evidence
+      - name: Run direct WITNESS business-truth observation
+        env:
+          ENGINE_FILE: "/opt/hostedtoolcache/node/20.20.2/x64/lib/node_modules/@witness-engine/cli/src/business-truth.js"
+          PLAYWRIGHT_GLOBAL: "/opt/hostedtoolcache/node/20.20.2/x64/lib/node_modules/playwright"
         run: |
+          set -euo pipefail
+          ORDER_ID="$(cat paid-order-id.txt)"
+          ENGINE_FILE="$ENGINE_FILE" PLAYWRIGHT_GLOBAL="$PLAYWRIGHT_GLOBAL" ORDER_ID="$ORDER_ID" node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          import assert from 'node:assert/strict';
+          import { createRequire } from 'node:module';
+          import process from 'node:process';
+
+          const require=createRequire(import.meta.url);
+          const { chromium }=require(process.env.PLAYWRIGHT_GLOBAL);
+          const { loadBusinessTruthContracts, runBusinessTruthChecks }=await import(process.env.ENGINE_FILE);
+
+          const contract=await loadBusinessTruthContracts("evidence/witness/velora-payment-business-truth.v1.json");
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({storageState:"customer-state.json",viewport:{width:390,height:844}});
+          const page=await context.newPage();
+          const target="http://127.0.0.1:4173/?velora_order_id="+encodeURIComponent(process.env.ORDER_ID);
+          await page.goto(target,{waitUntil:"domcontentloaded",timeout:45000});
+          let body="";
+          for(let i=0;i<24;i++){
+            body=await page.locator("body").innerText();
+            if(body.includes("Payment successful")) break;
+            await new Promise(r=>setTimeout(r,1000));
+          }
+          assert.match(body,/Payment successful/i,"Browser success claim must be visible before WITNESS truth observation");
+
+          const snapshot={url:page.url(),text:body,state:"payment-success",persona:"customer"};
+          const out=await runBusinessTruthChecks({
+            page,
+            browserSnapshot:snapshot,
+            after:snapshot,
+            persona:"customer",
+            checks:contract
+          });
+          await browser.close();
+
+          const consistent=out.observations.filter(o=>o.checkId==="velora-payment-return-order-truth" && o.verdict==="CONSISTENT");
+          const contradictions=out.findings.filter(f=>f.code==="BUSINESS-TRUTH-001");
+          const observation=out.observations.find(o=>o.checkId==="velora-payment-return-order-truth");
+          const gate={
+            schema:"witness-cross-origin-payment-gate.v1",
+            witnessPackageVersion:"0.9.1",
+            browserClaim:{observed:true,text:"Payment successful"},
+            businessTruth:{
+              checksObserved:out.observations.length,
+              consistent:consistent.length,
+              contradictions:contradictions.length,
+              observationMode:observation?.api?.observation?.mode||null,
+              allowedOrigin:observation?.api?.observation?.allowedOrigin||false,
+              apiStatus:observation?.api?.status??null,
+              stateAssertions:observation?.state?.assertions||[]
+            },
+            passed:consistent.length===1 && contradictions.length===0 && observation?.api?.observation?.mode==="cross-origin",
+            safety:{
+              productionTouched:false,
+              realMoneyMoved:false,
+              destructiveBrowserActions:false,
+              authStorageStatesUploaded:false
+            }
+          };
+          await fs.writeFile("evidence/witness/cross-origin-browser-gate.json",JSON.stringify(gate,null,2)+"
+");
+          await fs.writeFile("evidence/witness/cross-origin-business-truth-observation.json",JSON.stringify({schema:"witness-cross-origin-observation.v1",observation,findings:out.findings},null,2)+"
+");
+          console.log(JSON.stringify(gate,null,2));
+          if(!gate.passed) throw new Error("WITNESS cross-origin business-truth gate failed");
+          NODE
+
+      - name: Validate sanitized gate evidence
+        run: |
+          set -euo pipefail
           python3 - <<'PY'
           import json
           from pathlib import Path
-          result=json.loads(Path("witness-cross-origin-run/result.json").read_text())
-          observations=result.get("businessTruth") or []
-          target=[o for o in observations if o.get("checkId")=="velora-payment-return-order-truth"]
-          consistent=[o for o in target if o.get("verdict")=="CONSISTENT"]
-          contradictions=[o for o in target if o.get("verdict")=="CONTRADICTION"]
-          gate={
-              "schema":"witness-cross-origin-payment-gate.v1",
-              "witnessPackageVersion":"0.9.1",
-              "browserClaim":{"observed":True,"text":"Payment successful"},
-              "businessTruth":{
-                  "checksObserved":len(target),
-                  "consistent":len(consistent),
-                  "contradictions":len(contradictions),
-                  "observationMode":next(((o.get("api") or {}).get("observation") or {}).get("mode") for o in target if ((o.get("api") or {}).get("observation") or {}).get("mode")),
-              },
-              "witnessScan":{
-                  "runId":result.get("runId"),
-                  "businessTruthChecks":result.get("summary",{}).get("businessTruthChecks",0),
-                  "businessTruthContradictions":result.get("summary",{}).get("businessTruthContradictions",0),
-                  "confirmedFindings":result.get("summary",{}).get("confirmedFindings",0),
-                  "exitCode":int(Path("/tmp/witness-exit-code").read_text())
-              },
-              "passed":bool(consistent) and not contradictions,
-              "safety":{
-                  "productionTouched":False,
-                  "realMoneyMoved":False,
-                  "destructiveBrowserActions":False,
-                  "authStorageStatesUploaded":False
-              }
-          }
-          Path("evidence/witness/cross-origin-browser-gate.json").write_text(json.dumps(gate,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          gate=json.loads(Path("evidence/witness/cross-origin-browser-gate.json").read_text())
+          assert gate["passed"] is True
+          assert gate["browserClaim"]["observed"] is True
+          assert gate["businessTruth"]["consistent"] == 1
+          assert gate["businessTruth"]["contradictions"] == 0
+          assert gate["businessTruth"]["observationMode"] == "cross-origin"
+          assert gate["businessTruth"]["allowedOrigin"] is True
           print(json.dumps(gate,ensure_ascii=False,indent=2))
-          if not gate["passed"]:
-              raise SystemExit("WITNESS cross-origin payment truth gate failed")
           PY
 
       - name: Commit sanitized verification evidence
