@@ -8,7 +8,13 @@
 const db=window.mahaSupabase;if(!db)return;
 const esc=v=>escapeHtml(String(v??''));
 const tr=v=>typeof window.VELORA_GET_TRANSLATION==='function'?window.VELORA_GET_TRANSLATION(String(v)):String(v);
-const money=(n,c)=>{try{return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'USD'}).format(Number(n||0))}catch(_){return `${Number(n||0).toFixed(2)} ${c||''}`}};
+const money=(n,c)=>{
+const amount=Number(n||0);const currency=c||'USD';
+const s=window.VELORA_GLOBAL_LOCALE_STATE||{};
+const locale=String(s.date_locale||((s.locale||document.documentElement.lang||'en').toLowerCase()+'-'+(s.country_code||'EG').toUpperCase()));
+try{return new Intl.NumberFormat(locale,{style:'currency',currency}).format(amount)}
+catch(_){try{return new Intl.NumberFormat('en-EG',{style:'currency',currency}).format(amount)}catch(__){return String(amount.toFixed(2))+' '+currency}}
+};
 const cls=s=>String(s||'').toLowerCase().replace(/[^a-z0-9_-]/g,'');
 async function user(){const {data,error}=await db.auth.getUser();if(error)throw error;if(!data?.user)throw new Error('Please login first');return data.user}
 async function paymentMethods(){const country=String(document.getElementById('veloraCountryCode')?.value||window.VELORA_MARKET_CONTEXT?.countryCode||'EG').toUpperCase();const currency=String(document.getElementById('currencySelect')?.value||window.VELORA_MARKET_CONTEXT?.currencyCode||'EGP').toUpperCase();const {data,error}=await db.rpc('velora_get_operational_payment_methods',{p_country_code:country,p_currency_code:currency});if(error)throw error;return data||[]}
