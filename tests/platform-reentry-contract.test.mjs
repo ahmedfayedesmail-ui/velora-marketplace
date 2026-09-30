@@ -6,6 +6,7 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 const canonical = read('src/scripts/12-localization.js');
 const router = read('src/scripts/63-platform-router.js');
 const admin = read('src/scripts/56-s2d-admin.js');
+const sellerSubscriptionDomain = read('src/scripts/35-seller.js');
 
 assert.match(canonical, /let sellerPlatformOperation\s*=\s*0/);
 assert.match(canonical, /const operation=\+\+sellerPlatformOperation/);
@@ -16,6 +17,13 @@ assert.match(canonical, /invalidateAdminPlatformOperations\(\)/);
 assert.match(canonical, /window\.closeSellerPlatform=window\.VELORA_CLOSE_SELLER/);
 assert.match(canonical, /window\.closeAdminPlatform=window\.VELORA_CLOSE_ADMIN/);
 assert.match(canonical, /p\.hidden=true/);
+assert.match(canonical, /data-section="subscription"[\s\S]*VELORA_CANONICAL_SELLER_SECTION\('subscription',this\)/);
+assert.match(canonical, /section==='subscription'[\s\S]*VELORA_RENDER_SELLER_SUBSCRIPTION/);
+assert.match(canonical, /id="veloraCanonicalSellerSubscription"/);
+assert.match(sellerSubscriptionDomain, /async function v39LoadSubscription\(target\)/);
+assert.match(sellerSubscriptionDomain, /window\.VELORA_RENDER_SELLER_SUBSCRIPTION=v39LoadSubscription/);
+assert.match(sellerSubscriptionDomain, /velora-subscription-paymob-checkout-restore-test/);
+assert.match(sellerSubscriptionDomain, /Seller subscription terms are not published yet\./);
 
 assert.match(canonical, /let adminPlatformOperation\s*=\s*0/);
 assert.match(canonical, /const operation=\+\+adminPlatformOperation/);
