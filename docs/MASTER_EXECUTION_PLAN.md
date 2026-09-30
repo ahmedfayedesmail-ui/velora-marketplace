@@ -14789,3 +14789,74 @@ STATUS:
 
 NEXT:
 - Continue the next independent non-legal OPEN item; do not reopen the exact-source aggregate tooling.
+
+
+## MESSAGE 80 — SECURITY FUNCTION-PATH REVIEW FOR CURRENT RLS/NO-POLICY TABLES (2026-09-30)
+
+OBJECTIVE:
+- Complete the exact function-path review required before any remediation of the current RLS-enabled/no-policy objects.
+- Determine whether the four current objects represent an actual public/authenticated capability leak through direct grants, public functions, or triggers.
+
+CURRENT OBJECTS:
+- `public.billing_instruments`
+- `public.paymob_card_tokenization_sessions`
+- `public.regional_pricing`
+- `public.seller_subscription_renewal_jobs`
+
+L1/L2 DATABASE PATH REVIEW:
+- Current public functions referencing these objects were enumerated directly from `pg_proc`.
+- The relevant function set includes:
+  - Paymob tokenization session create/store/get paths;
+  - regional subscription-price resolution;
+  - renewal job creation/callback/result/batch/state-sync paths.
+- All inspected functions are `SECURITY DEFINER` and pin `search_path=public`.
+- All inspected functions have `anon_execute=false`.
+- All inspected functions have `authenticated_execute=false`.
+- `service_role` is the only role with direct function EXECUTE for the inspected paths.
+- No direct table grants for `anon` or `authenticated` were present on the four current no-policy tables.
+- Trigger inventory for all four tables returned no non-internal triggers.
+
+IMPORTANT PATH FINDINGS:
+- `velora_create_subscription_renewal_payment_attempt_internal` explicitly requires `auth.role()='service_role'` in addition to its function ACL.
+- `velora_create_paymob_card_tokenization_session`, `velora_store_paymob_card_token`, `velora_get_paymob_card_token`, `velora_resolve_subscription_price`, `velora_run_renewal_batch`, `velora_record_renewal_result`, `velora_find_renewal_job_for_callback`, and `velora_sync_subscription_state` are not directly executable by anon/authenticated according to live function ACL.
+- The absence of direct grants plus service-only EXECUTE means the current evidence does not establish a public or authenticated direct execution path to these private tables.
+
+DECISION:
+- No RLS policy was added.
+- No RLS was disabled.
+- No mass privilege revoke was performed.
+- No function contract was changed.
+- No schema mutation was justified by this review.
+- This is a reviewed security boundary, not a remediation candidate, unless a future caller/contract proves an intended authenticated path that is currently missing.
+
+ACTION FLOW:
+Security Advisor/no-policy finding
+-> live catalog recheck
+-> exact table inventory
+-> public function dependency inventory
+-> function ACL + SECURITY DEFINER + search_path review
+-> trigger inventory
+-> unauthorized capability assessment
+-> NO VERIFIED PUBLIC/AUTHENTICATED CAPABILITY
+-> NO MUTATION JUSTIFIED
+-> carry forward as reviewed boundary
+
+EVIDENCE LEVEL:
+- L1 Source/DB contract = PASS for reviewed paths.
+- L2 DB catalog = PASS.
+- L3 ACL/security-definer boundary = PASS.
+- L4 Negative mutation = not required because no mutation was justified; the stronger negative evidence is the live ACL showing anon/authenticated EXECUTE=false.
+- L5 CI = no source mutation; no new code CI required.
+- L6 Preview = not applicable to this no-change review.
+- L7 Browser = not applicable to a DB ACL boundary with no source mutation.
+- L8 Provider = not applicable.
+- L9 Production = not touched; Production remains FROZEN.
+
+STATUS:
+- Current four RLS/no-policy object function-path review = CLOSED-DONE / NO FIX JUSTIFIED.
+- Security remediation queue for these four objects = CLOSED unless a new intended access path is proven.
+- Remaining unrelated security findings remain tracked separately.
+- Production = FROZEN.
+
+NEXT:
+- Continue the next independent non-legal OPEN item; do not reopen these four objects without new evidence.
