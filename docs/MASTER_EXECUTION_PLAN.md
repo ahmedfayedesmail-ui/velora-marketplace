@@ -14346,3 +14346,70 @@ STATUS:
 NEXT:
 - Preserve this closed Product Detail path.
 - Continue to the next independent non-legal OPEN item; do not reopen Product Detail without a regression.
+
+
+## MESSAGE 74 — CUSTOMER AUTHORIZATION NEGATIVE-PATH CLOSURE (2026-09-30)
+
+CLASSIFICATION: AUTHORIZATION NEGATIVE PATH — CLOSED-DONE FOR CUSTOMER PLATFORM ENTRY SCOPE
+
+OBJECTIVE:
+- Verify that an authenticated customer cannot enter canonical Seller or Admin platform surfaces.
+- Reuse the existing canonical platform guards:
+  - Admin -> `canonicalRoles()` + admin/owner role requirement.
+  - Seller -> `velora_get_own_seller` + current-user ownership check.
+- Verify this through exact-source Chromium, not source inference alone.
+
+FINAL EVIDENCE:
+- Workflow: `.github/workflows/velora-auth-resilience-browser-gate.yml`
+- Run: `36671091768`
+- Job: `109746035966`
+- Head/source commit: `341123f4a51522481116035f46fcf15eafb27238`
+- Conclusion: SUCCESS
+- Artifact: `11078181768`
+- Execution mode: `local_exact_source_ephemeral_fixture`
+
+PROVEN CHECKS:
+- customer Admin platform denied = TRUE
+- customer Admin platform active = FALSE
+- customer Seller platform denied = TRUE
+- customer Seller platform active = FALSE
+- duplicate-tab refresh continuity = TRUE
+- same-context refresh after global logout fails closed = TRUE
+- separate browser contexts authenticate independently = TRUE
+- global logout invalidates separate-context refresh = TRUE
+- failures = []
+
+OBSERVED AUTHORIZATION SNAPSHOT:
+- `VELORA_OPEN_ADMIN()` returned `false`.
+- Admin platform remained inactive.
+- `VELORA_OPEN_SELLER()` returned no Seller platform activation.
+- Seller platform remained inactive.
+
+RCA / TEST BOUNDARY:
+- The first negative-path reruns had cleanup-only test failures after the Seller guard correctly redirected the customer toward the registration path.
+- The authorization assertions themselves were already TRUE.
+- Cleanup was corrected to use the canonical Auth logout path without altering product logic.
+- No authorization source change was justified or made.
+
+SOURCE/CONTRACT STATUS:
+- Customer -> Admin denial = EVIDENCED.
+- Customer -> Seller denial = EVIDENCED.
+- Canonical role/seller ownership guards remain authoritative.
+- No RLS/schema/RPC mutation.
+- No new permission system.
+- No Production change.
+
+SCOPE BOUNDARY:
+- This closes customer platform-entry negative paths.
+- It does not automatically close every object-level authorization negative path for every RPC/table.
+- Seller-vs-seller isolation, customer-vs-other-customer object access, staff/owner escalation, and sensitive RPC negative paths remain separate if not already evidenced elsewhere in Master.
+
+STATUS:
+- Customer Auth base lifecycle = CLOSED-DONE.
+- Auth resilience = CLOSED-DONE.
+- Customer Seller/Admin entry denial = CLOSED-DONE.
+- Remaining authorization/security edges = OPEN only where separately tracked.
+- Production = FROZEN.
+
+NEXT:
+- Continue with the next independent non-legal OPEN item; do not reopen closed Auth paths without regression.
