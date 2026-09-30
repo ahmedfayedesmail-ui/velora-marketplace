@@ -181,3 +181,25 @@ Current live Restore-Test evidence:
 Boundary:
 - this verifies payment-method availability and guard shape only;
 - cash collection, delivery reconciliation, refunds, bank settlement, and Production payment operations remain separate evidence gates.
+
+## 10. Zero-Cost Inventory Failure Reconciliation
+
+Files:
+- `tools/velora_inventory_failure_reconciliation_lab.py`
+- `.github/workflows/velora-zero-cost-inventory-failure-lab.yml`
+- `.github/workflows/velora-zero-cost-inventory-failure-evidence.yml`
+- `.remote/inventory-failure-lab.json`
+
+Purpose:
+- verify the existing failed-marketplace-payment -> inventory-release state flow;
+- reconcile product/variant stock sanity and audit evidence in Restore-Test;
+- avoid building an inventory-reservation engine when no reservation table exists in the observed schema.
+
+Current evidence:
+- deterministic inventory failure contract = PASS;
+- fixed Restore-Test inventory evidence = PASS;
+- current Restore-Test has 5 products, 1 variant, no negative stock, 1 cancelled order with valid `payment_status=failed`, 1 matching failed marketplace payment attempt, and 1 matching inventory-release audit event.
+
+Boundary:
+- this is reconciliation evidence, not proof of provider settlement, cash collection, refund execution, or Production inventory correctness.
+- no writes are performed.
