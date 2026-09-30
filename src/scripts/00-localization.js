@@ -9040,7 +9040,21 @@ async function loadAdminGiftCardsFromDb(){
             if(status)status.textContent='✅ Code: '+(x.data?.code||'');
             form.reset();form.elements.currency.value='EGP';
             await loadAdminGiftCardsFromDb();
-          }catch(err){if(status)status.textContent='❌ '+(err.message||err);}
+          }catch(err){
+            const raw=String(err?.message||err||'');
+            const messages={
+              INVALID_GIFT_CARD_CODE:'Gift card code must be between 8 and 80 characters.',
+              GIFT_CARD_CODE_EXISTS:'That gift card code already exists.',
+              INVALID_GIFT_CARD_AMOUNT:'Gift card amount must be greater than zero.',
+              INVALID_GIFT_CARD_CURRENCY:'The selected gift card currency is not active.',
+              INVALID_GIFT_CARD_EXPIRY:'Gift card expiry must be in the future.',
+              OWNER_ONLY:'Only the Owner can issue gift cards.'
+            };
+            if(status){
+              status.textContent='❌ '+(messages[raw]||raw);
+              try{window.VELORA_I18N_RENDER?.(status);}catch(_){}
+            }
+          }
         });
       }
       if(typeof window.VELORA_TRANSLATE_ALL==='function')window.VELORA_TRANSLATE_ALL();
