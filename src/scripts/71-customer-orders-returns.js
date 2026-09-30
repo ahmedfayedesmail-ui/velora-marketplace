@@ -17,14 +17,11 @@
   };
 
   const money = (n,c)=>{
-    try{
-      return new Intl.NumberFormat(
-        String(document.documentElement.lang||'en').toLowerCase()==='ar' ? 'ar-EG' : undefined,
-        {style:'currency',currency:String(c||'EGP').toUpperCase()}
-      ).format(Number(n||0));
-    }catch(_){
-      return Number(n||0).toFixed(2)+' '+String(c||'');
-    }
+    const amount=Number(n||0);const currency=String(c||'EGP').toUpperCase();
+    const s=window.VELORA_GLOBAL_LOCALE_STATE||{};
+    const locale=String(s.date_locale||((s.locale||document.documentElement.lang||'en').toLowerCase()+'-'+(s.country_code||'EG').toUpperCase()));
+    try{return new Intl.NumberFormat(locale,{style:'currency',currency}).format(amount)}
+    catch(_){try{return new Intl.NumberFormat(locale.startsWith('ar')?'ar-EG':'en-EG',{style:'currency',currency}).format(amount)}catch(__){return amount.toFixed(2)+' '+currency}}
   };
 
   const statusText = (value)=>{
