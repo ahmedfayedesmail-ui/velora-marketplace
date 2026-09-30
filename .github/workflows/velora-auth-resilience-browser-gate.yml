@@ -109,10 +109,11 @@ jobs:
           with open("auth-resilience-evidence.json","w") as f: json.dump(evidence,f,indent=2)
           print(json.dumps(evidence,indent=2))
           raise SystemExit(1 if evidence["failures"] else 0)
-                - name: Upload resilience evidence
-                  if: always()
-                  uses: actions/upload-artifact@v4
-                  with:
+          PY
+      - name: Upload resilience evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
           name: velora-auth-resilience-browser-evidence
           path: |
             auth-resilience-evidence.json
