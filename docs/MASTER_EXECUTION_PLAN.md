@@ -15348,3 +15348,103 @@ Seller enters Subscription
 -> downstream subscription state machine / payment / renewal contracts
 -> audit / retry / provider exception as applicable
 
+
+
+## MESSAGE 85 — CUSTOMER BEAUTY INTENT LOCAL INTERPRETER + PASSPORT → ROUTINE EXACT-SOURCE BROWSER CLOSURE (2026-09-30)
+
+CLASSIFICATION CORRECTION:
+- The previous Message 13 wording "CUSTOMER BEAUTY AI = NOT DONE" was too broad for the current branch.
+- The current branch DOES contain a customer-facing, provider-free, deterministic Beauty Intent Interpreter in src/scripts/72-s1-e-customer-beauty-ai.js and the V2 Quiz integrates it.
+- This is NOT an external LLM / model-provider runtime. It is a bounded local semantic interpreter over the existing finite V2 vocabulary.
+- Therefore:
+  - CUSTOMER BEAUTY INTENT LOCAL INTERPRETER = CLOSED-DONE at L1/L3/L5/L7 exact-source Browser scope.
+  - EXTERNAL CUSTOMER LLM / MODEL-PROVIDER AI = STILL OPEN / NOT IMPLEMENTED.
+  - Future LLM-based interpretation or explanation remains governed by Message 13/14 constraints and requires explicit product/privacy/safety/provider decisions before implementation.
+
+SOURCE CONTRACT VERIFIED:
+- src/scripts/72-s1-e-customer-beauty-ai.js:
+  - finite V2 outputs: skin_type, goal, routine_budget
+  - bounded input max = 800 chars
+  - explicit decision states: ready, needs_clarification, unsupported, unsafe
+  - structured candidate validation rejects invalid values/contracts
+  - provider-free: no fetch, no functions.invoke, no DOM creation, no database write
+  - public internal API: window.veloraBeautyAI / window.veloraBeautyIntentInterpreter
+- src/scripts/61-s1-c-quiz-v2.js:
+  - renders the natural-language customer input surface
+  - calls window.veloraBeautyAI.interpret()
+  - shows a customer review state before persistence
+  - uses existing velora_save_beauty_passport_v2 for the canonical persisted V2 state
+  - then opens the existing deterministic Routine UX
+- Existing customer Beauty AI contract test already locks these boundaries; no new AI/provider runtime was introduced.
+
+EXACT-SOURCE BROWSER:
+- New workflow:
+  .github/workflows/velora-customer-beauty-intent-exact-source-browser-gate.yml
+- Run: 36680033519
+- Job: 109773254456
+- Execution target: local_exact_source
+- Result: SUCCESS
+- workflow_sha: b3e32eb14801b56d5dbf4fd7cce935dd5041391a
+- HTTP status = 200.
+- Direct local interpreter result:
+  - skin_type = oily
+  - goal = hydration
+  - routine_budget = 500_1000
+  - decision = ready
+- Unsafe input test returned decision=unsafe.
+- Unsupported input test returned decision=unsupported.
+- Authenticated Supabase session = true.
+- Natural input + submit controls present.
+- Review state visible and correct.
+- Customer review correctly displayed Oily / Hydration / EGP 500–1,000.
+- Passport confirmation transitioned into existing Routine UX.
+- Routine modal active = true.
+- Routine basis text confirmed "Built from your Beauty Passport".
+- Routine status = complete.
+- Routine step count = 5.
+- Persisted Passport values:
+  - skin_type = oily
+  - goal = hydration
+  - routine_budget = 500_1000
+- External/paid Beauty AI endpoint requests = 0.
+- Browser errors = 0.
+- failures = [].
+- passed = true.
+- Evidence artifact: customer-beauty-intent-exact-source-browser-evidence.
+
+ARCHITECTURE / AUTHORITY BOUNDARY:
+Customer natural language
+-> local bounded intent interpretation
+-> structured contract validation
+-> customer review/confirmation
+-> canonical Beauty Passport V2 save
+-> deterministic Routine engine / Routine UX
+-> no model/provider ownership of product, inventory, price, payment, legal, seller, refund, payout, or irreversible commerce state.
+
+IMPORTANT:
+- The phrase "Customer Beauty AI" should not be used to imply an LLM/provider where none exists.
+- The actual current runtime is a deterministic/local intent interpreter designed to remove provider/API-credit dependency for the finite V2 vocabulary.
+- The future external LLM boundary remains a separate OPEN item and must not be silently mixed into this closed local-intent scope.
+
+PREVIEW / PROVIDER / PRODUCTION:
+- This exact-source Browser PASS is not Preview evidence and does not replace the existing Preview gate.
+- The legacy Preview-based Customer Beauty AI Browser workflow remains a separate Preview-target evidence track.
+- No external AI provider/model was invoked.
+- Production remains FROZEN.
+
+CARRY-FORWARD:
+- Full Beauty Browser journey remains broader than this closure: Passport edit/persistence/reload, Arabic <-> English through the journey, Beauty Journey, Feedback, Recommendation cards, Routine -> Cart, mobile verification and purchase-linked feedback remain separately subject to Browser evidence.
+- External Customer LLM/AI remains OPEN by design until the required structured-intent/privacy/safety/provider/fallback/observability/cost/latency decisions are explicitly made.
+- Future Passport optional dimensions remain OPEN; no new questionnaire fields were introduced.
+
+ACTION FLOW:
+EVENT: customer supplies natural-language beauty description
+-> AUTH: authenticated customer before Passport persistence
+-> GUARD: bounded local interpreter + finite V2 contract
+-> VALIDATION: structured candidate validation
+-> STATE TRANSITION: customer review, then canonical velora_save_beauty_passport_v2
+-> AUTOMATIC SIDE EFFECT: deterministic Routine build
+-> NEXT EVENT: Routine UX
+-> AUDIT/RETRY: existing canonical Passport/Routine paths
+-> HUMAN EXCEPTION: future safety/privacy/provider ambiguity only; not required for current normal deterministic local-intent flow
+
