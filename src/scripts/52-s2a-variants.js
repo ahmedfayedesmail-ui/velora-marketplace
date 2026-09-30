@@ -439,6 +439,59 @@
     window.__VELORA_S2A_OPEN_MODAL_WRAPPED__=true;
   }
 
+  async function enhanceCanonicalEditModal(productId){
+    var modal=document.getElementById("veloraCanonicalProductModal");
+    var form=modal&&modal.querySelector("form");
+    if(!modal||!form||!isUuid(productId))return;
+    var old=modal.querySelector("#s2aCanonicalVariantEditor");
+    if(old)old.remove();
+    var host=document.createElement("div");
+    host.id="s2aCanonicalVariantEditor";
+    host.className="velora-variant-editor";
+    form.insertBefore(host,form.lastElementChild);
+    host.innerHTML='<div class="velora-variant-editor-head"><div><strong>Variants</strong><div class="velora-op-muted">Add one row per purchasable combination. Attributes use JSON.</div></div><button type="button" class="btn btn-outline" id="s2aCanonicalAddVariant">+ Add Variant</button></div><div id="s2aCanonicalVariantRows"></div><div class="velora-op-note">Existing variants are retired rather than hard-deleted.</div>';
+    var rowsHost=host.querySelector("#s2aCanonicalVariantRows");
+    host.querySelector("#s2aCanonicalAddVariant").onclick=function(){rowsHost.insertAdjacentHTML("beforeend",sellerVariantRow(null));};
+    host.addEventListener("click",function(e){var remove=e.target.closest(".s2aRemoveVariant");if(remove){var row=remove.closest(".velora-seller-variant-row");if(row)row.remove();}});
+    try{
+      var loaded=await loadVariants(productId,true);
+      if(document.body.contains(host))rowsHost.innerHTML=(loaded||[]).map(sellerVariantRow).join("");
+    }catch(err){
+      rowsHost.innerHTML='<div class="velora-op-muted">Existing variants could not be loaded. You can still add a new variant.</div>';
+      console.warn("S2-A canonical variant hydration unavailable:",err);
+    }
+  }
+
+  function canonicalEditRows(){
+    var host=document.getElementById("s2aCanonicalVariantEditor");
+    return host?collectSellerRows(host):[];
+  }
+
+  var originalCanonicalEdit=window.VELORA_EDIT_PRODUCT;
+  if(typeof originalCanonicalEdit==="function" && !window.__VELORA_S2A_CANONICAL_EDIT_WRAPPED__){
+    window.VELORA_EDIT_PRODUCT=async function(productId){
+      var result=await originalCanonicalEdit.apply(this,arguments);
+      if(isUuid(productId)){
+        await enhanceCanonicalEditModal(productId);
+        var saveFn=window.VELORA_SAVE_PRODUCT;
+        if(typeof saveFn==="function" && !window.__VELORA_S2A_CANONICAL_SAVE_WRAPPED__){
+          window.VELORA_SAVE_PRODUCT=async function(event,id){
+            var rows=(id&&isUuid(id))?canonicalEditRows():[];
+            var result2=await saveFn.apply(this,arguments);
+            if(id&&isUuid(id)&&rows.length||id&&isUuid(id)&&document.getElementById("s2aCanonicalVariantEditor")){
+              try{await saveSellerVariants(id,rows);if(typeof showToast==="function")showToast("✅ Product and variants saved successfully.","success");}
+              catch(err2){if(typeof showToast==="function")showToast("⚠️ Product saved, but variants were not attached: "+(err2.message||err2),"warning");}
+            }
+            return result2;
+          };
+          window.__VELORA_S2A_CANONICAL_SAVE_WRAPPED__=true;
+        }
+      }
+      return result;
+    };
+    window.__VELORA_S2A_CANONICAL_EDIT_WRAPPED__=true;
+  }
+
   window.__VELORA_S2A_SELLER_INTEGRATED__=true;
   console.log("✅ S2-A seller variant integration ready");
 })();
