@@ -15159,3 +15159,58 @@ STATUS:
 
 NEXT:
 - Continue by auditing existing subscription and seller-advertising control surfaces; reuse their existing canonical purchase/state machinery and add only missing Owner/Staff governance visibility or routing.
+
+## 2026-09-30 — OWNER SELLER ADVERTISING CONTROL PLANE RECONCILIATION
+
+CLASSIFICATION: CLOSED-DONE FOR OWNER/STAFF READ-ONLY CONTROL SURFACE AT L1/L2/L3/L5/L7. L6 PREVIEW PARITY REMAINS OPEN/BLOCKED. L8 PROVIDER AND L9 PRODUCTION REMAIN OPEN.
+
+### OBSERVED GAP
+- The canonical Admin route already exposed `sellerAdControl` and invoked `renderCanonicalSellerAdControl(operation)`.
+- The canonical renderer and public helper were absent from `src/scripts/12-localization.js`.
+- The existing migration, DB RPC contract, source contract test, and Browser workflow had already established the intended surface shape.
+
+### REUSE / CHANGE
+- Reused the existing `sellerAdControl` route in `src/scripts/12-localization.js`.
+- Reused the existing `velora_get_seller_ad_control_plane()` RPC and its read-only DB contract.
+- Added only `renderCanonicalSellerAdControl(expectedOperation)` plus `window.VELORA_RENDER_SELLER_AD_CONTROL` in `src/scripts/12-localization.js`.
+- Renderer is read-only, displays summary/packages/campaigns/payment attempts, and applies stale-operation protection after the async RPC.
+- No migration, table, RPC, payment engine, scheduler, accounting engine, or permission system was added.
+
+### SOURCE / CONTRACT
+- Application change commit: `7583d0bd4c416c02acd75a8a3058ddf9cfe92f74` (`feat: implement owner seller advertising control renderer`).
+- Existing `tests/platform-reentry-contract.test.mjs` remained the source contract and passed without being weakened.
+- `Velora Platform Re-entry Contract Gate` run `36677356626`: SUCCESS.
+- `Velora Zero-Cost Health Gate` run `36677356665`: SUCCESS.
+
+### DATABASE / ACL
+- Restore-Test project: `arlaxqmhtvjwjbjinjfw`.
+- `velora_get_seller_ad_control_plane()` exists as SECURITY DEFINER.
+- Live execute privileges verified: anon=false, authenticated=true, service_role=true.
+- Current active package rows verified: Product Boost — 3 Days (99 EGP), Featured Product — 7 Days (199 EGP), Home Spotlight — 7 Days (499 EGP).
+
+### BROWSER
+- Focused exact-source Browser gate commit: `6e3be6211d1edf1cff6a5ae184be2edae304db35` (test-harness-only change after the application commit).
+- Workflow run `36677868376`; job `109766841852`.
+- Execution target: `local_exact_source`; no laptop/manual Browser dependency.
+- Owner fixture found; magic-link verification succeeded; authenticated user matched; Owner Admin platform became active.
+- `[data-seller-ad-control="true"]`: present=true, visible=true, text_length=1183.
+- Seller-ad RPC request count: 1.
+- Expected current package names were present: Product Boost, Featured Product, Home Spotlight.
+- Rendered error marker absent.
+- Browser errors: none.
+- Evidence artifact: `owner-seller-ad-control-exact-source-browser-evidence`.
+
+### PREVIEW / PROVIDER / PRODUCTION BOUNDARY
+- Strict current-HEAD Preview parity is NOT claimed.
+- Vercel parity gate run `36677356570` failed the strict target-host check after receiving a Vercel deployment status of success with a dashboard target URL (`PASS_WITH_UNVERIFIED_TARGET_HOST`).
+- Vercel connector access to the configured team scope was separately denied in this session; no Preview URL was used as evidence.
+- Provider settlement, campaign accounting, reporting, attribution, revenue recognition, refund/reversal economics, legal publication, and Production remain OPEN.
+- The existing aggregate Seller/Admin Browser gate is still independently OPEN/NOT EVIDENCED because it currently fails upstream at the FinOps route before reaching seller advertising.
+
+### ACTION FLOW / BOUNDARY
+Owner Seller Advertising control event -> admin/owner authorization guard -> canonical read RPC validation -> read-only state presentation -> no commerce state transition -> no payment/accounting mutation -> existing canonical lifecycle remains responsible for actual seller-ad purchase/campaign state changes.
+
+This closure proves the Owner/Staff read/control surface only. It does NOT prove live campaign activation, provider settlement, advertising accounting, attribution, or Production readiness.
+
+### NEXT
+Next independent execution priority remains Subscription commercial/runtime/provider/Browser evidence, while Seller Advertising accounting/reporting/provider evidence stays explicitly OPEN.
