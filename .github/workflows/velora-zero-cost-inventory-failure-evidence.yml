@@ -1,0 +1,140 @@
+name: Velora Zero-Cost Inventory Failure Evidence
+
+on:
+  push:
+    branches:
+      - audit/runtime-parity-2026-09-28
+    paths:
+      - ".remote/inventory-failure-lab.json"
+      - ".github/workflows/velora-zero-cost-inventory-failure-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: Fixed Restore-Test Inventory Failure Probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/runtime-parity-2026-09-28
+          fetch-depth: 1
+      - name: Validate secret
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: test -n "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      - name: Run fixed read-only probes
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: python
+        run: |
+          import json, os, urllib.request, urllib.error
+
+          base = os.environ["SUPABASE_URL"].rstrip("/")
+          key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          headers = {"apikey": key, "Authorization": "Bearer " + key, "Accept": "application/json"}
+
+          probes = {
+            "products": "products?select=id,stock,status&limit=200",
+            "product_variants": "product_variants?select=id,product_id,stock_quantity&limit=200",
+            "orders": "orders?select=id,order_number,status,payment_status,updated_at&status=eq.cancelled&limit=200",
+            "failed_marketplace_payment_attempts": "payment_attempts?select=id,order_id,purpose,status,completed_at&purpose=eq.marketplace_order&status=eq.failed&limit=200",
+            "inventory_release_audits": "audit_logs?select=id,action,entity_type,entity_id,metadata,created_at&action=eq.payment_failed_inventory_released&limit=200"
+          }
+
+          evidence = {
+            "schema": "velora-zero-cost-inventory-failure-evidence.v1",
+            "project_ref": "arlaxqmhtvjwjbjinjfw",
+            "results": {},
+            "derived": {},
+            "failures": []
+          }
+
+          for name, path in probes.items():
+            request = urllib.request.Request(base + "/rest/v1/" + path, headers=headers, method="GET")
+            try:
+              with urllib.request.urlopen(request, timeout=25) as response:
+                rows = json.loads(response.read().decode("utf-8") or "null")
+                evidence["results"][name] = {
+                  "http_status": response.status,
+                  "row_count": len(rows) if isinstance(rows, list) else 0,
+                  "rows": rows[:200] if isinstance(rows, list) else rows
+                }
+            except urllib.error.HTTPError as exc:
+              evidence["results"][name] = {"http_status": exc.code, "body_prefix": exc.read().decode("utf-8", errors="replace")[:500]}
+              evidence["failures"].append(name + ":http_" + str(exc.code))
+            except Exception as exc:
+              evidence["failures"].append(name + ":" + type(exc).__name__)
+
+          products = evidence["results"].get("products", {}).get("rows", [])
+          variants = evidence["results"].get("product_variants", {}).get("rows", [])
+          cancelled_orders = evidence["results"].get("orders", {}).get("rows", [])
+          failed_attempts = evidence["results"].get("failed_marketplace_payment_attempts", {}).get("rows", [])
+          audits = evidence["results"].get("inventory_release_audits", {}).get("rows", [])
+
+          negative_product_stock = [row.get("id") for row in products if int(row.get("stock") or 0) < 0]
+          negative_variant_stock = [row.get("id") for row in variants if int(row.get("stock_quantity") or 0) < 0]
+
+          audit_order_ids = {
+            row.get("entity_id")
+            for row in audits
+            if row.get("entity_type") == "order" and isinstance(row.get("entity_id"), str)
+          }
+
+          failed_attempt_order_ids = {
+            row.get("order_id")
+            for row in failed_attempts
+            if row.get("order_id")
+          }
+
+          cancelled_status_mismatches = [
+            row.get("id")
+            for row in cancelled_orders
+            if str(row.get("payment_status") or "").lower() not in {"failed", "cancelled"}
+          ]
+
+          matched_failed_order_audits = sorted(failed_attempt_order_ids & audit_order_ids)
+
+          evidence["derived"] = {
+            "product_count": len(products),
+            "variant_count": len(variants),
+            "negative_product_stock_count": len(negative_product_stock),
+            "negative_variant_stock_count": len(negative_variant_stock),
+            "cancelled_order_count": len(cancelled_orders),
+            "cancelled_payment_status_unexpected_count": len(cancelled_status_mismatches),
+            "failed_marketplace_payment_attempt_count": len(failed_attempts),
+            "inventory_release_audit_count": len(audits),
+            "failed_payment_orders_with_inventory_release_audit": len(matched_failed_order_audits),
+            "inventory_release_audit_missing_for_failed_payment_orders": len(failed_attempt_order_ids - audit_order_ids),
+            "provider_settlement_evidence": False,
+            "real_money_moved": False,
+            "writes_performed": False
+          }
+
+          if negative_product_stock:
+            evidence["failures"].append("negative_product_stock")
+          if negative_variant_stock:
+            evidence["failures"].append("negative_variant_stock")
+          if cancelled_status_mismatches:
+            evidence["failures"].append("cancelled_order_payment_status_unexpected")
+          missing_audits = failed_attempt_order_ids - audit_order_ids
+          if missing_audits:
+            evidence["failures"].append("failed_payment_inventory_release_audit_missing")
+
+          evidence["status"] = "PASS" if not evidence["failures"] else "FAIL"
+          with open("inventory-failure-evidence.json", "w", encoding="utf-8") as stream:
+            json.dump(evidence, stream, ensure_ascii=False, indent=2)
+          print(json.dumps(evidence, ensure_ascii=False, indent=2))
+          raise SystemExit(1 if evidence["status"] != "PASS" else 0)
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: velora-zero-cost-inventory-failure-evidence
+          path: inventory-failure-evidence.json
+          retention-days: 3
