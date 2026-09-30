@@ -150,6 +150,8 @@ jobs:
                   page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="en-US")
                   page.on("pageerror", lambda exc: evidence["browser_errors"].append("pageerror:" + str(exc)))
                   page.on("console", lambda msg: evidence["browser_errors"].append("console:" + msg.text) if msg.type == "error" else None)
+                  seller_ad_rpc_requests = []
+                  page.on("request", lambda req: seller_ad_rpc_requests.append(req.url) if "/rest/v1/rpc/velora_get_seller_ad_control_plane" in req.url else None)
 
                   try:
                       page.goto(APP + "/#home", wait_until="domcontentloaded", timeout=60000)
@@ -204,7 +206,8 @@ jobs:
                           evidence["checks"]["seller_ad_control_visible"] = root.first.is_visible() if root.count() else False
                           evidence["checks"]["seller_ad_control_text_length"] = len(root.inner_text()) if root.count() else 0
                           evidence["checks"]["seller_ad_control_error_present"] = err_root.count() == 1
-                          evidence["checks"]["seller_ad_rpc_marker_present"] = "velora_get_seller_ad_control_plane" in (root.inner_text() if root.count() else "")
+                          evidence["checks"]["seller_ad_rpc_requests"] = len(seller_ad_rpc_requests)
+                          evidence["checks"]["seller_ad_rpc_called"] = len(seller_ad_rpc_requests) >= 1
 
                           text_content = root.inner_text() if root.count() else ""
                           for required in [
@@ -223,6 +226,8 @@ jobs:
                               evidence["failures"].append("SELLER_AD_CONTROL_NOT_VISIBLE")
                           if evidence["checks"]["seller_ad_control_text_length"] <= 100:
                               evidence["failures"].append("SELLER_AD_CONTROL_CONTENT_TOO_SHORT")
+                          if not evidence["checks"].get("seller_ad_rpc_called"):
+                              evidence["failures"].append("SELLER_AD_RPC_NOT_CALLED")
                           if evidence["checks"]["seller_ad_control_error_present"]:
                               evidence["failures"].append("SELLER_AD_CONTROL_RENDERED_ERROR")
                           for required in ["Product Boost", "Featured Product", "Home Spotlight"]:
