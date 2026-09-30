@@ -15079,3 +15079,83 @@ STATUS:
 
 NEXT:
 - Continue with the next independent Owner control-plane gap; prioritize existing canonical payout/settlement or subscription/advertising governance before speculative new infrastructure.
+
+## MESSAGE 83 — OWNER PAYOUT CONTROL-PLANE READ + EXECUTION SURFACE (2026-09-30)
+
+CLASSIFICATION:
+- OWNER/STAFF PAYOUT CONTROL READ = CLOSED-DONE AT SOURCE/DB/ACL/EXACT-SOURCE BROWSER ROUTE SCOPE
+- PAYOUT EXECUTION RECORDING UI = IMPLEMENTED THROUGH EXISTING PROTECTED RPC
+- REAL EXTERNAL BANK/MONEY TRANSFER = NOT CLAIMED; THE RPC records an already externally executed payout.
+- FULL OWNER CONTROL-PLANE COMPLETENESS = STILL OPEN
+
+PROOF OF GAP:
+- `payouts` has RLS enabled and its authenticated SELECT policy only exposes rows belonging to the authenticated seller.
+- Therefore a cross-seller Admin/Owner payout dashboard could not safely read `payouts` directly from the browser.
+- Existing `velora_record_payout_execution` is already the canonical Staff-only execution-recording RPC and writes the payout state plus ledger entry with idempotent reference handling.
+
+REUSE / DB REPAIR:
+- Added `supabase/migrations/20260930073000_owner_payout_control_plane_read.sql`.
+- Added `public.velora_get_payout_control_plane()` as a SECURITY DEFINER read-only staff-gated control-plane RPC following existing admin read patterns.
+- The RPC returns aggregate payout status/amount counts, paid-without-ledger anomaly count, and the latest payout records with seller/store context and payout-item counts.
+- ACL is explicit: PUBLIC/anon/authenticated default execution is revoked and authenticated execution is granted; the function itself still requires `velora_is_staff()`.
+- Restore-Test was updated with the same function definition and ACL. No Production schema change was performed.
+
+UI / ROUTING:
+- `src/scripts/12-localization.js` now exposes canonical `payoutControl` routing.
+- The canonical Admin navigation includes Payout Control.
+- `renderCanonicalPayoutControl()` consumes `velora_get_payout_control_plane()` and never reads the protected payouts table directly.
+- `window.VELORA_RECORD_PAYOUT_EXECUTION()` uses the existing `velora_record_payout_execution` RPC, with explicit confirmation, execution method and external reference.
+- UI language deliberately says 'Record execution' because this action does not initiate a bank transfer.
+- No new payout business engine, table, or payment provider was introduced.
+
+CONTRACT:
+- `tests/platform-reentry-contract.test.mjs` locks the migration guard/ACL shape, canonical payout route, payout read RPC usage, and execution RPC usage.
+- Source + Contract Health = SUCCESS on the tested route lineage.
+
+BROWSER EVIDENCE:
+- Workflow: `.github/workflows/velora-seller-admin-reentry-browser-gate.yml`
+- Run: `36674938648`
+- Job: `109757751713`
+- Head/source commit: `a817756457591297594e1593eb16581b0b8d46a6`
+- Conclusion: SUCCESS
+- Artifact: `11079223978`
+- Execution target: `local_exact_source`
+- Owner re-entry = TRUE
+- Owner Release Control route = TRUE
+- Owner Payout Control route = TRUE
+- Payout Control visible = TRUE
+- Browser errors = 0
+- Failures = []
+
+RESTORE-TEST STATE:
+- payouts = 0
+- seller_payout_items = 0
+- commissions = 20
+- ledger_entries = 10
+- No payout mutation was created solely for browser evidence.
+
+EVIDENCE BOUNDARY:
+- Read/control-plane routing is proven; an actual payout execution record was not fabricated because Restore-Test has no executable payout row and no legitimate external payout occurred.
+- Physical bank transfer/provider settlement remains an external financial gate.
+- Production remains FROZEN.
+- Vercel current-head Preview parity remains separately blocked by known deployment capacity/rate limit.
+
+ACTION FLOW:
+Owner/Staff enters Payout Control
+-> authenticated staff guard
+-> canonical payout read RPC
+-> payout queue / financial state visible
+-> explicit human decision
+-> existing velora_record_payout_execution
+-> payout status + ledger write
+-> audit log
+-> downstream external settlement remains outside this UI
+
+STATUS:
+- Owner Payout Control read surface = CLOSED-DONE.
+- Payout execution-recording adapter = IMPLEMENTED.
+- Payout positive execution browser evidence = OPEN because no legitimate pending payout exists in Restore-Test.
+- Full Owner control-plane completeness = OPEN.
+
+NEXT:
+- Continue by auditing existing subscription and seller-advertising control surfaces; reuse their existing canonical purchase/state machinery and add only missing Owner/Staff governance visibility or routing.
