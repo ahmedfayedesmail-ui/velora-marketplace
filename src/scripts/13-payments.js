@@ -69,7 +69,7 @@ async function renderVerifiedPaymentReturn(){
       const paid=String(order?.payment_status||'').toLowerCase()==='paid';
       const confirmed=String(order?.status||'').toLowerCase()==='confirmed';
       if(paid&&confirmed){
-        terminal={order,paymentAttempt};
+        terminal={order};
         break;
       }
       if(String(order?.payment_status||'').toLowerCase()==='failed')break;
