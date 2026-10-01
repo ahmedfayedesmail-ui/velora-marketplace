@@ -303,9 +303,12 @@ jobs:
           const checks=await loadBusinessTruthContracts("evidence/witness/velora-payment-business-truth.v1.json");
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({
-            storageState:"customer-state.json",
             viewport:{width:390,height:844}
           });
+          const authState=JSON.parse(await fs.readFile("customer-state.json","utf8"));
+          context.addInitScript(
+            `localStorage.setItem(${JSON.stringify("sb-arlaxqmhtvjwjbjinjfw-auth-token")}, ${JSON.stringify(JSON.stringify(authState))})`
+          );
           const page=await context.newPage();
           const target="http://127.0.0.1:4173/?velora_order_id="+encodeURIComponent(process.env.ORDER_ID || await fs.readFile("selected-order-id.txt","utf8"));
           await page.goto(target,{waitUntil:"domcontentloaded",timeout:45000});
