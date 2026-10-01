@@ -286,6 +286,7 @@ jobs:
       - name: Run cross-origin Business Truth browser gate
         env:
           ENGINE_FILE: "/opt/hostedtoolcache/node/20.20.2/x64/lib/node_modules/@witness-engine/cli/src/business-truth.js"
+          NODE_PATH: "/opt/hostedtoolcache/node/20.20.2/x64/lib/node_modules"
         run: |
           set -euo pipefail
           ORDER_ID="$(cat selected-order-id.txt)"
