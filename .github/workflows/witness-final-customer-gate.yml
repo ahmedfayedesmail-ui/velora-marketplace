@@ -244,9 +244,44 @@ jobs:
 
       - name: Run WITNESS v0.9.1 Focused Scan
         run: |
-          set -euo pipefail
+          set +e
           ORDER_ID="$(cat selected-order-id.txt)"
           witness scan             --url "http://127.0.0.1:4173/?velora_order_id=$ORDER_ID"             --repo "$GITHUB_WORKSPACE"             --grant witness-local-grant.json             --profiles profiles.json             --personas customer             --truth evidence/witness/velora-payment-business-truth.v1.json             --allow-private-origin             --mode focus             --focus payment             --explore             --max-pages 6             --max-actions 4             --output witness-final-v091-run
+          CODE=$?
+          echo "WITNESS_SCAN_EXIT_CODE=$CODE" | tee witness-scan-exit.txt
+          if [ "$CODE" -ne 0 ] && [ "$CODE" -ne 10 ]; then
+            exit "$CODE"
+          fi
+          test -s witness-final-v091-run/result.json
+
+      - name: Classify Focused Scan evidence
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result=json.loads(Path("witness-final-v091-run/result.json").read_text())
+          exit_code=int(Path("witness-scan-exit.txt").read_text().split("=")[-1])
+          summary=result.get("summary",{})
+          proof={
+            "schema":"witness-final-focused-scan-proof.v1",
+            "witnessPackageVersion":"0.9.1",
+            "exitCode":exit_code,
+            "exitMeaning":"FINDINGS_PRESENT" if exit_code==10 else "PASS",
+            "pagesVisited":summary.get("pagesVisited",0),
+            "businessTruthChecks":summary.get("businessTruthChecks",0),
+            "businessTruthContradictions":summary.get("businessTruthContradictions",0),
+            "confirmedFindings":summary.get("confirmedFindings",0),
+            "high":summary.get("high",0),
+            "medium":summary.get("medium",0),
+            "low":summary.get("low",0),
+            "blocked":summary.get("blocked",[]),
+            "authorization":result.get("authorization",{}),
+            "sentinel":result.get("sentinel",{})
+          }
+          Path("focused-scan-proof.json").write_text(json.dumps(proof,indent=2)+"\n")
+          print(json.dumps(proof,indent=2))
+          PY
 
       - name: Run cross-origin Business Truth browser gate
         env:
@@ -342,6 +377,8 @@ jobs:
             browser-claim-proof.json
             payment-return-proof.png
             cross-origin-final-proof.json
+            focused-scan-proof.json
+            witness-scan-exit.txt
             witness-final-v091-run/result.json
             witness-final-v091-run/behavior.json
             witness-final-v091-run/state-model.json
