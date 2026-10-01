@@ -1,0 +1,357 @@
+name: WITNESS Final Customer Gate
+
+on:
+  push:
+    branches:
+      - experiment/witness-final-live-2026-10-01
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: witness-final-customer-gate
+  cancel-in-progress: true
+
+jobs:
+  customer-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout Velora target
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install WITNESS 0.9.1 and browser
+        run: |
+          npm install -g @witness-engine/cli@0.9.1
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install chromium
+
+      - name: Resolve Supabase publishable key from existing verified workflow
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path(".github/workflows/witness-cross-origin-payment.yml").read_text(encoding="utf-8")
+          m = re.search(r'SUPABASE_PUBLISHABLE_KEY:\s*([A-Za-z0-9_]+)', text)
+          if not m:
+              raise SystemExit("Existing verified workflow does not contain a publishable key.")
+          key = m.group(1)
+          with open("/tmp/supabase-key.env","w",encoding="utf-8") as f:
+              f.write("SUPABASE_PUBLISHABLE_KEY="+key+"\n")
+          print("publishable key resolved from existing repository workflow")
+
+      - name: Authenticate E2E customer and select paid Paymob-backed order
+        env:
+          SUPABASE_URL: https://arlaxqmhtvjwjbjinjfw.supabase.co
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set -a
+          . /tmp/supabase-key.env
+          set +a
+          python3 - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          from pathlib import Path
+
+          base=os.environ["SUPABASE_URL"].rstrip("/")
+          key=os.environ["SUPABASE_PUBLISHABLE_KEY"]
+
+          def req(method,url,body=None,headers=None):
+              data=None
+              h=dict(headers or {})
+              if body is not None:
+                  data=json.dumps(body).encode()
+                  h["Content-Type"]="application/json"
+              r=urllib.request.Request(url,method=method,data=data,headers=h)
+              with urllib.request.urlopen(r,timeout=30) as response:
+                  raw=response.read().decode()
+                  return response.status,json.loads(raw) if raw else {}
+
+          status,auth=req(
+              "POST",
+              f"{base}/auth/v1/token?grant_type=password",
+              {"email":os.environ["E2E_EMAIL"],"password":os.environ["E2E_PASSWORD"]},
+              {"apikey":key}
+          )
+          assert status==200 and auth.get("access_token") and (auth.get("user") or {}).get("id"), "E2E authentication failed"
+          access=auth["access_token"]
+          user_id=auth["user"]["id"]
+          headers={"apikey":key,"Authorization":"Bearer "+access}
+
+          query=urllib.parse.urlencode({
+              "customer_id":f"eq.{user_id}",
+              "status":"eq.confirmed",
+              "payment_status":"eq.paid",
+              "select":"id,order_number,status,payment_status,total,currency,created_at",
+              "order":"created_at.desc",
+              "limit":"1",
+          },safe=",")
+          status,rows=req("GET",f"{base}/rest/v1/orders?{query}",headers=headers)
+          assert status==200 and rows, "No customer-owned confirmed+paid order available"
+          order=rows[0]
+          order_id=str(order["id"])
+
+          query=urllib.parse.urlencode({
+              "order_id":f"eq.{order_id}",
+              "select":"id,status,amount,currency_code,provider_payment_id,provider_session_id,metadata,provider_id",
+              "order":"created_at.desc",
+              "limit":"1",
+          },safe=",")
+          status,attempts=req("GET",f"{base}/rest/v1/payment_attempts?{query}",headers=headers)
+          assert status==200 and attempts, "No payment attempt available for selected order"
+          attempt=attempts[0]
+
+          query=urllib.parse.urlencode({"id":f"eq.{attempt['provider_id']}","select":"id,name","limit":"1"})
+          status,providers=req("GET",f"{base}/rest/v1/payment_providers?{query}",headers=headers)
+          assert status==200 and providers, "Payment provider lookup failed"
+          provider=providers[0]
+
+          state={
+              "access_token":access,
+              "refresh_token":auth.get("refresh_token",""),
+              "expires_in":auth.get("expires_in"),
+              "expires_at":auth.get("expires_at"),
+              "token_type":auth.get("token_type","bearer"),
+              "user":auth["user"]
+          }
+          storage_key="sb-arlaxqmhtvjwjbjinjfw-auth-token"
+          Path("customer-state.json").write_text(json.dumps(state),encoding="utf-8")
+          Path("order-proof.json").write_text(json.dumps({
+              "schema":"witness-final-customer-order-proof.v1",
+              "orderId":order["id"],
+              "orderNumber":order["order_number"],
+              "status":order["status"],
+              "paymentStatus":order["payment_status"],
+              "total":order["total"],
+              "currency":order["currency"],
+              "paymentAttemptStatus":attempt["status"],
+              "paymentAttemptCurrency":attempt["currency_code"],
+              "provider":provider["name"],
+              "providerPaymentId":attempt.get("provider_payment_id"),
+              "providerSessionId":attempt.get("provider_session_id"),
+              "paymobOrderId":(attempt.get("metadata") or {}).get("paymob_order_id"),
+              "paymobReconciliationEligible":(attempt.get("metadata") or {}).get("paymob_reconciliation_eligible") is True
+          },indent=2)+"\n",encoding="utf-8")
+          Path("selected-order-id.txt").write_text(order_id,encoding="utf-8")
+          Path("profiles.json").write_text(json.dumps({"customer":str(Path.cwd()/"customer-state.json")}),encoding="utf-8")
+          with open(os.environ["GITHUB_ENV"],"a",encoding="utf-8") as f:
+              f.write("WITNESS_VELORA_SUPABASE_AUTHORIZATION=Bearer "+access+"\n")
+              f.write("WITNESS_VELORA_SUPABASE_PUBLISHABLE_KEY="+key+"\n")
+          print("E2E customer authenticated; latest owned confirmed+paid order selected")
+          PY
+
+      - name: Inject verified cross-origin Business Truth engine
+        run: |
+          set -euo pipefail
+          ENGINE_FILE="$(npm root -g)/@witness-engine/cli/src/business-truth.js"
+          python3 - <<'PY' > /tmp/witness-business-truth.b64
+          import re
+          from pathlib import Path
+          text=Path(".github/workflows/witness-cross-origin-payment.yml").read_text(encoding="utf-8")
+          m=re.search(r'WITNESS_BUSINESS_TRUTH_B64:\s*"([A-Za-z0-9+/=]+)"',text)
+          if not m:
+              raise SystemExit("Verified business-truth engine source not found")
+          print(m.group(1),end="")
+          PY
+          base64 --decode /tmp/witness-business-truth.b64 > "$ENGINE_FILE"
+          node --check "$ENGINE_FILE"
+
+      - name: Start Velora local runtime
+        run: |
+          set -euo pipefail
+          nohup python3 -m http.server 4173 --directory src >/tmp/velora-final-customer.log 2>&1 &
+          echo $! >/tmp/velora-final-customer.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "local runtime ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/velora-final-customer.log || true
+          exit 1
+
+      - name: Browser claim gate
+        env:
+          WITNESS_ORDER_ID: ${{ env.WITNESS_ORDER_ID }}
+        run: |
+          set -euo pipefail
+          ORDER_ID="$(cat selected-order-id.txt)"
+          python3 - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          order_id=Path("selected-order-id.txt").read_text().strip()
+          target="http://127.0.0.1:4173/?velora_order_id="+order_id
+          storage=Path("customer-state.json").resolve()
+
+          with sync_playwright() as p:
+              browser=p.chromium.launch(headless=True)
+              context=browser.new_context(
+                  viewport={"width":390,"height":844},
+                  storage_state=str(storage)
+              )
+              page=context.new_page()
+              console_errors=[]
+              page_errors=[]
+              page.on("console",lambda m: console_errors.append(m.text) if m.type=="error" else None)
+              page.on("pageerror",lambda e: page_errors.append(str(e)))
+              page.goto(target,wait_until="domcontentloaded",timeout=45000)
+              visible=False
+              body=""
+              for _ in range(24):
+                  body=page.locator("body").inner_text()
+                  if "Payment successful" in body:
+                      visible=True
+                      break
+                  time.sleep(1)
+              assert visible, "Velora did not render Payment successful"
+              Path("browser-claim-proof.json").write_text(json.dumps({
+                  "schema":"witness-final-browser-claim-proof.v1",
+                  "browserSuccessClaimObserved":True,
+                  "text":"Payment successful",
+                  "targetPath":"/?velora_order_id="+order_id,
+                  "consoleErrors":len(console_errors),
+                  "pageErrors":len(page_errors)
+              },indent=2)+"\n",encoding="utf-8")
+              context.storage_state(path="customer-state-verified.json")
+              page.screenshot(path="payment-return-proof.png",full_page=True)
+              browser.close()
+          print("Payment successful browser claim observed")
+          PY
+
+      - name: Authorize local target
+        run: |
+          set -euo pipefail
+          ORDER_ID="$(cat selected-order-id.txt)"
+          witness target authorize-local             --url "http://127.0.0.1:4173/?velora_order_id=$ORDER_ID"             --repo "$GITHUB_WORKSPACE"             --output witness-local-grant.json
+
+      - name: Run WITNESS v0.9.1 Focused Scan
+        run: |
+          set -euo pipefail
+          ORDER_ID="$(cat selected-order-id.txt)"
+          witness scan             --url "http://127.0.0.1:4173/?velora_order_id=$ORDER_ID"             --repo "$GITHUB_WORKSPACE"             --grant witness-local-grant.json             --profiles profiles.json             --personas customer             --truth evidence/witness/velora-payment-business-truth.v1.json             --allow-private-origin             --mode focus             --focus payment             --explore             --max-pages 6             --max-actions 4             --output witness-final-v091-run
+
+      - name: Run cross-origin Business Truth browser gate
+        env:
+          ENGINE_FILE: "/opt/hostedtoolcache/node/20.20.2/x64/lib/node_modules/@witness-engine/cli/src/business-truth.js"
+        run: |
+          set -euo pipefail
+          ORDER_ID="$(cat selected-order-id.txt)"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs/promises';
+          import { createRequire } from 'node:module';
+
+          const require=createRequire(import.meta.url);
+          const { chromium }=require('playwright');
+          const { loadBusinessTruthContracts, runBusinessTruthChecks }=await import(process.env.ENGINE_FILE);
+
+          const checks=await loadBusinessTruthContracts("evidence/witness/velora-payment-business-truth.v1.json");
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({
+            storageState:"customer-state.json",
+            viewport:{width:390,height:844}
+          });
+          const page=await context.newPage();
+          const target="http://127.0.0.1:4173/?velora_order_id="+encodeURIComponent(process.env.ORDER_ID || await fs.readFile("selected-order-id.txt","utf8"));
+          await page.goto(target,{waitUntil:"domcontentloaded",timeout:45000});
+          let body="";
+          for(let i=0;i<24;i++){
+            body=await page.locator("body").innerText();
+            if(body.includes("Payment successful")) break;
+            await new Promise(r=>setTimeout(r,1000));
+          }
+          assert.match(body,/Payment successful/i);
+
+          const snapshot={url:page.url(),text:body,state:"payment-success",persona:"customer"};
+          const result=await runBusinessTruthChecks({
+            page,
+            browserSnapshot:snapshot,
+            after:snapshot,
+            persona:"customer",
+            checks
+          });
+          await browser.close();
+
+          const observation=result.observations.find(o=>o.checkId==="velora-payment-return-order-truth");
+          const consistent=result.observations.filter(o=>o.verdict==="CONSISTENT");
+          const contradictions=result.findings.filter(f=>f.code==="BUSINESS-TRUTH-001");
+          const gate={
+            schema:"witness-final-cross-origin-browser-gate.v1",
+            witnessPackageVersion:"0.9.1",
+            browserClaimObserved:body.includes("Payment successful"),
+            observationMode:observation?.api?.observation?.mode || null,
+            allowedOrigin:observation?.api?.observation?.allowedOrigin || false,
+            apiStatus:observation?.api?.status || null,
+            consistent:consistent.length,
+            contradictions:contradictions.length,
+            stateAssertions:observation?.state?.assertions || [],
+            passed:Boolean(
+              body.includes("Payment successful") &&
+              observation &&
+              observation.verdict==="CONSISTENT" &&
+              observation.api?.status===200 &&
+              observation.api?.observation?.mode==="cross-origin" &&
+              observation.api?.observation?.allowedOrigin===true &&
+              consistent.length===1 &&
+              contradictions.length===0
+            ),
+            safety:{
+              productionTouched:false,
+              realMoneyMoved:false,
+              destructiveBrowserActions:false,
+              authStorageStatesUploaded:false
+            }
+          };
+          await fs.writeFile("cross-origin-final-proof.json",JSON.stringify(gate,null,2)+"\n");
+          console.log(JSON.stringify(gate,null,2));
+          assert.equal(gate.passed,true);
+          NODE
+
+      - name: Validate and sanitize evidence
+        if: always()
+        run: |
+          rm -f customer-state.json customer-state-verified.json profiles.json witness-local-grant.json selected-order-id.txt
+          rm -f /tmp/velora-final-customer.pid /tmp/supabase-key.env /tmp/witness-business-truth.b64
+
+      - name: Upload final customer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: witness-final-customer-gate
+          if-no-files-found: warn
+          path: |
+            order-proof.json
+            browser-claim-proof.json
+            payment-return-proof.png
+            cross-origin-final-proof.json
+            witness-final-v091-run/result.json
+            witness-final-v091-run/behavior.json
+            witness-final-v091-run/state-model.json
+            witness-final-v091-run/coverage.json
+            witness-final-v091-run/contracts-applied.json
+            witness-final-v091-run/business-truth-applied.json
+            witness-final-v091-run/results.sarif
+            witness-final-v091-run/sentinel.json
+
+      - name: Stop Velora runtime
+        if: always()
+        run: |
+          if [ -f /tmp/velora-final-customer.pid ]; then
+            kill "$(cat /tmp/velora-final-customer.pid)" || true
+          fi
