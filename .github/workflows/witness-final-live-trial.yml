@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - experiment/witness-final-live-2026-10-01
+  pull_request:
+    types: [opened, synchronize]
 
 permissions:
   contents: read
