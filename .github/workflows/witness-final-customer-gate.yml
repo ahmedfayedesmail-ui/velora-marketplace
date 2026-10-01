@@ -203,8 +203,10 @@ jobs:
           with sync_playwright() as p:
               browser=p.chromium.launch(headless=True)
               context=browser.new_context(
-                  viewport={"width":390,"height":844},
-                  storage_state=str(storage)
+                  viewport={"width":390,"height":844}
+              )
+              context.add_init_script(
+                  f"localStorage.setItem({json.dumps('sb-arlaxqmhtvjwjbjinjfw-auth-token')}, {json.dumps(json.dumps(json.loads(storage.read_text())))})"
               )
               page=context.new_page()
               console_errors=[]
@@ -229,7 +231,6 @@ jobs:
                   "consoleErrors":len(console_errors),
                   "pageErrors":len(page_errors)
               },indent=2)+"\n",encoding="utf-8")
-              context.storage_state(path="customer-state-verified.json")
               page.screenshot(path="payment-return-proof.png",full_page=True)
               browser.close()
           print("Payment successful browser claim observed")
